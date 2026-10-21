@@ -3,6 +3,7 @@ import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 
 const PHONE_PRICE = 2000;
+const SELL_TO_GAME_MULTIPLIER = 0.7; // 70% от стоимости при продаже государству
 const ENERGY_COOLDOWN_MS = 60000; 
 
 interface Player {
@@ -38,6 +39,10 @@ function App() {
 
   const [globalPlayers, setGlobalPlayers] = useState<Player[]>([]);
   const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
+
+  // Состояния для модального окна продажи
+  const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+  const [sellPriceInput, setSellPriceInput] = useState('2000');
 
   const [activeTab, setActiveTab] = useState<'home' | 'shop' | 'inventory' | 'market'>('home');
   const [notification, setNotification] = useState<string | null>(null);
@@ -187,18 +192,37 @@ function App() {
     showNotification("Телефон куплен!");
   };
 
-  const handleSellPhoneToMarket = async () => {
+  // 1. СДАТЬ В ЛОМБАРД (ГОСУДАРСТВУ)
+  const handleSellToGame = () => {
     hapticFeedback('heavy');
+    if (!hasPhone) return;
+    
+    const sellPrice = Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER);
+    const newMoney = money + sellPrice;
+    
+    setMoney(newMoney);
+    setHasPhone(false);
+    saveProgress({ money: newMoney, has_phone: false });
+    showNotification(`Телефон сдан за ${sellPrice} монет.`);
+  };
+
+  // 2. ВЫСТАВИТЬ НА РЫНОК ДЛЯ ИГРОКОВ
+  const handleConfirmSellToMarket = async () => {
+    hapticFeedback('medium');
     if (!hasPhone || !playerId) return;
     
-    const price = prompt("За сколько монет хочешь продать телефон?", "2000");
-    if (!price || isNaN(Number(price))) return;
+    const price = Number(sellPriceInput);
+    if (isNaN(price) || price <= 0) {
+      return showNotification("Введи корректную цену!", true);
+    }
+
+    setIsSellModalOpen(false); // Закрываем модалку
 
     await supabase.from('market_items').insert([{
       seller_id: playerId,
       seller_name: nickname,
       item_type: 'phone',
-      price: Number(price)
+      price: price
     }]);
 
     setHasPhone(false);
@@ -234,6 +258,7 @@ function App() {
 
   if (isLoading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка профиля...</div>;
 
+  // --- ЭКРАН РЕГИСТРАЦИИ ---
   if (!nickname || !gender) {
     return (
       <div style={{ padding: 20, fontFamily: 'sans-serif', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white' }}>
@@ -249,12 +274,33 @@ function App() {
     );
   }
 
+  // --- ОСНОВНОЙ ЭКРАН ---
   return (
     <div style={{ padding: '20px 20px 90px 20px', fontFamily: 'sans-serif', textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white' }}>
       
       {notification && (
-        <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', backgroundColor: notifColor, color: 'white', padding: '15px 25px', borderRadius: '10px', fontWeight: 'bold', zIndex: 1000, width: '80%', maxWidth: '300px' }}>
+        <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', backgroundColor: notifColor, color: 'white', padding: '15px 25px', borderRadius: '10px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '300px' }}>
           {notification}
+        </div>
+      )}
+
+      {/* МОДАЛЬНОЕ ОКНО ПРОДАЖИ */}
+      {isSellModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1500, padding: 20 }}>
+          <div style={{ backgroundColor: '#1e1e24', padding: 20, borderRadius: 16, width: '100%', maxWidth: '320px', border: '1px solid #333', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+            <h3 style={{ marginTop: 0, color: '#fff', fontSize: 20 }}>Продажа телефона</h3>
+            <p style={{ fontSize: 14, color: '#a1a1aa', marginBottom: 15, lineHeight: 1.4 }}>Укажи цену, за которую хочешь продать телефон другим игрокам на барахолке.</p>
+            <input 
+              type="number" 
+              value={sellPriceInput} 
+              onChange={(e) => setSellPriceInput(e.target.value)} 
+              style={{ width: '100%', padding: 12, borderRadius: 8, backgroundColor: '#121212', color: '#fff', border: '1px solid #444', textAlign: 'center', fontSize: 18, marginBottom: 20, boxSizing: 'border-box' }} 
+            />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setIsSellModalOpen(false)} style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#333', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Отмена</button>
+              <button onClick={handleConfirmSellToMarket} style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#8b5cf6', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Выставить</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -351,16 +397,23 @@ function App() {
           <h2>🎒 Инвентарь</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '350px', margin: '0 auto' }}>
             {hasPhone ? (
-              <div style={{ backgroundColor: '#1e1e24', padding: 16, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #333' }}>
+              <div style={{ backgroundColor: '#1e1e24', padding: 16, borderRadius: 12, display: 'flex', flexDirection: 'column', gap: '15px', border: '1px solid #333' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                   <div style={{ fontSize: 32 }}>📱</div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'bold' }}>Смартфон</div>
+                    <div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div>
+                    <div style={{ fontSize: 12, color: '#a1a1aa' }}>Гаджет</div>
                   </div>
                 </div>
-                <button onClick={handleSellPhoneToMarket} style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, padding: '10px 15px', cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
-                  Продать игрокам
-                </button>
+                {/* КНОПКИ ПРОДАЖИ */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button onClick={() => setIsSellModalOpen(true)} style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%' }}>
+                    Выставить на рынок
+                  </button>
+                  <button onClick={handleSellToGame} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%' }}>
+                    Сдать в ломбард (+{Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER)})
+                  </button>
+                </div>
               </div>
             ) : <div style={{ color: '#52525b', padding: 40 }}>Пусто...</div>}
           </div>
