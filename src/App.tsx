@@ -88,7 +88,7 @@ function App() {
 
   useEffect(() => { loadPlayerData(); }, [user]);
 
-  // Умный таймер кассы (с защитой от рассинхрона)
+  // Умный расчет кассы на клиенте (только для отображения)
   useEffect(() => {
     if (!myBusiness || !myBusiness.worker_id || !myBusiness.last_collected) {
       setPendingIncome(0);
@@ -98,9 +98,9 @@ function App() {
     const updateIncome = () => {
       const lastCollected = new Date(myBusiness.last_collected).getTime();
       const now = Date.now();
-      const diffMinutes = (now - lastCollected) / 60000; 
-      const income = Math.floor(diffMinutes * 100);
-      setPendingIncome(income > 0 ? income : 0);
+      const diffSeconds = Math.max(0, (now - lastCollected) / 1000); 
+      const income = Math.floor(diffSeconds * (100 / 60)); 
+      setPendingIncome(isNaN(income) ? 0 : income);
     };
 
     updateIncome(); 
@@ -165,7 +165,6 @@ function App() {
     }
   };
 
-  // --- ОПТИМИЗИРОВАННЫЕ ДЕЙСТВИЯ ---
   const handleWork = async () => {
     if (isSaving) return;
     if (!hasPhone) return showNotification("Без телефона не найти работу!", true);
@@ -276,21 +275,21 @@ function App() {
     setIsSaving(false);
   };
 
+  // ИДЕАЛЬНЫЙ СБОР ДОХОДА (Вызывает SQL, база сама начисляет деньги)
   const handleCollectIncome = async () => {
-    if (isSaving || pendingIncome <= 0 || !myBusiness) return;
+    if (isSaving || !myBusiness) return;
     setIsSaving(true); hapticFeedback('medium');
     
-    const { data, error }: any = await supabase.rpc('collect_business_income', { biz_id: myBusiness.id });
+    const { data, error }: any = await supabase.rpc('collect_business_income', { 
+      biz_id: myBusiness.id, 
+      p_id: playerId 
+    });
     
-    // ИСПРАВЛЕНО: Проверяем на null и на 0
     if (error) {
       showNotification("Ошибка сбора: " + error.message, true);
     } else if (data && Number(data) > 0) {
-      const newMoney = Number(money) + Number(data);
-      await saveProgress({ money: newMoney });
-      setMoney(newMoney);
       showNotification(`Собрано ${data} монет!`);
-      await loadPlayerData(); 
+      await loadPlayerData(); // Обновляем всё из БД
     } else {
       showNotification("В кассе пока нет монет. Подожди немного!", true);
     }
@@ -300,7 +299,7 @@ function App() {
   const handleHireWorker = async (bizId: string, workerId: string, workerName: string) => {
     if (isSaving) return;
     setIsSaving(true); hapticFeedback('medium');
-    await supabase.from('businesses').update({ worker_id: workerId, worker_name: workerName }).eq('id', bizId);
+    await supabase.from('businesses').update({ worker_id: workerId, worker_name: workerName, last_collected: new Date().toISOString() }).eq('id', bizId);
     showNotification("Сотрудник нанят!"); await loadPlayerData(); setIsSaving(false);
   };
 
