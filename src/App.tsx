@@ -11,7 +11,14 @@ const WORKER_BONUS_TO_OWNER = 100;
 
 interface Player { id: string; nickname: string; money: number; }
 interface MarketItem { id: string; seller_id: string; seller_name: string; item_type: string; price: number; }
-interface Business { id: string; owner_id: string; owner_name: string; worker_id: string | null; worker_name: string | null; }
+interface Business { 
+  id: string; 
+  owner_id: string; 
+  owner_name: string; 
+  worker_id: string | null; 
+  worker_name: string | null;
+  last_collected: string;
+}
 
 function App() {
   const { user, hapticFeedback } = useTelegram();
@@ -27,7 +34,7 @@ function App() {
 
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
-  const [hasPhone, setHasPhone] = useState(false); // Просто есть или нет
+  const [hasPhone, setHasPhone] = useState(false); 
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const [globalPlayers, setGlobalPlayers] = useState<Player[]>([]);
@@ -36,6 +43,8 @@ function App() {
   const [myBusiness, setMyBusiness] = useState<Business | null>(null);
   const [myJob, setMyJob] = useState<Business | null>(null); 
   const [allBusinesses, setAllBusinesses] = useState<Business[]>([]);
+
+  const [pendingIncome, setPendingIncome] = useState(0);
 
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
   const [sellPriceInput, setSellPriceInput] = useState('2000');
@@ -64,7 +73,6 @@ function App() {
       setGender(data.gender);
       setMoney(Number(data.money));
       setEnergy(Number(data.energy));
-      // Если в базе phone_count > 0, значит телефон есть
       setHasPhone(Number(data.phone_count) > 0); 
       
       const now = Date.now();
@@ -85,6 +93,26 @@ function App() {
   };
 
   useEffect(() => { loadPlayerData(); }, [user]);
+
+  // ТАЙМЕР КАССЫ: 100 монет в минуту
+  useEffect(() => {
+    if (!myBusiness || !myBusiness.worker_id || !myBusiness.last_collected) {
+      setPendingIncome(0);
+      return;
+    }
+
+    const updateIncome = () => {
+      const lastCollected = new Date(myBusiness.last_collected).getTime();
+      const now = Date.now();
+      const diffMinutes = (now - lastCollected) / 60000; 
+      const income = Math.floor(diffMinutes * 100); // 100 монет за минуту
+      setPendingIncome(income > 0 ? income : 0);
+    };
+
+    updateIncome(); 
+    const interval = setInterval(updateIncome, 1000); 
+    return () => clearInterval(interval);
+  }, [myBusiness]);
 
   useEffect(() => {
     if (activeTab === 'market') {
@@ -148,16 +176,11 @@ function App() {
     hapticFeedback('medium');
     if (!hasPhone) return showNotification("Без телефона не найти работу!", true);
     if (energy < 20) return showNotification("Ты слишком устал!", true);
-    
     setIsSaving(true);
     const newMoney = Number(money) + 500;
     const newEnergy = Math.max(0, Number(energy) - 20);
-    
     const success = await saveProgress({ money: newMoney, energy: newEnergy });
-    if (success) {
-      setMoney(newMoney); setEnergy(newEnergy); 
-      showNotification("Работа +500 монет");
-    }
+    if (success) { setMoney(newMoney); setEnergy(newEnergy); showNotification("Работа +500 монет"); }
     setIsSaving(false);
   };
 
@@ -165,16 +188,11 @@ function App() {
     if (isSaving) return;
     hapticFeedback('light');
     if (energy < 20) return showNotification("Ты слишком устал!", true);
-    
     setIsSaving(true);
     const newMoney = Number(money) + 200;
     const newEnergy = Math.max(0, Number(energy) - 20);
-    
     const success = await saveProgress({ money: newMoney, energy: newEnergy });
-    if (success) {
-      setMoney(newMoney); setEnergy(newEnergy); 
-      showNotification("Подработка +200 монет");
-    }
+    if (success) { setMoney(newMoney); setEnergy(newEnergy); showNotification("Подработка +200 монет"); }
     setIsSaving(false);
   };
 
@@ -183,15 +201,10 @@ function App() {
     hapticFeedback('light');
     if (timeLeft > 0) return showNotification(`Жди ${timeLeft} сек.`, true);
     if (energy === 100) return showNotification("Полная энергия!", true);
-    
     setIsSaving(true);
     const now = Date.now();
     const success = await saveProgress({ energy: 100, last_rest_time: now });
-    if (success) {
-      setEnergy(100); 
-      setTimeLeft(ENERGY_COOLDOWN_MS / 1000);
-      showNotification("Энергия восстановлена!");
-    }
+    if (success) { setEnergy(100); setTimeLeft(ENERGY_COOLDOWN_MS / 1000); showNotification("Энергия восстановлена!"); }
     setIsSaving(false);
   };
 
@@ -206,16 +219,10 @@ function App() {
     if (isSaving) return;
     hapticFeedback('heavy');
     if (money < PHONE_PRICE) return;
-    
     setIsSaving(true);
     const newMoney = Number(money) - PHONE_PRICE;
-    
-    // Записываем 1 в базу
     const success = await saveProgress({ money: newMoney, phone_count: 1 });
-    if (success) {
-      setMoney(newMoney); setHasPhone(true); 
-      showNotification("Телефон куплен!");
-    }
+    if (success) { setMoney(newMoney); setHasPhone(true); showNotification("Телефон куплен!"); }
     setIsSaving(false);
   };
 
@@ -223,17 +230,11 @@ function App() {
     if (isSaving) return;
     hapticFeedback('heavy');
     if (!hasPhone) return;
-    
     setIsSaving(true);
     const sellPrice = Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER);
     const newMoney = Number(money) + sellPrice;
-    
-    // Записываем 0 в базу
     const success = await saveProgress({ money: newMoney, phone_count: 0 });
-    if (success) {
-      setMoney(newMoney); setHasPhone(false); 
-      showNotification(`Сдан за ${sellPrice} монет.`);
-    }
+    if (success) { setMoney(newMoney); setHasPhone(false); showNotification(`Сдан за ${sellPrice} монет.`); }
     setIsSaving(false);
   };
 
@@ -243,19 +244,12 @@ function App() {
     if (!hasPhone || !playerId) return;
     const price = Number(sellPriceInput);
     if (isNaN(price) || price <= 0) return showNotification("Некорректная цена!", true);
-
     setIsSaving(true);
     const { error } = await supabase.from('market_items').insert([{ seller_id: playerId, seller_name: nickname, item_type: 'phone', price: price }]);
-    
     if (!error) {
       await saveProgress({ phone_count: 0 });
-      setHasPhone(false); 
-      showNotification("Выставлено на рынок!"); 
-      setIsSellModalOpen(false);
-      setActiveTab('market');
-    } else {
-      showNotification("Ошибка выставления", true);
-    }
+      setHasPhone(false); showNotification("Выставлено на рынок!"); setIsSellModalOpen(false); setActiveTab('market');
+    } else { showNotification("Ошибка выставления", true); }
     setIsSaving(false);
   };
 
@@ -263,15 +257,9 @@ function App() {
     if (isSaving) return;
     hapticFeedback('heavy');
     setIsSaving(true);
-    
     const { data }: any = await supabase.rpc('buy_market_item', { buyer_id: playerId, lot_id: lotId });
-    if (!data) { 
-      showNotification("Не хватает денег или лот продан!", true); 
-    } else { 
-      showNotification("Покупка успешна!"); 
-      await loadPlayerData();
-      setActiveTab('market'); 
-    }
+    if (!data) { showNotification("Не хватает денег или лот продан!", true); } 
+    else { showNotification("Покупка успешна!"); await loadPlayerData(); setActiveTab('market'); }
     setIsSaving(false);
   };
 
@@ -280,32 +268,22 @@ function App() {
     hapticFeedback('heavy');
     if (money < BUSINESS_PRICE) return showNotification("Нужно 10 000 монет!", true);
     if (myBusiness) return showNotification("У тебя уже есть бизнес!", true);
-
     setIsSaving(true);
     const newMoney = Number(money) - BUSINESS_PRICE;
-    
     const success = await saveProgress({ money: newMoney });
     if (success) {
       setMoney(newMoney);
-      const { error }: any = await supabase.from('businesses').insert([{
-        owner_id: playerId, owner_name: nickname, worker_id: null
-      }]);
-
-      if (error) {
-        showNotification("Ошибка БД: " + error.message, true);
-      } else {
-        showNotification("Кофейня открыта!"); 
-        await loadPlayerData();
-      }
+      const { error }: any = await supabase.from('businesses').insert([{ owner_id: playerId, owner_name: nickname, worker_id: null }]);
+      if (error) { showNotification("Ошибка БД: " + error.message, true); } 
+      else { showNotification("Кофейня открыта!"); await loadPlayerData(); }
     }
     setIsSaving(false);
   };
 
   const handleCollectIncome = async () => {
-    if (isSaving) return;
+    if (isSaving || pendingIncome <= 0) return;
     if (!myBusiness) return;
     setIsSaving(true);
-    
     const { data, error }: any = await supabase.rpc('collect_business_income', { biz_id: myBusiness.id });
     if (error) {
       showNotification("Ошибка сбора: " + error.message, true);
@@ -314,8 +292,9 @@ function App() {
       await saveProgress({ money: newMoney });
       setMoney(newMoney);
       showNotification(`Собрано ${data} монет!`);
+      await loadPlayerData(); 
     } else {
-      showNotification("Нет прибыли или нет сотрудника.", true);
+      showNotification("В кассе пока нет монет. Подожди немного!", true);
     }
     setIsSaving(false);
   };
@@ -324,22 +303,16 @@ function App() {
     if (isSaving) return;
     hapticFeedback('medium');
     setIsSaving(true);
-    
     await supabase.from('businesses').update({ worker_id: workerId, worker_name: workerName }).eq('id', bizId);
-    showNotification("Сотрудник нанят!");
-    await loadPlayerData();
-    setIsSaving(false);
+    showNotification("Сотрудник нанят!"); await loadPlayerData(); setIsSaving(false);
   };
 
   const handleFireWorker = async () => {
     if (isSaving) return;
     if (!myBusiness) return;
     setIsSaving(true);
-    
     await supabase.from('businesses').update({ worker_id: null, worker_name: null }).eq('id', myBusiness.id);
-    showNotification("Сотрудник уволен.");
-    await loadPlayerData();
-    setIsSaving(false);
+    showNotification("Сотрудник уволен."); await loadPlayerData(); setIsSaving(false);
   };
 
   const handleWorkShift = async () => {
@@ -347,19 +320,14 @@ function App() {
     hapticFeedback('medium');
     if (!myJob) return;
     if (energy < 20) return showNotification("Ты устал!", true);
-
     setIsSaving(true);
     const newEnergy = Math.max(0, Number(energy) - 20);
     const newMoney = Number(money) + WORKER_SALARY;
-    
     const success = await saveProgress({ energy: newEnergy, money: newMoney });
     if (success) {
       setEnergy(newEnergy); setMoney(newMoney);
-      
       const { data: ownerData }: any = await supabase.from('players').select('money').eq('id', myJob.owner_id).single();
-      if (ownerData) {
-        await supabase.from('players').update({ money: Number(ownerData.money) + WORKER_BONUS_TO_OWNER }).eq('id', myJob.owner_id);
-      }
+      if (ownerData) { await supabase.from('players').update({ money: Number(ownerData.money) + WORKER_BONUS_TO_OWNER }).eq('id', myJob.owner_id); }
       showNotification(`Ты заработал ${WORKER_SALARY} монет!`);
     }
     setIsSaving(false);
@@ -432,10 +400,25 @@ function App() {
               <div style={{ fontSize: 40, marginBottom: 10 }}>☕ Кофейня</div>
               <p>Владелец: <b>Ты</b></p>
               <p>Сотрудник: <b>{myBusiness.worker_name || 'Нет'}</b></p>
-              <button onClick={handleCollectIncome} disabled={isSaving} style={{ fontSize: 16, padding: 15, width: '100%', backgroundColor: '#10b981', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none', marginBottom: 10, opacity: isSaving ? 0.7 : 1 }}>Собрать пассивный доход</button>
+              
+              {myBusiness.worker_id ? (
+                <div style={{ backgroundColor: '#121212', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid #333' }}>
+                  <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#a1a1aa' }}>Доход: <b>100 монет / мин</b></p>
+                  <p style={{ margin: 0, fontSize: 20, color: '#10b981', fontWeight: 'bold' }}>
+                    В кассе: {pendingIncome} 💰
+                  </p>
+                </div>
+              ) : (
+                <p style={{ color: '#fbbf24', fontSize: 14 }}>Найми сотрудника, чтобы бизнес начал приносить доход!</p>
+              )}
+
+              <button onClick={handleCollectIncome} disabled={isSaving || pendingIncome <= 0} style={{ fontSize: 16, padding: 15, width: '100%', backgroundColor: pendingIncome > 0 ? '#10b981' : '#333', color: pendingIncome > 0 ? 'white' : '#888', borderRadius: 12, fontWeight: 'bold', border: 'none', marginBottom: 10, opacity: isSaving ? 0.7 : 1 }}>
+                Собрать пассивный доход
+              </button>
+
               {myBusiness.worker_id ? (
                 <button onClick={handleFireWorker} disabled={isSaving} style={{ fontSize: 14, padding: 12, width: '100%', backgroundColor: '#ef4444', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none', opacity: isSaving ? 0.7 : 1 }}>Уволить сотрудника</button>
-              ) : <p style={{ color: '#fbbf24', fontSize: 14 }}>Найди сотрудника в списке ниже!</p>}
+              ) : null}
             </div>
           ) : (
             <div style={{ ...cardStyle, textAlign: 'center' }}>
