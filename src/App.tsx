@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 
@@ -68,7 +67,6 @@ function App() {
   };
 
   const loadMarketData = async () => {
-    // Загрузка топа
     const { data: players }: any = await supabase
       .from('players')
       .select('id, nickname, money')
@@ -76,7 +74,6 @@ function App() {
       .limit(10);
     if (players) setGlobalPlayers(players);
 
-    // Загрузка лотов
     const { data: lots }: any = await supabase
       .from('market_items')
       .select('*')
@@ -174,7 +171,7 @@ function App() {
 
   useEffect(() => {
     if (timeLeft > 0) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      const timer = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
       return () => clearTimeout(timer);
     }
   }, [timeLeft]);
@@ -197,33 +194,29 @@ function App() {
     const price = prompt("За сколько монет хочешь продать телефон?", "2000");
     if (!price || isNaN(Number(price))) return;
 
-    const { error }: any = await supabase.from('market_items').insert([{
+    await supabase.from('market_items').insert([{
       seller_id: playerId,
       seller_name: nickname,
       item_type: 'phone',
       price: Number(price)
     }]);
 
-    if (!error) {
-      setHasPhone(false);
-      saveProgress({ has_phone: false });
-      showNotification("Телефон выставлен на рынок!");
-      setActiveTab('market'); // Перекидываем на рынок
-      loadMarketData();
-    } else {
-      showNotification("Ошибка выставления лота", true);
-    }
+    setHasPhone(false);
+    saveProgress({ has_phone: false });
+    showNotification("Телефон выставлен на рынок!");
+    setActiveTab('market');
+    loadMarketData();
   };
 
   const handleBuyLot = async (lotId: string) => {
     hapticFeedback('heavy');
     
-    const { data, error }: any = await supabase.rpc('buy_market_item', {
+    const { data }: any = await supabase.rpc('buy_market_item', {
       buyer_id: playerId,
       lot_id: lotId
     });
 
-    if (error || !data) {
+    if (!data) {
       showNotification("Не хватает денег или лот продан!", true);
     } else {
       showNotification("Покупка успешна!");
@@ -241,7 +234,6 @@ function App() {
 
   if (isLoading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка профиля...</div>;
 
-  // --- ЭКРАН РЕГИСТРАЦИИ ---
   if (!nickname || !gender) {
     return (
       <div style={{ padding: 20, fontFamily: 'sans-serif', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white' }}>
@@ -257,7 +249,6 @@ function App() {
     );
   }
 
-  // --- ОСНОВНОЙ ЭКРАН ---
   return (
     <div style={{ padding: '20px 20px 90px 20px', fontFamily: 'sans-serif', textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white' }}>
       
@@ -279,7 +270,6 @@ function App() {
         <div style={{ fontSize: 18 }}>⚡ <b>{energy}</b>/100</div>
       </div>
 
-      {/* ВКЛАДКА: ГЛАВНАЯ */}
       {activeTab === 'home' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
           <button onClick={handleWork} style={{ fontSize: 18, padding: 16, width: '320px', cursor: hasPhone ? 'pointer' : 'not-allowed', backgroundColor: hasPhone ? '#10b981' : '#333', color: hasPhone ? 'white' : '#888', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>
@@ -294,7 +284,6 @@ function App() {
         </div>
       )}
 
-      {/* ВКЛАДКА: МАГАЗИН */}
       {activeTab === 'shop' && (
         <div>
           <h2>🏪 Гос. магазин</h2>
@@ -311,7 +300,6 @@ function App() {
         </div>
       )}
 
-      {/* ВКЛАДКА: РЫНОК */}
       {activeTab === 'market' && (
         <div>
           <h2>🌍 Барахолка</h2>
@@ -358,7 +346,6 @@ function App() {
         </div>
       )}
 
-      {/* ВКЛАДКА: ИНВЕНТАРЬ */}
       {activeTab === 'inventory' && (
         <div>
           <h2>🎒 Инвентарь</h2>
@@ -380,7 +367,6 @@ function App() {
         </div>
       )}
 
-      {/* НИЖНЕЕ МЕНЮ */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#1e1e24', borderTop: '1px solid #333', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
         <button onClick={() => setActiveTab('home')} style={{ background: 'none', border: 'none', fontSize: 12, color: activeTab === 'home' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <span style={{ fontSize: 20 }}>🏠</span> Главная
