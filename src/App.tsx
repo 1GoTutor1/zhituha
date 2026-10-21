@@ -9,27 +9,9 @@ const BUSINESS_PRICE = 10000;
 const WORKER_SALARY = 300; 
 const WORKER_BONUS_TO_OWNER = 100; 
 
-interface Player {
-  id: string;
-  nickname: string;
-  money: number;
-}
-
-interface MarketItem {
-  id: string;
-  seller_id: string;
-  seller_name: string;
-  item_type: string;
-  price: number;
-}
-
-interface Business {
-  id: string;
-  owner_id: string;
-  owner_name: string;
-  worker_id: string | null;
-  worker_name: string | null;
-}
+interface Player { id: string; nickname: string; money: number; }
+interface MarketItem { id: string; seller_id: string; seller_name: string; item_type: string; price: number; }
+interface Business { id: string; owner_id: string; owner_name: string; worker_id: string | null; worker_name: string | null; }
 
 function App() {
   const { user, hapticFeedback } = useTelegram();
@@ -44,13 +26,12 @@ function App() {
 
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
-  const [phoneCount, setPhoneCount] = useState(0); // Теперь это счетчик!
+  const [phoneCount, setPhoneCount] = useState(0); 
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const [globalPlayers, setGlobalPlayers] = useState<Player[]>([]);
   const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
   
-  // Бизнес
   const [myBusiness, setMyBusiness] = useState<Business | null>(null);
   const [myJob, setMyJob] = useState<Business | null>(null); 
   const [allBusinesses, setAllBusinesses] = useState<Business[]>([]);
@@ -74,7 +55,14 @@ function App() {
 
   const loadPlayerData = async () => {
     const tgId = getUniqueId(); 
-    const { data }: any = await supabase.from('players').select('*').eq('telegram_id', tgId).single();
+    // maybeSingle безопаснее, чем single, если данных еще нет
+    const { data, error }: any = await supabase.from('players').select('*').eq('telegram_id', tgId).maybeSingle();
+
+    if (error) {
+      showNotification("Ошибка загрузки данных", true);
+      setIsLoading(false);
+      return;
+    }
 
     if (data) {
       setPlayerId(data.id);
@@ -82,19 +70,12 @@ function App() {
       setGender(data.gender);
       setMoney(data.money);
       setEnergy(data.energy);
-      setPhoneCount(data.phone_count || 0); // Загружаем количество
+      setPhoneCount(data.phone_count || 0);
       
       const now = Date.now();
       const lastRest = data.last_rest_time || 0;
       const diff = Math.max(0, Math.ceil((lastRest + ENERGY_COOLDOWN_MS - now) / 1000));
       setTimeLeft(diff);
-      
-      const { data: bizData }: any = await supabase.from('businesses').select('*');
-      if (bizData) {
-        setAllBusinesses(bizData);
-        setMyBusiness(bizData.find((b: any) => b.owner_id === data.id) || null);
-        setMyJob(bizData.find((b: any) => b.worker_id === data.id) || null);
-      }
     } else if (user?.first_name) {
       setInputName(user.first_name);
     }
@@ -103,25 +84,40 @@ function App() {
 
   useEffect(() => { loadPlayerData(); }, [user]);
 
+  // Загружаем данные только для конкретной вкладки (чтобы не перезаписать деньги старыми данными)
   useEffect(() => {
     if (activeTab === 'market') {
       const fetchMarket = async () => {
         const { data: players }: any = await supabase.from('players').select('id, nickname, money').order('money', { ascending: false }).limit(10);
         if (players) setGlobalPlayers(players);
-
         const { data: lots }: any = await supabase.from('market_items').select('*').order('created_at', { ascending: false });
         if (lots) setMarketItems(lots);
       };
       fetchMarket();
     }
-    if (activeTab === 'business') {
-      loadPlayerData(); 
+    
+    if (activeTab === 'business' && playerId) {
+      const fetchBiz = async () => {
+        const { data }: any = await supabase.from('businesses').select('*');
+        if (data) {
+          setAllBusinesses(data);
+          setMyBusiness(data.find((b: any) => b.owner_id === playerId) || null);
+          setMyJob(data.find((b: any) => b.worker_id === playerId) || null);
+        }
+      };
+      fetchBiz();
     }
-  }, [activeTab]);
+  }, [activeTab, playerId]);
 
+  // Универсальная функция сохранения (возвращает true, если сохранилось)
   const saveProgress = async (newData: Record<string, unknown>) => {
-    if (!playerId) return;
-    await supabase.from('players').update(newData).eq('id', playerId);
+    if (!playerId) return false;
+    const { error } = await supabase.from('players').update(newData).eq('id', playerId);
+    if (error) {
+      showNotification("Ошибка сохранения", true);
+      return false;
+    }
+    return true;
   };
 
   const showNotification = (message: string, isError: boolean = false) => {
@@ -147,36 +143,48 @@ function App() {
     }
   };
 
-  const handleWork = () => {
+  const handleWork = async () => {
     hapticFeedback('medium');
     if (phoneCount === 0) return showNotification("Без телефона не найти работу!", true);
     if (energy < 20) return showNotification("Ты слишком устал!", true);
+    
     const newMoney = money + 500;
     const newEnergy = Math.max(0, energy - 20);
-    setMoney(newMoney); setEnergy(newEnergy); saveProgress({ money: newMoney, energy: newEnergy });
-    showNotification("Работа +500 монет");
+    
+    // Сначала сохраняем в БД, потом обновляем экран
+    const success = await saveProgress({ money: newMoney, energy: newEnergy });
+    if (success) {
+      setMoney(newMoney); setEnergy(newEnergy); 
+      showNotification("Работа +500 монет");
+    }
   };
 
-  const handleWorkJanitor = () => {
+  const handleWorkJanitor = async () => {
     hapticFeedback('light');
     if (energy < 20) return showNotification("Ты слишком устал!", true);
+    
     const newMoney = money + 200;
     const newEnergy = Math.max(0, energy - 20);
-    setMoney(newMoney); setEnergy(newEnergy); saveProgress({ money: newMoney, energy: newEnergy });
-    showNotification("Подработка +200 монет");
+    
+    const success = await saveProgress({ money: newMoney, energy: newEnergy });
+    if (success) {
+      setMoney(newMoney); setEnergy(newEnergy); 
+      showNotification("Подработка +200 монет");
+    }
   };
 
-  const handleRest = () => {
+  const handleRest = async () => {
     hapticFeedback('light');
     if (timeLeft > 0) return showNotification(`Жди ${timeLeft} сек.`, true);
     if (energy === 100) return showNotification("Полная энергия!", true);
     
     const now = Date.now();
-    setEnergy(100); 
-    saveProgress({ energy: 100, last_rest_time: now });
-    
-    setTimeLeft(ENERGY_COOLDOWN_MS / 1000);
-    showNotification("Энергия восстановлена!");
+    const success = await saveProgress({ energy: 100, last_rest_time: now });
+    if (success) {
+      setEnergy(100); 
+      setTimeLeft(ENERGY_COOLDOWN_MS / 1000);
+      showNotification("Энергия восстановлена!");
+    }
   };
 
   useEffect(() => {
@@ -186,27 +194,33 @@ function App() {
     }
   }, [timeLeft]);
 
-  const handleBuyPhone = () => {
+  const handleBuyPhone = async () => {
     hapticFeedback('heavy');
     if (money < PHONE_PRICE) return;
-    const newMoney = money - PHONE_PRICE;
-    const newCount = phoneCount + 1; // +1 телефон
     
-    setMoney(newMoney); setPhoneCount(newCount); 
-    saveProgress({ money: newMoney, phone_count: newCount });
-    showNotification("Телефон куплен! Он в сумке.");
+    const newMoney = money - PHONE_PRICE;
+    const newCount = phoneCount + 1; 
+    
+    const success = await saveProgress({ money: newMoney, phone_count: newCount });
+    if (success) {
+      setMoney(newMoney); setPhoneCount(newCount); 
+      showNotification("Телефон куплен! Он в сумке.");
+    }
   };
 
-  const handleSellToGame = () => {
+  const handleSellToGame = async () => {
     hapticFeedback('heavy');
     if (phoneCount <= 0) return;
+    
     const sellPrice = Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER);
     const newMoney = money + sellPrice;
-    const newCount = phoneCount - 1; // -1 телефон
+    const newCount = phoneCount - 1; 
     
-    setMoney(newMoney); setPhoneCount(newCount); 
-    saveProgress({ money: newMoney, phone_count: newCount });
-    showNotification(`Сдан за ${sellPrice} монет.`);
+    const success = await saveProgress({ money: newMoney, phone_count: newCount });
+    if (success) {
+      setMoney(newMoney); setPhoneCount(newCount); 
+      showNotification(`Сдан за ${sellPrice} монет.`);
+    }
   };
 
   const handleConfirmSellToMarket = async () => {
@@ -216,19 +230,27 @@ function App() {
     if (isNaN(price) || price <= 0) return showNotification("Некорректная цена!", true);
 
     setIsSellModalOpen(false);
-    await supabase.from('market_items').insert([{ seller_id: playerId, seller_name: nickname, item_type: 'phone', price: price }]);
+    const { error } = await supabase.from('market_items').insert([{ seller_id: playerId, seller_name: nickname, item_type: 'phone', price: price }]);
     
-    const newCount = phoneCount - 1;
-    setPhoneCount(newCount); 
-    saveProgress({ phone_count: newCount });
-    showNotification("Выставлено на рынок!"); setActiveTab('market');
+    if (!error) {
+      const newCount = phoneCount - 1;
+      await saveProgress({ phone_count: newCount });
+      setPhoneCount(newCount); 
+      showNotification("Выставлено на рынок!"); 
+      setActiveTab('market');
+    }
   };
 
   const handleBuyLot = async (lotId: string) => {
     hapticFeedback('heavy');
     const { data }: any = await supabase.rpc('buy_market_item', { buyer_id: playerId, lot_id: lotId });
     if (!data) { showNotification("Не хватает денег или лот продан!", true); } 
-    else { showNotification("Покупка успешна! Телефон в сумке."); loadPlayerData(); setActiveTab('market'); }
+    else { 
+      showNotification("Покупка успешна! Телефон в сумке."); 
+      // Обновляем данные из базы после покупки
+      await loadPlayerData();
+      setActiveTab('market'); 
+    }
   };
 
   const handleBuyBusiness = async () => {
@@ -237,18 +259,25 @@ function App() {
     if (myBusiness) return showNotification("У тебя уже есть бизнес!", true);
 
     const newMoney = money - BUSINESS_PRICE;
-    setMoney(newMoney);
-    saveProgress({ money: newMoney });
+    
+    const success = await saveProgress({ money: newMoney });
+    if (success) {
+      setMoney(newMoney);
+      const { error }: any = await supabase.from('businesses').insert([{
+        owner_id: playerId, owner_name: nickname, worker_id: null
+      }]);
 
-    const { error }: any = await supabase.from('businesses').insert([{
-      owner_id: playerId, owner_name: nickname, worker_id: null
-    }]);
-
-    if (error) {
-      showNotification("Ошибка БД: " + error.message, true);
-    } else {
-      showNotification("Кофейня открыта!"); 
-      loadPlayerData();
+      if (error) {
+        showNotification("Ошибка БД: " + error.message, true);
+      } else {
+        showNotification("Кофейня открыта!"); 
+        // Подгружаем бизнесы заново
+        const { data }: any = await supabase.from('businesses').select('*');
+        if (data) {
+          setAllBusinesses(data);
+          setMyBusiness(data.find((b: any) => b.owner_id === playerId) || null);
+        }
+      }
     }
   };
 
@@ -259,10 +288,9 @@ function App() {
       showNotification("Ошибка сбора: " + error.message, true);
     } else if (data > 0) {
       const newMoney = money + data;
+      await saveProgress({ money: newMoney });
       setMoney(newMoney);
-      saveProgress({ money: newMoney });
       showNotification(`Собрано ${data} монет (пассивка)!`);
-      loadPlayerData();
     } else {
       showNotification("Нет прибыли или нет сотрудника.", true);
     }
@@ -272,14 +300,26 @@ function App() {
     hapticFeedback('medium');
     await supabase.from('businesses').update({ worker_id: workerId, worker_name: workerName }).eq('id', bizId);
     showNotification("Сотрудник нанят!");
-    loadPlayerData();
+    
+    // Обновляем список вакансий
+    const { data }: any = await supabase.from('businesses').select('*');
+    if (data) {
+      setAllBusinesses(data);
+      setMyBusiness(data.find((b: any) => b.owner_id === playerId) || null);
+      setMyJob(data.find((b: any) => b.worker_id === playerId) || null);
+    }
   };
 
   const handleFireWorker = async () => {
     if (!myBusiness) return;
     await supabase.from('businesses').update({ worker_id: null, worker_name: null }).eq('id', myBusiness.id);
     showNotification("Сотрудник уволен.");
-    loadPlayerData();
+    
+    const { data }: any = await supabase.from('businesses').select('*');
+    if (data) {
+      setAllBusinesses(data);
+      setMyBusiness(data.find((b: any) => b.owner_id === playerId) || null);
+    }
   };
 
   const handleWorkShift = async () => {
@@ -290,16 +330,16 @@ function App() {
     const newEnergy = Math.max(0, energy - 20);
     const newMoney = money + WORKER_SALARY;
     
-    setEnergy(newEnergy); setMoney(newMoney);
-    saveProgress({ energy: newEnergy, money: newMoney });
-
-    const { data: ownerData }: any = await supabase.from('players').select('money').eq('id', myJob.owner_id).single();
-    if (ownerData) {
-      await supabase.from('players').update({ money: ownerData.money + WORKER_BONUS_TO_OWNER }).eq('id', myJob.owner_id);
+    const success = await saveProgress({ energy: newEnergy, money: newMoney });
+    if (success) {
+      setEnergy(newEnergy); setMoney(newMoney);
+      
+      const { data: ownerData }: any = await supabase.from('players').select('money').eq('id', myJob.owner_id).single();
+      if (ownerData) {
+        await supabase.from('players').update({ money: ownerData.money + WORKER_BONUS_TO_OWNER }).eq('id', myJob.owner_id);
+      }
+      showNotification(`Ты заработал ${WORKER_SALARY} монет за смену!`);
     }
-    
-    showNotification(`Ты заработал ${WORKER_SALARY} монет за смену!`);
-    loadPlayerData();
   };
 
   const cardStyle = { backgroundColor: '#1e1e24', color: 'white', padding: 20, borderRadius: 16, margin: '0 auto 20px auto', maxWidth: '350px', fontSize: 20, textAlign: 'left' as const, boxShadow: '0 8px 16px rgba(0,0,0,0.4)' };
