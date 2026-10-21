@@ -5,15 +5,18 @@ import { supabase } from './supabaseClient';
 const PHONE_PRICE = 2000;
 const SELL_MULTIPLIER = 0.75;
 const ENERGY_COOLDOWN_MS = 60000; 
-const SHOP_PRICE = 5000; 
-const SHOP_BASE_INCOME = 300; 
-const WORKER_SALARY = 100; 
+
+interface Player {
+  id: string;
+  nickname: string;
+  money: number;
+}
 
 function App() {
   const { user, hapticFeedback } = useTelegram();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [playerId, setPlayerId] = useState<string | null>(null); // ID в базе данных
+  const [playerId, setPlayerId] = useState<string | null>(null);
 
   const [nickname, setNickname] = useState('');
   const [inputName, setInputName] = useState('');
@@ -24,31 +27,25 @@ function App() {
   const [energy, setEnergy] = useState(80);
   const [hasPhone, setHasPhone] = useState(false);
 
-  const [hasShop, setHasShop] = useState(false);
-  const [hasWorker, setHasWorker] = useState(false);
-  const [uncollectedIncome, setUncollectedIncome] = useState(0);
-
-  const [cooldownEnd, setCooldownEnd] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
-  const [activeTab, setActiveTab] = useState<'home' | 'shop' | 'business' | 'inventory'>('home');
+  const [globalPlayers, setGlobalPlayers] = useState<Player[]>([]);
+
+  const [activeTab, setActiveTab] = useState<'home' | 'shop' | 'inventory' | 'market'>('home');
   const [notification, setNotification] = useState<string | null>(null);
   const [notifColor, setNotifColor] = useState('#10b981');
 
-  // Загрузка профиля из БД при старте
   useEffect(() => {
     const fetchPlayer = async () => {
-      // Для тестов в браузере используем заглушку, если нет ТГ
       const tgId = user?.id?.toString() || 'test_user_123'; 
 
-      const { data, error } = await supabase
+      const { data }: any = await supabase
         .from('players')
         .select('*')
         .eq('telegram_id', tgId)
         .single();
 
       if (data) {
-        // Игрок найден - загружаем данные
         setPlayerId(data.id);
         setNickname(data.nickname);
         setGender(data.gender);
@@ -56,7 +53,6 @@ function App() {
         setEnergy(data.energy);
         setHasPhone(data.has_phone);
       } else if (user?.first_name) {
-        // Игрока нет, но мы в ТГ - подставляем имя
         setInputName(user.first_name);
       }
       setIsLoading(false);
@@ -65,8 +61,21 @@ function App() {
     fetchPlayer();
   }, [user]);
 
-  // Сохранение изменений в БД (вызывается при действиях)
-  const saveProgress = async (newData: any) => {
+  useEffect(() => {
+    if (activeTab === 'market') {
+      const fetchMarket = async () => {
+        const { data }: any = await supabase
+          .from('players')
+          .select('id, nickname, money')
+          .order('money', { ascending: false })
+          .limit(20);
+        if (data) setGlobalPlayers(data);
+      };
+      fetchMarket();
+    }
+  }, [activeTab]);
+
+  const saveProgress = async (newData: Record<string, unknown>) => {
     if (!playerId) return;
     await supabase.from('players').update(newData).eq('id', playerId);
   };
@@ -77,7 +86,6 @@ function App() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Регистрация нового игрока (создание записи в БД)
   const handleRegister = async () => {
     hapticFeedback('medium');
     if (inputName.trim() === '') return showNotification('Введи никнейм!', true);
@@ -85,7 +93,7 @@ function App() {
 
     const tgId = user?.id?.toString() || 'test_user_123';
 
-    const { data, error } = await supabase.from('players').insert([
+    const { data }: any = await supabase.from('players').insert([
       {
         telegram_id: tgId,
         nickname: inputName,
@@ -96,20 +104,15 @@ function App() {
       }
     ]).select().single();
 
-    if (error) {
-      showNotification("Ошибка базы данных!", true);
-      console.error(error);
-      return;
-    }
-
     if (data) {
       setPlayerId(data.id);
       setNickname(inputName);
       setGender(selectedGender);
+    } else {
+      showNotification("Ошибка базы данных!", true);
     }
   };
 
-  // --- ДЕЙСТВИЯ ---
   const handleWork = () => {
     hapticFeedback('medium');
     if (!hasPhone) return showNotification("Без телефона не найти работу!", true);
@@ -145,10 +148,16 @@ function App() {
     setEnergy(100);
     saveProgress({ energy: 100 });
 
-    const newCooldownEnd = Date.now() + ENERGY_COOLDOWN_MS;
-    setCooldownEnd(newCooldownEnd);
+    setTimeLeft(60);
     showNotification("Энергия восстановлена!");
   };
+
+  useEffect(() => {
+    if (timeLeft > 0) {
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [timeLeft]);
 
   const handleBuyPhone = () => {
     hapticFeedback('heavy');
@@ -246,6 +255,26 @@ function App() {
         </div>
       )}
 
+      {activeTab === 'market' && (
+        <div>
+          <h2>🌍 Глобальный Топ</h2>
+          <p style={{ color: '#a1a1aa', marginBottom: 20, fontSize: 16 }}>Самые богатые игроки в Житухе</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '350px', margin: '0 auto' }}>
+            {globalPlayers.map((p, index) => (
+              <div key={p.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: 20, color: index === 0 ? '#fbbf24' : index === 1 ? '#9ca3af' : index === 2 ? '#b45309' : '#a1a1aa' }}>
+                    {index + 1}.
+                  </span>
+                  <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
+                </div>
+                <span style={{ color: '#10b981', fontWeight: 'bold' }}>{p.money} 💰</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'inventory' && (
         <div>
           <h2>🎒 Инвентарь</h2>
@@ -270,6 +299,9 @@ function App() {
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#1e1e24', borderTop: '1px solid #333', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
         <button onClick={() => setActiveTab('home')} style={{ background: 'none', border: 'none', fontSize: 12, color: activeTab === 'home' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <span style={{ fontSize: 20 }}>🏠</span> Главная
+        </button>
+        <button onClick={() => setActiveTab('market')} style={{ background: 'none', border: 'none', fontSize: 12, color: activeTab === 'market' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <span style={{ fontSize: 20 }}>🌍</span> Рынок
         </button>
         <button onClick={() => setActiveTab('shop')} style={{ background: 'none', border: 'none', fontSize: 12, color: activeTab === 'shop' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <span style={{ fontSize: 20 }}>🏪</span> Магазин
