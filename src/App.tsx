@@ -44,7 +44,7 @@ function App() {
 
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
-  const [hasPhone, setHasPhone] = useState(false);
+  const [phoneCount, setPhoneCount] = useState(0); // Теперь это счетчик!
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const [globalPlayers, setGlobalPlayers] = useState<Player[]>([]);
@@ -62,7 +62,6 @@ function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const [notifColor, setNotifColor] = useState('#10b981');
 
-  // Генерация уникального ID для браузера, если нет Telegram
   const getUniqueId = () => {
     if (user?.id) return user.id.toString();
     let browserId = localStorage.getItem('zhituha_browser_id');
@@ -83,18 +82,14 @@ function App() {
       setGender(data.gender);
       setMoney(data.money);
       setEnergy(data.energy);
-      setHasPhone(data.has_phone);
+      setPhoneCount(data.phone_count || 0); // Загружаем количество
       
-      // Восстанавливаем таймер кулдауна
       const now = Date.now();
       const lastRest = data.last_rest_time || 0;
       const diff = Math.max(0, Math.ceil((lastRest + ENERGY_COOLDOWN_MS - now) / 1000));
       setTimeLeft(diff);
       
-      // Загружаем бизнесы
-      const { data: bizData, error: bizError }: any = await supabase.from('businesses').select('*');
-      if (bizError) console.error("Ошибка бизнеса:", bizError);
-      
+      const { data: bizData }: any = await supabase.from('businesses').select('*');
       if (bizData) {
         setAllBusinesses(bizData);
         setMyBusiness(bizData.find((b: any) => b.owner_id === data.id) || null);
@@ -142,11 +137,10 @@ function App() {
 
     const tgId = getUniqueId();
     const { data, error }: any = await supabase.from('players').insert([{
-      telegram_id: tgId, nickname: inputName, gender: selectedGender, money: 3500, energy: 80, has_phone: false, last_rest_time: 0
+      telegram_id: tgId, nickname: inputName, gender: selectedGender, money: 3500, energy: 80, phone_count: 0, last_rest_time: 0
     }]).select().single();
 
     if (error) {
-      console.error(error);
       showNotification("Ошибка базы: " + error.message, true);
     } else if (data) {
       setPlayerId(data.id); setNickname(inputName); setGender(selectedGender);
@@ -155,7 +149,7 @@ function App() {
 
   const handleWork = () => {
     hapticFeedback('medium');
-    if (!hasPhone) return showNotification("Без телефона не найти работу!", true);
+    if (phoneCount === 0) return showNotification("Без телефона не найти работу!", true);
     if (energy < 20) return showNotification("Ты слишком устал!", true);
     const newMoney = money + 500;
     const newEnergy = Math.max(0, energy - 20);
@@ -196,28 +190,37 @@ function App() {
     hapticFeedback('heavy');
     if (money < PHONE_PRICE) return;
     const newMoney = money - PHONE_PRICE;
-    setMoney(newMoney); setHasPhone(true); saveProgress({ money: newMoney, has_phone: true });
-    showNotification("Телефон куплен!");
+    const newCount = phoneCount + 1; // +1 телефон
+    
+    setMoney(newMoney); setPhoneCount(newCount); 
+    saveProgress({ money: newMoney, phone_count: newCount });
+    showNotification("Телефон куплен! Он в сумке.");
   };
 
   const handleSellToGame = () => {
     hapticFeedback('heavy');
-    if (!hasPhone) return;
+    if (phoneCount <= 0) return;
     const sellPrice = Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER);
     const newMoney = money + sellPrice;
-    setMoney(newMoney); setHasPhone(false); saveProgress({ money: newMoney, has_phone: false });
+    const newCount = phoneCount - 1; // -1 телефон
+    
+    setMoney(newMoney); setPhoneCount(newCount); 
+    saveProgress({ money: newMoney, phone_count: newCount });
     showNotification(`Сдан за ${sellPrice} монет.`);
   };
 
   const handleConfirmSellToMarket = async () => {
     hapticFeedback('medium');
-    if (!hasPhone || !playerId) return;
+    if (phoneCount <= 0 || !playerId) return;
     const price = Number(sellPriceInput);
     if (isNaN(price) || price <= 0) return showNotification("Некорректная цена!", true);
 
     setIsSellModalOpen(false);
     await supabase.from('market_items').insert([{ seller_id: playerId, seller_name: nickname, item_type: 'phone', price: price }]);
-    setHasPhone(false); saveProgress({ has_phone: false });
+    
+    const newCount = phoneCount - 1;
+    setPhoneCount(newCount); 
+    saveProgress({ phone_count: newCount });
     showNotification("Выставлено на рынок!"); setActiveTab('market');
   };
 
@@ -225,7 +228,7 @@ function App() {
     hapticFeedback('heavy');
     const { data }: any = await supabase.rpc('buy_market_item', { buyer_id: playerId, lot_id: lotId });
     if (!data) { showNotification("Не хватает денег или лот продан!", true); } 
-    else { showNotification("Покупка успешна!"); loadPlayerData(); setActiveTab('market'); }
+    else { showNotification("Покупка успешна! Телефон в сумке."); loadPlayerData(); setActiveTab('market'); }
   };
 
   const handleBuyBusiness = async () => {
@@ -242,7 +245,6 @@ function App() {
     }]);
 
     if (error) {
-      console.error("Ошибка покупки:", error);
       showNotification("Ошибка БД: " + error.message, true);
     } else {
       showNotification("Кофейня открыта!"); 
@@ -254,7 +256,6 @@ function App() {
     if (!myBusiness) return;
     const { data, error }: any = await supabase.rpc('collect_business_income', { biz_id: myBusiness.id });
     if (error) {
-      console.error(error);
       showNotification("Ошибка сбора: " + error.message, true);
     } else if (data > 0) {
       const newMoney = money + data;
@@ -354,7 +355,7 @@ function App() {
 
       {activeTab === 'home' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
-          <button onClick={handleWork} style={{ fontSize: 18, padding: 16, width: '320px', cursor: hasPhone ? 'pointer' : 'not-allowed', backgroundColor: hasPhone ? '#10b981' : '#333', color: hasPhone ? 'white' : '#888', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>Работать (💰+500, ⚡-20)</button>
+          <button onClick={handleWork} style={{ fontSize: 18, padding: 16, width: '320px', cursor: phoneCount > 0 ? 'pointer' : 'not-allowed', backgroundColor: phoneCount > 0 ? '#10b981' : '#333', color: phoneCount > 0 ? 'white' : '#888', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>Работать (💰+500, ⚡-20)</button>
           <button onClick={handleWorkJanitor} style={{ fontSize: 18, padding: 16, width: '320px', backgroundColor: '#f59e0b', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>Дворником (💰+200, ⚡-20)</button>
           <button onClick={handleRest} disabled={timeLeft > 0} style={{ fontSize: 18, padding: 16, width: '320px', backgroundColor: timeLeft > 0 ? '#333' : '#3b82f6', color: timeLeft > 0 ? '#888' : 'white', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>{timeLeft > 0 ? `Ждать ${timeLeft} сек.` : 'Отдохнуть'}</button>
         </div>
@@ -424,11 +425,10 @@ function App() {
           <div style={{ ...cardStyle, textAlign: 'center' }}>
             <div style={{ fontSize: 60, marginBottom: 10 }}>📱</div>
             <h3>Смартфон</h3>
-            {hasPhone ? <div style={{ color: '#10b981', fontWeight: 'bold' }}>✅ Куплено</div> : (
-              <button onClick={handleBuyPhone} disabled={money < PHONE_PRICE} style={{ fontSize: 18, padding: 15, width: '100%', backgroundColor: money < PHONE_PRICE ? '#333' : '#8b5cf6', color: money < PHONE_PRICE ? '#888' : 'white', borderRadius: 12, fontWeight: 'bold', marginTop: 10, border: 'none' }}>
-                {money < PHONE_PRICE ? 'Мало денег' : `Купить за 💰 ${PHONE_PRICE}`}
-              </button>
-            )}
+            {phoneCount > 0 ? <div style={{ color: '#10b981', fontWeight: 'bold' }}>✅ У тебя уже есть {phoneCount} шт.</div> : null}
+            <button onClick={handleBuyPhone} disabled={money < PHONE_PRICE} style={{ fontSize: 18, padding: 15, width: '100%', backgroundColor: money < PHONE_PRICE ? '#333' : '#8b5cf6', color: money < PHONE_PRICE ? '#888' : 'white', borderRadius: 12, fontWeight: 'bold', marginTop: 10, border: 'none' }}>
+              {money < PHONE_PRICE ? 'Мало денег' : `Купить еще за 💰 ${PHONE_PRICE}`}
+            </button>
           </div>
         </div>
       )}
@@ -474,17 +474,17 @@ function App() {
         <div>
           <h2>🎒 Инвентарь</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '350px', margin: '0 auto' }}>
-            {hasPhone ? (
+            {phoneCount > 0 ? (
               <div style={{ backgroundColor: '#1e1e24', padding: 16, borderRadius: 12, display: 'flex', flexDirection: 'column', gap: '15px', border: '1px solid #333' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                   <div style={{ fontSize: 32 }}>📱</div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div>
+                    <div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон <b style={{color: '#3b82f6'}}>x{phoneCount}</b></div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={() => setIsSellModalOpen(true)} style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%' }}>Выставить на рынок</button>
-                  <button onClick={handleSellToGame} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%' }}>Сдать в ломбард (+{Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER)})</button>
+                  <button onClick={() => setIsSellModalOpen(true)} style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%' }}>Выставить 1 шт. на рынок</button>
+                  <button onClick={handleSellToGame} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%' }}>Сдать 1 шт. в ломбард (+{Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER)})</button>
                 </div>
               </div>
             ) : <div style={{ color: '#52525b', padding: 40 }}>Пусто...</div>}
