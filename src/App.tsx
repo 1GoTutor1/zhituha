@@ -17,7 +17,7 @@ function App() {
   const { user, hapticFeedback } = useTelegram();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false); // Защита от спама кнопок
+  const [isSaving, setIsSaving] = useState(false); 
   const [playerId, setPlayerId] = useState<string | null>(null);
 
   const [nickname, setNickname] = useState('');
@@ -27,7 +27,7 @@ function App() {
 
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
-  const [phoneCount, setPhoneCount] = useState(0); 
+  const [hasPhone, setHasPhone] = useState(false); // Просто есть или нет
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const [globalPlayers, setGlobalPlayers] = useState<Player[]>([]);
@@ -64,7 +64,8 @@ function App() {
       setGender(data.gender);
       setMoney(Number(data.money));
       setEnergy(Number(data.energy));
-      setPhoneCount(Number(data.phone_count) || 0); // Жестко приводим к числу
+      // Если в базе phone_count > 0, значит телефон есть
+      setHasPhone(Number(data.phone_count) > 0); 
       
       const now = Date.now();
       const lastRest = Number(data.last_rest_time) || 0;
@@ -142,11 +143,10 @@ function App() {
     }
   };
 
-  // ДЕЙСТВИЯ
   const handleWork = async () => {
     if (isSaving) return;
     hapticFeedback('medium');
-    if (phoneCount === 0) return showNotification("Без телефона не найти работу!", true);
+    if (!hasPhone) return showNotification("Без телефона не найти работу!", true);
     if (energy < 20) return showNotification("Ты слишком устал!", true);
     
     setIsSaving(true);
@@ -209,12 +209,12 @@ function App() {
     
     setIsSaving(true);
     const newMoney = Number(money) - PHONE_PRICE;
-    const newCount = Number(phoneCount) + 1; 
     
-    const success = await saveProgress({ money: newMoney, phone_count: newCount });
+    // Записываем 1 в базу
+    const success = await saveProgress({ money: newMoney, phone_count: 1 });
     if (success) {
-      setMoney(newMoney); setPhoneCount(newCount); 
-      showNotification("Телефон куплен! Он в сумке.");
+      setMoney(newMoney); setHasPhone(true); 
+      showNotification("Телефон куплен!");
     }
     setIsSaving(false);
   };
@@ -222,16 +222,16 @@ function App() {
   const handleSellToGame = async () => {
     if (isSaving) return;
     hapticFeedback('heavy');
-    if (phoneCount <= 0) return;
+    if (!hasPhone) return;
     
     setIsSaving(true);
     const sellPrice = Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER);
     const newMoney = Number(money) + sellPrice;
-    const newCount = Math.max(0, Number(phoneCount) - 1); 
     
-    const success = await saveProgress({ money: newMoney, phone_count: newCount });
+    // Записываем 0 в базу
+    const success = await saveProgress({ money: newMoney, phone_count: 0 });
     if (success) {
-      setMoney(newMoney); setPhoneCount(newCount); 
+      setMoney(newMoney); setHasPhone(false); 
       showNotification(`Сдан за ${sellPrice} монет.`);
     }
     setIsSaving(false);
@@ -240,7 +240,7 @@ function App() {
   const handleConfirmSellToMarket = async () => {
     if (isSaving) return;
     hapticFeedback('medium');
-    if (phoneCount <= 0 || !playerId) return;
+    if (!hasPhone || !playerId) return;
     const price = Number(sellPriceInput);
     if (isNaN(price) || price <= 0) return showNotification("Некорректная цена!", true);
 
@@ -248,9 +248,8 @@ function App() {
     const { error } = await supabase.from('market_items').insert([{ seller_id: playerId, seller_name: nickname, item_type: 'phone', price: price }]);
     
     if (!error) {
-      const newCount = Math.max(0, Number(phoneCount) - 1);
-      await saveProgress({ phone_count: newCount });
-      setPhoneCount(newCount); 
+      await saveProgress({ phone_count: 0 });
+      setHasPhone(false); 
       showNotification("Выставлено на рынок!"); 
       setIsSellModalOpen(false);
       setActiveTab('market');
@@ -269,8 +268,8 @@ function App() {
     if (!data) { 
       showNotification("Не хватает денег или лот продан!", true); 
     } else { 
-      showNotification("Покупка успешна! Телефон в сумке."); 
-      await loadPlayerData(); // Обновляем из БД
+      showNotification("Покупка успешна!"); 
+      await loadPlayerData();
       setActiveTab('market'); 
     }
     setIsSaving(false);
@@ -314,7 +313,7 @@ function App() {
       const newMoney = Number(money) + Number(data);
       await saveProgress({ money: newMoney });
       setMoney(newMoney);
-      showNotification(`Собрано ${data} монет (пассивка)!`);
+      showNotification(`Собрано ${data} монет!`);
     } else {
       showNotification("Нет прибыли или нет сотрудника.", true);
     }
@@ -361,7 +360,7 @@ function App() {
       if (ownerData) {
         await supabase.from('players').update({ money: Number(ownerData.money) + WORKER_BONUS_TO_OWNER }).eq('id', myJob.owner_id);
       }
-      showNotification(`Ты заработал ${WORKER_SALARY} монет за смену!`);
+      showNotification(`Ты заработал ${WORKER_SALARY} монет!`);
     }
     setIsSaving(false);
   };
@@ -419,7 +418,7 @@ function App() {
 
       {activeTab === 'home' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
-          <button onClick={handleWork} disabled={isSaving || phoneCount === 0} style={{ fontSize: 18, padding: 16, width: '320px', cursor: (isSaving || phoneCount === 0) ? 'not-allowed' : 'pointer', backgroundColor: phoneCount > 0 ? '#10b981' : '#333', color: phoneCount > 0 ? 'white' : '#888', borderRadius: 12, fontWeight: 'bold', border: 'none', opacity: isSaving ? 0.7 : 1 }}>Работать (💰+500, ⚡-20)</button>
+          <button onClick={handleWork} disabled={isSaving || !hasPhone} style={{ fontSize: 18, padding: 16, width: '320px', cursor: (isSaving || !hasPhone) ? 'not-allowed' : 'pointer', backgroundColor: hasPhone ? '#10b981' : '#333', color: hasPhone ? 'white' : '#888', borderRadius: 12, fontWeight: 'bold', border: 'none', opacity: isSaving ? 0.7 : 1 }}>Работать (💰+500, ⚡-20)</button>
           <button onClick={handleWorkJanitor} disabled={isSaving} style={{ fontSize: 18, padding: 16, width: '320px', backgroundColor: '#f59e0b', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none', opacity: isSaving ? 0.7 : 1 }}>Дворником (💰+200, ⚡-20)</button>
           <button onClick={handleRest} disabled={isSaving || timeLeft > 0} style={{ fontSize: 18, padding: 16, width: '320px', backgroundColor: timeLeft > 0 ? '#333' : '#3b82f6', color: timeLeft > 0 ? '#888' : 'white', borderRadius: 12, fontWeight: 'bold', border: 'none', opacity: isSaving ? 0.7 : 1 }}>{timeLeft > 0 ? `Ждать ${timeLeft} сек.` : 'Отдохнуть'}</button>
         </div>
@@ -489,10 +488,11 @@ function App() {
           <div style={{ ...cardStyle, textAlign: 'center' }}>
             <div style={{ fontSize: 60, marginBottom: 10 }}>📱</div>
             <h3>Смартфон</h3>
-            {phoneCount > 0 ? <div style={{ color: '#10b981', fontWeight: 'bold' }}>✅ У тебя уже есть {phoneCount} шт.</div> : null}
-            <button onClick={handleBuyPhone} disabled={isSaving || money < PHONE_PRICE} style={{ fontSize: 18, padding: 15, width: '100%', backgroundColor: money < PHONE_PRICE ? '#333' : '#8b5cf6', color: money < PHONE_PRICE ? '#888' : 'white', borderRadius: 12, fontWeight: 'bold', marginTop: 10, border: 'none', opacity: isSaving ? 0.7 : 1 }}>
-              {money < PHONE_PRICE ? 'Мало денег' : `Купить еще за 💰 ${PHONE_PRICE}`}
-            </button>
+            {hasPhone ? <div style={{ color: '#10b981', fontWeight: 'bold' }}>✅ Куплено</div> : (
+              <button onClick={handleBuyPhone} disabled={isSaving || money < PHONE_PRICE} style={{ fontSize: 18, padding: 15, width: '100%', backgroundColor: money < PHONE_PRICE ? '#333' : '#8b5cf6', color: money < PHONE_PRICE ? '#888' : 'white', borderRadius: 12, fontWeight: 'bold', marginTop: 10, border: 'none', opacity: isSaving ? 0.7 : 1 }}>
+                {money < PHONE_PRICE ? 'Мало денег' : `Купить за 💰 ${PHONE_PRICE}`}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -538,17 +538,17 @@ function App() {
         <div>
           <h2>🎒 Инвентарь</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '350px', margin: '0 auto' }}>
-            {phoneCount > 0 ? (
+            {hasPhone ? (
               <div style={{ backgroundColor: '#1e1e24', padding: 16, borderRadius: 12, display: 'flex', flexDirection: 'column', gap: '15px', border: '1px solid #333' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                   <div style={{ fontSize: 32 }}>📱</div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон <b style={{color: '#3b82f6'}}>x{phoneCount}</b></div>
+                    <div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={() => setIsSellModalOpen(true)} disabled={isSaving} style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>Выставить 1 шт. на рынок</button>
-                  <button onClick={handleSellToGame} disabled={isSaving} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>Сдать 1 шт. в ломбард (+{Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER)})</button>
+                  <button onClick={() => setIsSellModalOpen(true)} disabled={isSaving} style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>Выставить на рынок</button>
+                  <button onClick={handleSellToGame} disabled={isSaving} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>Сдать в ломбард (+{Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER)})</button>
                 </div>
               </div>
             ) : <div style={{ color: '#52525b', padding: 40 }}>Пусто...</div>}
