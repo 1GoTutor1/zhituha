@@ -5,9 +5,9 @@ import { supabase } from './supabaseClient';
 const PHONE_PRICE = 2000;
 const SELL_TO_GAME_MULTIPLIER = 0.7; 
 const ENERGY_COOLDOWN_MS = 60000; 
-const BUSINESS_PRICE = 10000; // Цена кофейни
-const WORKER_SALARY = 300; // Зарплата сотрудника
-const WORKER_BONUS_TO_OWNER = 100; // Бонус владельцу за смену сотрудника
+const BUSINESS_PRICE = 10000; 
+const WORKER_SALARY = 300; 
+const WORKER_BONUS_TO_OWNER = 100; 
 
 interface Player {
   id: string;
@@ -52,7 +52,7 @@ function App() {
   
   // Бизнес
   const [myBusiness, setMyBusiness] = useState<Business | null>(null);
-  const [myJob, setMyJob] = useState<Business | null>(null); // Если мы работаем на кого-то
+  const [myJob, setMyJob] = useState<Business | null>(null); 
   const [allBusinesses, setAllBusinesses] = useState<Business[]>([]);
 
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
@@ -62,11 +62,20 @@ function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const [notifColor, setNotifColor] = useState('#10b981');
 
-  // --- ЗАГРУЗКА ---
-  const loadPlayerData = async () => {
-    const tgId = user?.id?.toString() || 'test_user_123'; 
+  // Генерация уникального ID для браузера, если нет Telegram
+  const getUniqueId = () => {
+    if (user?.id) return user.id.toString();
+    let browserId = localStorage.getItem('zhituha_browser_id');
+    if (!browserId) {
+      browserId = 'user_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('zhituha_browser_id', browserId);
+    }
+    return browserId;
+  };
 
-    const { data }: any = await supabase.from('players').select('*').eq('telegram_id', tgId).single();
+  const loadPlayerData = async () => {
+    const tgId = getUniqueId(); 
+    const { data, error }: any = await supabase.from('players').select('*').eq('telegram_id', tgId).single();
 
     if (data) {
       setPlayerId(data.id);
@@ -76,8 +85,16 @@ function App() {
       setEnergy(data.energy);
       setHasPhone(data.has_phone);
       
-      // Загружаем бизнесы (свой и где работаем)
-      const { data: bizData }: any = await supabase.from('businesses').select('*');
+      // Восстанавливаем таймер кулдауна
+      const now = Date.now();
+      const lastRest = data.last_rest_time || 0;
+      const diff = Math.max(0, Math.ceil((lastRest + ENERGY_COOLDOWN_MS - now) / 1000));
+      setTimeLeft(diff);
+      
+      // Загружаем бизнесы
+      const { data: bizData, error: bizError }: any = await supabase.from('businesses').select('*');
+      if (bizError) console.error("Ошибка бизнеса:", bizError);
+      
       if (bizData) {
         setAllBusinesses(bizData);
         setMyBusiness(bizData.find((b: any) => b.owner_id === data.id) || null);
@@ -103,7 +120,7 @@ function App() {
       fetchMarket();
     }
     if (activeTab === 'business') {
-      loadPlayerData(); // Обновляем данные о бизнесе
+      loadPlayerData(); 
     }
   }, [activeTab]);
 
@@ -123,15 +140,16 @@ function App() {
     if (inputName.trim() === '') return showNotification('Введи никнейм!', true);
     if (!selectedGender) return showNotification('Выбери пол!', true);
 
-    const tgId = user?.id?.toString() || 'test_user_123';
-    const { data }: any = await supabase.from('players').insert([{
-      telegram_id: tgId, nickname: inputName, gender: selectedGender, money: 3500, energy: 80, has_phone: false
+    const tgId = getUniqueId();
+    const { data, error }: any = await supabase.from('players').insert([{
+      telegram_id: tgId, nickname: inputName, gender: selectedGender, money: 3500, energy: 80, has_phone: false, last_rest_time: 0
     }]).select().single();
 
-    if (data) {
+    if (error) {
+      console.error(error);
+      showNotification("Ошибка базы: " + error.message, true);
+    } else if (data) {
       setPlayerId(data.id); setNickname(inputName); setGender(selectedGender);
-    } else {
-      showNotification("Ошибка базы данных!", true);
     }
   };
 
@@ -158,7 +176,11 @@ function App() {
     hapticFeedback('light');
     if (timeLeft > 0) return showNotification(`Жди ${timeLeft} сек.`, true);
     if (energy === 100) return showNotification("Полная энергия!", true);
-    setEnergy(100); saveProgress({ energy: 100 });
+    
+    const now = Date.now();
+    setEnergy(100); 
+    saveProgress({ energy: 100, last_rest_time: now });
+    
     setTimeLeft(ENERGY_COOLDOWN_MS / 1000);
     showNotification("Энергия восстановлена!");
   };
@@ -206,7 +228,6 @@ function App() {
     else { showNotification("Покупка успешна!"); loadPlayerData(); setActiveTab('market'); }
   };
 
-  // --- БИЗНЕС ДЕЙСТВИЯ ---
   const handleBuyBusiness = async () => {
     hapticFeedback('heavy');
     if (money < BUSINESS_PRICE) return showNotification("Нужно 10 000 монет!", true);
@@ -216,16 +237,26 @@ function App() {
     setMoney(newMoney);
     saveProgress({ money: newMoney });
 
-    await supabase.from('businesses').insert([{
+    const { error }: any = await supabase.from('businesses').insert([{
       owner_id: playerId, owner_name: nickname, worker_id: null
     }]);
-    showNotification("Кофейня открыта!"); loadPlayerData();
+
+    if (error) {
+      console.error("Ошибка покупки:", error);
+      showNotification("Ошибка БД: " + error.message, true);
+    } else {
+      showNotification("Кофейня открыта!"); 
+      loadPlayerData();
+    }
   };
 
   const handleCollectIncome = async () => {
     if (!myBusiness) return;
-    const { data }: any = await supabase.rpc('collect_business_income', { biz_id: myBusiness.id });
-    if (data > 0) {
+    const { data, error }: any = await supabase.rpc('collect_business_income', { biz_id: myBusiness.id });
+    if (error) {
+      console.error(error);
+      showNotification("Ошибка сбора: " + error.message, true);
+    } else if (data > 0) {
       const newMoney = money + data;
       setMoney(newMoney);
       saveProgress({ money: newMoney });
@@ -258,11 +289,9 @@ function App() {
     const newEnergy = Math.max(0, energy - 20);
     const newMoney = money + WORKER_SALARY;
     
-    // Начисляем сотруднику
     setEnergy(newEnergy); setMoney(newMoney);
     saveProgress({ energy: newEnergy, money: newMoney });
 
-    // Начисляем бонус владельцу (в кассу)
     const { data: ownerData }: any = await supabase.from('players').select('money').eq('id', myJob.owner_id).single();
     if (ownerData) {
       await supabase.from('players').update({ money: ownerData.money + WORKER_BONUS_TO_OWNER }).eq('id', myJob.owner_id);
@@ -331,26 +360,18 @@ function App() {
         </div>
       )}
 
-      {/* БИЗНЕС */}
       {activeTab === 'business' && (
         <div>
           <h2>💼 Бизнес</h2>
-          
           {myBusiness ? (
             <div style={{ ...cardStyle }}>
               <div style={{ fontSize: 40, marginBottom: 10 }}>☕ Кофейня</div>
               <p>Владелец: <b>Ты</b></p>
               <p>Сотрудник: <b>{myBusiness.worker_name || 'Нет'}</b></p>
-              
-              <button onClick={handleCollectIncome} style={{ fontSize: 16, padding: 15, width: '100%', backgroundColor: '#10b981', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none', marginBottom: 10 }}>
-                Собрать пассивный доход
-              </button>
-
+              <button onClick={handleCollectIncome} style={{ fontSize: 16, padding: 15, width: '100%', backgroundColor: '#10b981', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none', marginBottom: 10 }}>Собрать пассивный доход</button>
               {myBusiness.worker_id ? (
                 <button onClick={handleFireWorker} style={{ fontSize: 14, padding: 12, width: '100%', backgroundColor: '#ef4444', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>Уволить сотрудника</button>
-              ) : (
-                <p style={{ color: '#fbbf24', fontSize: 14 }}>Найди сотрудника в списке ниже, чтобы включить пассивный доход!</p>
-              )}
+              ) : <p style={{ color: '#fbbf24', fontSize: 14 }}>Найди сотрудника в списке ниже!</p>}
             </div>
           ) : (
             <div style={{ ...cardStyle, textAlign: 'center' }}>
@@ -363,7 +384,6 @@ function App() {
             </div>
           )}
 
-          {/* ВАКАНСИИ (Куда можно устроиться) */}
           {!myJob && (
             <div style={{ marginTop: 30 }}>
               <h3 style={{ color: '#a1a1aa', fontSize: 18 }}>Свободные вакансии</h3>
@@ -384,7 +404,6 @@ function App() {
             </div>
           )}
 
-          {/* МОЯ РАБОТА (Если мы устроены) */}
           {myJob && (
             <div style={{ marginTop: 30 }}>
               <h3 style={{ color: '#a1a1aa', fontSize: 18 }}>Моя работа</h3>
@@ -396,11 +415,9 @@ function App() {
               </div>
             </div>
           )}
-
         </div>
       )}
 
-      {/* МАГАЗИН, ИНВЕНТАРЬ, РЫНОК - БЕЗ ИЗМЕНЕНИЙ */}
       {activeTab === 'shop' && (
         <div>
           <h2>🏪 Гос. магазин</h2>
@@ -476,17 +493,20 @@ function App() {
       )}
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#1e1e24', borderTop: '1px solid #333', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
-        <button onClick={() => setActiveTab('home')} style={{ background: 'none', border: 'none', fontSize: 12, color: activeTab === 'home' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <button onClick={() => setActiveTab('home')} style={{ background: 'none', border: 'none', fontSize: 11, color: activeTab === 'home' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px' }}>
           <span style={{ fontSize: 20 }}>🏠</span> Главная
         </button>
-        <button onClick={() => setActiveTab('business')} style={{ background: 'none', border: 'none', fontSize: 12, color: activeTab === 'business' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <button onClick={() => setActiveTab('business')} style={{ background: 'none', border: 'none', fontSize: 11, color: activeTab === 'business' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px' }}>
           <span style={{ fontSize: 20 }}>💼</span> Бизнес
         </button>
-        <button onClick={() => setActiveTab('market')} style={{ background: 'none', border: 'none', fontSize: 12, color: activeTab === 'market' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <button onClick={() => setActiveTab('market')} style={{ background: 'none', border: 'none', fontSize: 11, color: activeTab === 'market' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px' }}>
           <span style={{ fontSize: 20 }}>🌍</span> Рынок
         </button>
-        <button onClick={() => setActiveTab('shop')} style={{ background: 'none', border: 'none', fontSize: 12, color: activeTab === 'shop' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <button onClick={() => setActiveTab('shop')} style={{ background: 'none', border: 'none', fontSize: 11, color: activeTab === 'shop' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px' }}>
           <span style={{ fontSize: 20 }}>🏪</span> Магазин
+        </button>
+        <button onClick={() => setActiveTab('inventory')} style={{ background: 'none', border: 'none', fontSize: 11, color: activeTab === 'inventory' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px' }}>
+          <span style={{ fontSize: 20 }}>🎒</span> Сумка
         </button>
       </div>
     </div>
