@@ -75,7 +75,7 @@ function App() {
 
   const loadPlayerData = async () => {
     const tgId = getUniqueId(); 
-    const { data, error }: any = await supabase.from('players').select('*').eq('telegram_id', tgId).single();
+    const { data }: any = await supabase.from('players').select('*').eq('telegram_id', tgId).single();
 
     if (data) {
       setPlayerId(data.id);
