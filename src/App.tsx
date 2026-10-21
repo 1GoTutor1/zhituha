@@ -114,7 +114,8 @@ function App() {
     if (!playerId) return false;
     const { error } = await supabase.from('players').update(newData).eq('id', playerId);
     if (error) {
-      showNotification("Ошибка сохранения", true);
+      console.error("Ошибка Supabase:", error);
+      showNotification("Ошибка: " + error.message, true); // Покажет точный текст
       return false;
     }
     return true;
