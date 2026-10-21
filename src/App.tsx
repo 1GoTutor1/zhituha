@@ -3,13 +3,20 @@ import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 
 const PHONE_PRICE = 2000;
-const SELL_MULTIPLIER = 0.75;
 const ENERGY_COOLDOWN_MS = 60000; 
 
 interface Player {
   id: string;
   nickname: string;
   money: number;
+}
+
+interface MarketItem {
+  id: string;
+  seller_id: string;
+  seller_name: string;
+  item_type: string;
+  price: number;
 }
 
 function App() {
@@ -30,48 +37,59 @@ function App() {
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const [globalPlayers, setGlobalPlayers] = useState<Player[]>([]);
+  const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
 
   const [activeTab, setActiveTab] = useState<'home' | 'shop' | 'inventory' | 'market'>('home');
   const [notification, setNotification] = useState<string | null>(null);
   const [notifColor, setNotifColor] = useState('#10b981');
 
+  // --- ЗАГРУЗКА ДАННЫХ ---
+  const loadPlayerData = async () => {
+    const tgId = user?.id?.toString() || 'test_user_123'; 
+
+    const { data }: any = await supabase
+      .from('players')
+      .select('*')
+      .eq('telegram_id', tgId)
+      .single();
+
+    if (data) {
+      setPlayerId(data.id);
+      setNickname(data.nickname);
+      setGender(data.gender);
+      setMoney(data.money);
+      setEnergy(data.energy);
+      setHasPhone(data.has_phone);
+    } else if (user?.first_name) {
+      setInputName(user.first_name);
+    }
+    setIsLoading(false);
+  };
+
+  const loadMarketData = async () => {
+    // Загрузка топа
+    const { data: players }: any = await supabase
+      .from('players')
+      .select('id, nickname, money')
+      .order('money', { ascending: false })
+      .limit(10);
+    if (players) setGlobalPlayers(players);
+
+    // Загрузка лотов
+    const { data: lots }: any = await supabase
+      .from('market_items')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (lots) setMarketItems(lots);
+  };
+
   useEffect(() => {
-    const fetchPlayer = async () => {
-      const tgId = user?.id?.toString() || 'test_user_123'; 
-
-      const { data }: any = await supabase
-        .from('players')
-        .select('*')
-        .eq('telegram_id', tgId)
-        .single();
-
-      if (data) {
-        setPlayerId(data.id);
-        setNickname(data.nickname);
-        setGender(data.gender);
-        setMoney(data.money);
-        setEnergy(data.energy);
-        setHasPhone(data.has_phone);
-      } else if (user?.first_name) {
-        setInputName(user.first_name);
-      }
-      setIsLoading(false);
-    };
-
-    fetchPlayer();
+    loadPlayerData();
   }, [user]);
 
   useEffect(() => {
     if (activeTab === 'market') {
-      const fetchMarket = async () => {
-        const { data }: any = await supabase
-          .from('players')
-          .select('id, nickname, money')
-          .order('money', { ascending: false })
-          .limit(20);
-        if (data) setGlobalPlayers(data);
-      };
-      fetchMarket();
+      loadMarketData();
     }
   }, [activeTab]);
 
@@ -86,6 +104,7 @@ function App() {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  // --- ДЕЙСТВИЯ ---
   const handleRegister = async () => {
     hapticFeedback('medium');
     if (inputName.trim() === '') return showNotification('Введи никнейм!', true);
@@ -148,7 +167,7 @@ function App() {
     setEnergy(100);
     saveProgress({ energy: 100 });
 
-    setTimeLeft(60);
+    setTimeLeft(ENERGY_COOLDOWN_MS / 1000);
     showNotification("Энергия восстановлена!");
   };
 
@@ -170,17 +189,49 @@ function App() {
     showNotification("Телефон куплен!");
   };
 
-  const handleSellPhone = () => {
+  const handleSellPhoneToMarket = async () => {
     hapticFeedback('heavy');
-    if (!hasPhone) return;
+    if (!hasPhone || !playerId) return;
     
-    const newMoney = money + Math.floor(PHONE_PRICE * SELL_MULTIPLIER);
-    setMoney(newMoney);
-    setHasPhone(false); 
-    saveProgress({ money: newMoney, has_phone: false });
-    showNotification(`Телефон продан.`);
+    const price = prompt("За сколько монет хочешь продать телефон?", "2000");
+    if (!price || isNaN(Number(price))) return;
+
+    const { error }: any = await supabase.from('market_items').insert([{
+      seller_id: playerId,
+      seller_name: nickname,
+      item_type: 'phone',
+      price: Number(price)
+    }]);
+
+    if (!error) {
+      setHasPhone(false);
+      saveProgress({ has_phone: false });
+      showNotification("Телефон выставлен на рынок!");
+      setActiveTab('market'); // Перекидываем на рынок
+      loadMarketData();
+    } else {
+      showNotification("Ошибка выставления лота", true);
+    }
   };
 
+  const handleBuyLot = async (lotId: string) => {
+    hapticFeedback('heavy');
+    
+    const { data, error }: any = await supabase.rpc('buy_market_item', {
+      buyer_id: playerId,
+      lot_id: lotId
+    });
+
+    if (error || !data) {
+      showNotification("Не хватает денег или лот продан!", true);
+    } else {
+      showNotification("Покупка успешна!");
+      loadPlayerData(); 
+      loadMarketData();
+    }
+  };
+
+  // --- СТИЛИ ---
   const cardStyle = {
     backgroundColor: '#1e1e24', color: 'white', padding: 20, borderRadius: 16, 
     margin: '0 auto 20px auto', maxWidth: '350px', fontSize: 20, textAlign: 'left' as const, 
@@ -189,6 +240,7 @@ function App() {
 
   if (isLoading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка профиля...</div>;
 
+  // --- ЭКРАН РЕГИСТРАЦИИ ---
   if (!nickname || !gender) {
     return (
       <div style={{ padding: 20, fontFamily: 'sans-serif', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white' }}>
@@ -204,6 +256,7 @@ function App() {
     );
   }
 
+  // --- ОСНОВНОЙ ЭКРАН ---
   return (
     <div style={{ padding: '20px 20px 90px 20px', fontFamily: 'sans-serif', textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white' }}>
       
@@ -225,6 +278,7 @@ function App() {
         <div style={{ fontSize: 18 }}>⚡ <b>{energy}</b>/100</div>
       </div>
 
+      {/* ВКЛАДКА: ГЛАВНАЯ */}
       {activeTab === 'home' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
           <button onClick={handleWork} style={{ fontSize: 18, padding: 16, width: '320px', cursor: hasPhone ? 'pointer' : 'not-allowed', backgroundColor: hasPhone ? '#10b981' : '#333', color: hasPhone ? 'white' : '#888', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>
@@ -239,9 +293,10 @@ function App() {
         </div>
       )}
 
+      {/* ВКЛАДКА: МАГАЗИН */}
       {activeTab === 'shop' && (
         <div>
-          <h2>🏪 Магазин техники</h2>
+          <h2>🏪 Гос. магазин</h2>
           <div style={{ ...cardStyle, textAlign: 'center' }}>
             <div style={{ fontSize: 60, marginBottom: 10 }}>📱</div>
             <h3>Смартфон</h3>
@@ -255,26 +310,54 @@ function App() {
         </div>
       )}
 
+      {/* ВКЛАДКА: РЫНОК */}
       {activeTab === 'market' && (
         <div>
-          <h2>🌍 Глобальный Топ</h2>
-          <p style={{ color: '#a1a1aa', marginBottom: 20, fontSize: 16 }}>Самые богатые игроки в Житухе</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '350px', margin: '0 auto' }}>
-            {globalPlayers.map((p, index) => (
-              <div key={p.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: 20, color: index === 0 ? '#fbbf24' : index === 1 ? '#9ca3af' : index === 2 ? '#b45309' : '#a1a1aa' }}>
-                    {index + 1}.
-                  </span>
-                  <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
+          <h2>🌍 Барахолка</h2>
+          
+          <div style={{ marginBottom: '30px' }}>
+            <h3 style={{ color: '#a1a1aa', fontSize: 18 }}>Топ богачей</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '350px', margin: '0 auto' }}>
+              {globalPlayers.map((p, index) => (
+                <div key={p.id} style={{ backgroundColor: '#1e1e24', padding: '10px 15px', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: 16, color: index === 0 ? '#fbbf24' : index === 1 ? '#9ca3af' : index === 2 ? '#b45309' : '#a1a1aa' }}>
+                      {index + 1}.
+                    </span>
+                    <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
+                  </div>
+                  <span style={{ color: '#10b981', fontWeight: 'bold' }}>{p.money} 💰</span>
                 </div>
-                <span style={{ color: '#10b981', fontWeight: 'bold' }}>{p.money} 💰</span>
+              ))}
+            </div>
+          </div>
+
+          <h3 style={{ color: '#a1a1aa', fontSize: 18 }}>Лоты игроков</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '350px', margin: '0 auto' }}>
+            {marketItems.length === 0 ? <p style={{ color: '#666' }}>Пока никто ничего не продает...</p> : null}
+            {marketItems.map((item) => (
+              <div key={item.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 12, border: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: 24 }}>📱 Смартфон</div>
+                  <div style={{ fontSize: 12, color: '#a1a1aa' }}>Продавец: {item.seller_name}</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+                  <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{item.price} 💰</span>
+                  {item.seller_id === playerId ? (
+                    <span style={{ fontSize: 12, color: '#a1a1aa' }}>Ваш лот</span>
+                  ) : (
+                    <button onClick={() => handleBuyLot(item.id)} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontWeight: 'bold' }}>
+                      Купить
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
+      {/* ВКЛАДКА: ИНВЕНТАРЬ */}
       {activeTab === 'inventory' && (
         <div>
           <h2>🎒 Инвентарь</h2>
@@ -287,8 +370,8 @@ function App() {
                     <div style={{ fontWeight: 'bold' }}>Смартфон</div>
                   </div>
                 </div>
-                <button onClick={handleSellPhone} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: 8, padding: '10px 15px', cursor: 'pointer', fontWeight: 'bold' }}>
-                  Продать<br/>+{Math.floor(PHONE_PRICE * SELL_MULTIPLIER)}
+                <button onClick={handleSellPhoneToMarket} style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, padding: '10px 15px', cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
+                  Продать игрокам
                 </button>
               </div>
             ) : <div style={{ color: '#52525b', padding: 40 }}>Пусто...</div>}
@@ -296,6 +379,7 @@ function App() {
         </div>
       )}
 
+      {/* НИЖНЕЕ МЕНЮ */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#1e1e24', borderTop: '1px solid #333', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
         <button onClick={() => setActiveTab('home')} style={{ background: 'none', border: 'none', fontSize: 12, color: activeTab === 'home' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <span style={{ fontSize: 20 }}>🏠</span> Главная
