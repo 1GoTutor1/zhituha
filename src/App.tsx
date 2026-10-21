@@ -88,7 +88,7 @@ function App() {
 
   useEffect(() => { loadPlayerData(); }, [user]);
 
-  // Умный расчет кассы на клиенте (только для отображения)
+  // Умный расчет кассы
   useEffect(() => {
     if (!myBusiness || !myBusiness.worker_id || !myBusiness.last_collected) {
       setPendingIncome(0);
@@ -251,13 +251,37 @@ function App() {
     setIsSaving(false);
   };
 
-  const handleBuyLot = async (lotId: string) => {
+  // ИДЕАЛЬНАЯ ПОКУПКА БЕЗ SQL ФУНКЦИЙ
+  const handleBuyLot = async (item: MarketItem) => {
     if (isSaving) return;
+    if (money < item.price) return showNotification("Не хватает денег!", true);
+    
     setIsSaving(true); hapticFeedback('heavy');
     
-    const { data }: any = await supabase.rpc('buy_market_item', { buyer_id: playerId, lot_id: lotId });
-    if (!data) { showNotification("Не хватает денег или лот продан!", true); } 
-    else { showNotification("Покупка успешна!"); await loadPlayerData(); setActiveTab('market'); }
+    try {
+      // 1. Списываем деньги у покупателя
+      const newBuyerMoney = Number(money) - item.price;
+      await supabase.from('players').update({ money: newBuyerMoney }).eq('id', playerId);
+
+      // 2. Начисляем продавцу
+      const { data: sellerData } = await supabase.from('players').select('money').eq('id', item.seller_id).single();
+      if (sellerData) {
+        await supabase.from('players').update({ money: Number(sellerData.money) + item.price }).eq('id', item.seller_id);
+      }
+
+      // 3. Выдаем телефон
+      await supabase.from('players').update({ phone_count: 1 }).eq('id', playerId);
+
+      // 4. Удаляем лот
+      await supabase.from('market_items').delete().eq('id', item.id);
+
+      showNotification("Покупка успешна!"); 
+      await loadPlayerData(); 
+      setActiveTab('market');
+    } catch (e) {
+      showNotification("Ошибка покупки", true);
+    }
+    
     setIsSaving(false);
   };
 
@@ -275,24 +299,25 @@ function App() {
     setIsSaving(false);
   };
 
-  // ИДЕАЛЬНЫЙ СБОР ДОХОДА (Вызывает SQL, база сама начисляет деньги)
+  // ИДЕАЛЬНЫЙ СБОР ДОХОДА БЕЗ SQL ФУНКЦИЙ
   const handleCollectIncome = async () => {
-    if (isSaving || !myBusiness) return;
+    if (isSaving || !myBusiness || pendingIncome <= 0) return;
     setIsSaving(true); hapticFeedback('medium');
     
-    const { data, error }: any = await supabase.rpc('collect_business_income', { 
-      biz_id: myBusiness.id, 
-      p_id: playerId 
-    });
+    const newMoney = Number(money) + pendingIncome;
     
-    if (error) {
-      showNotification("Ошибка сбора: " + error.message, true);
-    } else if (data && Number(data) > 0) {
-      showNotification(`Собрано ${data} монет!`);
-      await loadPlayerData(); // Обновляем всё из БД
-    } else {
-      showNotification("В кассе пока нет монет. Подожди немного!", true);
+    // Сначала обновляем деньги игрока
+    const success = await saveProgress({ money: newMoney });
+    
+    if (success) {
+      // Затем обновляем время сбора в бизнесе
+      await supabase.from('businesses').update({ last_collected: new Date().toISOString() }).eq('id', myBusiness.id);
+      
+      setMoney(newMoney);
+      showNotification(`Собрано ${pendingIncome} монет!`);
+      await loadPlayerData(); // Перезагружаем, чтобы обновить last_collected
     }
+    
     setIsSaving(false);
   };
 
@@ -503,7 +528,7 @@ function App() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
                   <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{item.price} 💰</span>
                   {item.seller_id !== playerId ? (
-                    <button onClick={() => handleBuyLot(item.id)} disabled={isSaving} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontWeight: 'bold', opacity: isSaving ? 0.7 : 1 }}>Купить</button>
+                    <button onClick={() => handleBuyLot(item)} disabled={isSaving} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontWeight: 'bold', opacity: isSaving ? 0.7 : 1 }}>Купить</button>
                   ) : <span style={{ fontSize: 12, color: '#a1a1aa' }}>Ваш лот</span>}
                 </div>
               </div>
