@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-
 import { 
   Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
   Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User
 } from 'lucide-react';
 
+// --- КОНСТАНТЫ ИГРЫ ---
 const PHONE_PRICE = 2000;
 const BUSINESS_PRICE = 10000;
 const WORKER_SALARY = 300;
-const ADMIN_CODE = "admin2026";
-const ENERGY_COOLDOWN_MS = 90000;
 const COFFEE_PRICE = 500;
+const ADMIN_CODE = "admin2026";
+const REST_COOLDOWN_MS = 90000; // 90 секунд
+const BREW_TIME_MS = 15000; // 15 секунд
+const POLL_INTERVAL_MS = 5000; // Обновление раз в 5 сек
 
+// --- СТИЛИ ---
 const S = {
   card: { backgroundColor: 'rgba(30, 30, 36, 0.8)', backdropFilter: 'blur(10px)', color: 'white', padding: 20, borderRadius: 20, margin: '0 auto 20px auto', maxWidth: '350px', fontSize: 20, textAlign: 'left' as const, boxShadow: '0 8px 32px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' },
   btnPrimary: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)', transition: '0.1s' },
@@ -26,60 +29,62 @@ const S = {
   input: { width: '100%', padding: 15, borderRadius: 12, backgroundColor: '#121212', color: '#fff', border: '1px solid #444', textAlign: 'center' as const, fontSize: 18, marginBottom: 20, boxSizing: 'border-box' as const, outline: 'none' }
 };
 
+// --- ИНТЕРФЕЙСЫ ---
 interface Player { id: string; nickname: string; money: number; }
 interface MarketItem { id: string; seller_id: string; seller_name: string; item_type: string; price: number; }
-interface Business { 
-  id: string; 
-  owner_id: string; 
-  owner_name: string; 
-  worker_id: string | null; 
-  worker_name: string | null; 
-  last_collected: string;
-  coffee_balance?: number;
-}
+interface Business { id: string; owner_id: string; owner_name: string; worker_id: string | null; worker_name: string | null; coffee_balance?: number; }
 
 export default function App() {
   const { user, hapticFeedback } = useTelegram();
 
+  // --- ГЛОБАЛЬНЫЕ СОСТОЯНИЯ ---
   const [loading, setLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false); // Защита от двойных кликов
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState<string>('');
+  const [toast, setToast] = useState<{msg: string, err: boolean} | null>(null);
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe'>('home');
+
+  // --- СОСТОЯНИЯ ИГРОКА ---
   const [nick, setNick] = useState('');
   const [inputNick, setInputNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [selGender, setSelGender] = useState<'male' | 'female' | null>(null);
-  
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
   const [phone, setPhone] = useState(false);
+  
+  // Таймеры (храним время окончания, а не просто секунды)
+  const [restEndTime, setRestEndTime] = useState(0);
+  const [brewEndTime, setBrewEndTime] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
-
-  const [isBrewing, setIsBrewing] = useState(false);
   const [brewTimeLeft, setBrewTimeLeft] = useState(0);
-  const [selectedCafe, setSelectedCafe] = useState<Business | null>(null);
 
+  // --- ИГРОВЫЕ ДАННЫЕ ---
   const [players, setPlayers] = useState<Player[]>([]);
   const [market, setMarket] = useState<MarketItem[]>([]);
   const [biz, setBiz] = useState<Business | null>(null);
   const [job, setJob] = useState<Business | null>(null);
   const [allBiz, setAllBiz] = useState<Business[]>([]);
-
+  const [selectedCafe, setSelectedCafe] = useState<Business | null>(null);
   const [isJobBoardOpen, setIsJobBoardOpen] = useState(false);
 
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe'>('home');
-  const [toast, setToast] = useState<{msg: string, err: boolean} | null>(null);
-  
+  // --- АДМИНКА ---
   const [clicks, setClicks] = useState(0);
   const [adminAuth, setAdminAuth] = useState(false);
   const [adminPanel, setAdminPanel] = useState(false);
   const [adminCode, setAdminCode] = useState('');
 
+  // --- МОДАЛКИ ---
   const [sellModal, setSellModal] = useState(false);
   const [sellPrice, setSellPrice] = useState('2000');
 
+  // Ссылка для защиты от перезаписи локальных данных при фоновом обновлении
+  const isActionPending = useRef(false);
+
   const showMsg = (msg: string, err = false) => {
     setToast({ msg, err });
-    setTimeout(() => setToast(null), 2500);
+    setTimeout(() => setToast(null), 3000);
   };
 
   const getUid = () => {
@@ -89,8 +94,12 @@ export default function App() {
     return bid;
   };
 
+  // --- ЗАГРУЗКА ДАННЫХ ---
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
+    // Если сейчас происходит покупка, не перезаписываем данные
+    if (isActionPending.current) return; 
+
     try {
       const uid = getUid();
       setTgId(uid);
@@ -100,24 +109,31 @@ export default function App() {
         setPid(data.id); setNick(data.nickname); setGender(data.gender);
         setMoney(Number(data.money)); setEnergy(Number(data.energy));
         setPhone(Number(data.phone_count) > 0);
-        setTimeLeft(Math.max(0, Math.ceil(((Number(data.last_rest_time)||0) + ENERGY_COOLDOWN_MS - Date.now()) / 1000)));
         
+        // Восстанавливаем таймеры
+        const now = Date.now();
+        const lastRest = Number(data.last_rest_time) || 0;
+        if (lastRest + REST_COOLDOWN_MS > now) {
+          setRestEndTime(lastRest + REST_COOLDOWN_MS);
+        } else {
+          setRestEndTime(0);
+        }
+
         const { data: bData }: any = await supabase.from('businesses').select('*');
         if (bData) {
           setAllBiz(bData);
-          const myBiz = bData.find((b: any) => b.owner_id === data.id) || null;
-          if (myBiz) myBiz.coffee_balance = Number(myBiz.coffee_balance) || 0; // Принудительно к числу
-          setBiz(myBiz);
+          setBiz(bData.find((b: any) => b.owner_id === data.id) || null);
           setJob(bData.find((b: any) => b.worker_id === data.id) || null);
         }
       } else if (user?.first_name) {
         setInputNick(user.first_name);
       }
-    } catch (e: any) { 
+    } catch (e) {
       console.error(e);
-      if (!silent) showMsg("Ошибка сети", true); 
+      if (!silent) showMsg("Ошибка сети", true);
+    } finally {
+      if (!silent) setLoading(false);
     }
-    finally { if (!silent) setLoading(false); }
   };
 
   const loadMarket = async () => {
@@ -127,45 +143,59 @@ export default function App() {
     if (m) setMarket(m);
   };
 
+  // --- ЭФФЕКТЫ ---
   useEffect(() => { loadData(); }, [user]);
 
+  // Умный поллинг (обновляет только вкладки, где нужны чужие данные)
   useEffect(() => { 
     if (tab === 'market') loadMarket(); 
     
     let interval: any;
     if (tab === 'business' || tab === 'jobs' || tab === 'home' || tab === 'cafe') {
-      loadData(true); 
-      interval = setInterval(() => { loadData(true); }, 5000);
+      interval = setInterval(() => { loadData(true); }, POLL_INTERVAL_MS);
     }
     return () => { if (interval) clearInterval(interval); };
   }, [tab]);
-  
-  useEffect(() => {
-    if (timeLeft > 0) { const t = setTimeout(() => setTimeLeft(p => p - 1), 1000); return () => clearTimeout(t); }
-  }, [timeLeft]);
 
+  // Точные таймеры (привязка к реальному времени)
   useEffect(() => {
-    if (isBrewing && brewTimeLeft > 0) {
-      const t = setTimeout(() => setBrewTimeLeft(p => p - 1), 1000);
-      return () => clearTimeout(t);
-    } else if (isBrewing && brewTimeLeft === 0) {
-      setIsBrewing(false);
-      setEnergy(100);
-      syncPlayer({ energy: 100 });
-      showMsg("Кофе готов! Энергия восстановлена!");
-    }
-  }, [isBrewing, brewTimeLeft]);
+    const timer = setInterval(() => {
+      const now = Date.now();
+      
+      if (restEndTime > 0) {
+        const rem = Math.max(0, Math.ceil((restEndTime - now) / 1000));
+        setTimeLeft(rem);
+        if (rem === 0) setRestEndTime(0);
+      }
+      
+      if (brewEndTime > 0) {
+        const rem = Math.max(0, Math.ceil((brewEndTime - now) / 1000));
+        setBrewTimeLeft(rem);
+        if (rem === 0) {
+          setBrewEndTime(0);
+          setEnergy(100);
+          if (pid) supabase.from('players').update({ energy: 100 }).eq('id', pid);
+          showMsg("Кофе готов! Энергия восстановлена!");
+        }
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [restEndTime, brewEndTime, pid]);
 
+  // --- ФУНКЦИИ СИНХРОНИЗАЦИИ ---
   const syncPlayer = async (updates: any) => {
-    if (!pid) return;
+    if (!pid) return false;
     const { error } = await supabase.from('players').update(updates).eq('id', pid);
-    if (error) { showMsg("Ошибка базы!", true); loadData(true); }
+    if (error) { showMsg("Ошибка базы: " + error.message, true); return false; }
+    return true;
   };
 
+  // --- ДЕЙСТВИЯ ---
   const register = async () => {
     const finalNick = user?.first_name || inputNick;
     if (!finalNick.trim() || !selGender) return showMsg("Выбери пол и ник!", true);
     hapticFeedback('medium');
+    setIsProcessing(true);
     
     const { data, error }: any = await supabase.from('players').insert([{
       telegram_id: getUid(), nickname: finalNick, gender: selGender, money: 3500, energy: 80, phone_count: 0, last_rest_time: 0
@@ -173,83 +203,184 @@ export default function App() {
     
     if (error) showMsg("Ошибка БД: " + error.message, true);
     else if (data) { setPid(data.id); setNick(finalNick); setGender(selGender); }
+    setIsProcessing(false);
   };
 
-  const doWork = (isJanitor: boolean) => {
-    if (energy < 20 || (!phone && !isJanitor)) return showMsg("Не хватает условий!", true);
+  const doWork = async (isJanitor: boolean) => {
+    if (isProcessing || energy < 20 || (!phone && !isJanitor)) return;
     hapticFeedback('medium');
+    setIsProcessing(true);
+    isActionPending.current = true;
+
     const addMoney = isJanitor ? 200 : 500;
     const nM = Number(money) + addMoney;
     const nE = Number(energy) - 20;
-    setMoney(nM); setEnergy(nE); showMsg(`+${addMoney} монет`);
-    syncPlayer({ money: nM, energy: nE });
+    
+    setMoney(nM); setEnergy(nE);
+    const success = await syncPlayer({ money: nM, energy: nE });
+    
+    if (success) showMsg(`+${addMoney} монет`);
+    else { setMoney(money); setEnergy(energy); } // Откат при ошибке
+
+    isActionPending.current = false;
+    setIsProcessing(false);
   };
 
-  const doRest = () => {
-    if (timeLeft > 0 || energy === 100) return;
+  const doRest = async () => {
+    if (isProcessing || timeLeft > 0 || energy === 100) return;
     hapticFeedback('light');
+    setIsProcessing(true);
+    isActionPending.current = true;
+
     const now = Date.now();
-    setEnergy(100); setTimeLeft(ENERGY_COOLDOWN_MS / 1000); showMsg("Энергия восстановлена!");
-    syncPlayer({ energy: 100, last_rest_time: now });
+    setEnergy(100); setRestEndTime(now + REST_COOLDOWN_MS);
+    const success = await syncPlayer({ energy: 100, last_rest_time: now });
+    
+    if (success) showMsg("Энергия восстановлена!");
+    else { setEnergy(energy); setRestEndTime(0); }
+
+    isActionPending.current = false;
+    setIsProcessing(false);
   };
 
   const buyCoffee = async (cafe: Business) => {
-    if (!cafe.worker_id) return showMsg("В этом кафе нет бариста! Заказ невозможен.", true);
-    if (isBrewing) return showMsg("Кофе уже готовится!", true);
-    if (money < COFFEE_PRICE) return showMsg("Мало денег!", true);
-    if (energy === 100) return showMsg("У тебя полная энергия!", true);
-    
+    if (isProcessing || !cafe.worker_id || money < COFFEE_PRICE || energy === 100) return;
     hapticFeedback('heavy');
+    setIsProcessing(true);
+    isActionPending.current = true;
+
     const nM = money - COFFEE_PRICE;
     setMoney(nM);
-    syncPlayer({ money: nM });
+    await syncPlayer({ money: nM });
     
-    // Зачисляем в кассу продаж кофе владельцу бизнеса
+    // Начисляем выручку в кассу (оптимистично)
     const { data: ownerBiz, error: fetchErr }: any = await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single();
-    
-    if (fetchErr) {
-      console.error("Ошибка получения кассы:", fetchErr);
-      showMsg("Ошибка базы: " + fetchErr.message, true);
-    } else if (ownerBiz) {
+    if (ownerBiz && !fetchErr) {
       const currentBal = Number(ownerBiz.coffee_balance) || 0;
-      const { error: updateErr } = await supabase.from('businesses').update({ coffee_balance: currentBal + 450 }).eq('id', cafe.id);
-      
-      if (updateErr) {
-        console.error("Ошибка обновления кассы:", updateErr);
-        showMsg("Не удалось начислить выручку!", true);
-      }
+      await supabase.from('businesses').update({ coffee_balance: currentBal + 450 }).eq('id', cafe.id);
     }
 
-    setIsBrewing(true);
-    setBrewTimeLeft(15);
+    setBrewEndTime(Date.now() + BREW_TIME_MS);
     showMsg("Заказ принят! Кофе готовится 15 сек...");
+
+    isActionPending.current = false;
+    setIsProcessing(false);
   };
 
-  const doPhone = (buy: boolean) => {
-    if (buy && money < PHONE_PRICE) return showMsg("Мало денег!", true);
-    if (!buy && !phone) return;
+  const collectCoffeeIncome = async () => {
+    if (isProcessing || !biz || !biz.coffee_balance || biz.coffee_balance <= 0) return;
+    hapticFeedback('medium');
+    setIsProcessing(true);
+    isActionPending.current = true;
+    
+    const inc = biz.coffee_balance;
+    const nM = money + inc;
+    
+    setMoney(nM);
+    await syncPlayer({ money: nM });
+    await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', biz.id);
+    
+    showMsg(`Собрано ${inc} с продаж кофе!`);
+    loadData(true);
+
+    isActionPending.current = false;
+    setIsProcessing(false);
+  };
+
+  const buyBusiness = async () => {
+    if (isProcessing || money < BUSINESS_PRICE || biz) return;
     hapticFeedback('heavy');
+    setIsProcessing(true);
+    isActionPending.current = true;
+    
+    const nM = money - BUSINESS_PRICE;
+    setMoney(nM); showMsg("Кофейня открыта!");
+    await syncPlayer({ money: nM });
+    await supabase.from('businesses').insert([{ owner_id: pid, owner_name: nick, worker_id: null, coffee_balance: 0 }]);
+    loadData(true);
+
+    isActionPending.current = false;
+    setIsProcessing(false);
+  };
+
+  const hireWorker = async (bId: string) => {
+    if (isProcessing) return;
+    hapticFeedback('medium');
+    setIsProcessing(true);
+    await supabase.from('businesses').update({ worker_id: pid, worker_name: nick }).eq('id', bId);
+    showMsg("Вы устроены!"); 
+    setIsJobBoardOpen(false);
+    loadData(true);
+    setIsProcessing(false);
+  };
+
+  const fireWorker = async () => {
+    if (isProcessing || !biz) return;
+    setIsProcessing(true);
+    await supabase.from('businesses').update({ worker_id: null, worker_name: null }).eq('id', biz.id);
+    showMsg("Уволен."); 
+    loadData(true);
+    setIsProcessing(false);
+  };
+
+  const workShift = async () => {
+    if (isProcessing || !job || energy < 20) return;
+    hapticFeedback('medium');
+    setIsProcessing(true);
+    isActionPending.current = true;
+    
+    const nM = money + WORKER_SALARY;
+    const nE = energy - 20;
+    
+    setMoney(nM); setEnergy(nE); showMsg(`+${WORKER_SALARY} за смену`);
+    await syncPlayer({ money: nM, energy: nE });
+    
+    isActionPending.current = false;
+    setIsProcessing(false);
+  };
+
+  const doPhone = async (buy: boolean) => {
+    if (isProcessing || (buy && money < PHONE_PRICE) || (!buy && !phone)) return;
+    hapticFeedback('heavy');
+    setIsProcessing(true);
+    isActionPending.current = true;
+    
     const nM = buy ? money - PHONE_PRICE : money + 1400;
     const nP = buy ? 1 : 0;
+    
     setMoney(nM); setPhone(buy); showMsg(buy ? "Куплено!" : "Сдан за 1400");
-    syncPlayer({ money: nM, phone_count: nP });
+    await syncPlayer({ money: nM, phone_count: nP });
+    
+    isActionPending.current = false;
+    setIsProcessing(false);
   };
 
   const listPhone = async () => {
     const p = Number(sellPrice);
-    if (isNaN(p) || p <= 0 || !phone) return;
+    if (isProcessing || isNaN(p) || p <= 0 || !phone) return;
     hapticFeedback('medium');
+    setIsProcessing(true);
+    isActionPending.current = true;
+    
     setPhone(false); setSellModal(false);
     const { error } = await supabase.from('market_items').insert([{ seller_id: pid, seller_name: nick, item_type: 'phone', price: p }]);
+    
     if (error) { setPhone(true); showMsg("Ошибка", true); }
-    else { syncPlayer({ phone_count: 0 }); setTab('market'); loadMarket(); showMsg("Выставлено!"); }
+    else { await syncPlayer({ phone_count: 0 }); setTab('market'); loadMarket(); showMsg("Выставлено!"); }
+    
+    isActionPending.current = false;
+    setIsProcessing(false);
   };
 
   const buyLot = async (item: MarketItem) => {
-    if (money < item.price) return showMsg("Мало денег!", true);
+    if (isProcessing || money < item.price) return;
     hapticFeedback('heavy');
+    setIsProcessing(true);
+    isActionPending.current = true;
+    
     const nM = money - item.price;
     setMoney(nM); setPhone(true); showMsg("Покупка успешна!");
+    
     try {
       await supabase.from('players').update({ money: nM, phone_count: 1 }).eq('id', pid);
       await supabase.from('market_items').delete().eq('id', item.id);
@@ -257,60 +388,14 @@ export default function App() {
       if (seller) await supabase.from('players').update({ money: Number(seller.money) + item.price }).eq('id', item.seller_id);
       loadMarket(); 
     } catch (e) { 
-      console.error(e);
-      loadData(true); 
+      console.error(e); loadData(true); 
     }
-  };
-
-  const buyBusiness = async () => {
-    if (money < BUSINESS_PRICE || biz) return;
-    hapticFeedback('heavy');
-    const nM = money - BUSINESS_PRICE;
-    setMoney(nM); showMsg("Кофейня открыта!");
-    await syncPlayer({ money: nM });
-    await supabase.from('businesses').insert([{ owner_id: pid, owner_name: nick, worker_id: null, coffee_balance: 0 }]);
-    loadData(true);
-  };
-
-  const collectCoffeeIncome = async () => {
-    if (!biz || !biz.coffee_balance || biz.coffee_balance <= 0) return;
-    hapticFeedback('medium');
     
-    const inc = biz.coffee_balance;
-    const nM = money + inc;
-    
-    setMoney(nM);
-    await syncPlayer({ money: nM });
-    
-    await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', biz.id);
-    
-    showMsg(`Собрано ${inc} с продаж кофе!`);
-    loadData(true);
+    isActionPending.current = false;
+    setIsProcessing(false);
   };
 
-  const hireWorker = async (bId: string) => {
-    hapticFeedback('medium');
-    await supabase.from('businesses').update({ worker_id: pid, worker_name: nick }).eq('id', bId);
-    showMsg("Вы устроены!"); 
-    setIsJobBoardOpen(false);
-    loadData(true);
-  };
-
-  const fireWorker = async () => {
-    if (!biz) return;
-    await supabase.from('businesses').update({ worker_id: null, worker_name: null }).eq('id', biz.id);
-    showMsg("Уволен."); loadData(true);
-  };
-
-  const workShift = () => {
-    if (!job || energy < 20) return;
-    hapticFeedback('medium');
-    const nM = money + WORKER_SALARY;
-    const nE = energy - 20;
-    setMoney(nM); setEnergy(nE); showMsg(`+${WORKER_SALARY} за смену`);
-    syncPlayer({ money: nM, energy: nE });
-  };
-
+  // --- АДМИНКА ---
   const handleAvatar = () => {
     setClicks(c => c + 1);
     if (clicks >= 4) { setAdminAuth(true); setClicks(0); setAdminCode(''); hapticFeedback('heavy'); }
@@ -320,10 +405,10 @@ export default function App() {
     if (adminCode === ADMIN_CODE) { setAdminAuth(false); setAdminPanel(true); }
     else showMsg("Неверный код!", true);
   };
-  const adminMoney = () => {
+  const adminMoney = async () => {
     const nM = money + 100000;
     setMoney(nM); setAdminPanel(false); showMsg("+100 000");
-    syncPlayer({ money: nM });
+    await syncPlayer({ money: nM });
   };
   const adminReset = async () => {
     if (!window.confirm("Удалить ВСЕХ?")) return;
@@ -335,6 +420,7 @@ export default function App() {
     window.location.reload();
   };
 
+  // --- РЕНДЕР ---
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
 
   if (!nick || !gender) return (
@@ -351,7 +437,7 @@ export default function App() {
       ) : (
         <input type="text" value={inputNick} onChange={(e) => setInputNick(e.target.value)} placeholder="Твой ник..." style={{ ...S.input, maxWidth: '280px' }} />
       )}
-      <button onClick={register} style={{ ...S.btnPrimary, maxWidth: '280px' }}>Начать жизнь</button>
+      <button onClick={register} disabled={isProcessing} style={{ ...S.btnPrimary, maxWidth: '280px' }}>Начать жизнь</button>
     </div>
   );
 
@@ -399,10 +485,10 @@ export default function App() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 15, alignItems: 'center', marginBottom: 40 }}>
-            <button onClick={() => doWork(true)} disabled={energy < 20} style={{ ...S.btnSecondary, opacity: energy < 20 ? 0.5 : 1 }}>
+            <button onClick={() => doWork(true)} disabled={isProcessing || energy < 20} style={{ ...S.btnSecondary, opacity: (isProcessing || energy < 20) ? 0.5 : 1 }}>
               <Users size={20}/> Подработка (+200)
             </button>
-            <button onClick={doRest} disabled={timeLeft > 0 || energy === 100} style={{ ...S.btnPrimary, background: '#1e1e24', border: '1px solid #10b981', color: timeLeft > 0 ? '#888' : '#10b981', boxShadow: 'none' }}>
+            <button onClick={doRest} disabled={isProcessing || timeLeft > 0 || energy === 100} style={{ ...S.btnPrimary, background: '#1e1e24', border: '1px solid #10b981', color: timeLeft > 0 ? '#888' : '#10b981', boxShadow: 'none', opacity: (isProcessing || timeLeft > 0 || energy === 100) ? 0.5 : 1 }}>
               <Zap size={20}/> {timeLeft > 0 ? `Ждать ${timeLeft} сек.` : 'Отдых (90 сек)'}
             </button>
           </div>
@@ -414,7 +500,7 @@ export default function App() {
           <button onClick={() => { setTab('home'); setSelectedCafe(null); }} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
           <h2>Кафе города</h2>
           
-          {isBrewing ? (
+          {brewTimeLeft > 0 ? (
             <div style={{ ...S.card, textAlign: 'center' }}>
               <Coffee size={48} color="#f97316" style={{ marginBottom: 15 }}/>
               <h3>Готовим кофе...</h3>
@@ -429,13 +515,13 @@ export default function App() {
               
               <button 
                 onClick={() => buyCoffee(selectedCafe)} 
-                disabled={money < COFFEE_PRICE || energy === 100 || !selectedCafe.worker_id} 
+                disabled={isProcessing || money < COFFEE_PRICE || energy === 100 || !selectedCafe.worker_id} 
                 style={{ 
                   ...S.btnYellow, 
                   background: (money < COFFEE_PRICE || energy === 100 || !selectedCafe.worker_id) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                   color: (money < COFFEE_PRICE || energy === 100 || !selectedCafe.worker_id) ? '#888' : 'white',
-                  opacity: 1,
-                  cursor: (money < COFFEE_PRICE || energy === 100 || !selectedCafe.worker_id) ? 'not-allowed' : 'pointer',
+                  opacity: (isProcessing || money < COFFEE_PRICE || energy === 100 || !selectedCafe.worker_id) ? 0.5 : 1,
+                  cursor: (isProcessing || money < COFFEE_PRICE || energy === 100 || !selectedCafe.worker_id) ? 'not-allowed' : 'pointer',
                   marginBottom: 10 
                 }}
               >
@@ -476,16 +562,16 @@ export default function App() {
               <div style={{ background: 'rgba(249, 115, 22, 0.1)', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid rgba(249, 115, 22, 0.2)' }}>
                 <p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#f97316' }}>Выручка с продаж кофе</p>
                 <p style={{ margin: '0 0 10px 0', fontSize: 22, color: '#f97316', fontWeight: 'bold' }}>В кассе: {biz.coffee_balance || 0} <Coins size={18} style={{ display: 'inline' }}/></p>
-                <button onClick={collectCoffeeIncome} disabled={!biz.coffee_balance || biz.coffee_balance <= 0} style={{ ...S.btnYellow, opacity: (!biz.coffee_balance || biz.coffee_balance <= 0) ? 0.5 : 1, padding: 12 }}>Собрать выручку</button>
+                <button onClick={collectCoffeeIncome} disabled={isProcessing || !biz.coffee_balance || biz.coffee_balance <= 0} style={{ ...S.btnYellow, opacity: (isProcessing || !biz.coffee_balance || biz.coffee_balance <= 0) ? 0.5 : 1, padding: 12 }}>Собрать выручку</button>
               </div>
 
-              {biz.worker_id && <button onClick={fireWorker} style={{ ...S.btnDanger, background: 'rgba(239, 68, 68, 0.1)', boxShadow: 'none' }}>Уволить баристу</button>}
+              {biz.worker_id && <button onClick={fireWorker} disabled={isProcessing} style={{ ...S.btnDanger, background: 'rgba(239, 68, 68, 0.1)', boxShadow: 'none' }}>Уволить баристу</button>}
             </div>
           ) : (
             <div style={{ ...S.card, textAlign: 'center' }}>
               <Store size={48} color="#8b5cf6" style={{ marginBottom: 15 }}/>
               <h3>Открыть Кофейню</h3>
-              <button onClick={buyBusiness} disabled={money < BUSINESS_PRICE} style={{ ...S.btnPurple, background: money < BUSINESS_PRICE ? '#333' : 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: money < BUSINESS_PRICE ? '#888' : 'white', opacity: 1, cursor: money < BUSINESS_PRICE ? 'not-allowed' : 'pointer' }}>
+              <button onClick={buyBusiness} disabled={isProcessing || money < BUSINESS_PRICE} style={{ ...S.btnPurple, background: money < BUSINESS_PRICE ? '#333' : 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: money < BUSINESS_PRICE ? '#888' : 'white', opacity: (isProcessing || money < BUSINESS_PRICE) ? 0.5 : 1, cursor: (isProcessing || money < BUSINESS_PRICE) ? 'not-allowed' : 'pointer' }}>
                 Купить за {BUSINESS_PRICE}
               </button>
             </div>
@@ -508,7 +594,7 @@ export default function App() {
                       <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16}/> Кофейня</div>
                       <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div>
                     </div>
-                    <button onClick={() => hireWorker(b.id)} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13 }}>Устроиться</button>
+                    <button onClick={() => hireWorker(b.id)} disabled={isProcessing} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: isProcessing ? 0.5 : 1 }}>Устроиться</button>
                   </div>
                 ))}
                 {allBiz.filter(b => !b.worker_id && b.owner_id !== pid).length === 0 && (
@@ -526,7 +612,7 @@ export default function App() {
                 </div>
                 <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#a1a1aa' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p>
                 <p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#a1a1aa' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p>
-                <button onClick={workShift} disabled={energy < 20} style={{ ...S.btnPrimary, opacity: energy < 20 ? 0.5 : 1 }}>Смена (+300)</button>
+                <button onClick={workShift} disabled={isProcessing || energy < 20} style={{ ...S.btnPrimary, opacity: (isProcessing || energy < 20) ? 0.5 : 1 }}>Смена (+300)</button>
               </div>
             </div>
           ) : (
@@ -543,7 +629,7 @@ export default function App() {
       )}
 
       {tab === 'shop' && (
-        <div style={{ maxWidth: '400px', margin: '0 auto' }}><h2>Гос. Магазин</h2><div style={{ ...S.card, textAlign: 'center' }}><Smartphone size={48} color="#a1a1aa" style={{ marginBottom: 15 }}/><h3>Смартфон</h3>{phone ? <div style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckCircle2 size={20}/> Куплено</div> : <button onClick={() => doPhone(true)} disabled={money < PHONE_PRICE} style={{ ...S.btnPurple, opacity: money < PHONE_PRICE ? 0.5 : 1 }}>Купить за 2000</button>}</div></div>
+        <div style={{ maxWidth: '400px', margin: '0 auto' }}><h2>Гос. Магазин</h2><div style={{ ...S.card, textAlign: 'center' }}><Smartphone size={48} color="#a1a1aa" style={{ marginBottom: 15 }}/><h3>Смартфон</h3>{phone ? <div style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckCircle2 size={20}/> Куплено</div> : <button onClick={() => doPhone(true)} disabled={isProcessing || money < PHONE_PRICE} style={{ ...S.btnPurple, opacity: (isProcessing || money < PHONE_PRICE) ? 0.5 : 1 }}>Купить за 2000</button>}</div></div>
       )}
 
       {tab === 'market' && (
@@ -552,12 +638,12 @@ export default function App() {
           <div style={{ marginBottom: 30 }}><h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 10 }}>Топ богачей</h3>{players.map((p, i) => (<div key={p.id} style={{ backgroundColor: '#1e1e24', padding: '12px 15px', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333', marginBottom: 8 }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#fbbf24' : i === 1 ? '#9ca3af' : i === 2 ? '#b45309' : '#a1a1aa' }}>#{i + 1}</span><span style={{ fontWeight: 'bold' }}>{p.nickname}</span></div><span style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{p.money} <Coins size={14}/></span></div>))}</div>
           <h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 10 }}>Лоты</h3>
           {market.length === 0 && <p style={{ color: '#666' }}>Пусто...</p>}
-          {market.map(item => (<div key={item.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 16, border: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontSize: 16, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Smartphone size={18}/> Телефон</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Продавец: {item.seller_name}</div></div><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}><span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{item.price}</span>{item.seller_id !== pid ? <button onClick={() => buyLot(item)} style={{ ...S.btnPrimary, width: 'auto', padding: '6px 12px', fontSize: 13 }}>Купить</button> : <span style={{ fontSize: 12, color: '#a1a1aa' }}>Ваш лот</span>}</div></div>))}
+          {market.map(item => (<div key={item.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 16, border: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontSize: 16, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Smartphone size={18}/> Телефон</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Продавец: {item.seller_name}</div></div><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}><span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{item.price}</span>{item.seller_id !== pid ? <button onClick={() => buyLot(item)} disabled={isProcessing} style={{ ...S.btnPrimary, width: 'auto', padding: '6px 12px', fontSize: 13, opacity: isProcessing ? 0.5 : 1 }}>Купить</button> : <span style={{ fontSize: 12, color: '#a1a1aa' }}>Ваш лот</span>}</div></div>))}
         </div>
       )}
 
       {tab === 'inventory' && (
-        <div style={{ maxWidth: '400px', margin: '0 auto' }}><h2>Инвентарь</h2>{phone ? (<div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Smartphone size={32} color="#a1a1aa"/><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div></div><button onClick={() => setSellModal(true)} style={S.btnPurple}>Выставить на рынок</button><button onClick={() => doPhone(false)} style={S.btnPrimary}>Сдать в ломбард (+1400)</button></div>) : <div style={{ color: '#52525b', padding: 40, textAlign: 'center' }}><Backpack size={48} style={{ opacity: 0.5, marginBottom: 10 }}/><br/>Пусто...</div>}</div>
+        <div style={{ maxWidth: '400px', margin: '0 auto' }}><h2>Инвентарь</h2>{phone ? (<div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Smartphone size={32} color="#a1a1aa"/><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div></div><button onClick={() => setSellModal(true)} disabled={isProcessing} style={{ ...S.btnPurple, opacity: isProcessing ? 0.5 : 1 }}>Выставить на рынок</button><button onClick={() => doPhone(false)} disabled={isProcessing} style={{ ...S.btnPrimary, opacity: isProcessing ? 0.5 : 1 }}>Сдать в ломбард (+1400)</button></div>) : <div style={{ color: '#52525b', padding: 40, textAlign: 'center' }}><Backpack size={48} style={{ opacity: 0.5, marginBottom: 10 }}/><br/>Пусто...</div>}</div>
       )}
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(30, 30, 36, 0.95)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
