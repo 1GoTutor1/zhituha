@@ -10,14 +10,14 @@ import {
 const PHONE_PRICE = 2000, BUSINESS_PRICE = 10000, WORKER_SALARY = 300, COFFEE_PRICE = 500;
 const ADMIN_CODE = "admin2026", REST_CD = 90000, BREW_TIME = 15000, POLL = 5000;
 
-// --- АВАТАРКИ ---
+// --- АВАТАРКИ С ГЕНДЕРОМ ---
 const AVATARS = [
-  { id: 1, emoji: '🧑‍💻', bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' },
-  { id: 2, emoji: '🧑‍🎨', bg: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' },
-  { id: 3, emoji: '🧑‍🚀', bg: 'linear-gradient(135deg, #f59e0b, #b45309)' },
-  { id: 4, emoji: '👩‍💻', bg: 'linear-gradient(135deg, #ec4899, #be185d)' },
-  { id: 5, emoji: '👩‍🎨', bg: 'linear-gradient(135deg, #10b981, #047857)' },
-  { id: 6, emoji: '👩‍🚀', bg: 'linear-gradient(135deg, #ef4444, #b91c1c)' },
+  { id: 1, gender: 'male', emoji: '🧑‍💻', bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' },
+  { id: 2, gender: 'male', emoji: '🧑‍🎨', bg: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' },
+  { id: 3, gender: 'male', emoji: '🧑‍🚀', bg: 'linear-gradient(135deg, #f59e0b, #b45309)' },
+  { id: 4, gender: 'female', emoji: '👩‍💻', bg: 'linear-gradient(135deg, #ec4899, #be185d)' },
+  { id: 5, gender: 'female', emoji: '👩‍🎨', bg: 'linear-gradient(135deg, #10b981, #047857)' },
+  { id: 6, gender: 'female', emoji: '👩‍🚀', bg: 'linear-gradient(135deg, #ef4444, #b91c1c)' },
 ];
 
 const getAvatar = (id: number) => AVATARS.find(a => a.id === id) || AVATARS[0];
@@ -158,6 +158,15 @@ export default function App() {
     return () => clearInterval(int);
   }, [restEnd, brewEnd, pid]);
 
+  // --- ЛОГИКА ВЫБОРА ПОЛА И АВАТАРКИ ---
+  const selectGender = (g: 'male' | 'female') => {
+    setSelG(g);
+    // Автоматически выбираем первую аватарку этого пола
+    const firstAvatar = AVATARS.find(a => a.gender === g)?.id || 1;
+    setAvatarId(firstAvatar);
+    hapticFeedback('light');
+  };
+
   const reg = () => action(async () => {
     const final = user?.first_name || inNick;
     if (!final.trim() || !selG) return showMsg("Заполни поля!", true);
@@ -284,7 +293,6 @@ export default function App() {
     localStorage.removeItem('zhituha_id'); window.location.reload();
   };
 
-  // --- ЦВЕТА ФОНОВ ---
   const bgColors: Record<string, string> = {
     home: 'linear-gradient(180deg, #121212 0%, #1a1a2e 100%)',
     jobs: 'linear-gradient(180deg, #121212 0%, #0f2e1a 100%)',
@@ -303,19 +311,22 @@ export default function App() {
       {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', background: toast.err ? '#ef4444' : '#10b981', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{toast.msg}</div>}
       <h1>Житуха</h1><p style={{ color: '#888', marginBottom: '30px' }}>Создай персонажа</p>
       
-      {/* ВЫБОР АВАТАРКИ */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '10px', maxWidth: '300px', marginBottom: '20px' }}>
-        {AVATARS.map(a => (
-          <button key={a.id} onClick={() => { setAvatarId(a.id); hapticFeedback('light'); }} style={{ width: 60, height: 60, borderRadius: '50%', background: a.bg, fontSize: 30, cursor: 'pointer', border: avatarId === a.id ? '3px solid white' : '3px solid transparent', boxShadow: avatarId === a.id ? '0 0 15px rgba(255,255,255,0.5)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' }}>
-            {a.emoji}
-          </button>
-        ))}
+      {/* ВЫБОР ПОЛА */}
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+        <button onClick={() => selectGender('male')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Парень</button>
+        <button onClick={() => selectGender('female')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'female' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selG === 'female' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Девушка</button>
       </div>
 
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-        <button onClick={() => setSelG('male')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Парень</button>
-        <button onClick={() => setSelG('female')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'female' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selG === 'female' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Девушка</button>
-      </div>
+      {/* ВЫБОР АВАТАРКИ (ТОЛЬКО ПО ВЫБРАННОМУ ПОЛУ) */}
+      {selG && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', maxWidth: '300px', marginBottom: '20px' }}>
+          {AVATARS.filter(a => a.gender === selG).map(a => (
+            <button key={a.id} onClick={() => { setAvatarId(a.id); hapticFeedback('light'); }} style={{ width: 60, height: 60, borderRadius: '50%', background: a.bg, fontSize: 30, cursor: 'pointer', border: avatarId === a.id ? '3px solid white' : '3px solid transparent', boxShadow: avatarId === a.id ? '0 0 15px rgba(255,255,255,0.5)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' }}>
+              {a.emoji}
+            </button>
+          ))}
+        </div>
+      )}
 
       {user?.first_name ? <div style={{ ...S.input, maxWidth: '280px', backgroundColor: 'transparent', border: 'none', fontSize: 22, fontWeight: 'bold' }}>Ник: {user.first_name}</div> : <input type="text" value={inNick} onChange={(e) => setInNick(e.target.value)} placeholder="Ник..." style={{ ...S.input, maxWidth: '280px' }} />}
       <button onClick={reg} disabled={proc} style={{ ...S.btnPrimary, maxWidth: '280px', opacity: proc ? 0.5 : 1 }}>Начать жизнь</button>
