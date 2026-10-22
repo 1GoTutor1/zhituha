@@ -58,7 +58,7 @@ export default function App() {
   const [energy, setEnergy] = useState(80);
   const [phone, setPhone] = useState(false);
   const [hasCar, setHasCar] = useState(false);
-  const [carModel, setCarModel] = useState('none'); // Добавили модель машины
+  const [carModel, setCarModel] = useState('none');
   const [isSubscribed, setIsSubscribed] = useState(false); 
   
   const [refBalance, setRefBalance] = useState(0);
@@ -82,8 +82,8 @@ export default function App() {
   const [selCafe, setSelCafe] = useState<any>(null);
   const [boardOpen, setBoardOpen] = useState(false);
   
-  const [, setClicks] = useState(0); // Убрали неиспользуемую переменную clicks
-  const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null); // Исправили тип таймера
+  const [, setClicks] = useState(0);
+  const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const [authOpen, setAuthOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
@@ -121,8 +121,8 @@ export default function App() {
     if (!me || !me.referred_by) return;
     const bonus = Math.floor(amount * 0.05);
     if (bonus <= 0) return;
-    const { data: ref } = await supabase.from('players').select('referral_balance').eq('telegram_id', me.referred_by).single();
-    if (ref) await supabase.from('players').update({ referral_balance: (Number(ref.referral_balance) || 0) + bonus }).eq('telegram_id', me.referred_by);
+    // Используем RPC для безопасного начисления
+    await supabase.rpc('add_referral_balance', { p_telegram_id: me.referred_by, p_amount: bonus });
   };
 
   const checkSubOnLoad = async () => {
@@ -366,8 +366,8 @@ export default function App() {
       const { data: ownerPlayer } = await supabase.from('players').select('referred_by').eq('id', bizOwner.owner_id).single();
       if (ownerPlayer && ownerPlayer.referred_by) {
         const bonus = Math.floor(450 * 0.05);
-        const { data: ref } = await supabase.from('players').select('referral_balance').eq('telegram_id', ownerPlayer.referred_by).single();
-        if (ref) await supabase.from('players').update({ referral_balance: (Number(ref.referral_balance) || 0) + bonus }).eq('telegram_id', ownerPlayer.referred_by);
+        // Используем RPC для безопасного начисления
+        await supabase.rpc('add_referral_balance', { p_telegram_id: ownerPlayer.referred_by, p_amount: bonus });
       }
     }
 
@@ -460,26 +460,28 @@ export default function App() {
     setSellOpen(false); setTab('market'); loadMarket(); showMsg("Выставлено!"); hapticFeedback('medium');
   });
 
+  // ИСПОЛЬЗУЕМ НОВУЮ RPC-ФУНКЦИЮ ДЛЯ БЕЗОПАСНОЙ ПОКУПКИ
   const buyLot = (item: any) => action(async () => {
-    if (money < item.price) return showMsg("Мало денег", true);
-    const nM = money - item.price;
-    setMoney(nM); 
+    const { data, error } = await supabase.rpc('buy_market_item', {
+      p_buyer_id: pid,
+      p_item_id: item.id
+    });
+
+    if (error) throw new Error(error.message);
     
+    if (data && data.error) {
+      throw new Error(data.error);
+    }
+
+    setMoney(m => m - item.price); 
     if (item.item_type === 'phone') setPhone(true);
     if (item.item_type === 'car') {
       setHasCar(true);
       if (item.car_model) setCarModel(item.car_model);
     }
     
-    showMsg("Покупка успешна!"); hapticFeedback('heavy');
-    
-    await supabase.from('players').update({ money: nM }).eq('id', pid);
-    if (item.item_type === 'phone') await supabase.from('players').update({ phone_count: 1 }).eq('id', pid);
-    if (item.item_type === 'car') await supabase.from('players').update({ has_car: true }).eq('id', pid);
-
-    await supabase.from('market_items').delete().eq('id', item.id);
-    const { data: s } = await supabase.from('players').select('money').eq('id', item.seller_id).single();
-    if (s) await supabase.from('players').update({ money: Number(s.money) + item.price }).eq('id', item.seller_id);
+    showMsg("Покупка успешна!"); 
+    hapticFeedback('heavy');
     loadMarket();
   });
 
@@ -658,7 +660,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Сбор кассы и управление сотрудником */}
               <div style={{ marginTop: 15, paddingTop: 15, borderTop: '1px solid #333' }}>
                 <p style={{ fontSize: 14, color: '#a1a1aa', marginBottom: 10 }}>
                   Касса кафе: <b style={{ color: '#10b981' }}>{biz.coffee_balance || 0}</b> монет
