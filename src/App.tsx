@@ -3,7 +3,7 @@ import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { 
   Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
-  Home, Coffee, Users, ShieldAlert, CheckCircle2, Settings, Trash2, Lock, User, Search
+  Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User, Search
 } from 'lucide-react';
 
 const PHONE_PRICE = 2000;
