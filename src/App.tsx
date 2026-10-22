@@ -11,7 +11,7 @@ const BUSINESS_PRICE = 10000;
 const WORKER_SALARY = 300;
 const WORKER_BONUS = 100;
 const ADMIN_CODE = "admin2026";
-const ENERGY_COOLDOWN_MS = 90000; // Теперь отдых 90 секунд
+const ENERGY_COOLDOWN_MS = 90000;
 const COFFEE_PRICE = 500;
 
 const S = {
@@ -47,7 +47,6 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [pendingInc, setPendingInc] = useState(0);
 
-  // Состояния для Кафе
   const [isBrewing, setIsBrewing] = useState(false);
   const [brewTimeLeft, setBrewTimeLeft] = useState(0);
   const [selectedCafe, setSelectedCafe] = useState<Business | null>(null);
@@ -134,13 +133,11 @@ export default function App() {
     if (timeLeft > 0) { const t = setTimeout(() => setTimeLeft(p => p - 1), 1000); return () => clearTimeout(t); }
   }, [timeLeft]);
 
-  // Таймер готовки кофе
   useEffect(() => {
     if (isBrewing && brewTimeLeft > 0) {
       const t = setTimeout(() => setBrewTimeLeft(p => p - 1), 1000);
       return () => clearTimeout(t);
     } else if (isBrewing && brewTimeLeft === 0) {
-      // Кофе готов!
       setIsBrewing(false);
       setEnergy(100);
       syncPlayer({ energy: 100 });
@@ -202,9 +199,8 @@ export default function App() {
     hapticFeedback('heavy');
     const nM = money - COFFEE_PRICE;
     setMoney(nM);
-    syncPlayer({ money: nM }); // Списываем деньги
+    syncPlayer({ money: nM });
     
-    // Начисляем 450 владельцу (если это не мы сами)
     if (cafe.owner_id !== pid) {
       const { data: owner }: any = await supabase.from('players').select('money').eq('id', cafe.owner_id).single();
       if (owner) {
@@ -213,7 +209,7 @@ export default function App() {
     }
 
     setIsBrewing(true);
-    setBrewTimeLeft(15); // 15 секунд готовки
+    setBrewTimeLeft(15);
     showMsg("Заказ принят! Кофе готовится 15 сек...");
   };
 
@@ -382,7 +378,7 @@ export default function App() {
             </button>
             <button onClick={() => setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 16, backgroundColor: '#1e1e24', border: '1px solid #f97316', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <Coffee size={24} color="#f97316"/>
-              <span style={{ fontSize: 12, textAlign: 'center' }}>Кафе<br/>(кофе)</span>
+              <span style={{ fontSize: 12, textAlign: 'center' }}>Кафе</span>
             </button>
           </div>
 
@@ -403,10 +399,9 @@ export default function App() {
         </div>
       )}
 
-      {/* ВКЛАДКА КАФЕ */}
       {tab === 'cafe' && (
         <div style={{ maxWidth: '400px', margin: '0 auto' }}>
-          <button onClick={() => setTab('home')} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
+          <button onClick={() => { setTab('home'); setSelectedCafe(null); }} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
           <h2>Кафе города</h2>
           
           {isBrewing ? (
@@ -421,9 +416,23 @@ export default function App() {
               <Coffee size={48} color="#f97316" style={{ marginBottom: 15 }}/>
               <h3 style={{ marginBottom: 5 }}>Кофейня</h3>
               <p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 20 }}>Владелец: {selectedCafe.owner_name}</p>
-              <button onClick={() => buyCoffee(selectedCafe)} disabled={money < COFFEE_PRICE || energy === 100} style={{ ...S.btnYellow, opacity: (money < COFFEE_PRICE || energy === 100) ? 0.5 : 1, marginBottom: 10 }}>
-                Купить кофе за {COFFEE_PRICE}
+              
+              {/* ИСПРАВЛЕННАЯ КНОПКА ПОКУПКИ КОФЕ */}
+              <button 
+                onClick={() => buyCoffee(selectedCafe)} 
+                disabled={money < COFFEE_PRICE || energy === 100} 
+                style={{ 
+                  ...S.btnYellow, 
+                  background: (money < COFFEE_PRICE || energy === 100) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  color: (money < COFFEE_PRICE || energy === 100) ? '#888' : 'white',
+                  opacity: 1,
+                  cursor: (money < COFFEE_PRICE || energy === 100) ? 'not-allowed' : 'pointer',
+                  marginBottom: 10 
+                }}
+              >
+                {energy === 100 ? 'Энергия уже полная' : money < COFFEE_PRICE ? 'Недостаточно средств' : `Купить кофе за ${COFFEE_PRICE}`}
               </button>
+
               <button onClick={() => setSelectedCafe(null)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Назад к списку</button>
             </div>
           ) : (
@@ -462,8 +471,7 @@ export default function App() {
             <div style={{ ...S.card, textAlign: 'center' }}>
               <Store size={48} color="#8b5cf6" style={{ marginBottom: 15 }}/>
               <h3>Открыть Кофейню</h3>
-              {/* КНОПКА КУПИТЬ БИЗНЕС - ВСЕГДА ПОКАЗЫВАЕТ ЦЕНУ, НО СЕРАЯ, ЕСЛИ МАЛО ДЕНЕГ */}
-              <button onClick={buyBusiness} disabled={money < BUSINESS_PRICE} style={{ ...S.btnPurple, background: money < BUSINESS_PRICE ? '#333' : 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: money < BUSINESS_PRICE ? '#888' : 'white', opacity: money < BUSINESS_PRICE ? 0.6 : 1, cursor: money < BUSINESS_PRICE ? 'not-allowed' : 'pointer' }}>
+              <button onClick={buyBusiness} disabled={money < BUSINESS_PRICE} style={{ ...S.btnPurple, background: money < BUSINESS_PRICE ? '#333' : 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: money < BUSINESS_PRICE ? '#888' : 'white', opacity: 1, cursor: money < BUSINESS_PRICE ? 'not-allowed' : 'pointer' }}>
                 Купить за {BUSINESS_PRICE}
               </button>
             </div>
