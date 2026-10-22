@@ -10,22 +10,33 @@ import {
 const PHONE_PRICE = 2000, BUSINESS_PRICE = 10000, WORKER_SALARY = 300, COFFEE_PRICE = 500;
 const ADMIN_CODE = "admin2026", REST_CD = 90000, BREW_TIME = 15000, POLL = 5000;
 
+// --- АВАТАРКИ ---
+const AVATARS = [
+  { id: 1, emoji: '🧑‍💻', bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' },
+  { id: 2, emoji: '🧑‍🎨', bg: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' },
+  { id: 3, emoji: '🧑‍🚀', bg: 'linear-gradient(135deg, #f59e0b, #b45309)' },
+  { id: 4, emoji: '👩‍💻', bg: 'linear-gradient(135deg, #ec4899, #be185d)' },
+  { id: 5, emoji: '👩‍🎨', bg: 'linear-gradient(135deg, #10b981, #047857)' },
+  { id: 6, emoji: '👩‍🚀', bg: 'linear-gradient(135deg, #ef4444, #b91c1c)' },
+];
+
+const getAvatar = (id: number) => AVATARS.find(a => a.id === id) || AVATARS[0];
+
 const S = {
   card: { backgroundColor: 'rgba(30, 30, 36, 0.8)', backdropFilter: 'blur(10px)', color: 'white', padding: 20, borderRadius: 20, margin: '0 auto 20px auto', maxWidth: '350px', fontSize: 20, textAlign: 'left' as const, boxShadow: '0 8px 32px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' },
-  btnPrimary: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)', transition: '0.1s' },
-  btnSecondary: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)', transition: '0.1s' },
-  btnPurple: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)', transition: '0.1s' },
-  btnDanger: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)', transition: '0.1s' },
-  btnYellow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: 'none', transition: '0.1s' },
-  modalBg: { position: 'fixed' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, padding: 20 },
-  modalBox: { backgroundColor: '#1e1e24', padding: 25, borderRadius: 20, width: '100%', maxWidth: '320px', border: '1px solid #333', textAlign: 'center' as const },
+  btnPrimary: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)', transition: 'transform 0.1s' },
+  btnSecondary: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)', transition: 'transform 0.1s' },
+  btnPurple: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)', transition: 'transform 0.1s' },
+  btnDanger: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)', transition: 'transform 0.1s' },
+  btnYellow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: 'none', transition: 'transform 0.1s' },
+  modalBg: { position: 'fixed' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, padding: 20, animation: 'fadeIn 0.2s ease-out' },
+  modalBox: { backgroundColor: '#1e1e24', padding: 25, borderRadius: 20, width: '100%', maxWidth: '320px', border: '1px solid #333', textAlign: 'center' as const, animation: 'slideUp 0.3s ease-out' },
   input: { width: '100%', padding: 15, borderRadius: 12, backgroundColor: '#121212', color: '#fff', border: '1px solid #444', textAlign: 'center' as const, fontSize: 18, marginBottom: 20, boxSizing: 'border-box' as const, outline: 'none' }
 };
 
 export default function App() {
   const { user, hapticFeedback } = useTelegram();
   
-  // Состояния
   const [loading, setLoading] = useState(true);
   const [proc, setProc] = useState(false);
   const [pid, setPid] = useState<string | null>(null);
@@ -37,6 +48,8 @@ export default function App() {
   const [inNick, setInNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [selG, setSelG] = useState<'male' | 'female' | null>(null);
+  const [avatarId, setAvatarId] = useState(1);
+  
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
   const [phone, setPhone] = useState(false);
@@ -64,7 +77,6 @@ export default function App() {
 
   const lock = useRef(false);
 
-  // Хелперы
   const showMsg = (msg: string, err = false) => { setToast({ msg, err }); setTimeout(() => setToast(null), 3000); };
   const getUid = () => user?.id?.toString() || localStorage.getItem('zhituha_id') || (() => { const id = 'user_' + Math.random().toString(36).substring(2, 8); localStorage.setItem('zhituha_id', id); return id; })();
 
@@ -83,7 +95,6 @@ export default function App() {
     return true;
   };
 
-  // Загрузка
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     if (lock.current) return;
@@ -92,6 +103,7 @@ export default function App() {
       const { data } = await supabase.from('players').select('*').eq('telegram_id', uid).maybeSingle();
       if (data) {
         setPid(data.id); setNick(data.nickname); setGender(data.gender);
+        setAvatarId(data.avatar_id || 1);
         setMoney(Number(data.money)); setEnergy(Number(data.energy));
         setPhone(Number(data.phone_count) > 0);
         const last = Number(data.last_rest_time) || 0;
@@ -115,10 +127,8 @@ export default function App() {
     if (m) setMarket(m);
   };
 
-  // Эффекты
   useEffect(() => { loadData(); }, [user]);
   
-  // Поллинг только там, где нужны чужие данные (убрали home)
   useEffect(() => {
     if (tab === 'market') loadMarket();
     if (['business', 'jobs', 'cafe'].includes(tab)) {
@@ -128,7 +138,6 @@ export default function App() {
     }
   }, [tab]);
 
-  // Точные таймеры
   useEffect(() => {
     const int = setInterval(() => {
       const now = Date.now();
@@ -142,18 +151,19 @@ export default function App() {
         if (r === 0) {
           setBrewEnd(0); setEnergy(100);
           if (pid) supabase.from('players').update({ energy: 100 }).eq('id', pid);
-          showMsg("Кофе готов! Энергия восстановлена!");
+          showMsg("Кофе готов! Энергия восстановлена!"); hapticFeedback('heavy');
         }
       }
     }, 1000);
     return () => clearInterval(int);
   }, [restEnd, brewEnd, pid]);
 
-  // Действия
   const reg = () => action(async () => {
     const final = user?.first_name || inNick;
     if (!final.trim() || !selG) return showMsg("Заполни поля!", true);
-    const { data, error } = await supabase.from('players').insert([{ telegram_id: getUid(), nickname: final, gender: selG, money: 3500, energy: 80, phone_count: 0, last_rest_time: 0 }]).select().single();
+    const { data, error } = await supabase.from('players').insert([{ 
+      telegram_id: getUid(), nickname: final, gender: selG, avatar_id: avatarId, money: 3500, energy: 80, phone_count: 0, last_rest_time: 0 
+    }]).select().single();
     if (error) throw error;
     setPid(data.id); setNick(final); setGender(selG);
   });
@@ -274,40 +284,62 @@ export default function App() {
     localStorage.removeItem('zhituha_id'); window.location.reload();
   };
 
-  // --- РЕНДЕР ---
+  // --- ЦВЕТА ФОНОВ ---
+  const bgColors: Record<string, string> = {
+    home: 'linear-gradient(180deg, #121212 0%, #1a1a2e 100%)',
+    jobs: 'linear-gradient(180deg, #121212 0%, #0f2e1a 100%)',
+    market: 'linear-gradient(180deg, #121212 0%, #2e140f 100%)',
+    cafe: 'linear-gradient(180deg, #121212 0%, #2e230f 100%)',
+    shop: 'linear-gradient(180deg, #121212 0%, #1a1a1a 100%)',
+    inventory: 'linear-gradient(180deg, #121212 0%, #221430 100%)',
+  };
+
+  const av = getAvatar(avatarId);
+
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
 
   if (!nick || !gender) return (
     <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', background: toast.err ? '#ef4444' : '#10b981', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000 }}>{toast.msg}</div>}
+      {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', background: toast.err ? '#ef4444' : '#10b981', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{toast.msg}</div>}
       <h1>Житуха</h1><p style={{ color: '#888', marginBottom: '30px' }}>Создай персонажа</p>
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-        <button onClick={() => setSelG('male')} style={{ fontSize: 40, padding: '10px 30px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16 }}>🧑</button>
-        <button onClick={() => setSelG('female')} style={{ fontSize: 40, padding: '10px 30px', cursor: 'pointer', backgroundColor: selG === 'female' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selG === 'female' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16 }}>👩</button>
+      
+      {/* ВЫБОР АВАТАРКИ */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '10px', maxWidth: '300px', marginBottom: '20px' }}>
+        {AVATARS.map(a => (
+          <button key={a.id} onClick={() => { setAvatarId(a.id); hapticFeedback('light'); }} style={{ width: 60, height: 60, borderRadius: '50%', background: a.bg, fontSize: 30, cursor: 'pointer', border: avatarId === a.id ? '3px solid white' : '3px solid transparent', boxShadow: avatarId === a.id ? '0 0 15px rgba(255,255,255,0.5)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' }}>
+            {a.emoji}
+          </button>
+        ))}
       </div>
+
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+        <button onClick={() => setSelG('male')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Парень</button>
+        <button onClick={() => setSelG('female')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'female' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selG === 'female' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Девушка</button>
+      </div>
+
       {user?.first_name ? <div style={{ ...S.input, maxWidth: '280px', backgroundColor: 'transparent', border: 'none', fontSize: 22, fontWeight: 'bold' }}>Ник: {user.first_name}</div> : <input type="text" value={inNick} onChange={(e) => setInNick(e.target.value)} placeholder="Ник..." style={{ ...S.input, maxWidth: '280px' }} />}
       <button onClick={reg} disabled={proc} style={{ ...S.btnPrimary, maxWidth: '280px', opacity: proc ? 0.5 : 1 }}>Начать жизнь</button>
     </div>
   );
 
   return (
-    <div style={{ padding: '20px 20px 90px 20px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', backgroundColor: '#121212', color: 'white' }}>
+    <div style={{ padding: '20px 20px 90px 20px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: bgColors[tab] || '#121212', color: 'white', transition: 'background 0.5s ease' }}>
       
-      {toast && <div style={{ position: 'fixed', top: 90, left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.err ? '#ef4444' : '#10b981', color: 'white', padding: '12px 20px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '280px' }}>{toast.msg}</div>}
+      {toast && <div style={{ position: 'fixed', top: 90, left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.err ? '#ef4444' : '#10b981', color: 'white', padding: '12px 20px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '280px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{toast.msg}</div>}
 
-      {/* МОДАЛКИ */}
       {quitOpen && <div style={S.modalBg}><div style={S.modalBox}><h3 style={{ marginTop: 0, fontSize: 20 }}>Увольнение</h3><p style={{ color: '#a1a1aa', fontSize: 15, marginBottom: 20 }}>Ты уверен?</p><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setQuitOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Отмена</button><button onClick={quit} disabled={proc} style={{ ...S.btnDanger, opacity: proc ? 0.5 : 1 }}>Уволиться</button></div></div></div>}
       {authOpen && <div style={S.modalBg}><div style={S.modalBox}><Lock size={40} color="#f59e0b" style={{ marginBottom: 15 }} /><h3>Код</h3><input type="password" value={adminCode} onChange={e => setAdminCode(e.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setAuthOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Отмена</button><button onClick={checkAuth} style={S.btnYellow}>Войти</button></div></div></div>}
-      {adminOpen && <div style={S.modalBg}><div style={{ ...S.modalBox, border: '1px solid #ef4444' }}><h3 style={{ color: '#ef4444', display: 'flex', justifyContent: 'center', gap: 10 }}><Settings size={24} /> ADMIN</h3><button onClick={adminMoney} style={{ ...S.btnYellow, marginBottom: 10 }}><Coins size={20} /> +100 000</button><button onClick={adminReset} style={{ ...S.btnDanger, marginBottom: 15 }}><Trash2 size={20} /> Сброс игры</button><button onClick={() => setAdminOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Закрыть</button></div></div>}
+      {adminOpen && <div style={S.modalBg}><div style={{ ...S.modalBox, border: '1px solid #ef4444' }}><h3 style={{ color: '#ef4444', display: 'flex', justifyContent: 'center', gap: 10 }}><Settings size={24} /> ADMIN</h3><button onClick={adminMoney} style={{ ...S.btnYellow, marginBottom: 10 }}><Coins size={20} /> +100 000</button><button onClick={adminReset} style={{ ...S.btnDanger, marginBottom: 15 }}><Trash2 size={20} /> Сброс</button><button onClick={() => setAdminOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Закрыть</button></div></div>}
       {sellOpen && <div style={S.modalBg}><div style={S.modalBox}><h3>Продажа</h3><input type="number" value={sellPrice} onChange={e => setSellPrice(e.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setSellOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Отмена</button><button onClick={listPhone} style={S.btnPurple}>Выставить</button></div></div></div>}
 
-      {/* ВКЛАДКИ */}
       {tab === 'home' && (
-        <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 30 }}>
             <div style={{ textAlign: 'left' }} onClick={handleAvatar}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
-                {user?.photo_url ? <img src={user.photo_url} alt="ava" style={{ width: 50, height: 50, borderRadius: '50%', border: '2px solid #3b82f6', pointerEvents: 'none' }} /> : <div style={{ width: 50, height: 50, borderRadius: '50%', backgroundColor: '#1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #333', pointerEvents: 'none' }}>{gender === 'male' ? '🧑' : '👩'}</div>}
+                <div style={{ width: 50, height: 50, borderRadius: '50%', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, border: '2px solid rgba(255,255,255,0.2)', pointerEvents: 'none' }}>
+                  {av.emoji}
+                </div>
                 <div><div style={{ fontSize: 18, fontWeight: 'bold' }}>{nick}</div><div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 4 }}><User size={12} /> ID: {tgId.slice(0, 6)}</div></div>
               </div>
             </div>
@@ -317,27 +349,27 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 40 }}>
-            <button onClick={() => setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 16, backgroundColor: '#1e1e24', border: '1px solid #8b5cf6', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}><Briefcase size={24} color="#8b5cf6" /><span style={{ fontSize: 12 }}>Бизнес<br />стартапы</span></button>
-            <button onClick={() => setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 16, backgroundColor: '#1e1e24', border: '1px solid #f97316', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 12 }}>Кафе</span></button>
+            <button onClick={() => setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 16, backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px solid #8b5cf6', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', backdropFilter: 'blur(10px)' }}><Briefcase size={24} color="#8b5cf6" /><span style={{ fontSize: 12 }}>Бизнес<br />стартапы</span></button>
+            <button onClick={() => setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 16, backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px solid #f97316', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', backdropFilter: 'blur(10px)' }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 12 }}>Кафе</span></button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 15, alignItems: 'center' }}>
             <button onClick={() => work(true)} disabled={proc || energy < 20} style={{ ...S.btnSecondary, opacity: (proc || energy < 20) ? 0.5 : 1 }}><Users size={20} /> Подработка (+200)</button>
-            <button onClick={rest} disabled={proc || tLeft > 0 || energy === 100} style={{ ...S.btnPrimary, background: '#1e1e24', border: '1px solid #10b981', color: tLeft > 0 ? '#888' : '#10b981', boxShadow: 'none', opacity: (proc || tLeft > 0 || energy === 100) ? 0.5 : 1 }}><Zap size={20} /> {tLeft > 0 ? `Ждать ${tLeft} сек.` : 'Отдых (90 сек)'}</button>
+            <button onClick={rest} disabled={proc || tLeft > 0 || energy === 100} style={{ ...S.btnPrimary, background: 'rgba(30, 30, 36, 0.8)', border: '1px solid #10b981', color: tLeft > 0 ? '#888' : '#10b981', boxShadow: 'none', opacity: (proc || tLeft > 0 || energy === 100) ? 0.5 : 1 }}><Zap size={20} /> {tLeft > 0 ? `Ждать ${tLeft} сек.` : 'Отдых (90 сек)'}</button>
           </div>
         </div>
       )}
 
       {tab === 'cafe' && (
-        <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
           <button onClick={() => { setTab('home'); setSelCafe(null); }} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Кафе</h2>
           {bLeft > 0 ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3>Готовим...</h3><p style={{ fontSize: 24, fontWeight: 'bold', color: '#f97316' }}>{bLeft} сек.</p></div>
           : selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>Кофейня</h3><p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 20 }}>Владелец: {selCafe.owner_name}</p><button onClick={() => buyCoffee(selCafe)} disabled={proc || money < COFFEE_PRICE || energy === 100 || !selCafe.worker_id} style={{ ...S.btnYellow, background: (money < COFFEE_PRICE || energy === 100 || !selCafe.worker_id) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (money < COFFEE_PRICE || energy === 100 || !selCafe.worker_id) ? '#888' : 'white', opacity: (proc || money < COFFEE_PRICE || energy === 100 || !selCafe.worker_id) ? 0.5 : 1, marginBottom: 10 }}>{!selCafe.worker_id ? 'Нет бариста' : energy === 100 ? 'Полная энергия' : money < COFFEE_PRICE ? 'Мало денег' : `Купить кофе за ${COFFEE_PRICE}`}</button><button onClick={() => setSelCafe(null)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Назад</button></div>
-          : <div>{allBiz.filter(b => b.worker_id !== null).map(b => <div key={b.id} onClick={() => setSelCafe(b)} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333', cursor: 'pointer', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> Кофейня</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div></div><span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span></div>)}{allBiz.filter(b => b.worker_id !== null).length === 0 && <p style={{ color: '#666' }}>Нет открытых кафе.</p>}</div>}
+          : <div>{allBiz.filter(b => b.worker_id !== null).map(b => <div key={b.id} onClick={() => setSelCafe(b)} style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333', cursor: 'pointer', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> Кофейня</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div></div><span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span></div>)}{allBiz.filter(b => b.worker_id !== null).length === 0 && <p style={{ color: '#666' }}>Нет открытых кафе.</p>}</div>}
         </div>
       )}
 
       {tab === 'business' && (
-        <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
           <button onClick={() => setTab('home')} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Мой Бизнес</h2>
           {biz ? <div style={S.card}><div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 24, fontWeight: 'bold', marginBottom: 15 }}><Coffee size={28} color="#d97706" /> Кофейня</div><p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0 15px 0' }}>Сотрудник: <b style={{ color: '#3b82f6' }}>{biz.worker_name || 'Нет'}</b></p><div style={{ background: 'rgba(249, 115, 22, 0.1)', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid rgba(249, 115, 22, 0.2)' }}><p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#f97316' }}>Выручка</p><p style={{ margin: '0 0 10px 0', fontSize: 22, color: '#f97316', fontWeight: 'bold' }}>В кассе: {biz.coffee_balance || 0} <Coins size={18} style={{ display: 'inline' }} /></p><button onClick={collect} disabled={proc || !biz.coffee_balance || biz.coffee_balance <= 0} style={{ ...S.btnYellow, opacity: (proc || !biz.coffee_balance || biz.coffee_balance <= 0) ? 0.5 : 1, padding: 12 }}>Собрать</button></div>{biz.worker_id && <button onClick={fire} disabled={proc} style={{ ...S.btnDanger, background: 'rgba(239, 68, 68, 0.1)', boxShadow: 'none' }}>Уволить</button>}</div>
           : <div style={{ ...S.card, textAlign: 'center' }}><Store size={48} color="#8b5cf6" style={{ marginBottom: 15 }} /><h3>Открыть Кофейню</h3><button onClick={buyBiz} disabled={proc || money < BUSINESS_PRICE} style={{ ...S.btnPurple, background: money < BUSINESS_PRICE ? '#333' : 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: money < BUSINESS_PRICE ? '#888' : 'white', opacity: (proc || money < BUSINESS_PRICE) ? 0.5 : 1 }}>{proc ? 'Обработка...' : `Купить за ${BUSINESS_PRICE}`}</button></div>}
@@ -345,23 +377,22 @@ export default function App() {
       )}
 
       {tab === 'jobs' && (
-        <div style={{ maxWidth: '400px', margin: '0 auto' }}><h2>Работа</h2>
-          {boardOpen ? <div><button onClick={() => setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Вакансии</h3><div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{allBiz.filter(b => !b.worker_id && b.owner_id !== pid).map(b => <div key={b.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> Кофейня</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div></div>{job ? <button disabled style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: 0.5 }}>Уже работаете</button> : <button onClick={() => hire(b.id)} disabled={proc} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: proc ? 0.5 : 1 }}>Устроиться</button>}</div>)}{allBiz.filter(b => !b.worker_id && b.owner_id !== pid).length === 0 && <p style={{ color: '#666', fontSize: 14 }}>Пока нет мест...</p>}</div></div>
-          : job ? <div><h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3><div style={{ backgroundColor: '#1e1e24', padding: 20, borderRadius: 16, border: '1px solid #333' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 18, fontWeight: 'bold' }}>Кофейня</span></div><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#a1a1aa' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p><p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#a1a1aa' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p><button onClick={shift} disabled={proc || energy < 20} style={{ ...S.btnPrimary, opacity: (proc || energy < 20) ? 0.5 : 1, marginBottom: 10 }}>Смена (+300)</button><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>Вакансии</button><button onClick={() => setQuitOpen(true)} disabled={proc} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12, fontWeight: 'bold', opacity: proc ? 0.5 : 1 }}>Уволиться</button></div></div></div>
+        <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Работа</h2>
+          {boardOpen ? <div><button onClick={() => setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Вакансии</h3><div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{allBiz.filter(b => !b.worker_id && b.owner_id !== pid).map(b => <div key={b.id} style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> Кофейня</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div></div>{job ? <button disabled style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: 0.5 }}>Уже работаете</button> : <button onClick={() => hire(b.id)} disabled={proc} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: proc ? 0.5 : 1 }}>Устроиться</button>}</div>)}{allBiz.filter(b => !b.worker_id && b.owner_id !== pid).length === 0 && <p style={{ color: '#666', fontSize: 14 }}>Пока нет мест...</p>}</div></div>
+          : job ? <div><h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3><div style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: 20, borderRadius: 16, border: '1px solid #333' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 18, fontWeight: 'bold' }}>Кофейня</span></div><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#a1a1aa' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p><p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#a1a1aa' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p><button onClick={shift} disabled={proc || energy < 20} style={{ ...S.btnPrimary, opacity: (proc || energy < 20) ? 0.5 : 1, marginBottom: 10 }}>Смена (+300)</button><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>Вакансии</button><button onClick={() => setQuitOpen(true)} disabled={proc} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12, fontWeight: 'bold', opacity: proc ? 0.5 : 1 }}>Уволиться</button></div></div></div>
           : <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}><div style={{ fontSize: 50, marginBottom: 10 }}>📉</div><h3>Вы безработный</h3><p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 20 }}>Пора найти работу!</p><button onClick={() => setBoardOpen(true)} style={S.btnSecondary}><Briefcase size={20} /> Биржа труда</button></div>}
         </div>
       )}
 
-      {tab === 'shop' && <div style={{ maxWidth: '400px', margin: '0 auto' }}><h2>Магазин</h2><div style={{ ...S.card, textAlign: 'center' }}><Smartphone size={48} color="#a1a1aa" style={{ marginBottom: 15 }} /><h3>Смартфон</h3>{phone ? <div style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckCircle2 size={20} /> Куплено</div> : <button onClick={() => buyPhone(true)} disabled={proc || money < PHONE_PRICE} style={{ ...S.btnPurple, opacity: (proc || money < PHONE_PRICE) ? 0.5 : 1 }}>Купить за 2000</button>}</div></div>}
+      {tab === 'shop' && <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Магазин</h2><div style={{ ...S.card, textAlign: 'center' }}><Smartphone size={48} color="#a1a1aa" style={{ marginBottom: 15 }} /><h3>Смартфон</h3>{phone ? <div style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckCircle2 size={20} /> Куплено</div> : <button onClick={() => buyPhone(true)} disabled={proc || money < PHONE_PRICE} style={{ ...S.btnPurple, opacity: (proc || money < PHONE_PRICE) ? 0.5 : 1 }}>Купить за 2000</button>}</div></div>}
 
-      {tab === 'market' && <div style={{ maxWidth: '400px', margin: '0 auto' }}><h2>Рынок</h2><div style={{ marginBottom: 30 }}><h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 10 }}>Топ богачей</h3>{players.map((p, i) => <div key={p.id} style={{ backgroundColor: '#1e1e24', padding: '12px 15px', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333', marginBottom: 8 }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#fbbf24' : i === 1 ? '#9ca3af' : i === 2 ? '#b45309' : '#a1a1aa' }}>#{i + 1}</span><span style={{ fontWeight: 'bold' }}>{p.nickname}</span></div><span style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{p.money} <Coins size={14} /></span></div>)}</div><h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 10 }}>Лоты</h3>{market.length === 0 && <p style={{ color: '#666' }}>Пусто...</p>}{market.map(item => <div key={item.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 16, border: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontSize: 16, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Smartphone size={18} /> Телефон</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Продавец: {item.seller_name}</div></div><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}><span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{item.price}</span>{item.seller_id !== pid ? <button onClick={() => buyLot(item)} disabled={proc} style={{ ...S.btnPrimary, width: 'auto', padding: '6px 12px', fontSize: 13, opacity: proc ? 0.5 : 1 }}>Купить</button> : <span style={{ fontSize: 12, color: '#a1a1aa' }}>Ваш лот</span>}</div></div>)}</div>}
+      {tab === 'market' && <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Рынок</h2><div style={{ marginBottom: 30 }}><h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 10 }}>Топ богачей</h3>{players.map((p, i) => <div key={p.id} style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: '12px 15px', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333', marginBottom: 8 }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#fbbf24' : i === 1 ? '#9ca3af' : i === 2 ? '#b45309' : '#a1a1aa' }}>#{i + 1}</span><span style={{ fontWeight: 'bold' }}>{p.nickname}</span></div><span style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{p.money} <Coins size={14} /></span></div>)}</div><h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 10 }}>Лоты</h3>{market.length === 0 && <p style={{ color: '#666' }}>Пусто...</p>}{market.map(item => <div key={item.id} style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: 15, borderRadius: 16, border: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontSize: 16, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Smartphone size={18} /> Телефон</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Продавец: {item.seller_name}</div></div><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}><span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{item.price}</span>{item.seller_id !== pid ? <button onClick={() => buyLot(item)} disabled={proc} style={{ ...S.btnPrimary, width: 'auto', padding: '6px 12px', fontSize: 13, opacity: proc ? 0.5 : 1 }}>Купить</button> : <span style={{ fontSize: 12, color: '#a1a1aa' }}>Ваш лот</span>}</div></div>)}</div>}
 
-      {tab === 'inventory' && <div style={{ maxWidth: '400px', margin: '0 auto' }}><h2>Инвентарь</h2>{phone ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Smartphone size={32} color="#a1a1aa" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div></div><button onClick={() => setSellOpen(true)} disabled={proc} style={{ ...S.btnPurple, opacity: proc ? 0.5 : 1 }}>Выставить</button><button onClick={() => buyPhone(false)} disabled={proc} style={{ ...S.btnPrimary, opacity: proc ? 0.5 : 1 }}>Сдать (+1400)</button></div> : <div style={{ color: '#52525b', padding: 40, textAlign: 'center' }}><Backpack size={48} style={{ opacity: 0.5, marginBottom: 10 }} /><br />Пусто...</div>}</div>}
+      {tab === 'inventory' && <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Инвентарь</h2>{phone ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Smartphone size={32} color="#a1a1aa" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div></div><button onClick={() => setSellOpen(true)} disabled={proc} style={{ ...S.btnPurple, opacity: proc ? 0.5 : 1 }}>Выставить</button><button onClick={() => buyPhone(false)} disabled={proc} style={{ ...S.btnPrimary, opacity: proc ? 0.5 : 1 }}>Сдать (+1400)</button></div> : <div style={{ color: '#52525b', padding: 40, textAlign: 'center' }}><Backpack size={48} style={{ opacity: 0.5, marginBottom: 10 }} /><br />Пусто...</div>}</div>}
 
-      {/* НИЖНЕЕ МЕНЮ */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(30, 30, 36, 0.95)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(20, 20, 20, 0.95)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
         {[{ id: 'home', icon: Home, text: 'Главная' }, { id: 'jobs', icon: Briefcase, text: 'Работа' }, { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'shop', icon: Store, text: 'Магазин' }, { id: 'inventory', icon: Backpack, text: 'Сумка' }].map(t => (
-          <button key={t.id} onClick={() => { setTab(t.id as any); hapticFeedback('light'); setBoardOpen(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: tab === t.id ? '#3b82f6' : '#a1a1aa' }}><t.icon size={22} style={{ marginBottom: 4 }} /><span style={{ fontSize: 10, fontWeight: tab === t.id ? 'bold' : 'normal' }}>{t.text}</span></button>
+          <button key={t.id} onClick={() => { setTab(t.id as any); hapticFeedback('light'); setBoardOpen(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: tab === t.id ? '#3b82f6' : '#a1a1aa', transition: 'color 0.2s' }}><t.icon size={22} style={{ marginBottom: 4 }} /><span style={{ fontSize: 10, fontWeight: tab === t.id ? 'bold' : 'normal' }}>{t.text}</span></button>
         ))}
       </div>
     </div>
