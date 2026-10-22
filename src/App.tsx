@@ -10,7 +10,7 @@ import {
 const PHONE_PRICE = 2000, BUSINESS_PRICE = 10000, WORKER_SALARY = 300, COFFEE_PRICE = 500;
 const ADMIN_CODE = "admin2026", REST_CD = 90000, BREW_TIME = 15000, POLL = 5000;
 
-// --- АВАТАРКИ С ГЕНДЕРОМ ---
+// --- АВАТАРКИ ---
 const AVATARS = [
   { id: 1, gender: 'male', emoji: '🧑‍💻', bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' },
   { id: 2, gender: 'male', emoji: '🧑‍🎨', bg: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' },
@@ -158,10 +158,8 @@ export default function App() {
     return () => clearInterval(int);
   }, [restEnd, brewEnd, pid]);
 
-  // --- ЛОГИКА ВЫБОРА ПОЛА И АВАТАРКИ ---
   const selectGender = (g: 'male' | 'female') => {
     setSelG(g);
-    // Автоматически выбираем первую аватарку этого пола
     const firstAvatar = AVATARS.find(a => a.gender === g)?.id || 1;
     setAvatarId(firstAvatar);
     hapticFeedback('light');
@@ -311,13 +309,11 @@ export default function App() {
       {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', background: toast.err ? '#ef4444' : '#10b981', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{toast.msg}</div>}
       <h1>Житуха</h1><p style={{ color: '#888', marginBottom: '30px' }}>Создай персонажа</p>
       
-      {/* ВЫБОР ПОЛА */}
       <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
         <button onClick={() => selectGender('male')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Парень</button>
         <button onClick={() => selectGender('female')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'female' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selG === 'female' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Девушка</button>
       </div>
 
-      {/* ВЫБОР АВАТАРКИ (ТОЛЬКО ПО ВЫБРАННОМУ ПОЛУ) */}
       {selG && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', maxWidth: '300px', marginBottom: '20px' }}>
           {AVATARS.filter(a => a.gender === selG).map(a => (
