@@ -3,7 +3,7 @@ import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { 
   Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
-  Home, Coffee, Users, ShieldAlert, CheckCircle2
+  Home, Coffee, Users, ShieldAlert, CheckCircle2, Settings, Trash2, Lock
 } from 'lucide-react';
 
 const PHONE_PRICE = 2000;
@@ -12,6 +12,9 @@ const ENERGY_COOLDOWN_MS = 60000;
 const BUSINESS_PRICE = 10000; 
 const WORKER_SALARY = 300; 
 const WORKER_BONUS_TO_OWNER = 100; 
+
+// СЕКРЕТНЫЙ ПАРОЛЬ АДМИНА (можешь поменять на свой)
+const ADMIN_SECRET_CODE = "admin2026"; 
 
 interface Player { id: string; nickname: string; money: number; }
 interface MarketItem { id: string; seller_id: string; seller_name: string; item_type: string; price: number; }
@@ -50,6 +53,35 @@ function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business'>('home');
   const [notification, setNotification] = useState<string | null>(null);
   const [notifColor, setNotifColor] = useState('#10b981');
+
+  // --- ЗАЩИТА АДМИНКИ ---
+  const [clickCount, setClickCount] = useState(0);
+  const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false); // Окно ввода пароля
+  const [isAdminOpen, setIsAdminOpen] = useState(false); // Сама админка
+  const [authInput, setAuthInput] = useState('');
+
+  const handleAvatarClick = () => {
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+    if (newCount >= 5) {
+      setIsAdminAuthOpen(true);
+      setClickCount(0);
+      setAuthInput('');
+      hapticFeedback('heavy');
+    }
+    setTimeout(() => setClickCount(0), 2000);
+  };
+
+  const handleAuthSubmit = () => {
+    if (authInput === ADMIN_SECRET_CODE) {
+      setIsAdminAuthOpen(false);
+      setIsAdminOpen(true);
+      hapticFeedback('medium');
+    } else {
+      showNotification("Неверный код!", true);
+      setAuthInput('');
+    }
+  };
 
   const getUniqueId = () => {
     if (user?.id) return user.id.toString();
@@ -145,6 +177,34 @@ function App() {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  const adminGiveMoney = async () => {
+    hapticFeedback('heavy');
+    const newMoney = Number(money) + 100000;
+    if (await saveProgress({ money: newMoney })) {
+      setMoney(newMoney);
+      showNotification("Админ: +100 000 монет");
+      setIsAdminOpen(false);
+    }
+  };
+
+  const adminResetGame = async () => {
+    if (!window.confirm("ВНИМАНИЕ! Это удалит ВСЕХ игроков, лоты и бизнесы. Уверен?")) return;
+    hapticFeedback('heavy');
+    setIsLoading(true);
+
+    try {
+      await supabase.from('market_items').delete().neq('id', '0');
+      await supabase.from('businesses').delete().neq('id', '0');
+      await supabase.from('players').delete().neq('id', '0');
+      localStorage.removeItem('zhituha_browser_id');
+      window.location.reload();
+    } catch (e) {
+      showNotification("Ошибка сброса", true);
+      setIsLoading(false);
+    }
+  };
+
+  // --- ОСТАЛЬНЫЕ ДЕЙСТВИЯ ---
   const handleRegister = async () => {
     hapticFeedback('medium');
     if (inputName.trim() === '') return showNotification('Введи никнейм!', true);
@@ -357,6 +417,48 @@ function App() {
         <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', backgroundColor: notifColor, color: 'white', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '300px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{notification}</div>
       )}
 
+      {/* --- ОКНО ВВОДА ПАРОЛЯ --- */}
+      {isAdminAuthOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, padding: 20 }}>
+          <div style={{ backgroundColor: '#1e1e24', padding: 25, borderRadius: 20, width: '100%', maxWidth: '320px', border: '1px solid #333', textAlign: 'center' }}>
+            <Lock size={40} color="#f59e0b" style={{ marginBottom: 15 }} />
+            <h3 style={{ marginTop: 0, fontSize: 20 }}>Код доступа</h3>
+            <input 
+              type="password" 
+              value={authInput} 
+              onChange={(e) => setAuthInput(e.target.value)} 
+              placeholder="••••••" 
+              style={{ width: '100%', padding: 12, borderRadius: 8, backgroundColor: '#121212', color: '#fff', border: '1px solid #444', textAlign: 'center', fontSize: 18, marginBottom: 15, boxSizing: 'border-box' }} 
+            />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setIsAdminAuthOpen(false)} style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#333', color: 'white', border: 'none', fontWeight: 'bold' }}>Отмена</button>
+              <button onClick={handleAuthSubmit} style={{ flex: 1, padding: 12, borderRadius: 8, background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', border: 'none', fontWeight: 'bold' }}>Войти</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- САМА АДМИНКА --- */}
+      {isAdminOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, padding: 20 }}>
+          <div style={{ backgroundColor: '#1e1e24', padding: 25, borderRadius: 20, width: '100%', maxWidth: '320px', border: '1px solid #ef4444', boxShadow: '0 0 40px rgba(239, 68, 68, 0.2)' }}>
+            <h3 style={{ marginTop: 0, fontSize: 22, textAlign: 'center', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+              <Settings size={24} /> ADMIN PANEL
+            </h3>
+            
+            <button onClick={adminGiveMoney} style={{ ...btnPrimary, width: '100%', marginBottom: 10, background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: 'none' }}>
+              <Coins size={20} /> Выдать 100 000 монет
+            </button>
+
+            <button onClick={adminResetGame} style={{ ...btnPrimary, width: '100%', marginBottom: 15, background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)', boxShadow: 'none' }}>
+              <Trash2 size={20} /> Полный сброс игры
+            </button>
+
+            <button onClick={() => setIsAdminOpen(false)} style={{ width: '100%', padding: 14, borderRadius: 12, backgroundColor: '#333', color: 'white', border: 'none', fontWeight: 'bold' }}>Закрыть</button>
+          </div>
+        </div>
+      )}
+
       {isSellModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1500, padding: 20 }}>
           <div style={{ backgroundColor: '#1e1e24', padding: 25, borderRadius: 20, width: '100%', maxWidth: '320px', border: '1px solid #333' }}>
@@ -371,7 +473,7 @@ function App() {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', maxWidth: '350px', margin: '0 auto', paddingBottom: 15, marginBottom: 20 }}>
-        <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px', fontSize: '22px', fontWeight: '600' }}>
+        <h2 onClick={handleAvatarClick} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px', fontSize: '22px', fontWeight: '600', cursor: 'pointer' }}>
           {user?.photo_url ? (
             <img src={user.photo_url} alt="avatar" style={{ width: 42, height: 42, borderRadius: '50%', border: '2px solid #3b82f6' }} />
           ) : (
