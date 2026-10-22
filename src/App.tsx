@@ -52,7 +52,8 @@ export default function App() {
   const [job, setJob] = useState<Business | null>(null);
   const [allBiz, setAllBiz] = useState<Business[]>([]);
 
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business'>('home');
+  // Вкладка 'jobs' для Биржи труда
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs'>('home');
   const [toast, setToast] = useState<{msg: string, err: boolean} | null>(null);
   
   const [clicks, setClicks] = useState(0);
@@ -112,7 +113,10 @@ export default function App() {
   };
 
   useEffect(() => { loadData(); }, [user]);
-  useEffect(() => { if (tab === 'market') loadMarket(); }, [tab]);
+  useEffect(() => { 
+    if (tab === 'market') loadMarket(); 
+    if (tab === 'jobs') loadData(true); 
+  }, [tab]);
   
   useEffect(() => {
     if (timeLeft > 0) { const t = setTimeout(() => setTimeLeft(p => p - 1), 1000); return () => clearTimeout(t); }
@@ -325,7 +329,7 @@ export default function App() {
           <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 40 }}>
             <button onClick={() => setTab('business')} style={{ padding: '15px 20px', borderRadius: 16, backgroundColor: '#1e1e24', border: '1px solid #8b5cf6', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <Briefcase size={24} color="#8b5cf6"/>
-              <span style={{ fontSize: 13 }}>Бизнес<br/>стартапа</span>
+              <span style={{ fontSize: 13 }}>Бизнес<br/>стартапы</span>
             </button>
           </div>
 
@@ -339,7 +343,7 @@ export default function App() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 50 }}>
-            <button onClick={() => setTab('market')} style={{ padding: '15px 30px', borderRadius: 20, background: '#1e1e24', border: '1px solid #fbbf24', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', boxShadow: '0 4px 15px rgba(251, 191, 36, 0.2)' }}>
+            <button onClick={() => setTab('jobs')} style={{ padding: '15px 30px', borderRadius: 20, background: '#1e1e24', border: '1px solid #fbbf24', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', boxShadow: '0 4px 15px rgba(251, 191, 36, 0.2)' }}>
               <Search size={20} color="#fbbf24"/> Биржа труда
             </button>
           </div>
@@ -354,7 +358,7 @@ export default function App() {
             <div style={S.card}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 24, fontWeight: 'bold', marginBottom: 15 }}><Coffee size={28} color="#d97706"/> Кофейня</div>
               <p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0' }}>Сотрудник: <b style={{ color: '#3b82f6' }}>{biz.worker_name || 'Нет'}</b></p>
-              {biz.worker_id ? <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: 15, borderRadius: 12, margin: '15px 0', border: '1px solid rgba(16, 185, 129, 0.2)' }}><p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#10b981' }}>Доход: 100 / мин</p><p style={{ margin: 0, fontSize: 22, color: '#10b981', fontWeight: 'bold' }}>В кассе: {pendingInc} <Coins size={18} style={{ display: 'inline' }}/></p></div> : <p style={{ color: '#fbbf24', fontSize: 14, marginTop: 15 }}>Найми сотрудника!</p>}
+              {biz.worker_id ? <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: 15, borderRadius: 12, margin: '15px 0', border: '1px solid rgba(16, 185, 129, 0.2)' }}><p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#10b981' }}>Доход: 100 / мин</p><p style={{ margin: 0, fontSize: 22, color: '#10b981', fontWeight: 'bold' }}>В кассе: {pendingInc} <Coins size={18} style={{ display: 'inline' }}/></p></div> : <p style={{ color: '#fbbf24', fontSize: 14, marginTop: 15 }}>Найди сотрудника на Бирже труда!</p>}
               <button onClick={collectIncome} disabled={pendingInc <= 0} style={{ ...S.btnPrimary, opacity: pendingInc <= 0 ? 0.5 : 1, marginBottom: 10 }}>Собрать доход</button>
               {biz.worker_id && <button onClick={fireWorker} style={{ ...S.btnDanger, background: 'rgba(239, 68, 68, 0.1)', boxShadow: 'none' }}>Уволить</button>}
             </div>
@@ -365,10 +369,42 @@ export default function App() {
               <button onClick={buyBusiness} disabled={money < BUSINESS_PRICE} style={{ ...S.btnPurple, opacity: money < BUSINESS_PRICE ? 0.5 : 1 }}>{money < BUSINESS_PRICE ? 'Мало денег' : 'Открыть за 10 000'}</button>
             </div>
           )}
+        </div>
+      )}
 
-          {!job && <div style={{ marginTop: 30 }}><h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Вакансии</h3>{allBiz.filter(b => !b.worker_id && b.owner_id !== pid).map(b => (<div key={b.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16}/> Кофейня</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div></div><button onClick={() => hireWorker(b.id)} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13 }}>Устроиться</button></div>))}</div>}
+      {tab === 'jobs' && (
+        <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+          <h2>Биржа труда</h2>
+          
+          {job && (
+            <div style={{ marginBottom: 30 }}>
+              <h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3>
+              <div style={{ backgroundColor: '#1e1e24', padding: 20, borderRadius: 16, border: '1px solid #333' }}>
+                <p style={{ margin: '0 0 15px 0', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Coffee size={18}/> Кофейня ({job.owner_name})</p>
+                <button onClick={workShift} disabled={energy < 20} style={{ ...S.btnPrimary, opacity: energy < 20 ? 0.5 : 1 }}>Смена (+300)</button>
+              </div>
+            </div>
+          )}
 
-          {job && <div style={{ marginTop: 30 }}><h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Моя работа</h3><div style={{ backgroundColor: '#1e1e24', padding: 20, borderRadius: 16, border: '1px solid #333' }}><p style={{ margin: '0 0 15px 0', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Coffee size={18}/> Кофейня ({job.owner_name})</p><button onClick={workShift} disabled={energy < 20} style={{ ...S.btnPrimary, opacity: energy < 20 ? 0.5 : 1 }}>Смена (+300)</button></div></div>}
+          {!job && (
+            <div>
+              <h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Свободные вакансии</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {allBiz.filter(b => !b.worker_id && b.owner_id !== pid).map(b => (
+                  <div key={b.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16}/> Кофейня</div>
+                      <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div>
+                    </div>
+                    <button onClick={() => hireWorker(b.id)} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13 }}>Устроиться</button>
+                  </div>
+                ))}
+                {allBiz.filter(b => !b.worker_id && b.owner_id !== pid).length === 0 && (
+                  <p style={{ color: '#666', fontSize: 14 }}>Пока нет свободных мест...</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -378,7 +414,7 @@ export default function App() {
 
       {tab === 'market' && (
         <div style={{ maxWidth: '400px', margin: '0 auto' }}>
-          <h2>Биржа труда</h2>
+          <h2>Рынок</h2>
           <div style={{ marginBottom: 30 }}><h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 10 }}>Топ богачей</h3>{players.map((p, i) => (<div key={p.id} style={{ backgroundColor: '#1e1e24', padding: '12px 15px', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333', marginBottom: 8 }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#fbbf24' : i === 1 ? '#9ca3af' : i === 2 ? '#b45309' : '#a1a1aa' }}>#{i + 1}</span><span style={{ fontWeight: 'bold' }}>{p.nickname}</span></div><span style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{p.money} <Coins size={14}/></span></div>))}</div>
           <h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 10 }}>Лоты</h3>
           {market.length === 0 && <p style={{ color: '#666' }}>Пусто...</p>}
@@ -391,10 +427,16 @@ export default function App() {
       )}
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(30, 30, 36, 0.95)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
-        {[{ id: 'home', icon: Home, text: 'Главная' }, { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'shop', icon: Store, text: 'Магазин' }, { id: 'inventory', icon: Backpack, text: 'Сумка' }].map(t => (
-          <button key={t.id} onClick={() => { setTab(t.id as any); hapticFeedback('light'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '70px', color: tab === t.id ? '#3b82f6' : '#a1a1aa' }}>
-            <t.icon size={24} style={{ marginBottom: 4 }} />
-            <span style={{ fontSize: 11, fontWeight: tab === t.id ? 'bold' : 'normal' }}>{t.text}</span>
+        {[
+          { id: 'home', icon: Home, text: 'Главная' }, 
+          { id: 'jobs', icon: Briefcase, text: 'Биржа' }, 
+          { id: 'market', icon: Globe, text: 'Рынок' }, 
+          { id: 'shop', icon: Store, text: 'Магазин' }, 
+          { id: 'inventory', icon: Backpack, text: 'Сумка' }
+        ].map(t => (
+          <button key={t.id} onClick={() => { setTab(t.id as any); hapticFeedback('light'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: tab === t.id ? '#3b82f6' : '#a1a1aa' }}>
+            <t.icon size={22} style={{ marginBottom: 4 }} />
+            <span style={{ fontSize: 10, fontWeight: tab === t.id ? 'bold' : 'normal' }}>{t.text}</span>
           </button>
         ))}
       </div>
