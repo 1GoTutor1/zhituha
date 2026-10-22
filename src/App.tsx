@@ -100,6 +100,7 @@ export default function App() {
     return true;
   };
 
+  // ФУНКЦИЯ НАЧИСЛЕНИЯ 5% РЕФЕРЕРУ
   const addReferralBonus = async (amount: number) => {
     const { data: me } = await supabase.from('players').select('referred_by').eq('id', pid).single();
     if (!me || !me.referred_by) return;
@@ -125,8 +126,22 @@ export default function App() {
         setMoney(Number(data.money)); setEnergy(Number(data.energy));
         setPhone(Number(data.phone_count) > 0);
         setRefBalance(Number(data.referral_balance) || 0);
+        
         const last = Number(data.last_rest_time) || 0;
         setRestEnd(last + REST_CD > Date.now() ? last + REST_CD : 0);
+
+        // Проверка таймера кофе
+        const savedBrew = localStorage.getItem('zhituha_brew_end');
+        if (savedBrew) {
+          const bEnd = Number(savedBrew);
+          if (bEnd > Date.now()) {
+            setBrewEnd(bEnd);
+          } else {
+            localStorage.removeItem('zhituha_brew_end');
+            setEnergy(100);
+            await supabase.from('players').update({ energy: 100 }).eq('id', data.id);
+          }
+        }
         
         const { data: refs } = await supabase.from('players').select('nickname').eq('referred_by', uid);
         if (refs) setMyRefs(refs);
@@ -172,6 +187,7 @@ export default function App() {
         setBLeft(r);
         if (r === 0) {
           setBrewEnd(0); setEnergy(100);
+          localStorage.removeItem('zhituha_brew_end');
           if (pid) supabase.from('players').update({ energy: 100 }).eq('id', pid);
           showMsg("Кофе готов! Энергия восстановлена!"); hapticFeedback('heavy');
         }
@@ -187,33 +203,34 @@ export default function App() {
     hapticFeedback('light');
   };
 
-  // --- ЗАЩИЩЕННАЯ РЕГИСТРАЦИЯ ---
+  // РЕГИСТРАЦИЯ (с поддержкой ?startapp=)
   const reg = () => action(async () => {
     const final = user?.first_name || inNick;
     if (!final.trim() || !selG) return showMsg("Заполни поля!", true);
     
     let refBy = null;
-    if (startParam && startParam.startsWith('ref_')) {
-      refBy = startParam.split('_')[1];
+    // Проверяем оба формата: ref_ и просто айди
+    if (startParam) {
+      if (startParam.startsWith('ref_')) refBy = startParam.split('_')[1];
+      else refBy = startParam; // если пришел просто ID
+      
       if (refBy === getUid()) refBy = null; 
     }
 
-    // Сначала пробуем со всеми колонками
     let { data, error } = await supabase.from('players').insert([{ 
       telegram_id: getUid(), 
       nickname: final, 
       gender: selG, 
       avatar_id: avatarId, 
-      money: refBy ? 4500 : 3500,
+      money: refBy ? 4500 : 3500, // +1000 бонус
       energy: 80, 
       phone_count: 0, 
       last_rest_time: 0,
       referred_by: refBy
     }]).select().single();
 
-    // Если база тупит с колонками - делаем аварийную регистрацию
     if (error && (error.message.includes('avatar_id') || error.message.includes('referred_by'))) {
-      console.warn("Ошибка колонок, регистрация без них...");
+      // Фоллбек, если колонок нет в БД
       const fallback = await supabase.from('players').insert([{ 
         telegram_id: getUid(), 
         nickname: final, 
@@ -226,7 +243,7 @@ export default function App() {
       
       data = fallback.data;
       error = fallback.error;
-      refBy = null; // сбрасываем рефку, так как не смогли записать
+      refBy = null;
     }
 
     if (error) throw error;
@@ -234,7 +251,7 @@ export default function App() {
     if (refBy && data) {
       const { data: refUser } = await supabase.from('players').select('money').eq('telegram_id', refBy).single();
       if (refUser) {
-        await supabase.from('players').update({ money: Number(refUser.money) + 500 }).eq('telegram_id', refBy);
+        await supabase.from('players').update({ money: Number(refUser.money) + 500 }).eq('telegram_id', refBy); // +500 рефереру
       }
     }
 
@@ -242,9 +259,10 @@ export default function App() {
     if (refBy) showMsg("Бонус +1000 монет за приглашение!");
   });
 
-  const work = (janitor: boolean) => action(async () => {
-    if (energy < 20 || (!phone && !janitor)) return showMsg("Нет условий", true);
-    const amount = janitor ? 200 : 500;
+  // ТОЛЬКО ПОДРАБОТКА
+  const work = () => action(async () => {
+    if (energy < 20) return showMsg("Ты слишком устал!", true);
+    const amount = 200;
     const nM = money + amount, nE = energy - 20;
     setMoney(nM); setEnergy(nE);
     if (!(await sync({ money: nM, energy: nE }))) throw new Error("Ошибка синхронизации");
@@ -277,7 +295,9 @@ export default function App() {
       }
     }
 
-    setBrewEnd(Date.now() + BREW_TIME);
+    const end = Date.now() + BREW_TIME;
+    setBrewEnd(end);
+    localStorage.setItem('zhituha_brew_end', end.toString());
     showMsg("Кофе готовится..."); hapticFeedback('heavy');
   });
 
@@ -355,10 +375,11 @@ export default function App() {
     loadMarket();
   });
 
+  // ИСПРАВЛЕННАЯ РЕФЕРАЛЬНАЯ ССЫЛКА (?startapp=)
   const inviteFriend = () => {
     if (!tg || !pid) return;
     hapticFeedback('medium');
-    const refLink = `https://t.me/${BOT_USERNAME}?start=ref_${getUid()}`;
+    const refLink = `https://t.me/${BOT_USERNAME}?startapp=ref_${getUid()}`;
     const text = "Смотри какая Житуха залетай и ты! По моему приглашению ты получишь +1000 валюты:";
     tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(text)}`);
   };
@@ -496,7 +517,8 @@ export default function App() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 15, alignItems: 'center' }}>
-            <button onClick={() => work(true)} disabled={proc || energy < 20} style={{ ...S.btnSecondary, opacity: (proc || energy < 20) ? 0.5 : 1 }}><Users size={20} /> Подработка (+200)</button>
+            {/* ТОЛЬКО ПОДРАБОТКА */}
+            <button onClick={work} disabled={proc || energy < 20} style={{ ...S.btnSecondary, opacity: (proc || energy < 20) ? 0.5 : 1 }}><Users size={20} /> Подработка (+200)</button>
             <button onClick={rest} disabled={proc || tLeft > 0 || energy === 100} style={{ ...S.btnPrimary, background: 'rgba(30, 30, 36, 0.8)', border: '1px solid #10b981', color: tLeft > 0 ? '#888' : '#10b981', boxShadow: 'none', opacity: (proc || tLeft > 0 || energy === 100) ? 0.5 : 1 }}><Zap size={20} /> {tLeft > 0 ? `Ждать ${tLeft} сек.` : 'Отдых (90 сек)'}</button>
           </div>
         </div>
