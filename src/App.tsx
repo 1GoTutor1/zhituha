@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
+
 import { 
   Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
   Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User, UserPlus, Gift, Send
