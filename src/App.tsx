@@ -3,7 +3,7 @@ import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { 
   Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
-  Home, Coffee, User, Users, ShieldAlert, CheckCircle2
+  Home, Coffee, Users, ShieldAlert, CheckCircle2
 } from 'lucide-react';
 
 const PHONE_PRICE = 2000;
@@ -300,7 +300,6 @@ function App() {
     setIsSaving(false);
   };
 
-  // --- СТИЛИ (Стеклянный эффект и градиенты) ---
   const cardStyle = { 
     backgroundColor: 'rgba(30, 30, 36, 0.8)', 
     backdropFilter: 'blur(10px)',
@@ -371,7 +370,6 @@ function App() {
         </div>
       )}
 
-      {/* ШАПКА ПРОФИЛЯ */}
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', maxWidth: '350px', margin: '0 auto', paddingBottom: 15, marginBottom: 20 }}>
         <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px', fontSize: '22px', fontWeight: '600' }}>
           {user?.photo_url ? (
@@ -385,7 +383,6 @@ function App() {
         </h2>
       </div>
 
-      {/* HUD */}
       <div style={{ display: 'flex', justifyContent: 'space-between', background: 'linear-gradient(135deg, #1e1e24 0%, #121212 100%)', padding: '15px 25px', borderRadius: '16px', maxWidth: '350px', margin: '0 auto 25px auto', border: '1px solid #333', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 18, fontWeight: 'bold' }}>
           <Coins size={22} color="#fbbf24" /> {money}
@@ -395,7 +392,6 @@ function App() {
         </div>
       </div>
 
-      {/* ГЛАВНАЯ */}
       {activeTab === 'home' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
           {!hasPhone && (
@@ -415,7 +411,6 @@ function App() {
         </div>
       )}
 
-      {/* БИЗНЕС */}
       {activeTab === 'business' && (
         <div>
           <h2 style={{ marginBottom: 20 }}>Бизнес</h2>
@@ -491,7 +486,6 @@ function App() {
         </div>
       )}
 
-      {/* МАГАЗИН */}
       {activeTab === 'shop' && (
         <div>
           <h2 style={{ marginBottom: 20 }}>Гос. Магазин</h2>
@@ -510,7 +504,6 @@ function App() {
         </div>
       )}
 
-      {/* РЫНОК */}
       {activeTab === 'market' && (
         <div>
           <h2 style={{ marginBottom: 20 }}>Барахолка</h2>
@@ -549,7 +542,6 @@ function App() {
         </div>
       )}
 
-      {/* ИНВЕНТАРЬ */}
       {activeTab === 'inventory' && (
         <div>
           <h2 style={{ marginBottom: 20 }}>Инвентарь</h2>
@@ -572,7 +564,6 @@ function App() {
         </div>
       )}
 
-      {/* НИЖНЕЕ МЕНЮ */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(30, 30, 36, 0.95)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
         <button onClick={() => { setActiveTab('home'); hapticFeedback('light'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: activeTab === 'home' ? '#3b82f6' : '#a1a1aa' }}>
           <Home size={22} style={{ marginBottom: 4 }} />
