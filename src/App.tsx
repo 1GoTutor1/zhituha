@@ -37,15 +37,13 @@ interface Business { id: string; owner_id: string; owner_name: string; worker_id
 export default function App() {
   const { user, hapticFeedback } = useTelegram();
 
-  // --- ГЛОБАЛЬНЫЕ СОСТОЯНИЯ ---
   const [loading, setLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false); // Защита от двойных кликов
+  const [isProcessing, setIsProcessing] = useState(false); 
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState<string>('');
   const [toast, setToast] = useState<{msg: string, err: boolean} | null>(null);
   const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe'>('home');
 
-  // --- СОСТОЯНИЯ ИГРОКА ---
   const [nick, setNick] = useState('');
   const [inputNick, setInputNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
@@ -54,13 +52,11 @@ export default function App() {
   const [energy, setEnergy] = useState(80);
   const [phone, setPhone] = useState(false);
   
-  // Таймеры (храним время окончания, а не просто секунды)
   const [restEndTime, setRestEndTime] = useState(0);
   const [brewEndTime, setBrewEndTime] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [brewTimeLeft, setBrewTimeLeft] = useState(0);
 
-  // --- ИГРОВЫЕ ДАННЫЕ ---
   const [players, setPlayers] = useState<Player[]>([]);
   const [market, setMarket] = useState<MarketItem[]>([]);
   const [biz, setBiz] = useState<Business | null>(null);
@@ -69,17 +65,14 @@ export default function App() {
   const [selectedCafe, setSelectedCafe] = useState<Business | null>(null);
   const [isJobBoardOpen, setIsJobBoardOpen] = useState(false);
 
-  // --- АДМИНКА ---
   const [clicks, setClicks] = useState(0);
   const [adminAuth, setAdminAuth] = useState(false);
   const [adminPanel, setAdminPanel] = useState(false);
   const [adminCode, setAdminCode] = useState('');
 
-  // --- МОДАЛКИ ---
   const [sellModal, setSellModal] = useState(false);
   const [sellPrice, setSellPrice] = useState('2000');
 
-  // Ссылка для защиты от перезаписи локальных данных при фоновом обновлении
   const isActionPending = useRef(false);
 
   const showMsg = (msg: string, err = false) => {
@@ -94,10 +87,8 @@ export default function App() {
     return bid;
   };
 
-  // --- ЗАГРУЗКА ДАННЫХ ---
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
-    // Если сейчас происходит покупка, не перезаписываем данные
     if (isActionPending.current) return; 
 
     try {
@@ -110,14 +101,10 @@ export default function App() {
         setMoney(Number(data.money)); setEnergy(Number(data.energy));
         setPhone(Number(data.phone_count) > 0);
         
-        // Восстанавливаем таймеры
         const now = Date.now();
         const lastRest = Number(data.last_rest_time) || 0;
-        if (lastRest + REST_COOLDOWN_MS > now) {
-          setRestEndTime(lastRest + REST_COOLDOWN_MS);
-        } else {
-          setRestEndTime(0);
-        }
+        if (lastRest + REST_COOLDOWN_MS > now) setRestEndTime(lastRest + REST_COOLDOWN_MS);
+        else setRestEndTime(0);
 
         const { data: bData }: any = await supabase.from('businesses').select('*');
         if (bData) {
@@ -143,13 +130,10 @@ export default function App() {
     if (m) setMarket(m);
   };
 
-  // --- ЭФФЕКТЫ ---
   useEffect(() => { loadData(); }, [user]);
 
-  // Умный поллинг (обновляет только вкладки, где нужны чужие данные)
   useEffect(() => { 
     if (tab === 'market') loadMarket(); 
-    
     let interval: any;
     if (tab === 'business' || tab === 'jobs' || tab === 'home' || tab === 'cafe') {
       interval = setInterval(() => { loadData(true); }, POLL_INTERVAL_MS);
@@ -157,17 +141,14 @@ export default function App() {
     return () => { if (interval) clearInterval(interval); };
   }, [tab]);
 
-  // Точные таймеры (привязка к реальному времени)
   useEffect(() => {
     const timer = setInterval(() => {
       const now = Date.now();
-      
       if (restEndTime > 0) {
         const rem = Math.max(0, Math.ceil((restEndTime - now) / 1000));
         setTimeLeft(rem);
         if (rem === 0) setRestEndTime(0);
       }
-      
       if (brewEndTime > 0) {
         const rem = Math.max(0, Math.ceil((brewEndTime - now) / 1000));
         setBrewTimeLeft(rem);
@@ -182,7 +163,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, [restEndTime, brewEndTime, pid]);
 
-  // --- ФУНКЦИИ СИНХРОНИЗАЦИИ ---
   const syncPlayer = async (updates: any) => {
     if (!pid) return false;
     const { error } = await supabase.from('players').update(updates).eq('id', pid);
@@ -190,7 +170,6 @@ export default function App() {
     return true;
   };
 
-  // --- ДЕЙСТВИЯ ---
   const register = async () => {
     const finalNick = user?.first_name || inputNick;
     if (!finalNick.trim() || !selGender) return showMsg("Выбери пол и ник!", true);
@@ -209,8 +188,7 @@ export default function App() {
   const doWork = async (isJanitor: boolean) => {
     if (isProcessing || energy < 20 || (!phone && !isJanitor)) return;
     hapticFeedback('medium');
-    setIsProcessing(true);
-    isActionPending.current = true;
+    setIsProcessing(true); isActionPending.current = true;
 
     const addMoney = isJanitor ? 200 : 500;
     const nM = Number(money) + addMoney;
@@ -220,17 +198,15 @@ export default function App() {
     const success = await syncPlayer({ money: nM, energy: nE });
     
     if (success) showMsg(`+${addMoney} монет`);
-    else { setMoney(money); setEnergy(energy); } // Откат при ошибке
+    else { setMoney(money); setEnergy(energy); }
 
-    isActionPending.current = false;
-    setIsProcessing(false);
+    isActionPending.current = false; setIsProcessing(false);
   };
 
   const doRest = async () => {
     if (isProcessing || timeLeft > 0 || energy === 100) return;
     hapticFeedback('light');
-    setIsProcessing(true);
-    isActionPending.current = true;
+    setIsProcessing(true); isActionPending.current = true;
 
     const now = Date.now();
     setEnergy(100); setRestEndTime(now + REST_COOLDOWN_MS);
@@ -239,21 +215,18 @@ export default function App() {
     if (success) showMsg("Энергия восстановлена!");
     else { setEnergy(energy); setRestEndTime(0); }
 
-    isActionPending.current = false;
-    setIsProcessing(false);
+    isActionPending.current = false; setIsProcessing(false);
   };
 
   const buyCoffee = async (cafe: Business) => {
     if (isProcessing || !cafe.worker_id || money < COFFEE_PRICE || energy === 100) return;
     hapticFeedback('heavy');
-    setIsProcessing(true);
-    isActionPending.current = true;
+    setIsProcessing(true); isActionPending.current = true;
 
     const nM = money - COFFEE_PRICE;
     setMoney(nM);
     await syncPlayer({ money: nM });
     
-    // Начисляем выручку в кассу (оптимистично)
     const { data: ownerBiz, error: fetchErr }: any = await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single();
     if (ownerBiz && !fetchErr) {
       const currentBal = Number(ownerBiz.coffee_balance) || 0;
@@ -263,15 +236,13 @@ export default function App() {
     setBrewEndTime(Date.now() + BREW_TIME_MS);
     showMsg("Заказ принят! Кофе готовится 15 сек...");
 
-    isActionPending.current = false;
-    setIsProcessing(false);
+    isActionPending.current = false; setIsProcessing(false);
   };
 
   const collectCoffeeIncome = async () => {
     if (isProcessing || !biz || !biz.coffee_balance || biz.coffee_balance <= 0) return;
     hapticFeedback('medium');
-    setIsProcessing(true);
-    isActionPending.current = true;
+    setIsProcessing(true); isActionPending.current = true;
     
     const inc = biz.coffee_balance;
     const nM = money + inc;
@@ -283,15 +254,13 @@ export default function App() {
     showMsg(`Собрано ${inc} с продаж кофе!`);
     loadData(true);
 
-    isActionPending.current = false;
-    setIsProcessing(false);
+    isActionPending.current = false; setIsProcessing(false);
   };
 
   const buyBusiness = async () => {
     if (isProcessing || money < BUSINESS_PRICE || biz) return;
     hapticFeedback('heavy');
-    setIsProcessing(true);
-    isActionPending.current = true;
+    setIsProcessing(true); isActionPending.current = true;
     
     const nM = money - BUSINESS_PRICE;
     setMoney(nM); showMsg("Кофейня открыта!");
@@ -299,12 +268,12 @@ export default function App() {
     await supabase.from('businesses').insert([{ owner_id: pid, owner_name: nick, worker_id: null, coffee_balance: 0 }]);
     loadData(true);
 
-    isActionPending.current = false;
-    setIsProcessing(false);
+    isActionPending.current = false; setIsProcessing(false);
   };
 
   const hireWorker = async (bId: string) => {
     if (isProcessing) return;
+    if (job) return showMsg("Сначала увольтесь с текущей работы!", true); // Защита
     hapticFeedback('medium');
     setIsProcessing(true);
     await supabase.from('businesses').update({ worker_id: pid, worker_name: nick }).eq('id', bId);
@@ -318,16 +287,32 @@ export default function App() {
     if (isProcessing || !biz) return;
     setIsProcessing(true);
     await supabase.from('businesses').update({ worker_id: null, worker_name: null }).eq('id', biz.id);
-    showMsg("Уволен."); 
+    showMsg("Вы уволили сотрудника."); 
     loadData(true);
+    setIsProcessing(false);
+  };
+
+  // НОВАЯ ФУНКЦИЯ: УВОЛЬНЕНИЕ ПО СОБСТВЕННОМУ ЖЕЛАНИЮ
+  const quitJob = async () => {
+    if (isProcessing || !job) return;
+    if (!window.confirm("Ты уверен, что хочешь уволиться?")) return;
+    hapticFeedback('heavy');
+    setIsProcessing(true);
+    isActionPending.current = true;
+
+    await supabase.from('businesses').update({ worker_id: null, worker_name: null }).eq('id', job.id);
+    showMsg("Вы уволились.");
+    setIsJobBoardOpen(false);
+    loadData(true);
+
+    isActionPending.current = false;
     setIsProcessing(false);
   };
 
   const workShift = async () => {
     if (isProcessing || !job || energy < 20) return;
     hapticFeedback('medium');
-    setIsProcessing(true);
-    isActionPending.current = true;
+    setIsProcessing(true); isActionPending.current = true;
     
     const nM = money + WORKER_SALARY;
     const nE = energy - 20;
@@ -335,15 +320,13 @@ export default function App() {
     setMoney(nM); setEnergy(nE); showMsg(`+${WORKER_SALARY} за смену`);
     await syncPlayer({ money: nM, energy: nE });
     
-    isActionPending.current = false;
-    setIsProcessing(false);
+    isActionPending.current = false; setIsProcessing(false);
   };
 
   const doPhone = async (buy: boolean) => {
     if (isProcessing || (buy && money < PHONE_PRICE) || (!buy && !phone)) return;
     hapticFeedback('heavy');
-    setIsProcessing(true);
-    isActionPending.current = true;
+    setIsProcessing(true); isActionPending.current = true;
     
     const nM = buy ? money - PHONE_PRICE : money + 1400;
     const nP = buy ? 1 : 0;
@@ -351,16 +334,14 @@ export default function App() {
     setMoney(nM); setPhone(buy); showMsg(buy ? "Куплено!" : "Сдан за 1400");
     await syncPlayer({ money: nM, phone_count: nP });
     
-    isActionPending.current = false;
-    setIsProcessing(false);
+    isActionPending.current = false; setIsProcessing(false);
   };
 
   const listPhone = async () => {
     const p = Number(sellPrice);
     if (isProcessing || isNaN(p) || p <= 0 || !phone) return;
     hapticFeedback('medium');
-    setIsProcessing(true);
-    isActionPending.current = true;
+    setIsProcessing(true); isActionPending.current = true;
     
     setPhone(false); setSellModal(false);
     const { error } = await supabase.from('market_items').insert([{ seller_id: pid, seller_name: nick, item_type: 'phone', price: p }]);
@@ -368,15 +349,13 @@ export default function App() {
     if (error) { setPhone(true); showMsg("Ошибка", true); }
     else { await syncPlayer({ phone_count: 0 }); setTab('market'); loadMarket(); showMsg("Выставлено!"); }
     
-    isActionPending.current = false;
-    setIsProcessing(false);
+    isActionPending.current = false; setIsProcessing(false);
   };
 
   const buyLot = async (item: MarketItem) => {
     if (isProcessing || money < item.price) return;
     hapticFeedback('heavy');
-    setIsProcessing(true);
-    isActionPending.current = true;
+    setIsProcessing(true); isActionPending.current = true;
     
     const nM = money - item.price;
     setMoney(nM); setPhone(true); showMsg("Покупка успешна!");
@@ -391,11 +370,9 @@ export default function App() {
       console.error(e); loadData(true); 
     }
     
-    isActionPending.current = false;
-    setIsProcessing(false);
+    isActionPending.current = false; setIsProcessing(false);
   };
 
-  // --- АДМИНКА ---
   const handleAvatar = () => {
     setClicks(c => c + 1);
     if (clicks >= 4) { setAdminAuth(true); setClicks(0); setAdminCode(''); hapticFeedback('heavy'); }
@@ -420,7 +397,6 @@ export default function App() {
     window.location.reload();
   };
 
-  // --- РЕНДЕР ---
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
 
   if (!nick || !gender) return (
@@ -579,6 +555,7 @@ export default function App() {
         </div>
       )}
 
+      {/* ВКЛАДКА РАБОТА */}
       {tab === 'jobs' && (
         <div style={{ maxWidth: '400px', margin: '0 auto' }}>
           <h2>Работа</h2>
@@ -594,7 +571,12 @@ export default function App() {
                       <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16}/> Кофейня</div>
                       <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div>
                     </div>
-                    <button onClick={() => hireWorker(b.id)} disabled={isProcessing} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: isProcessing ? 0.5 : 1 }}>Устроиться</button>
+                    {/* Если игрок УЖЕ трудоустроен, кнопка серая */}
+                    {job ? (
+                      <button disabled style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: 0.5, cursor: 'not-allowed' }}>Уже работаете</button>
+                    ) : (
+                      <button onClick={() => hireWorker(b.id)} disabled={isProcessing} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: isProcessing ? 0.5 : 1 }}>Устроиться</button>
+                    )}
                   </div>
                 ))}
                 {allBiz.filter(b => !b.worker_id && b.owner_id !== pid).length === 0 && (
@@ -612,7 +594,13 @@ export default function App() {
                 </div>
                 <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#a1a1aa' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p>
                 <p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#a1a1aa' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p>
-                <button onClick={workShift} disabled={isProcessing || energy < 20} style={{ ...S.btnPrimary, opacity: (isProcessing || energy < 20) ? 0.5 : 1 }}>Смена (+300)</button>
+                
+                <button onClick={workShift} disabled={isProcessing || energy < 20} style={{ ...S.btnPrimary, opacity: (isProcessing || energy < 20) ? 0.5 : 1, marginBottom: 10 }}>Смена (+300)</button>
+                
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => setIsJobBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>Вакансии</button>
+                  <button onClick={quitJob} disabled={isProcessing} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12, fontWeight: 'bold', opacity: isProcessing ? 0.5 : 1 }}>Уволиться</button>
+                </div>
               </div>
             </div>
           ) : (
