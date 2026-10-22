@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 // --- КОНСТАНТЫ ---
-const BOT_USERNAME = "zhituha_bot"; // <-- Твой юзернейм
+const BOT_USERNAME = "zhituha_bot"; 
 const PHONE_PRICE = 2000, BUSINESS_PRICE = 10000, WORKER_SALARY = 300, COFFEE_PRICE = 500;
 const ADMIN_CODE = "admin2026", REST_CD = 90000, BREW_TIME = 15000, POLL = 5000;
 
