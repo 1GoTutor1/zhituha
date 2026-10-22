@@ -187,6 +187,7 @@ export default function App() {
     hapticFeedback('light');
   };
 
+  // --- ЗАЩИЩЕННАЯ РЕГИСТРАЦИЯ ---
   const reg = () => action(async () => {
     const final = user?.first_name || inNick;
     if (!final.trim() || !selG) return showMsg("Заполни поля!", true);
@@ -197,7 +198,8 @@ export default function App() {
       if (refBy === getUid()) refBy = null; 
     }
 
-    const { data, error } = await supabase.from('players').insert([{ 
+    // Сначала пробуем со всеми колонками
+    let { data, error } = await supabase.from('players').insert([{ 
       telegram_id: getUid(), 
       nickname: final, 
       gender: selG, 
@@ -208,6 +210,24 @@ export default function App() {
       last_rest_time: 0,
       referred_by: refBy
     }]).select().single();
+
+    // Если база тупит с колонками - делаем аварийную регистрацию
+    if (error && (error.message.includes('avatar_id') || error.message.includes('referred_by'))) {
+      console.warn("Ошибка колонок, регистрация без них...");
+      const fallback = await supabase.from('players').insert([{ 
+        telegram_id: getUid(), 
+        nickname: final, 
+        gender: selG, 
+        money: 3500,
+        energy: 80, 
+        phone_count: 0, 
+        last_rest_time: 0
+      }]).select().single();
+      
+      data = fallback.data;
+      error = fallback.error;
+      refBy = null; // сбрасываем рефку, так как не смогли записать
+    }
 
     if (error) throw error;
     
@@ -449,7 +469,6 @@ export default function App() {
 
       {tab === 'home' && (
         <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-          {/* ШАПКА ПРОФИЛЯ С РЕФЕРАЛКОЙ (ТОЛЬКО ИКОНКА) */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 30 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div onClick={handleAvatar} style={{ width: 50, height: 50, borderRadius: '50%', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, border: '2px solid rgba(255,255,255,0.2)', cursor: 'pointer', userSelect: 'none' }}>
