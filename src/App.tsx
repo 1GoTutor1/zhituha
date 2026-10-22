@@ -57,7 +57,6 @@ function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false); 
   const [authInput, setAuthInput] = useState('');
 
-  // --- ВСПОМОГАТЕЛЬНЫЕ ---
   const showNotification = (message: string, isError: boolean = false) => {
     setNotification(message);
     setNotifColor(isError ? '#ef4444' : '#10b981');
@@ -74,7 +73,6 @@ function App() {
     return browserId;
   };
 
-  // --- ЗАГРУЗКА ---
   const loadPlayerData = async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
@@ -128,7 +126,6 @@ function App() {
 
   useEffect(() => { loadPlayerData(); }, [user]);
 
-  // При переключении вкладок всегда подтягиваем актуальные данные (тихо, без лоадера)
   useEffect(() => {
     if (activeTab === 'market') loadMarketData();
     if (activeTab === 'business' || activeTab === 'home') loadPlayerData(true); 
@@ -158,7 +155,6 @@ function App() {
     return () => clearInterval(interval);
   }, [myBusiness]);
 
-  // --- СОХРАНЕНИЕ ---
   const saveProgress = async (newData: Record<string, unknown>) => {
     if (!playerId) return false;
     const { error } = await supabase.from('players').update(newData).eq('id', playerId);
@@ -166,7 +162,6 @@ function App() {
     return true;
   };
 
-  // --- ДЕЙСТВИЯ (OPTIMISTIC UI) ---
   const handleAvatarClick = () => {
     const newCount = clickCount + 1;
     setClickCount(newCount);
@@ -214,15 +209,13 @@ function App() {
     if (isSaving || !hasPhone || energy < 20) return;
     setIsSaving(true); hapticFeedback('medium');
     
-    // Мгновенно обновляем UI
     const newMoney = Number(money) + 500;
     const newEnergy = Math.max(0, Number(energy) - 20);
     setMoney(newMoney); setEnergy(newEnergy);
     
-    // В фоне сохраняем в БД
     const success = await saveProgress({ money: newMoney, energy: newEnergy });
     if (success) showNotification("Работа +500");
-    else { setMoney(money); setEnergy(energy); } // Откат при ошибке
+    else { setMoney(money); setEnergy(energy); }
 
     setIsSaving(false);
   };
@@ -291,8 +284,6 @@ function App() {
     if (isNaN(price) || price <= 0) return showNotification("Некорректная цена!", true);
     
     setIsSaving(true); hapticFeedback('medium');
-    
-    // Оптимистично убираем телефон
     setHasPhone(false);
     
     const { error } = await supabase.from('market_items').insert([{ seller_id: playerId, seller_name: nickname, item_type: 'phone', price: price }]);
@@ -310,12 +301,12 @@ function App() {
     if (isSaving || money < item.price) return showNotification("Мало денег!", true);
     setIsSaving(true); hapticFeedback('heavy');
     
-    // Оптимистично списываем деньги
     const newMoney = Number(money) - item.price;
     setMoney(newMoney);
     
     try {
-      const [_, sellerRes, buyerRes, deleteRes] = await Promise.all([
+      // ФИКС ОШИБКИ TS6133: добавил _ перед buyerRes и deleteRes
+      const [_, sellerRes, _buyerRes, _deleteRes] = await Promise.all([
         supabase.from('players').update({ money: newMoney }).eq('id', playerId),
         supabase.from('players').select('money').eq('id', item.seller_id).single(),
         supabase.from('players').update({ phone_count: 1 }).eq('id', playerId),
@@ -328,11 +319,11 @@ function App() {
       }
 
       setHasPhone(true);
-      await loadPlayerData(true); // Тихо обновляем данные
+      await loadPlayerData(true);
       setActiveTab('market'); 
       showNotification("Покупка успешна!");
     } catch (e: any) { 
-      setMoney(money); // Откат
+      setMoney(money);
       showNotification("Ошибка: " + e.message, true); 
     }
     setIsSaving(false);
@@ -368,7 +359,6 @@ function App() {
     const incomeToCollect = pendingIncome;
     const newMoney = Number(money) + incomeToCollect;
     
-    // Мгновенно показываем деньги и сбрасываем кассу
     setMoney(newMoney);
     setPendingIncome(0);
     
@@ -378,7 +368,7 @@ function App() {
       showNotification(`Собрано ${incomeToCollect}`);
       await loadPlayerData(true); 
     } else {
-      setMoney(money); // Откат
+      setMoney(money);
     }
     setIsSaving(false);
   };
