@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 // --- КОНСТАНТЫ ---
-const BOT_USERNAME = "zhituha_bot"; // <-- ВПИШИ СВОЙ ЮЗЕРНЕЙМ БОТА (без @)
+const BOT_USERNAME = "zhituha_bot"; // <-- Твой юзернейм
 const PHONE_PRICE = 2000, BUSINESS_PRICE = 10000, WORKER_SALARY = 300, COFFEE_PRICE = 500;
 const ADMIN_CODE = "admin2026", REST_CD = 90000, BREW_TIME = 15000, POLL = 5000;
 
@@ -55,7 +55,6 @@ export default function App() {
   const [energy, setEnergy] = useState(80);
   const [phone, setPhone] = useState(false);
   
-  // Рефералка
   const [refBalance, setRefBalance] = useState(0);
   const [myRefs, setMyRefs] = useState<any[]>([]);
   
@@ -79,7 +78,7 @@ export default function App() {
   const [sellOpen, setSellOpen] = useState(false);
   const [sellPrice, setSellPrice] = useState('2000');
   const [quitOpen, setQuitOpen] = useState(false);
-  const [refOpen, setRefOpen] = useState(false); // Модалка рефералки
+  const [refOpen, setRefOpen] = useState(false);
 
   const lock = useRef(false);
 
@@ -101,16 +100,13 @@ export default function App() {
     return true;
   };
 
-  // Хелпер для начисления 5% рефереру
   const addReferralBonus = async (amount: number) => {
-    // Находим, кто пригласил текущего игрока
     const { data: me } = await supabase.from('players').select('referred_by').eq('id', pid).single();
     if (!me || !me.referred_by) return;
 
-    const bonus = Math.floor(amount * 0.05); // 5%
+    const bonus = Math.floor(amount * 0.05);
     if (bonus <= 0) return;
 
-    // Начисляем бонус пригласившему
     const { data: ref } = await supabase.from('players').select('referral_balance').eq('telegram_id', me.referred_by).single();
     if (ref) {
       await supabase.from('players').update({ referral_balance: (Number(ref.referral_balance) || 0) + bonus }).eq('telegram_id', me.referred_by);
@@ -132,7 +128,6 @@ export default function App() {
         const last = Number(data.last_rest_time) || 0;
         setRestEnd(last + REST_CD > Date.now() ? last + REST_CD : 0);
         
-        // Загружаем список приглашенных друзей
         const { data: refs } = await supabase.from('players').select('nickname').eq('referred_by', uid);
         if (refs) setMyRefs(refs);
 
@@ -199,7 +194,7 @@ export default function App() {
     let refBy = null;
     if (startParam && startParam.startsWith('ref_')) {
       refBy = startParam.split('_')[1];
-      if (refBy === getUid()) refBy = null; // Защита от самого себя
+      if (refBy === getUid()) refBy = null; 
     }
 
     const { data, error } = await supabase.from('players').insert([{ 
@@ -207,7 +202,7 @@ export default function App() {
       nickname: final, 
       gender: selG, 
       avatar_id: avatarId, 
-      money: refBy ? 4500 : 3500, // +1000 бонус новичку
+      money: refBy ? 4500 : 3500,
       energy: 80, 
       phone_count: 0, 
       last_rest_time: 0,
@@ -217,9 +212,8 @@ export default function App() {
     if (error) throw error;
     
     if (refBy && data) {
-      const { data: refUser } = await supabase.from('players').select('money, referral_balance').eq('telegram_id', refBy).single();
+      const { data: refUser } = await supabase.from('players').select('money').eq('telegram_id', refBy).single();
       if (refUser) {
-        // +500 бонус пригласившему
         await supabase.from('players').update({ money: Number(refUser.money) + 500 }).eq('telegram_id', refBy);
       }
     }
@@ -234,7 +228,7 @@ export default function App() {
     const nM = money + amount, nE = energy - 20;
     setMoney(nM); setEnergy(nE);
     if (!(await sync({ money: nM, energy: nE }))) throw new Error("Ошибка синхронизации");
-    addReferralBonus(amount); // Начисляем 5% рефереру
+    addReferralBonus(amount);
     showMsg(`+${amount} монет`); hapticFeedback('medium');
   });
 
@@ -253,7 +247,6 @@ export default function App() {
     const { data } = await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single();
     if (data) await supabase.from('businesses').update({ coffee_balance: (Number(data.coffee_balance) || 0) + 450 }).eq('id', cafe.id);
     
-    // 5% владельцу кафе от продажи
     const { data: bizOwner } = await supabase.from('businesses').select('owner_id').eq('id', cafe.id).single();
     if (bizOwner) {
       const { data: ownerPlayer } = await supabase.from('players').select('referred_by').eq('id', bizOwner.owner_id).single();
@@ -274,7 +267,7 @@ export default function App() {
     const nM = money + inc;
     setMoney(nM); await sync({ money: nM });
     await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', biz.id);
-    addReferralBonus(inc); // Начисляем 5% рефереру
+    addReferralBonus(inc);
     showMsg(`Собрано ${inc}`); hapticFeedback('medium');
     loadData(true);
   });
@@ -312,7 +305,7 @@ export default function App() {
     const nM = money + WORKER_SALARY, nE = energy - 20;
     setMoney(nM); setEnergy(nE); showMsg(`+${WORKER_SALARY} за смену`); hapticFeedback('medium');
     await sync({ money: nM, energy: nE });
-    addReferralBonus(WORKER_SALARY); // Начисляем 5% рефереру
+    addReferralBonus(WORKER_SALARY);
   });
 
   const buyPhone = (buy: boolean) => action(async () => {
@@ -342,7 +335,6 @@ export default function App() {
     loadMarket();
   });
 
-  // --- РЕФЕРАЛЬНАЯ СИСТЕМА ---
   const inviteFriend = () => {
     if (!tg || !pid) return;
     hapticFeedback('medium');
@@ -359,7 +351,7 @@ export default function App() {
     await sync({ money: nM, referral_balance: 0 });
     showMsg(`Собрано ${refBalance} с рефералов!`); hapticFeedback('heavy');
     setRefOpen(false);
-  };
+  });
 
   const handleAvatar = () => {
     setClicks(c => c + 1);
