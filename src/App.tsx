@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-
 import { 
   Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
   Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User, UserPlus, Gift, Send
@@ -57,7 +56,7 @@ export default function App() {
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
   const [phone, setPhone] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(false); // <--- НОВОЕ
+  const [isSubscribed, setIsSubscribed] = useState(false); // Статус подписки
   
   const [refBalance, setRefBalance] = useState(0);
   const [myRefs, setMyRefs] = useState<any[]>([]);
@@ -113,7 +112,6 @@ export default function App() {
     if (ref) await supabase.from('players').update({ referral_balance: (Number(ref.referral_balance) || 0) + bonus }).eq('telegram_id', me.referred_by);
   };
 
-  // ФУНКЦИЯ ПРОВЕРКИ ПОДПИСКИ
   const verifySubscription = async () => {
     if (!user?.id) return;
     setCheckingSub(true);
@@ -123,7 +121,6 @@ export default function App() {
       const { data, error } = await supabase.functions.invoke('check-subscription', {
         body: { telegram_id: user.id.toString() }
       });
-
       if (error) throw error;
 
       if (data && data.is_member) {
@@ -147,7 +144,6 @@ export default function App() {
     try {
       const uid = getUid(); setTgId(uid);
       
-      // Проверяем подписку для тех, кто уже есть в базе
       if (user?.id) {
         const { data } = await supabase.from('players').select('*').eq('telegram_id', uid).maybeSingle();
         if (data) {
@@ -156,7 +152,7 @@ export default function App() {
           setMoney(Number(data.money)); setEnergy(Number(data.energy));
           setPhone(Number(data.phone_count) > 0);
           setRefBalance(Number(data.referral_balance) || 0);
-          setIsSubscribed(data.is_subscribed || false); // Загружаем статус
+          setIsSubscribed(data.is_subscribed || false); 
           
           const last = Number(data.last_rest_time) || 0;
           setRestEnd(last + REST_CD > Date.now() ? last + REST_CD : 0);
@@ -239,6 +235,7 @@ export default function App() {
     const final = user?.first_name || inNick;
     if (!final.trim() || !selG) return showMsg("Заполни поля!", true);
     
+    // Парсим рефку
     let refBy = null;
     if (startParam) {
       if (startParam.startsWith('ref_')) refBy = startParam.split('_')[1];
@@ -246,6 +243,7 @@ export default function App() {
       if (refBy === getUid()) refBy = null; 
     }
 
+    // Регистрируем игрока (is_subscribed: true, так как мы его уже проверили)
     let { data, error } = await supabase.from('players').insert([{ 
       telegram_id: getUid(), 
       nickname: final, 
@@ -256,9 +254,10 @@ export default function App() {
       phone_count: 0, 
       last_rest_time: 0,
       referred_by: refBy,
-      is_subscribed: true // Сразу ставим true, так как проверка уже пройдена
+      is_subscribed: true
     }]).select().single();
 
+    // Если база данных выдаст ошибку колонок (на всякий случай)
     if (error && (error.message.includes('avatar_id') || error.message.includes('referred_by') || error.message.includes('is_subscribed'))) {
       const fallback = await supabase.from('players').insert([{ 
         telegram_id: getUid(), 
@@ -277,9 +276,12 @@ export default function App() {
 
     if (error) throw error;
     
+    // Начисляем бонус тому, кто пригласил
     if (refBy && data) {
       const { data: refUser } = await supabase.from('players').select('money').eq('telegram_id', refBy).single();
-      if (refUser) await supabase.from('players').update({ money: Number(refUser.money) + 500 }).eq('telegram_id', refBy);
+      if (refUser) {
+        await supabase.from('players').update({ money: Number(refUser.money) + 500 }).eq('telegram_id', refBy);
+      }
     }
 
     setPid(data.id); setNick(final); setGender(selG);
@@ -451,8 +453,8 @@ export default function App() {
 
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
 
-  // --- ЭКРАН ПОДПИСКИ (БЛОКИРОВЩИК) ---
-  if (user && !isSubscribed && nick) {
+  // --- ЭКРАН ПОДПИСКИ (Показывается, если не подписан) ---
+  if (user && !isSubscribed) {
     return (
       <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', background: toast.err ? '#ef4444' : '#10b981', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000 }}>{toast.msg}</div>}
@@ -472,6 +474,7 @@ export default function App() {
     );
   }
 
+  // --- ЭКРАН РЕГИСТРАЦИИ ---
   if (!nick || !gender) return (
     <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', background: toast.err ? '#ef4444' : '#10b981', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{toast.msg}</div>}
@@ -526,7 +529,6 @@ export default function App() {
       {adminOpen && <div style={S.modalBg}><div style={{ ...S.modalBox, border: '1px solid #ef4444' }}><h3 style={{ color: '#ef4444', display: 'flex', justifyContent: 'center', gap: 10 }}><Settings size={24} /> ADMIN</h3><button onClick={adminMoney} style={{ ...S.btnYellow, marginBottom: 10 }}><Coins size={20} /> +100 000</button><button onClick={adminReset} style={{ ...S.btnDanger, marginBottom: 15 }}><Trash2 size={20} /> Сброс</button><button onClick={() => setAdminOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Закрыть</button></div></div>}
       {sellOpen && <div style={S.modalBg}><div style={S.modalBox}><h3>Продажа</h3><input type="number" value={sellPrice} onChange={e => setSellPrice(e.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setSellOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Отмена</button><button onClick={listPhone} style={S.btnPurple}>Выставить</button></div></div></div>}
 
-      {/* ОСТАЛЬНОЙ ИНТЕРФЕЙС ИГРЫ БЕЗ ИЗМЕНЕНИЙ */}
       {tab === 'home' && (
         <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 30 }}>
