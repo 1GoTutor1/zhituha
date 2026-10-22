@@ -3,7 +3,7 @@ import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { 
   Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
-  Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User, Share2, Gift
+  Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User, UserPlus, Gift
 } from 'lucide-react';
 
 // --- КОНСТАНТЫ ---
@@ -415,7 +415,32 @@ export default function App() {
       
       {toast && <div style={{ position: 'fixed', top: 90, left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.err ? '#ef4444' : '#10b981', color: 'white', padding: '12px 20px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '280px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{toast.msg}</div>}
 
-      {refOpen && <div style={S.modalBg}><div style={S.modalBox}><Gift size={40} color="#ec4899" style={{ marginBottom: 15 }} /><h3 style={{ marginTop: 0, fontSize: 20 }}>Рефералка</h3><p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 15 }}>Приглашено друзей: <b>{myRefs.length}</b></p><div style={{ background: 'rgba(236, 72, 153, 0.1)', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid rgba(236, 72, 153, 0.2)' }}><p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#ec4899' }}>Накоплено 5% с доходов:</p><p style={{ margin: 0, fontSize: 24, color: '#ec4899', fontWeight: 'bold' }}>{refBalance} <Coins size={18} style={{ display: 'inline' }} /></p></div><button onClick={collectRefBonus} disabled={proc || refBalance <= 0} style={{ ...S.btnPurple, background: refBalance > 0 ? 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)' : '#333', opacity: (proc || refBalance <= 0) ? 0.5 : 1, marginBottom: 10 }}>Собрать</button><button onClick={() => setRefOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Закрыть</button></div></div>}
+      {/* МОДАЛКА РЕФЕРАЛКИ (ВСЕ В ОДНОМ) */}
+      {refOpen && (
+        <div style={S.modalBg}>
+          <div style={S.modalBox}>
+            <Gift size={40} color="#ec4899" style={{ marginBottom: 15 }} />
+            <h3 style={{ marginTop: 0, fontSize: 20 }}>Рефералка</h3>
+            
+            <button onClick={inviteFriend} style={{ ...S.btnPurple, background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', marginBottom: 15, padding: 12 }}>
+              <UserPlus size={20} /> Пригласить друга
+            </button>
+
+            <p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 10 }}>Приглашено друзей: <b>{myRefs.length}</b></p>
+            
+            <div style={{ background: 'rgba(236, 72, 153, 0.1)', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid rgba(236, 72, 153, 0.2)' }}>
+              <p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#ec4899' }}>Накоплено 5% с доходов:</p>
+              <p style={{ margin: 0, fontSize: 24, color: '#ec4899', fontWeight: 'bold' }}>{refBalance} <Coins size={18} style={{ display: 'inline' }} /></p>
+            </div>
+            
+            <button onClick={collectRefBonus} disabled={proc || refBalance <= 0} style={{ ...S.btnPrimary, background: refBalance > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#333', opacity: (proc || refBalance <= 0) ? 0.5 : 1, marginBottom: 10 }}>
+              Собрать 5%
+            </button>
+            
+            <button onClick={() => setRefOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Закрыть</button>
+          </div>
+        </div>
+      )}
 
       {quitOpen && <div style={S.modalBg}><div style={S.modalBox}><h3 style={{ marginTop: 0, fontSize: 20 }}>Увольнение</h3><p style={{ color: '#a1a1aa', fontSize: 15, marginBottom: 20 }}>Ты уверен?</p><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setQuitOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Отмена</button><button onClick={quit} disabled={proc} style={{ ...S.btnDanger, opacity: proc ? 0.5 : 1 }}>Уволиться</button></div></div></div>}
       {authOpen && <div style={S.modalBg}><div style={S.modalBox}><Lock size={40} color="#f59e0b" style={{ marginBottom: 15 }} /><h3>Код</h3><input type="password" value={adminCode} onChange={e => setAdminCode(e.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setAuthOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Отмена</button><button onClick={checkAuth} style={S.btnYellow}>Войти</button></div></div></div>}
@@ -438,17 +463,21 @@ export default function App() {
               <div style={{ color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}><Zap size={16} /> {energy}/100</div>
             </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-            <button onClick={() => setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 16, backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px solid #8b5cf6', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', backdropFilter: 'blur(10px)' }}><Briefcase size={24} color="#8b5cf6" /><span style={{ fontSize: 12 }}>Бизнес<br />стартапы</span></button>
-            <button onClick={() => setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 16, backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px solid #f97316', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', backdropFilter: 'blur(10px)' }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 12 }}>Кафе</span></button>
-          </div>
           
-          <div style={{ display: 'flex', gap: 10, marginBottom: 30 }}>
-            <button onClick={inviteFriend} style={{ ...S.btnPurple, flex: 1, background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', padding: 12, fontSize: 14 }}>
-              <Share2 size={18} /> Позвать друга
-            </button>
-            <button onClick={() => setRefOpen(true)} style={{ ...S.btnSecondary, flex: 1, padding: 12, fontSize: 14 }}>
-              <Gift size={18} /> Рефералка
+          {/* НОВЫЙ БЛОК: БИЗНЕС, КАФЕ И РЕФЕРАЛКА КВАДРАТИКОМ */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 15, marginBottom: 30 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button onClick={() => setTab('business')} style={{ padding: '10px 15px', borderRadius: 12, backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px solid #8b5cf6', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', backdropFilter: 'blur(10px)', fontSize: 14 }}>
+                <Briefcase size={20} color="#8b5cf6" /> Бизнес
+              </button>
+              <button onClick={() => setTab('cafe')} style={{ padding: '10px 15px', borderRadius: 12, backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px solid #f97316', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', backdropFilter: 'blur(10px)', fontSize: 14 }}>
+                <Coffee size={20} color="#f97316" /> Кафе
+              </button>
+            </div>
+            
+            <button onClick={() => setRefOpen(true)} style={{ width: 74, height: 74, borderRadius: 16, backgroundColor: 'rgba(236, 72, 153, 0.15)', border: '1px solid #ec4899', color: '#ec4899', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, backdropFilter: 'blur(10px)' }}>
+              <UserPlus size={28} />
+              <span style={{ fontSize: 10, fontWeight: 'bold' }}>Рефка</span>
             </button>
           </div>
 
