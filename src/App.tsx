@@ -168,11 +168,27 @@ export default function App() {
   const reg = () => action(async () => {
     const final = user?.first_name || inNick;
     if (!final.trim() || !selG) return showMsg("Заполни поля!", true);
-    const { data, error } = await supabase.from('players').insert([{ 
+    
+    // Попытка вставить с аватаркой
+    let { data, error } = await supabase.from('players').insert([{ 
       telegram_id: getUid(), nickname: final, gender: selG, avatar_id: avatarId, money: 3500, energy: 80, phone_count: 0, last_rest_time: 0 
     }]).select().single();
+
+    // Если база данных выдает ошибку про avatar_id (колонка не прогрузилась)
+    if (error && error.message.includes('avatar_id')) {
+      console.warn("Колонка avatar_id не найдена в базе, делаем запасной вариант...");
+      const fallback = await supabase.from('players').insert([{ 
+        telegram_id: getUid(), nickname: final, gender: selG, money: 3500, energy: 80, phone_count: 0, last_rest_time: 0 
+      }]).select().single();
+      
+      data = fallback.data;
+      error = fallback.error;
+    }
+
     if (error) throw error;
-    setPid(data.id); setNick(final); setGender(selG);
+    if (data) {
+      setPid(data.id); setNick(final); setGender(selG);
+    }
   });
 
   const work = (janitor: boolean) => action(async () => {
