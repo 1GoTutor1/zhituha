@@ -10,6 +10,12 @@ export function useTelegram() {
       telegram.ready(); 
       telegram.expand(); 
       
+      // Делаем шапку темной под цвет игры
+      try {
+        telegram.setHeaderColor('#121212');
+        telegram.setBackgroundColor('#121212');
+      } catch (e) {}
+
       setTg(telegram);
       if (telegram.initDataUnsafe?.user) {
         setUser(telegram.initDataUnsafe.user);
