@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
+
 import { 
   Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
   Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User
@@ -9,7 +10,6 @@ import {
 const PHONE_PRICE = 2000;
 const BUSINESS_PRICE = 10000;
 const WORKER_SALARY = 300;
-const WORKER_BONUS = 100;
 const ADMIN_CODE = "admin2026";
 const ENERGY_COOLDOWN_MS = 90000;
 const COFFEE_PRICE = 500;
@@ -35,7 +35,7 @@ interface Business {
   worker_id: string | null; 
   worker_name: string | null; 
   last_collected: string;
-  coffee_balance?: number; // Новая касса для продаж кофе
+  coffee_balance?: number;
 }
 
 export default function App() {
@@ -53,7 +53,6 @@ export default function App() {
   const [energy, setEnergy] = useState(80);
   const [phone, setPhone] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [pendingInc, setPendingInc] = useState(0);
 
   const [isBrewing, setIsBrewing] = useState(false);
   const [brewTimeLeft, setBrewTimeLeft] = useState(0);
@@ -64,6 +63,9 @@ export default function App() {
   const [biz, setBiz] = useState<Business | null>(null);
   const [job, setJob] = useState<Business | null>(null);
   const [allBiz, setAllBiz] = useState<Business[]>([]);
+
+  // Состояние для открытия биржи труда внутри вкладки "Работа"
+  const [isJobBoardOpen, setIsJobBoardOpen] = useState(false);
 
   const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe'>('home');
   const [toast, setToast] = useState<{msg: string, err: boolean} | null>(null);
@@ -153,15 +155,6 @@ export default function App() {
     }
   }, [isBrewing, brewTimeLeft]);
 
-  useEffect(() => {
-    if (!biz || !biz.worker_id || !biz.last_collected) return setPendingInc(0);
-    const int = setInterval(() => {
-      const sec = Math.max(0, (Date.now() - new Date(biz.last_collected).getTime()) / 1000);
-      setPendingInc(Math.floor(sec * (100 / 60)));
-    }, 1000);
-    return () => clearInterval(int);
-  }, [biz]);
-
   const syncPlayer = async (updates: any) => {
     if (!pid) return;
     const { error } = await supabase.from('players').update(updates).eq('id', pid);
@@ -210,7 +203,7 @@ export default function App() {
     setMoney(nM);
     syncPlayer({ money: nM });
     
-    // Зачисляем 450 в кассу продаж кофе владельцу бизнеса
+    // Зачисляем в кассу продаж кофе владельцу бизнеса
     const { data: ownerBiz }: any = await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single();
     if (ownerBiz) {
       await supabase.from('businesses').update({ coffee_balance: (ownerBiz.coffee_balance || 0) + 450 }).eq('id', cafe.id);
@@ -268,18 +261,6 @@ export default function App() {
     loadData(true);
   };
 
-  const collectIncome = () => {
-    if (pendingInc <= 0) return;
-    hapticFeedback('medium');
-    const nM = money + pendingInc;
-    const inc = pendingInc;
-    setMoney(nM); setPendingInc(0); showMsg(`Собрано ${inc}`);
-    syncPlayer({ money: nM });
-    supabase.from('businesses').update({ last_collected: new Date().toISOString() }).eq('id', biz?.id);
-    loadData(true);
-  };
-
-  // НОВАЯ ФУНКЦИЯ: СБОР ВЫРУЧКИ С КОФЕ
   const collectCoffeeIncome = async () => {
     if (!biz || !biz.coffee_balance || biz.coffee_balance <= 0) return;
     hapticFeedback('medium');
@@ -298,8 +279,10 @@ export default function App() {
 
   const hireWorker = async (bId: string) => {
     hapticFeedback('medium');
-    await supabase.from('businesses').update({ worker_id: pid, worker_name: nick, last_collected: new Date().toISOString() }).eq('id', bId);
-    showMsg("Вы наняты!"); loadData(true);
+    await supabase.from('businesses').update({ worker_id: pid, worker_name: nick }).eq('id', bId);
+    showMsg("Вы устроены!"); 
+    setIsJobBoardOpen(false); // Закрываем биржу после устройства
+    loadData(true);
   };
 
   const fireWorker = async () => {
@@ -313,11 +296,8 @@ export default function App() {
     hapticFeedback('medium');
     const nM = money + WORKER_SALARY;
     const nE = energy - 20;
-    setMoney(nM); setEnergy(nE); showMsg(`+${WORKER_SALARY}`);
+    setMoney(nM); setEnergy(nE); showMsg(`+${WORKER_SALARY} за смену`);
     syncPlayer({ money: nM, energy: nE });
-    supabase.from('players').select('money').eq('id', job.owner_id).single().then(({data}) => {
-      if(data) supabase.from('players').update({ money: Number(data.money) + WORKER_BONUS }).eq('id', job.owner_id);
-    });
   };
 
   const handleAvatar = () => {
@@ -480,25 +460,16 @@ export default function App() {
           {biz ? (
             <div style={S.card}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 24, fontWeight: 'bold', marginBottom: 15 }}><Coffee size={28} color="#d97706"/> Кофейня</div>
-              <p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0' }}>Сотрудник: <b style={{ color: '#3b82f6' }}>{biz.worker_name || 'Нет'}</b></p>
+              <p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0 15px 0' }}>Сотрудник: <b style={{ color: '#3b82f6' }}>{biz.worker_name || 'Нет'}</b></p>
               
-              {/* КАССА ПАССИВНОГО ДОХОДА */}
-              {biz.worker_id ? (
-                <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: 15, borderRadius: 12, margin: '15px 0 10px 0', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                  <p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#10b981' }}>Пассивный доход (100/мин)</p>
-                  <p style={{ margin: '0 0 10px 0', fontSize: 22, color: '#10b981', fontWeight: 'bold' }}>В кассе: {pendingInc} <Coins size={18} style={{ display: 'inline' }}/></p>
-                  <button onClick={collectIncome} disabled={pendingInc <= 0} style={{ ...S.btnPrimary, opacity: pendingInc <= 0 ? 0.5 : 1, padding: 12 }}>Собрать пассивку</button>
-                </div>
-              ) : <p style={{ color: '#fbbf24', fontSize: 14, marginTop: 15 }}>Найди баристу во вкладке «Работа»!</p>}
-
               {/* КАССА ПРОДАЖ КОФЕ */}
-              <div style={{ background: 'rgba(249, 115, 22, 0.1)', padding: 15, borderRadius: 12, margin: '10px 0', border: '1px solid rgba(249, 115, 22, 0.2)' }}>
-                <p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#f97316' }}>Выручка с кофе</p>
+              <div style={{ background: 'rgba(249, 115, 22, 0.1)', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid rgba(249, 115, 22, 0.2)' }}>
+                <p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#f97316' }}>Выручка с продаж кофе</p>
                 <p style={{ margin: '0 0 10px 0', fontSize: 22, color: '#f97316', fontWeight: 'bold' }}>В кассе: {biz.coffee_balance || 0} <Coins size={18} style={{ display: 'inline' }}/></p>
-                <button onClick={collectCoffeeIncome} disabled={!biz.coffee_balance || biz.coffee_balance <= 0} style={{ ...S.btnYellow, opacity: (!biz.coffee_balance || biz.coffee_balance <= 0) ? 0.5 : 1, padding: 12 }}>Собрать выручку с кофе</button>
+                <button onClick={collectCoffeeIncome} disabled={!biz.coffee_balance || biz.coffee_balance <= 0} style={{ ...S.btnYellow, opacity: (!biz.coffee_balance || biz.coffee_balance <= 0) ? 0.5 : 1, padding: 12 }}>Собрать выручку</button>
               </div>
 
-              {biz.worker_id && <button onClick={fireWorker} style={{ ...S.btnDanger, background: 'rgba(239, 68, 68, 0.1)', boxShadow: 'none', marginTop: 10 }}>Уволить баристу</button>}
+              {biz.worker_id && <button onClick={fireWorker} style={{ ...S.btnDanger, background: 'rgba(239, 68, 68, 0.1)', boxShadow: 'none' }}>Уволить баристу</button>}
             </div>
           ) : (
             <div style={{ ...S.card, textAlign: 'center' }}>
@@ -512,27 +483,15 @@ export default function App() {
         </div>
       )}
 
+      {/* ВКЛАДКА РАБОТА */}
       {tab === 'jobs' && (
         <div style={{ maxWidth: '400px', margin: '0 auto' }}>
           <h2>Работа</h2>
           
-          {job && (
-            <div style={{ marginBottom: 30 }}>
-              <h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3>
-              <div style={{ backgroundColor: '#1e1e24', padding: 20, borderRadius: 16, border: '1px solid #333' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
-                  <Coffee size={24} color="#f97316" />
-                  <span style={{ fontSize: 18, fontWeight: 'bold' }}>Кофейня</span>
-                </div>
-                <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#a1a1aa' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p>
-                <p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#a1a1aa' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p>
-                <button onClick={workShift} disabled={energy < 20} style={{ ...S.btnPrimary, opacity: energy < 20 ? 0.5 : 1 }}>Смена (+300)</button>
-              </div>
-            </div>
-          )}
-
-          {!job && (
+          {isJobBoardOpen ? (
+            // ЭКРАН БИРЖИ ТРУДА
             <div>
+              <button onClick={() => setIsJobBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
               <h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Свободные вакансии</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {allBiz.filter(b => !b.worker_id && b.owner_id !== pid).map(b => (
@@ -548,6 +507,30 @@ export default function App() {
                   <p style={{ color: '#666', fontSize: 14 }}>Пока нет свободных мест...</p>
                 )}
               </div>
+            </div>
+          ) : job ? (
+            // ЭКРАН МОЕЙ РАБОТЫ
+            <div>
+              <h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Текущее место работы</h3>
+              <div style={{ backgroundColor: '#1e1e24', padding: 20, borderRadius: 16, border: '1px solid #333' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
+                  <Coffee size={24} color="#f97316" />
+                  <span style={{ fontSize: 18, fontWeight: 'bold' }}>Кофейня</span>
+                </div>
+                <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#a1a1aa' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p>
+                <p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#a1a1aa' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p>
+                <button onClick={workShift} disabled={energy < 20} style={{ ...S.btnPrimary, opacity: energy < 20 ? 0.5 : 1 }}>Смена (+300)</button>
+              </div>
+            </div>
+          ) : (
+            // ЭКРАН БЕЗРАБОТНОГО
+            <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}>
+              <div style={{ fontSize: 50, marginBottom: 10 }}>📉</div>
+              <h3 style={{ marginBottom: 10 }}>Вы безработный</h3>
+              <p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 20 }}>Пора найти работу, чтобы зарабатывать монеты!</p>
+              <button onClick={() => setIsJobBoardOpen(true)} style={S.btnSecondary}>
+                <Briefcase size={20} /> Биржа труда
+              </button>
             </div>
           )}
         </div>
@@ -579,7 +562,7 @@ export default function App() {
           { id: 'shop', icon: Store, text: 'Магазин' }, 
           { id: 'inventory', icon: Backpack, text: 'Сумка' }
         ].map(t => (
-          <button key={t.id} onClick={() => { setTab(t.id as any); hapticFeedback('light'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: tab === t.id ? '#3b82f6' : '#a1a1aa' }}>
+          <button key={t.id} onClick={() => { setTab(t.id as any); hapticFeedback('light'); setIsJobBoardOpen(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: tab === t.id ? '#3b82f6' : '#a1a1aa' }}>
             <t.icon size={22} style={{ marginBottom: 4 }} />
             <span style={{ fontSize: 10, fontWeight: tab === t.id ? 'bold' : 'normal' }}>{t.text}</span>
           </button>
