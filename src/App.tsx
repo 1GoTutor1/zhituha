@@ -338,8 +338,8 @@ export default function App() {
   const inviteFriend = () => {
     if (!tg || !pid) return;
     hapticFeedback('medium');
-    const text = "Смотри какая Житуха залетай и ты! По моему приглашению ты получишь +1000 валюты:";
     const refLink = `https://t.me/${BOT_USERNAME}?start=ref_${getUid()}`;
+    const text = "Смотри какая Житуха залетай и ты! По моему приглашению ты получишь +1000 валюты:";
     tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(text)}`);
   };
 
@@ -415,7 +415,7 @@ export default function App() {
       
       {toast && <div style={{ position: 'fixed', top: 90, left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.err ? '#ef4444' : '#10b981', color: 'white', padding: '12px 20px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '280px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{toast.msg}</div>}
 
-      {/* МОДАЛКА РЕФЕРАЛКИ (ВСЕ В ОДНОМ) */}
+      {/* МОДАЛКА РЕФЕРАЛКИ */}
       {refOpen && (
         <div style={S.modalBg}>
           <div style={S.modalBox}>
@@ -449,13 +449,20 @@ export default function App() {
 
       {tab === 'home' && (
         <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+          {/* ШАПКА ПРОФИЛЯ С РЕФЕРАЛКОЙ (ТОЛЬКО ИКОНКА) */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 30 }}>
-            <div style={{ textAlign: 'left' }} onClick={handleAvatar}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
-                <div style={{ width: 50, height: 50, borderRadius: '50%', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, border: '2px solid rgba(255,255,255,0.2)', pointerEvents: 'none' }}>
-                  {av.emoji}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div onClick={handleAvatar} style={{ width: 50, height: 50, borderRadius: '50%', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, border: '2px solid rgba(255,255,255,0.2)', cursor: 'pointer', userSelect: 'none' }}>
+                {av.emoji}
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontSize: 18, fontWeight: 'bold' }}>{nick}</div>
+                  <button onClick={() => setRefOpen(true)} style={{ background: 'rgba(236, 72, 153, 0.15)', border: '1px solid #ec4899', color: '#ec4899', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    <UserPlus size={16} />
+                  </button>
                 </div>
-                <div><div style={{ fontSize: 18, fontWeight: 'bold' }}>{nick}</div><div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 4 }}><User size={12} /> ID: {tgId.slice(0, 6)}</div></div>
+                <div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}><User size={12} /> ID: {tgId.slice(0, 6)}</div>
               </div>
             </div>
             <div style={{ textAlign: 'right', fontSize: 15, fontWeight: 'bold' }}>
@@ -464,21 +471,9 @@ export default function App() {
             </div>
           </div>
           
-          {/* НОВЫЙ БЛОК: БИЗНЕС, КАФЕ И РЕФЕРАЛКА КВАДРАТИКОМ */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 15, marginBottom: 30 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button onClick={() => setTab('business')} style={{ padding: '10px 15px', borderRadius: 12, backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px solid #8b5cf6', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', backdropFilter: 'blur(10px)', fontSize: 14 }}>
-                <Briefcase size={20} color="#8b5cf6" /> Бизнес
-              </button>
-              <button onClick={() => setTab('cafe')} style={{ padding: '10px 15px', borderRadius: 12, backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px solid #f97316', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', backdropFilter: 'blur(10px)', fontSize: 14 }}>
-                <Coffee size={20} color="#f97316" /> Кафе
-              </button>
-            </div>
-            
-            <button onClick={() => setRefOpen(true)} style={{ width: 74, height: 74, borderRadius: 16, backgroundColor: 'rgba(236, 72, 153, 0.15)', border: '1px solid #ec4899', color: '#ec4899', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, backdropFilter: 'blur(10px)' }}>
-              <UserPlus size={28} />
-              <span style={{ fontSize: 10, fontWeight: 'bold' }}>Рефка</span>
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+            <button onClick={() => setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 16, backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px solid #8b5cf6', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', backdropFilter: 'blur(10px)' }}><Briefcase size={24} color="#8b5cf6" /><span style={{ fontSize: 12 }}>Бизнес<br />стартапы</span></button>
+            <button onClick={() => setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 16, backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px solid #f97316', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', backdropFilter: 'blur(10px)' }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 12 }}>Кафе</span></button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 15, alignItems: 'center' }}>
