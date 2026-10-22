@@ -11,6 +11,8 @@ const BUSINESS_PRICE = 10000;
 const WORKER_SALARY = 300;
 const WORKER_BONUS = 100;
 const ADMIN_CODE = "admin2026";
+const ENERGY_COOLDOWN_MS = 90000; // Теперь отдых 90 секунд
+const COFFEE_PRICE = 500;
 
 const S = {
   card: { backgroundColor: 'rgba(30, 30, 36, 0.8)', backdropFilter: 'blur(10px)', color: 'white', padding: 20, borderRadius: 20, margin: '0 auto 20px auto', maxWidth: '350px', fontSize: 20, textAlign: 'left' as const, boxShadow: '0 8px 32px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' },
@@ -19,7 +21,6 @@ const S = {
   btnPurple: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)', transition: '0.1s' },
   btnDanger: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)', transition: '0.1s' },
   btnYellow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: 'none', transition: '0.1s' },
-  hudBar: { display: 'flex', justifyContent: 'space-between', background: 'linear-gradient(135deg, #1e1e24 0%, #121212 100%)', padding: '15px 25px', borderRadius: '16px', maxWidth: '350px', margin: '0 auto 25px auto', border: '1px solid #333', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' },
   modalBg: { position: 'fixed' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, padding: 20 },
   modalBox: { backgroundColor: '#1e1e24', padding: 25, borderRadius: 20, width: '100%', maxWidth: '320px', border: '1px solid #333', textAlign: 'center' as const },
   input: { width: '100%', padding: 15, borderRadius: 12, backgroundColor: '#121212', color: '#fff', border: '1px solid #444', textAlign: 'center' as const, fontSize: 18, marginBottom: 20, boxSizing: 'border-box' as const, outline: 'none' }
@@ -46,14 +47,18 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [pendingInc, setPendingInc] = useState(0);
 
+  // Состояния для Кафе
+  const [isBrewing, setIsBrewing] = useState(false);
+  const [brewTimeLeft, setBrewTimeLeft] = useState(0);
+  const [selectedCafe, setSelectedCafe] = useState<Business | null>(null);
+
   const [players, setPlayers] = useState<Player[]>([]);
   const [market, setMarket] = useState<MarketItem[]>([]);
   const [biz, setBiz] = useState<Business | null>(null);
   const [job, setJob] = useState<Business | null>(null);
   const [allBiz, setAllBiz] = useState<Business[]>([]);
 
-  // Вкладка 'jobs' для Биржи труда
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs'>('home');
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe'>('home');
   const [toast, setToast] = useState<{msg: string, err: boolean} | null>(null);
   
   const [clicks, setClicks] = useState(0);
@@ -87,7 +92,7 @@ export default function App() {
         setPid(data.id); setNick(data.nickname); setGender(data.gender);
         setMoney(Number(data.money)); setEnergy(Number(data.energy));
         setPhone(Number(data.phone_count) > 0);
-        setTimeLeft(Math.max(0, Math.ceil(((Number(data.last_rest_time)||0) + 60000 - Date.now()) / 1000)));
+        setTimeLeft(Math.max(0, Math.ceil(((Number(data.last_rest_time)||0) + ENERGY_COOLDOWN_MS - Date.now()) / 1000)));
         
         const { data: bData }: any = await supabase.from('businesses').select('*');
         if (bData) {
@@ -113,14 +118,35 @@ export default function App() {
   };
 
   useEffect(() => { loadData(); }, [user]);
+
   useEffect(() => { 
     if (tab === 'market') loadMarket(); 
-    if (tab === 'jobs') loadData(true); 
+    
+    let interval: any;
+    if (tab === 'business' || tab === 'jobs' || tab === 'home') {
+      loadData(true); 
+      interval = setInterval(() => { loadData(true); }, 5000);
+    }
+    return () => { if (interval) clearInterval(interval); };
   }, [tab]);
   
   useEffect(() => {
     if (timeLeft > 0) { const t = setTimeout(() => setTimeLeft(p => p - 1), 1000); return () => clearTimeout(t); }
   }, [timeLeft]);
+
+  // Таймер готовки кофе
+  useEffect(() => {
+    if (isBrewing && brewTimeLeft > 0) {
+      const t = setTimeout(() => setBrewTimeLeft(p => p - 1), 1000);
+      return () => clearTimeout(t);
+    } else if (isBrewing && brewTimeLeft === 0) {
+      // Кофе готов!
+      setIsBrewing(false);
+      setEnergy(100);
+      syncPlayer({ energy: 100 });
+      showMsg("Кофе готов! Энергия восстановлена!");
+    }
+  }, [isBrewing, brewTimeLeft]);
 
   useEffect(() => {
     if (!biz || !biz.worker_id || !biz.last_collected) return setPendingInc(0);
@@ -164,8 +190,31 @@ export default function App() {
     if (timeLeft > 0 || energy === 100) return;
     hapticFeedback('light');
     const now = Date.now();
-    setEnergy(100); setTimeLeft(60); showMsg("Энергия восстановлена!");
+    setEnergy(100); setTimeLeft(ENERGY_COOLDOWN_MS / 1000); showMsg("Энергия восстановлена!");
     syncPlayer({ energy: 100, last_rest_time: now });
+  };
+
+  const buyCoffee = async (cafe: Business) => {
+    if (isBrewing) return showMsg("Кофе уже готовится!", true);
+    if (money < COFFEE_PRICE) return showMsg("Мало денег!", true);
+    if (energy === 100) return showMsg("У тебя полная энергия!", true);
+    
+    hapticFeedback('heavy');
+    const nM = money - COFFEE_PRICE;
+    setMoney(nM);
+    syncPlayer({ money: nM }); // Списываем деньги
+    
+    // Начисляем 450 владельцу (если это не мы сами)
+    if (cafe.owner_id !== pid) {
+      const { data: owner }: any = await supabase.from('players').select('money').eq('id', cafe.owner_id).single();
+      if (owner) {
+        await supabase.from('players').update({ money: Number(owner.money) + 450 }).eq('id', cafe.owner_id);
+      }
+    }
+
+    setIsBrewing(true);
+    setBrewTimeLeft(15); // 15 секунд готовки
+    showMsg("Заказ принят! Кофе готовится 15 сек...");
   };
 
   const doPhone = (buy: boolean) => {
@@ -206,7 +255,7 @@ export default function App() {
   };
 
   const buyBusiness = async () => {
-    if (money < BUSINESS_PRICE || biz) return showMsg("Мало денег!", true);
+    if (money < BUSINESS_PRICE || biz) return;
     hapticFeedback('heavy');
     const nM = money - BUSINESS_PRICE;
     setMoney(nM); showMsg("Кофейня открыта!");
@@ -278,7 +327,7 @@ export default function App() {
 
   if (!nick || !gender) return (
     <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      {toast && <div style={{ position: 'fixed', top: 20, background: toast.err ? '#ef4444' : '#10b981', padding: '15px 25px', borderRadius: '10px', fontWeight: 'bold', zIndex: 1000 }}>{toast.msg}</div>}
+      {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', background: toast.err ? '#ef4444' : '#10b981', color: 'white', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '300px' }}>{toast.msg}</div>}
       <h1>Житуха</h1>
       <p style={{ color: '#888', marginBottom: '30px' }}>Создай своего персонажа</p>
       <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
@@ -297,7 +346,7 @@ export default function App() {
   return (
     <div style={{ padding: '20px 20px 90px 20px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', backgroundColor: '#121212', color: 'white' }}>
       
-      {toast && <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.err ? '#ef4444' : '#10b981', color: 'white', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '300px' }}>{toast.msg}</div>}
+      {toast && <div style={{ position: 'fixed', top: 90, left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.err ? '#ef4444' : '#10b981', color: 'white', padding: '12px 20px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '280px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{toast.msg}</div>}
 
       {adminAuth && <div style={S.modalBg}><div style={S.modalBox}><Lock size={40} color="#f59e0b" style={{ marginBottom: 15 }} /><h3>Код доступа</h3><input type="password" value={adminCode} onChange={e => setAdminCode(e.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setAdminAuth(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Отмена</button><button onClick={checkAuth} style={S.btnYellow}>Войти</button></div></div></div>}
       {adminPanel && <div style={S.modalBg}><div style={{ ...S.modalBox, border: '1px solid #ef4444' }}><h3 style={{ color: '#ef4444', display: 'flex', justifyContent: 'center', gap: 10 }}><Settings size={24}/> ADMIN PANEL</h3><button onClick={adminMoney} style={{ ...S.btnYellow, marginBottom: 10 }}><Coins size={20}/> +100 000</button><button onClick={adminReset} style={{ ...S.btnDanger, marginBottom: 15 }}><Trash2 size={20}/> Сброс игры</button><button onClick={() => setAdminPanel(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Закрыть</button></div></div>}
@@ -326,10 +375,14 @@ export default function App() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 40 }}>
-            <button onClick={() => setTab('business')} style={{ padding: '15px 20px', borderRadius: 16, backgroundColor: '#1e1e24', border: '1px solid #8b5cf6', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 40 }}>
+            <button onClick={() => setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 16, backgroundColor: '#1e1e24', border: '1px solid #8b5cf6', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <Briefcase size={24} color="#8b5cf6"/>
-              <span style={{ fontSize: 13 }}>Бизнес<br/>стартапы</span>
+              <span style={{ fontSize: 12, textAlign: 'center' }}>Бизнес<br/>стартапы</span>
+            </button>
+            <button onClick={() => setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 16, backgroundColor: '#1e1e24', border: '1px solid #f97316', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <Coffee size={24} color="#f97316"/>
+              <span style={{ fontSize: 12, textAlign: 'center' }}>Кафе<br/>(кофе)</span>
             </button>
           </div>
 
@@ -338,7 +391,7 @@ export default function App() {
               <Users size={20}/> Подработка (+200)
             </button>
             <button onClick={doRest} disabled={timeLeft > 0 || energy === 100} style={{ ...S.btnPrimary, background: '#1e1e24', border: '1px solid #10b981', color: timeLeft > 0 ? '#888' : '#10b981', boxShadow: 'none' }}>
-              <Zap size={20}/> {timeLeft > 0 ? `Ждать ${timeLeft} сек.` : 'Отдых'}
+              <Zap size={20}/> {timeLeft > 0 ? `Ждать ${timeLeft} сек.` : 'Отдых (90 сек)'}
             </button>
           </div>
 
@@ -347,6 +400,49 @@ export default function App() {
               <Search size={20} color="#fbbf24"/> Биржа труда
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ВКЛАДКА КАФЕ */}
+      {tab === 'cafe' && (
+        <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+          <button onClick={() => setTab('home')} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
+          <h2>Кафе города</h2>
+          
+          {isBrewing ? (
+            <div style={{ ...S.card, textAlign: 'center' }}>
+              <Coffee size={48} color="#f97316" style={{ marginBottom: 15 }}/>
+              <h3>Готовим кофе...</h3>
+              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#f97316' }}>{brewTimeLeft} сек.</p>
+              <p style={{ fontSize: 14, color: '#a1a1aa' }}>Пожалуйста, подождите.</p>
+            </div>
+          ) : selectedCafe ? (
+            <div style={{ ...S.card, textAlign: 'center' }}>
+              <Coffee size={48} color="#f97316" style={{ marginBottom: 15 }}/>
+              <h3 style={{ marginBottom: 5 }}>Кофейня</h3>
+              <p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 20 }}>Владелец: {selectedCafe.owner_name}</p>
+              <button onClick={() => buyCoffee(selectedCafe)} disabled={money < COFFEE_PRICE || energy === 100} style={{ ...S.btnYellow, opacity: (money < COFFEE_PRICE || energy === 100) ? 0.5 : 1, marginBottom: 10 }}>
+                Купить кофе за {COFFEE_PRICE}
+              </button>
+              <button onClick={() => setSelectedCafe(null)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Назад к списку</button>
+            </div>
+          ) : (
+            <div>
+              <h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 15 }}>Выбери заведение</h3>
+              {allBiz.length === 0 && <p style={{ color: '#666' }}>Пока нет открытых кафе...</p>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {allBiz.map(b => (
+                  <div key={b.id} onClick={() => setSelectedCafe(b)} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333', cursor: 'pointer' }}>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16}/> Кофейня</div>
+                      <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div>
+                    </div>
+                    <span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -366,7 +462,10 @@ export default function App() {
             <div style={{ ...S.card, textAlign: 'center' }}>
               <Store size={48} color="#8b5cf6" style={{ marginBottom: 15 }}/>
               <h3>Открыть Кофейню</h3>
-              <button onClick={buyBusiness} disabled={money < BUSINESS_PRICE} style={{ ...S.btnPurple, opacity: money < BUSINESS_PRICE ? 0.5 : 1 }}>{money < BUSINESS_PRICE ? 'Мало денег' : 'Открыть за 10 000'}</button>
+              {/* КНОПКА КУПИТЬ БИЗНЕС - ВСЕГДА ПОКАЗЫВАЕТ ЦЕНУ, НО СЕРАЯ, ЕСЛИ МАЛО ДЕНЕГ */}
+              <button onClick={buyBusiness} disabled={money < BUSINESS_PRICE} style={{ ...S.btnPurple, background: money < BUSINESS_PRICE ? '#333' : 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: money < BUSINESS_PRICE ? '#888' : 'white', opacity: money < BUSINESS_PRICE ? 0.6 : 1, cursor: money < BUSINESS_PRICE ? 'not-allowed' : 'pointer' }}>
+                Купить за {BUSINESS_PRICE}
+              </button>
             </div>
           )}
         </div>
