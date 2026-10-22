@@ -3,11 +3,12 @@ import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { 
   Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
-  Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User, UserPlus, Gift
+  Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User, UserPlus, Gift, Send
 } from 'lucide-react';
 
 // --- КОНСТАНТЫ ---
 const BOT_USERNAME = "zhituha_bot"; 
+const CHANNEL_LINK = "https://t.me/zhituha_news";
 const PHONE_PRICE = 2000, BUSINESS_PRICE = 10000, WORKER_SALARY = 300, COFFEE_PRICE = 500;
 const ADMIN_CODE = "admin2026", REST_CD = 90000, BREW_TIME = 15000, POLL = 5000;
 
@@ -40,6 +41,7 @@ export default function App() {
   
   const [loading, setLoading] = useState(true);
   const [proc, setProc] = useState(false);
+  const [checkingSub, setCheckingSub] = useState(false);
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
   const [toast, setToast] = useState<{ msg: string, err: boolean } | null>(null);
@@ -54,6 +56,7 @@ export default function App() {
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
   const [phone, setPhone] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false); // <--- НОВОЕ
   
   const [refBalance, setRefBalance] = useState(0);
   const [myRefs, setMyRefs] = useState<any[]>([]);
@@ -100,17 +103,40 @@ export default function App() {
     return true;
   };
 
-  // ФУНКЦИЯ НАЧИСЛЕНИЯ 5% РЕФЕРЕРУ
   const addReferralBonus = async (amount: number) => {
     const { data: me } = await supabase.from('players').select('referred_by').eq('id', pid).single();
     if (!me || !me.referred_by) return;
-
     const bonus = Math.floor(amount * 0.05);
     if (bonus <= 0) return;
-
     const { data: ref } = await supabase.from('players').select('referral_balance').eq('telegram_id', me.referred_by).single();
-    if (ref) {
-      await supabase.from('players').update({ referral_balance: (Number(ref.referral_balance) || 0) + bonus }).eq('telegram_id', me.referred_by);
+    if (ref) await supabase.from('players').update({ referral_balance: (Number(ref.referral_balance) || 0) + bonus }).eq('telegram_id', me.referred_by);
+  };
+
+  // ФУНКЦИЯ ПРОВЕРКИ ПОДПИСКИ
+  const verifySubscription = async () => {
+    if (!user?.id) return;
+    setCheckingSub(true);
+    hapticFeedback('medium');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        body: { telegram_id: user.id.toString() }
+      });
+
+      if (error) throw error;
+
+      if (data && data.is_member) {
+        setIsSubscribed(true);
+        if (pid) await sync({ is_subscribed: true });
+        showMsg("Спасибо за подписку! Добро пожаловать!");
+      } else {
+        showMsg("Ты еще не подписался на канал!", true);
+      }
+    } catch (e) {
+      console.error(e);
+      showMsg("Ошибка проверки. Попробуй позже.", true);
+    } finally {
+      setCheckingSub(false);
     }
   };
 
@@ -119,40 +145,45 @@ export default function App() {
     if (lock.current) return;
     try {
       const uid = getUid(); setTgId(uid);
-      const { data } = await supabase.from('players').select('*').eq('telegram_id', uid).maybeSingle();
-      if (data) {
-        setPid(data.id); setNick(data.nickname); setGender(data.gender);
-        setAvatarId(data.avatar_id || 1);
-        setMoney(Number(data.money)); setEnergy(Number(data.energy));
-        setPhone(Number(data.phone_count) > 0);
-        setRefBalance(Number(data.referral_balance) || 0);
-        
-        const last = Number(data.last_rest_time) || 0;
-        setRestEnd(last + REST_CD > Date.now() ? last + REST_CD : 0);
+      
+      // Проверяем подписку для тех, кто уже есть в базе
+      if (user?.id) {
+        const { data } = await supabase.from('players').select('*').eq('telegram_id', uid).maybeSingle();
+        if (data) {
+          setPid(data.id); setNick(data.nickname); setGender(data.gender);
+          setAvatarId(data.avatar_id || 1);
+          setMoney(Number(data.money)); setEnergy(Number(data.energy));
+          setPhone(Number(data.phone_count) > 0);
+          setRefBalance(Number(data.referral_balance) || 0);
+          setIsSubscribed(data.is_subscribed || false); // Загружаем статус
+          
+          const last = Number(data.last_rest_time) || 0;
+          setRestEnd(last + REST_CD > Date.now() ? last + REST_CD : 0);
 
-        // Проверка таймера кофе
-        const savedBrew = localStorage.getItem('zhituha_brew_end');
-        if (savedBrew) {
-          const bEnd = Number(savedBrew);
-          if (bEnd > Date.now()) {
-            setBrewEnd(bEnd);
-          } else {
-            localStorage.removeItem('zhituha_brew_end');
-            setEnergy(100);
-            await supabase.from('players').update({ energy: 100 }).eq('id', data.id);
+          const savedBrew = localStorage.getItem('zhituha_brew_end');
+          if (savedBrew) {
+            const bEnd = Number(savedBrew);
+            if (bEnd > Date.now()) setBrewEnd(bEnd);
+            else {
+              localStorage.removeItem('zhituha_brew_end');
+              setEnergy(100);
+              await supabase.from('players').update({ energy: 100 }).eq('id', data.id);
+            }
           }
-        }
-        
-        const { data: refs } = await supabase.from('players').select('nickname').eq('referred_by', uid);
-        if (refs) setMyRefs(refs);
+          
+          const { data: refs } = await supabase.from('players').select('nickname').eq('referred_by', uid);
+          if (refs) setMyRefs(refs);
 
-        const { data: b } = await supabase.from('businesses').select('*');
-        if (b) {
-          setAllBiz(b);
-          setBiz(b.find((x: any) => x.owner_id === data.id) || null);
-          setJob(b.find((x: any) => x.worker_id === data.id) || null);
+          const { data: b } = await supabase.from('businesses').select('*');
+          if (b) {
+            setAllBiz(b);
+            setBiz(b.find((x: any) => x.owner_id === data.id) || null);
+            setJob(b.find((x: any) => x.worker_id === data.id) || null);
+          }
+        } else if (user?.first_name) {
+          setInNick(user.first_name);
         }
-      } else if (user?.first_name) setInNick(user.first_name);
+      }
     } catch (e) { console.error(e); }
     finally { if (!silent) setLoading(false); }
   };
@@ -203,17 +234,14 @@ export default function App() {
     hapticFeedback('light');
   };
 
-  // РЕГИСТРАЦИЯ (с поддержкой ?startapp=)
   const reg = () => action(async () => {
     const final = user?.first_name || inNick;
     if (!final.trim() || !selG) return showMsg("Заполни поля!", true);
     
     let refBy = null;
-    // Проверяем оба формата: ref_ и просто айди
     if (startParam) {
       if (startParam.startsWith('ref_')) refBy = startParam.split('_')[1];
-      else refBy = startParam; // если пришел просто ID
-      
+      else refBy = startParam;
       if (refBy === getUid()) refBy = null; 
     }
 
@@ -222,15 +250,15 @@ export default function App() {
       nickname: final, 
       gender: selG, 
       avatar_id: avatarId, 
-      money: refBy ? 4500 : 3500, // +1000 бонус
+      money: refBy ? 4500 : 3500,
       energy: 80, 
       phone_count: 0, 
       last_rest_time: 0,
-      referred_by: refBy
+      referred_by: refBy,
+      is_subscribed: true // Сразу ставим true, так как проверка уже пройдена
     }]).select().single();
 
-    if (error && (error.message.includes('avatar_id') || error.message.includes('referred_by'))) {
-      // Фоллбек, если колонок нет в БД
+    if (error && (error.message.includes('avatar_id') || error.message.includes('referred_by') || error.message.includes('is_subscribed'))) {
       const fallback = await supabase.from('players').insert([{ 
         telegram_id: getUid(), 
         nickname: final, 
@@ -250,16 +278,13 @@ export default function App() {
     
     if (refBy && data) {
       const { data: refUser } = await supabase.from('players').select('money').eq('telegram_id', refBy).single();
-      if (refUser) {
-        await supabase.from('players').update({ money: Number(refUser.money) + 500 }).eq('telegram_id', refBy); // +500 рефереру
-      }
+      if (refUser) await supabase.from('players').update({ money: Number(refUser.money) + 500 }).eq('telegram_id', refBy);
     }
 
     setPid(data.id); setNick(final); setGender(selG);
     if (refBy) showMsg("Бонус +1000 монет за приглашение!");
   });
 
-  // ТОЛЬКО ПОДРАБОТКА
   const work = () => action(async () => {
     if (energy < 20) return showMsg("Ты слишком устал!", true);
     const amount = 200;
@@ -375,7 +400,6 @@ export default function App() {
     loadMarket();
   });
 
-  // ИСПРАВЛЕННАЯ РЕФЕРАЛЬНАЯ ССЫЛКА (?startapp=)
   const inviteFriend = () => {
     if (!tg || !pid) return;
     hapticFeedback('medium');
@@ -426,6 +450,27 @@ export default function App() {
 
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
 
+  // --- ЭКРАН ПОДПИСКИ (БЛОКИРОВЩИК) ---
+  if (user && !isSubscribed && nick) {
+    return (
+      <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', background: toast.err ? '#ef4444' : '#10b981', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000 }}>{toast.msg}</div>}
+        
+        <Send size={60} color="#3b82f6" style={{ marginBottom: 20 }} />
+        <h1 style={{ marginBottom: 10 }}>Подпишись на канал!</h1>
+        <p style={{ color: '#a1a1aa', marginBottom: 30, maxWidth: '300px' }}>Чтобы играть в Житуху, нужно быть подписанным на наш новостной канал.</p>
+        
+        <button onClick={() => tg?.openTelegramLink(CHANNEL_LINK)} style={{ ...S.btnSecondary, maxWidth: '280px', marginBottom: 15 }}>
+          <Send size={20} /> Подписаться
+        </button>
+        
+        <button onClick={verifySubscription} disabled={checkingSub} style={{ ...S.btnPrimary, maxWidth: '280px', opacity: checkingSub ? 0.5 : 1 }}>
+          {checkingSub ? 'Проверяем...' : 'Я подписался'}
+        </button>
+      </div>
+    );
+  }
+
   if (!nick || !gender) return (
     <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', background: toast.err ? '#ef4444' : '#10b981', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{toast.msg}</div>}
@@ -456,28 +501,20 @@ export default function App() {
       
       {toast && <div style={{ position: 'fixed', top: 90, left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.err ? '#ef4444' : '#10b981', color: 'white', padding: '12px 20px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '280px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{toast.msg}</div>}
 
-      {/* МОДАЛКА РЕФЕРАЛКИ */}
       {refOpen && (
         <div style={S.modalBg}>
           <div style={S.modalBox}>
             <Gift size={40} color="#ec4899" style={{ marginBottom: 15 }} />
             <h3 style={{ marginTop: 0, fontSize: 20 }}>Рефералка</h3>
-            
             <button onClick={inviteFriend} style={{ ...S.btnPurple, background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', marginBottom: 15, padding: 12 }}>
               <UserPlus size={20} /> Пригласить друга
             </button>
-
             <p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 10 }}>Приглашено друзей: <b>{myRefs.length}</b></p>
-            
             <div style={{ background: 'rgba(236, 72, 153, 0.1)', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid rgba(236, 72, 153, 0.2)' }}>
               <p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#ec4899' }}>Накоплено 5% с доходов:</p>
               <p style={{ margin: 0, fontSize: 24, color: '#ec4899', fontWeight: 'bold' }}>{refBalance} <Coins size={18} style={{ display: 'inline' }} /></p>
             </div>
-            
-            <button onClick={collectRefBonus} disabled={proc || refBalance <= 0} style={{ ...S.btnPrimary, background: refBalance > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#333', opacity: (proc || refBalance <= 0) ? 0.5 : 1, marginBottom: 10 }}>
-              Собрать 5%
-            </button>
-            
+            <button onClick={collectRefBonus} disabled={proc || refBalance <= 0} style={{ ...S.btnPrimary, background: refBalance > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#333', opacity: (proc || refBalance <= 0) ? 0.5 : 1, marginBottom: 10 }}>Собрать 5%</button>
             <button onClick={() => setRefOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Закрыть</button>
           </div>
         </div>
@@ -488,6 +525,7 @@ export default function App() {
       {adminOpen && <div style={S.modalBg}><div style={{ ...S.modalBox, border: '1px solid #ef4444' }}><h3 style={{ color: '#ef4444', display: 'flex', justifyContent: 'center', gap: 10 }}><Settings size={24} /> ADMIN</h3><button onClick={adminMoney} style={{ ...S.btnYellow, marginBottom: 10 }}><Coins size={20} /> +100 000</button><button onClick={adminReset} style={{ ...S.btnDanger, marginBottom: 15 }}><Trash2 size={20} /> Сброс</button><button onClick={() => setAdminOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Закрыть</button></div></div>}
       {sellOpen && <div style={S.modalBg}><div style={S.modalBox}><h3>Продажа</h3><input type="number" value={sellPrice} onChange={e => setSellPrice(e.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setSellOpen(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Отмена</button><button onClick={listPhone} style={S.btnPurple}>Выставить</button></div></div></div>}
 
+      {/* ОСТАЛЬНОЙ ИНТЕРФЕЙС ИГРЫ БЕЗ ИЗМЕНЕНИЙ */}
       {tab === 'home' && (
         <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 30 }}>
@@ -517,7 +555,6 @@ export default function App() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 15, alignItems: 'center' }}>
-            {/* ТОЛЬКО ПОДРАБОТКА */}
             <button onClick={work} disabled={proc || energy < 20} style={{ ...S.btnSecondary, opacity: (proc || energy < 20) ? 0.5 : 1 }}><Users size={20} /> Подработка (+200)</button>
             <button onClick={rest} disabled={proc || tLeft > 0 || energy === 100} style={{ ...S.btnPrimary, background: 'rgba(30, 30, 36, 0.8)', border: '1px solid #10b981', color: tLeft > 0 ? '#888' : '#10b981', boxShadow: 'none', opacity: (proc || tLeft > 0 || energy === 100) ? 0.5 : 1 }}><Zap size={20} /> {tLeft > 0 ? `Ждать ${tLeft} сек.` : 'Отдых (90 сек)'}</button>
           </div>
