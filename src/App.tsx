@@ -338,8 +338,8 @@ export default function App() {
   const inviteFriend = () => {
     if (!tg || !pid) return;
     hapticFeedback('medium');
-    const refLink = `https://t.me/${BOT_USERNAME}?start=ref_${getUid()}`;
     const text = "Смотри какая Житуха залетай и ты! По моему приглашению ты получишь +1000 валюты:";
+    const refLink = `https://t.me/${BOT_USERNAME}?start=ref_${getUid()}`;
     tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(text)}`);
   };
 
