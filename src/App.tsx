@@ -64,7 +64,6 @@ export default function App() {
   const [job, setJob] = useState<Business | null>(null);
   const [allBiz, setAllBiz] = useState<Business[]>([]);
 
-  // Состояние для открытия биржи труда внутри вкладки "Работа"
   const [isJobBoardOpen, setIsJobBoardOpen] = useState(false);
 
   const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe'>('home');
@@ -106,7 +105,9 @@ export default function App() {
         const { data: bData }: any = await supabase.from('businesses').select('*');
         if (bData) {
           setAllBiz(bData);
-          setBiz(bData.find((b: any) => b.owner_id === data.id) || null);
+          const myBiz = bData.find((b: any) => b.owner_id === data.id) || null;
+          if (myBiz) myBiz.coffee_balance = Number(myBiz.coffee_balance) || 0; // Принудительно к числу
+          setBiz(myBiz);
           setJob(bData.find((b: any) => b.worker_id === data.id) || null);
         }
       } else if (user?.first_name) {
@@ -204,9 +205,19 @@ export default function App() {
     syncPlayer({ money: nM });
     
     // Зачисляем в кассу продаж кофе владельцу бизнеса
-    const { data: ownerBiz }: any = await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single();
-    if (ownerBiz) {
-      await supabase.from('businesses').update({ coffee_balance: (ownerBiz.coffee_balance || 0) + 450 }).eq('id', cafe.id);
+    const { data: ownerBiz, error: fetchErr }: any = await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single();
+    
+    if (fetchErr) {
+      console.error("Ошибка получения кассы:", fetchErr);
+      showMsg("Ошибка базы: " + fetchErr.message, true);
+    } else if (ownerBiz) {
+      const currentBal = Number(ownerBiz.coffee_balance) || 0;
+      const { error: updateErr } = await supabase.from('businesses').update({ coffee_balance: currentBal + 450 }).eq('id', cafe.id);
+      
+      if (updateErr) {
+        console.error("Ошибка обновления кассы:", updateErr);
+        showMsg("Не удалось начислить выручку!", true);
+      }
     }
 
     setIsBrewing(true);
@@ -257,7 +268,7 @@ export default function App() {
     const nM = money - BUSINESS_PRICE;
     setMoney(nM); showMsg("Кофейня открыта!");
     await syncPlayer({ money: nM });
-    await supabase.from('businesses').insert([{ owner_id: pid, owner_name: nick, worker_id: null }]);
+    await supabase.from('businesses').insert([{ owner_id: pid, owner_name: nick, worker_id: null, coffee_balance: 0 }]);
     loadData(true);
   };
 
@@ -281,7 +292,7 @@ export default function App() {
     hapticFeedback('medium');
     await supabase.from('businesses').update({ worker_id: pid, worker_name: nick }).eq('id', bId);
     showMsg("Вы устроены!"); 
-    setIsJobBoardOpen(false); // Закрываем биржу после устройства
+    setIsJobBoardOpen(false);
     loadData(true);
   };
 
@@ -462,7 +473,6 @@ export default function App() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 24, fontWeight: 'bold', marginBottom: 15 }}><Coffee size={28} color="#d97706"/> Кофейня</div>
               <p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0 15px 0' }}>Сотрудник: <b style={{ color: '#3b82f6' }}>{biz.worker_name || 'Нет'}</b></p>
               
-              {/* КАССА ПРОДАЖ КОФЕ */}
               <div style={{ background: 'rgba(249, 115, 22, 0.1)', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid rgba(249, 115, 22, 0.2)' }}>
                 <p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#f97316' }}>Выручка с продаж кофе</p>
                 <p style={{ margin: '0 0 10px 0', fontSize: 22, color: '#f97316', fontWeight: 'bold' }}>В кассе: {biz.coffee_balance || 0} <Coins size={18} style={{ display: 'inline' }}/></p>
@@ -483,13 +493,11 @@ export default function App() {
         </div>
       )}
 
-      {/* ВКЛАДКА РАБОТА */}
       {tab === 'jobs' && (
         <div style={{ maxWidth: '400px', margin: '0 auto' }}>
           <h2>Работа</h2>
           
           {isJobBoardOpen ? (
-            // ЭКРАН БИРЖИ ТРУДА
             <div>
               <button onClick={() => setIsJobBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
               <h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Свободные вакансии</h3>
@@ -509,7 +517,6 @@ export default function App() {
               </div>
             </div>
           ) : job ? (
-            // ЭКРАН МОЕЙ РАБОТЫ
             <div>
               <h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Текущее место работы</h3>
               <div style={{ backgroundColor: '#1e1e24', padding: 20, borderRadius: 16, border: '1px solid #333' }}>
@@ -523,7 +530,6 @@ export default function App() {
               </div>
             </div>
           ) : (
-            // ЭКРАН БЕЗРАБОТНОГО
             <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}>
               <div style={{ fontSize: 50, marginBottom: 10 }}>📉</div>
               <h3 style={{ marginBottom: 10 }}>Вы безработный</h3>
