@@ -13,7 +13,6 @@ const BUSINESS_PRICE = 10000;
 const WORKER_SALARY = 300; 
 const WORKER_BONUS_TO_OWNER = 100; 
 
-// СЕКРЕТНЫЙ ПАРОЛЬ АДМИНА (можешь поменять на свой)
 const ADMIN_SECRET_CODE = "admin2026"; 
 
 interface Player { id: string; nickname: string; money: number; }
@@ -54,10 +53,9 @@ function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const [notifColor, setNotifColor] = useState('#10b981');
 
-  // --- ЗАЩИТА АДМИНКИ ---
   const [clickCount, setClickCount] = useState(0);
-  const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false); // Окно ввода пароля
-  const [isAdminOpen, setIsAdminOpen] = useState(false); // Сама админка
+  const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false); 
+  const [isAdminOpen, setIsAdminOpen] = useState(false); 
   const [authInput, setAuthInput] = useState('');
 
   const handleAvatarClick = () => {
@@ -204,7 +202,6 @@ function App() {
     }
   };
 
-  // --- ОСТАЛЬНЫЕ ДЕЙСТВИЯ ---
   const handleRegister = async () => {
     hapticFeedback('medium');
     if (inputName.trim() === '') return showNotification('Введи никнейм!', true);
@@ -417,7 +414,6 @@ function App() {
         <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', backgroundColor: notifColor, color: 'white', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '300px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{notification}</div>
       )}
 
-      {/* --- ОКНО ВВОДА ПАРОЛЯ --- */}
       {isAdminAuthOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, padding: 20 }}>
           <div style={{ backgroundColor: '#1e1e24', padding: 25, borderRadius: 20, width: '100%', maxWidth: '320px', border: '1px solid #333', textAlign: 'center' }}>
@@ -438,7 +434,6 @@ function App() {
         </div>
       )}
 
-      {/* --- САМА АДМИНКА --- */}
       {isAdminOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, padding: 20 }}>
           <div style={{ backgroundColor: '#1e1e24', padding: 25, borderRadius: 20, width: '100%', maxWidth: '320px', border: '1px solid #ef4444', boxShadow: '0 0 40px rgba(239, 68, 68, 0.2)' }}>
@@ -472,12 +467,24 @@ function App() {
         </div>
       )}
 
+      {/* --- ВОТ ЗДЕСЬ ДОБАВЛЕНА ЗАЩИТА ОТ ВЫДЕЛЕНИЯ --- */}
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', maxWidth: '350px', margin: '0 auto', paddingBottom: 15, marginBottom: 20 }}>
-        <h2 onClick={handleAvatarClick} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px', fontSize: '22px', fontWeight: '600', cursor: 'pointer' }}>
+        <h2 onClick={handleAvatarClick} style={{ 
+          margin: 0, 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px', 
+          fontSize: '22px', 
+          fontWeight: '600', 
+          cursor: 'pointer',
+          userSelect: 'none',          // Запрещает выделение текста
+          WebkitUserSelect: 'none',    // Для Safari
+          WebkitTouchCallout: 'none'   // Запрещает меню копирования при долгом нажатии
+        }}>
           {user?.photo_url ? (
-            <img src={user.photo_url} alt="avatar" style={{ width: 42, height: 42, borderRadius: '50%', border: '2px solid #3b82f6' }} />
+            <img src={user.photo_url} alt="avatar" style={{ width: 42, height: 42, borderRadius: '50%', border: '2px solid #3b82f6', pointerEvents: 'none' }} />
           ) : (
-            <div style={{ width: 42, height: 42, borderRadius: '50%', backgroundColor: '#1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #333' }}>
+            <div style={{ width: 42, height: 42, borderRadius: '50%', backgroundColor: '#1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #333', pointerEvents: 'none' }}>
               {gender === 'male' ? '🧑' : '👩'}
             </div>
           )}
