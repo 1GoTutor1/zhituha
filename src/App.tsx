@@ -13,7 +13,7 @@ const WORKER_SALARY = 300;
 const WORKER_BONUS = 100;
 const ADMIN_CODE = "admin2026";
 
-// --- СТИЛИ (Вынесены для сокращения кода) ---
+// --- СТИЛИ ---
 const S = {
   card: { backgroundColor: 'rgba(30, 30, 36, 0.8)', backdropFilter: 'blur(10px)', color: 'white', padding: 20, borderRadius: 20, margin: '0 auto 20px auto', maxWidth: '350px', fontSize: 20, textAlign: 'left' as const, boxShadow: '0 8px 32px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' },
   btnPrimary: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '100%', cursor: 'pointer', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)', transition: '0.1s' },
@@ -35,7 +35,6 @@ interface Business { id: string; owner_id: string; owner_name: string; worker_id
 export default function App() {
   const { user, hapticFeedback } = useTelegram();
 
-  // --- СОСТОЯНИЯ ---
   const [loading, setLoading] = useState(true);
   const [pid, setPid] = useState<string | null>(null);
   const [nick, setNick] = useState('');
@@ -58,17 +57,14 @@ export default function App() {
   const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business'>('home');
   const [toast, setToast] = useState<{msg: string, err: boolean} | null>(null);
   
-  // Админка
   const [clicks, setClicks] = useState(0);
   const [adminAuth, setAdminAuth] = useState(false);
   const [adminPanel, setAdminPanel] = useState(false);
   const [adminCode, setAdminCode] = useState('');
 
-  // Модалки
   const [sellModal, setSellModal] = useState(false);
   const [sellPrice, setSellPrice] = useState('2000');
 
-  // --- ХЕЛПЕРЫ ---
   const showMsg = (msg: string, err = false) => {
     setToast({ msg, err });
     setTimeout(() => setToast(null), 2500);
@@ -81,7 +77,6 @@ export default function App() {
     return bid;
   };
 
-  // --- ЗАГРУЗКА (Оптимизирована) ---
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -98,7 +93,9 @@ export default function App() {
           setBiz(bData.find((b: any) => b.owner_id === data.id) || null);
           setJob(bData.find((b: any) => b.worker_id === data.id) || null);
         }
-      } else if (user?.first_name) setInputNick(user.first_name);
+      } else if (user?.first_name) {
+        setInputNick(user.first_name); // Подставляем имя из тг, если игрока еще нет
+      }
     } catch (e: any) { if (!silent) showMsg("Ошибка сети: " + e.message, true); }
     finally { if (!silent) setLoading(false); }
   };
@@ -113,7 +110,6 @@ export default function App() {
   useEffect(() => { loadData(); }, [user]);
   useEffect(() => { if (tab === 'market') loadMarket(); }, [tab]);
   
-  // Таймеры
   useEffect(() => {
     if (timeLeft > 0) { const t = setTimeout(() => setTimeLeft(p => p - 1), 1000); return () => clearTimeout(t); }
   }, [timeLeft]);
@@ -127,38 +123,36 @@ export default function App() {
     return () => clearInterval(int);
   }, [biz]);
 
-  // --- ДЕЙСТВИЯ (Optimistic UI - мгновенно) ---
   const syncPlayer = async (updates: any) => {
     if (!pid) return;
     const { error } = await supabase.from('players').update(updates).eq('id', pid);
     if (error) {
       showMsg("Ошибка базы!", true);
-      loadData(true); // Откатываем состояние при ошибке
+      loadData(true);
     }
   };
 
   const register = async () => {
-    if (!inputNick.trim() || !selGender) return showMsg("Заполни все поля!", true);
+    // Если есть имя из ТГ, используем его, иначе берем из инпута
+    const finalNick = user?.first_name || inputNick;
+    if (!finalNick.trim() || !selGender) return showMsg("Заполни все поля!", true);
     hapticFeedback('medium');
+    
     const { data, error }: any = await supabase.from('players').insert([{
-      telegram_id: getUid(), nickname: inputNick, gender: selGender, money: 3500, energy: 80, phone_count: 0, last_rest_time: 0
+      telegram_id: getUid(), nickname: finalNick, gender: selGender, money: 3500, energy: 80, phone_count: 0, last_rest_time: 0
     }]).select().single();
     
     if (error) showMsg("Ошибка БД: " + error.message, true);
-    else if (data) { setPid(data.id); setNick(inputNick); setGender(selGender); }
+    else if (data) { setPid(data.id); setNick(finalNick); setGender(selGender); }
   };
 
   const doWork = (isJanitor: boolean) => {
     if (energy < 20 || (!phone && !isJanitor)) return showMsg("Не хватает условий!", true);
     hapticFeedback('medium');
-    
     const addMoney = isJanitor ? 200 : 500;
     const nM = Number(money) + addMoney;
     const nE = Number(energy) - 20;
-    
-    // Мгновенно обновляем UI
     setMoney(nM); setEnergy(nE); showMsg(`+${addMoney} монет`);
-    // В фоне сохраняем
     syncPlayer({ money: nM, energy: nE });
   };
 
@@ -174,10 +168,8 @@ export default function App() {
     if (buy && money < PHONE_PRICE) return showMsg("Мало денег!", true);
     if (!buy && !phone) return;
     hapticFeedback('heavy');
-    
     const nM = buy ? money - PHONE_PRICE : money + 1400;
     const nP = buy ? 1 : 0;
-    
     setMoney(nM); setPhone(buy); showMsg(buy ? "Телефон куплен!" : "Сдан за 1400");
     syncPlayer({ money: nM, phone_count: nP });
   };
@@ -196,10 +188,8 @@ export default function App() {
   const buyLot = async (item: MarketItem) => {
     if (money < item.price) return showMsg("Мало денег!", true);
     hapticFeedback('heavy');
-    
     const nM = money - item.price;
     setMoney(nM); setPhone(true); showMsg("Покупка успешна!");
-    
     try {
       await supabase.from('players').update({ money: nM, phone_count: 1 }).eq('id', pid);
       await supabase.from('market_items').delete().eq('id', item.id);
@@ -214,7 +204,6 @@ export default function App() {
     hapticFeedback('heavy');
     const nM = money - BUSINESS_PRICE;
     setMoney(nM); showMsg("Кофейня открыта!");
-    
     await syncPlayer({ money: nM });
     await supabase.from('businesses').insert([{ owner_id: pid, owner_name: nick, worker_id: null }]);
     loadData(true);
@@ -225,7 +214,6 @@ export default function App() {
     hapticFeedback('medium');
     const nM = money + pendingInc;
     const inc = pendingInc;
-    
     setMoney(nM); setPendingInc(0); showMsg(`Собрано ${inc}`);
     syncPlayer({ money: nM });
     supabase.from('businesses').update({ last_collected: new Date().toISOString() }).eq('id', biz?.id);
@@ -250,14 +238,12 @@ export default function App() {
     const nM = money + WORKER_SALARY;
     const nE = energy - 20;
     setMoney(nM); setEnergy(nE); showMsg(`+${WORKER_SALARY} за смену`);
-    
     syncPlayer({ money: nM, energy: nE });
     supabase.from('players').select('money').eq('id', job.owner_id).single().then(({data}) => {
       if(data) supabase.from('players').update({ money: Number(data.money) + WORKER_BONUS }).eq('id', job.owner_id);
     });
   };
 
-  // --- АДМИНКА ---
   const handleAvatar = () => {
     setClicks(c => c + 1);
     if (clicks >= 4) { setAdminAuth(true); setClicks(0); setAdminCode(''); hapticFeedback('heavy'); }
@@ -288,33 +274,38 @@ export default function App() {
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
 
   if (!nick || !gender) return (
-    <div style={{ padding: 20, fontFamily: 'sans-serif', textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       {toast && <div style={{ position: 'fixed', top: 20, background: toast.err ? '#ef4444' : '#10b981', padding: '15px 25px', borderRadius: '10px', fontWeight: 'bold', zIndex: 1000 }}>{toast.msg}</div>}
       <h1>Житуха</h1>
       <p style={{ color: '#888', marginBottom: '30px' }}>Создай своего персонажа</p>
+      
       <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
         <button onClick={() => setSelGender('male')} style={{ fontSize: 40, padding: '10px 30px', cursor: 'pointer', backgroundColor: selGender === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selGender === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16 }}>🧑</button>
         <button onClick={() => setSelGender('female')} style={{ fontSize: 40, padding: '10px 30px', cursor: 'pointer', backgroundColor: selGender === 'female' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selGender === 'female' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16 }}>👩</button>
       </div>
-      <input type="text" value={inputNick} onChange={(e) => setInputNick(e.target.value)} placeholder="Твой ник..." style={{ ...S.input, maxWidth: '280px' }} />
+
+      {/* БЛОКИРОВКА НИКА: Если мы в ТГ, показываем текст, если нет - поле ввода */}
+      {user?.first_name ? (
+        <div style={{ ...S.input, maxWidth: '280px', backgroundColor: 'transparent', border: 'none', fontSize: 22, fontWeight: 'bold' }}>
+          Ник: {user.first_name}
+        </div>
+      ) : (
+        <input type="text" value={inputNick} onChange={(e) => setInputNick(e.target.value)} placeholder="Твой ник..." style={{ ...S.input, maxWidth: '280px' }} />
+      )}
+
       <button onClick={register} style={{ ...S.btnPrimary, maxWidth: '280px' }}>Начать жизнь</button>
     </div>
   );
 
   return (
-    <div style={{ padding: '20px 20px 90px 20px', fontFamily: 'sans-serif', textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white' }}>
+    <div style={{ padding: '20px 20px 90px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white' }}>
       
-      {/* ТОСТ */}
       {toast && <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.err ? '#ef4444' : '#10b981', color: 'white', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '300px' }}>{toast.msg}</div>}
 
-      {/* МОДАЛКИ */}
       {adminAuth && <div style={S.modalBg}><div style={S.modalBox}><Lock size={40} color="#f59e0b" style={{ marginBottom: 15 }} /><h3>Код доступа</h3><input type="password" value={adminCode} onChange={e => setAdminCode(e.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setAdminAuth(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Отмена</button><button onClick={checkAuth} style={S.btnYellow}>Войти</button></div></div></div>}
-      
       {adminPanel && <div style={S.modalBg}><div style={{ ...S.modalBox, border: '1px solid #ef4444' }}><h3 style={{ color: '#ef4444', display: 'flex', justifyContent: 'center', gap: 10 }}><Settings size={24}/> ADMIN PANEL</h3><button onClick={adminMoney} style={{ ...S.btnYellow, marginBottom: 10 }}><Coins size={20}/> +100 000</button><button onClick={adminReset} style={{ ...S.btnDanger, marginBottom: 15 }}><Trash2 size={20}/> Сброс игры</button><button onClick={() => setAdminPanel(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Закрыть</button></div></div>}
-      
       {sellModal && <div style={S.modalBg}><div style={S.modalBox}><h3>Продажа</h3><input type="number" value={sellPrice} onChange={e => setSellPrice(e.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setSellModal(false)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Отмена</button><button onClick={listPhone} style={S.btnPurple}>Выставить</button></div></div></div>}
 
-      {/* ШАПКА */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
         <h2 onClick={handleAvatar} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12, fontSize: 22, cursor: 'pointer', userSelect: 'none' }}>
           {user?.photo_url ? <img src={user.photo_url} alt="ava" style={{ width: 42, height: 42, borderRadius: '50%', border: '2px solid #3b82f6', pointerEvents: 'none' }} /> : <div style={{ width: 42, height: 42, borderRadius: '50%', backgroundColor: '#1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #333', pointerEvents: 'none' }}>{gender === 'male' ? '🧑' : '👩'}</div>}
@@ -322,13 +313,11 @@ export default function App() {
         </h2>
       </div>
 
-      {/* HUD */}
       <div style={S.hudBar}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, fontWeight: 'bold' }}><Coins size={22} color="#fbbf24" /> {money}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, fontWeight: 'bold' }}><Zap size={22} color="#3b82f6" /> {energy}/100</div>
       </div>
 
-      {/* ГЛАВНАЯ */}
       {tab === 'home' && (
         <div style={S.flexCol}>
           {!phone && <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid #f59e0b', borderRadius: 12, padding: 15, maxWidth: '320px', margin: '0 auto 10px auto', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}><ShieldAlert size={20} /> Нужен телефон для работы.</div>}
@@ -338,7 +327,6 @@ export default function App() {
         </div>
       )}
 
-      {/* БИЗНЕС */}
       {tab === 'business' && (
         <div>
           <h2>Бизнес</h2>
@@ -364,12 +352,10 @@ export default function App() {
         </div>
       )}
 
-      {/* МАГАЗИН */}
       {tab === 'shop' && (
         <div><h2>Гос. Магазин</h2><div style={{ ...S.card, textAlign: 'center' }}><Smartphone size={48} color="#a1a1aa" style={{ marginBottom: 15 }}/><h3>Смартфон</h3>{phone ? <div style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckCircle2 size={20}/> Куплено</div> : <button onClick={() => doPhone(true)} disabled={money < PHONE_PRICE} style={{ ...S.btnPurple, opacity: money < PHONE_PRICE ? 0.5 : 1 }}>Купить за 2000</button>}</div></div>
       )}
 
-      {/* РЫНОК */}
       {tab === 'market' && (
         <div>
           <h2>Барахолка</h2>
@@ -380,12 +366,10 @@ export default function App() {
         </div>
       )}
 
-      {/* ИНВЕНТАРЬ */}
       {tab === 'inventory' && (
         <div><h2>Инвентарь</h2>{phone ? (<div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Smartphone size={32} color="#a1a1aa"/><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div></div><button onClick={() => setSellModal(true)} style={S.btnPurple}>Выставить на рынок</button><button onClick={() => doPhone(false)} style={S.btnPrimary}>Сдать в ломбард (+1400)</button></div>) : <div style={{ color: '#52525b', padding: 40, textAlign: 'center' }}><Backpack size={48} style={{ opacity: 0.5, marginBottom: 10 }}/><br/>Пусто...</div>}</div>
       )}
 
-      {/* НИЖНЕЕ МЕНЮ */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(30, 30, 36, 0.95)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
         {[{ id: 'home', icon: Home, text: 'Главная' }, { id: 'business', icon: Briefcase, text: 'Бизнес' }, { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'shop', icon: Store, text: 'Магазин' }, { id: 'inventory', icon: Backpack, text: 'Сумка' }].map(t => (
           <button key={t.id} onClick={() => { setTab(t.id as any); hapticFeedback('light'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: tab === t.id ? '#3b82f6' : '#a1a1aa' }}>
