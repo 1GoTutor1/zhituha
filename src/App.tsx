@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
+import { 
+  Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
+  Home, Coffee, User, Users, ShieldAlert, CheckCircle2
+} from 'lucide-react';
 
 const PHONE_PRICE = 2000;
 const SELL_TO_GAME_MULTIPLIER = 0.7; 
@@ -88,13 +92,11 @@ function App() {
 
   useEffect(() => { loadPlayerData(); }, [user]);
 
-  // Умный расчет кассы
   useEffect(() => {
     if (!myBusiness || !myBusiness.worker_id || !myBusiness.last_collected) {
       setPendingIncome(0);
       return;
     }
-
     const updateIncome = () => {
       const lastCollected = new Date(myBusiness.last_collected).getTime();
       const now = Date.now();
@@ -102,7 +104,6 @@ function App() {
       const income = Math.floor(diffSeconds * (100 / 60)); 
       setPendingIncome(isNaN(income) ? 0 : income);
     };
-
     updateIncome(); 
     const interval = setInterval(updateIncome, 1000); 
     return () => clearInterval(interval);
@@ -118,7 +119,6 @@ function App() {
       };
       fetchMarket();
     }
-    
     if (activeTab === 'business' && playerId) {
       const fetchBiz = async () => {
         const { data }: any = await supabase.from('businesses').select('*');
@@ -135,10 +135,7 @@ function App() {
   const saveProgress = async (newData: Record<string, unknown>) => {
     if (!playerId) return false;
     const { error } = await supabase.from('players').update(newData).eq('id', playerId);
-    if (error) {
-      showNotification("Ошибка БД: " + error.message, true);
-      return false;
-    }
+    if (error) { showNotification("Ошибка БД", true); return false; }
     return true;
   };
 
@@ -158,47 +155,38 @@ function App() {
       telegram_id: tgId, nickname: inputName, gender: selectedGender, money: 3500, energy: 80, phone_count: 0, last_rest_time: 0
     }]).select().single();
 
-    if (error) {
-      showNotification("Ошибка базы: " + error.message, true);
-    } else if (data) {
-      setPlayerId(data.id); setNickname(inputName); setGender(selectedGender);
-    }
+    if (error) { showNotification("Ошибка базы", true); } 
+    else if (data) { setPlayerId(data.id); setNickname(inputName); setGender(selectedGender); }
   };
 
   const handleWork = async () => {
     if (isSaving) return;
-    if (!hasPhone) return showNotification("Без телефона не найти работу!", true);
-    if (energy < 20) return showNotification("Ты слишком устал!", true);
+    if (!hasPhone) return showNotification("Нужен телефон!", true);
+    if (energy < 20) return showNotification("Мало энергии!", true);
     setIsSaving(true); hapticFeedback('medium');
-    
     const newMoney = Number(money) + 500;
     const newEnergy = Math.max(0, Number(energy) - 20);
-    
     if (await saveProgress({ money: newMoney, energy: newEnergy })) {
-      setMoney(newMoney); setEnergy(newEnergy); showNotification("Работа +500 монет");
+      setMoney(newMoney); setEnergy(newEnergy); showNotification("Работа +500");
     }
     setIsSaving(false);
   };
 
   const handleWorkJanitor = async () => {
-    if (isSaving) return;
-    if (energy < 20) return showNotification("Ты слишком устал!", true);
+    if (isSaving || energy < 20) return;
     setIsSaving(true); hapticFeedback('light');
-    
     const newMoney = Number(money) + 200;
     const newEnergy = Math.max(0, Number(energy) - 20);
-    
     if (await saveProgress({ money: newMoney, energy: newEnergy })) {
-      setMoney(newMoney); setEnergy(newEnergy); showNotification("Подработка +200 монет");
+      setMoney(newMoney); setEnergy(newEnergy); showNotification("Подработка +200");
     }
     setIsSaving(false);
   };
 
   const handleRest = async () => {
     if (isSaving || timeLeft > 0) return;
-    if (energy === 100) return showNotification("Полная энергия!", true);
+    if (energy === 100) return;
     setIsSaving(true); hapticFeedback('light');
-    
     const now = Date.now();
     if (await saveProgress({ energy: 100, last_rest_time: now })) {
       setEnergy(100); setTimeLeft(ENERGY_COOLDOWN_MS / 1000); showNotification("Энергия восстановлена!");
@@ -216,7 +204,6 @@ function App() {
   const handleBuyPhone = async () => {
     if (isSaving || money < PHONE_PRICE) return;
     setIsSaving(true); hapticFeedback('heavy');
-    
     const newMoney = Number(money) - PHONE_PRICE;
     if (await saveProgress({ money: newMoney, phone_count: 1 })) {
       setMoney(newMoney); setHasPhone(true); showNotification("Телефон куплен!");
@@ -227,12 +214,10 @@ function App() {
   const handleSellToGame = async () => {
     if (isSaving || !hasPhone) return;
     setIsSaving(true); hapticFeedback('heavy');
-    
     const sellPrice = Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER);
     const newMoney = Number(money) + sellPrice;
-    
     if (await saveProgress({ money: newMoney, phone_count: 0 })) {
-      setMoney(newMoney); setHasPhone(false); showNotification(`Сдан за ${sellPrice} монет.`);
+      setMoney(newMoney); setHasPhone(false); showNotification(`Сдан за ${sellPrice}`);
     }
     setIsSaving(false);
   };
@@ -242,82 +227,48 @@ function App() {
     const price = Number(sellPriceInput);
     if (isNaN(price) || price <= 0) return showNotification("Некорректная цена!", true);
     setIsSaving(true); hapticFeedback('medium');
-    
     const { error } = await supabase.from('market_items').insert([{ seller_id: playerId, seller_name: nickname, item_type: 'phone', price: price }]);
     if (!error) {
       await saveProgress({ phone_count: 0 });
-      setHasPhone(false); showNotification("Выставлено на рынок!"); setIsSellModalOpen(false); setActiveTab('market');
-    } else { showNotification("Ошибка выставления", true); }
+      setHasPhone(false); setIsSellModalOpen(false); setActiveTab('market'); showNotification("Выставлено!");
+    }
     setIsSaving(false);
   };
 
-  // ИДЕАЛЬНАЯ ПОКУПКА БЕЗ SQL ФУНКЦИЙ
   const handleBuyLot = async (item: MarketItem) => {
-    if (isSaving) return;
-    if (money < item.price) return showNotification("Не хватает денег!", true);
-    
+    if (isSaving || money < item.price) return showNotification("Мало денег!", true);
     setIsSaving(true); hapticFeedback('heavy');
-    
     try {
-      // 1. Списываем деньги у покупателя
-      const newBuyerMoney = Number(money) - item.price;
-      await supabase.from('players').update({ money: newBuyerMoney }).eq('id', playerId);
-
-      // 2. Начисляем продавцу
+      await supabase.from('players').update({ money: Number(money) - item.price }).eq('id', playerId);
       const { data: sellerData } = await supabase.from('players').select('money').eq('id', item.seller_id).single();
-      if (sellerData) {
-        await supabase.from('players').update({ money: Number(sellerData.money) + item.price }).eq('id', item.seller_id);
-      }
-
-      // 3. Выдаем телефон
+      if (sellerData) await supabase.from('players').update({ money: Number(sellerData.money) + item.price }).eq('id', item.seller_id);
       await supabase.from('players').update({ phone_count: 1 }).eq('id', playerId);
-
-      // 4. Удаляем лот
       await supabase.from('market_items').delete().eq('id', item.id);
-
-      showNotification("Покупка успешна!"); 
-      await loadPlayerData(); 
-      setActiveTab('market');
-    } catch (e) {
-      showNotification("Ошибка покупки", true);
-    }
-    
+      await loadPlayerData(); setActiveTab('market'); showNotification("Покупка успешна!");
+    } catch { showNotification("Ошибка покупки", true); }
     setIsSaving(false);
   };
 
   const handleBuyBusiness = async () => {
     if (isSaving || money < BUSINESS_PRICE || myBusiness) return;
     setIsSaving(true); hapticFeedback('heavy');
-    
     const newMoney = Number(money) - BUSINESS_PRICE;
     if (await saveProgress({ money: newMoney })) {
       setMoney(newMoney);
-      const { error }: any = await supabase.from('businesses').insert([{ owner_id: playerId, owner_name: nickname, worker_id: null }]);
-      if (error) { showNotification("Ошибка БД: " + error.message, true); } 
-      else { showNotification("Кофейня открыта!"); await loadPlayerData(); }
+      await supabase.from('businesses').insert([{ owner_id: playerId, owner_name: nickname, worker_id: null }]);
+      await loadPlayerData(); showNotification("Кофейня открыта!");
     }
     setIsSaving(false);
   };
 
-  // ИДЕАЛЬНЫЙ СБОР ДОХОДА БЕЗ SQL ФУНКЦИЙ
   const handleCollectIncome = async () => {
     if (isSaving || !myBusiness || pendingIncome <= 0) return;
     setIsSaving(true); hapticFeedback('medium');
-    
     const newMoney = Number(money) + pendingIncome;
-    
-    // Сначала обновляем деньги игрока
-    const success = await saveProgress({ money: newMoney });
-    
-    if (success) {
-      // Затем обновляем время сбора в бизнесе
+    if (await saveProgress({ money: newMoney })) {
       await supabase.from('businesses').update({ last_collected: new Date().toISOString() }).eq('id', myBusiness.id);
-      
-      setMoney(newMoney);
-      showNotification(`Собрано ${pendingIncome} монет!`);
-      await loadPlayerData(); // Перезагружаем, чтобы обновить last_collected
+      setMoney(newMoney); await loadPlayerData(); showNotification(`Собрано ${pendingIncome}`);
     }
-    
     setIsSaving(false);
   };
 
@@ -325,35 +276,62 @@ function App() {
     if (isSaving) return;
     setIsSaving(true); hapticFeedback('medium');
     await supabase.from('businesses').update({ worker_id: workerId, worker_name: workerName, last_collected: new Date().toISOString() }).eq('id', bizId);
-    showNotification("Сотрудник нанят!"); await loadPlayerData(); setIsSaving(false);
+    await loadPlayerData(); showNotification("Нанят!"); setIsSaving(false);
   };
 
   const handleFireWorker = async () => {
     if (isSaving || !myBusiness) return;
     setIsSaving(true);
     await supabase.from('businesses').update({ worker_id: null, worker_name: null }).eq('id', myBusiness.id);
-    showNotification("Сотрудник уволен."); await loadPlayerData(); setIsSaving(false);
+    await loadPlayerData(); showNotification("Уволен."); setIsSaving(false);
   };
 
   const handleWorkShift = async () => {
     if (isSaving || !myJob || energy < 20) return;
     setIsSaving(true); hapticFeedback('medium');
-    
     const newEnergy = Math.max(0, Number(energy) - 20);
     const newMoney = Number(money) + WORKER_SALARY;
-    
     if (await saveProgress({ energy: newEnergy, money: newMoney })) {
       setEnergy(newEnergy); setMoney(newMoney);
-      const { data: ownerData }: any = await supabase.from('players').select('money').eq('id', myJob.owner_id).single();
-      if (ownerData) { 
-        await supabase.from('players').update({ money: Number(ownerData.money) + WORKER_BONUS_TO_OWNER }).eq('id', myJob.owner_id); 
-      }
-      showNotification(`Ты заработал ${WORKER_SALARY} монет!`);
+      const { data: ownerData } = await supabase.from('players').select('money').eq('id', myJob.owner_id).single();
+      if (ownerData) await supabase.from('players').update({ money: Number(ownerData.money) + WORKER_BONUS_TO_OWNER }).eq('id', myJob.owner_id);
+      showNotification(`Заработано ${WORKER_SALARY}`);
     }
     setIsSaving(false);
   };
 
-  const cardStyle = { backgroundColor: '#1e1e24', color: 'white', padding: 20, borderRadius: 16, margin: '0 auto 20px auto', maxWidth: '350px', fontSize: 20, textAlign: 'left' as const, boxShadow: '0 8px 16px rgba(0,0,0,0.4)' };
+  // --- СТИЛИ (Стеклянный эффект и градиенты) ---
+  const cardStyle = { 
+    backgroundColor: 'rgba(30, 30, 36, 0.8)', 
+    backdropFilter: 'blur(10px)',
+    color: 'white', 
+    padding: 20, 
+    borderRadius: 20, 
+    margin: '0 auto 20px auto', 
+    maxWidth: '350px', 
+    fontSize: 20, 
+    textAlign: 'left' as const, 
+    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+    border: '1px solid rgba(255,255,255,0.05)'
+  };
+
+  const btnPrimary = { 
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+    fontSize: 16, padding: 16, width: '320px', cursor: 'pointer', 
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+    color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', 
+    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
+    transition: 'transform 0.1s'
+  };
+
+  const btnSecondary = { 
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+    fontSize: 16, padding: 16, width: '320px', cursor: 'pointer', 
+    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
+    color: 'white', borderRadius: 14, fontWeight: 'bold', border: 'none', 
+    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
+    transition: 'transform 0.1s'
+  };
 
   if (isLoading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
 
@@ -361,13 +339,14 @@ function App() {
     return (
       <div style={{ padding: 20, fontFamily: 'sans-serif', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white' }}>
         {notification && <div style={{ position: 'fixed', top: 20, backgroundColor: notifColor, padding: '15px 25px', borderRadius: '10px', fontWeight: 'bold', zIndex: 1000 }}>{notification}</div>}
-        <h1>Создание персонажа</h1>
+        <h1>Житуха</h1>
+        <p style={{ color: '#888', marginBottom: '30px' }}>Создай своего персонажа</p>
         <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-          <button onClick={() => setSelectedGender('male')} style={{ fontSize: 40, padding: '10px 30px', cursor: 'pointer', backgroundColor: selectedGender === 'male' ? '#3b82f6' : '#1e1e24', borderRadius: 12 }}>🧑</button>
-          <button onClick={() => setSelectedGender('female')} style={{ fontSize: 40, padding: '10px 30px', cursor: 'pointer', backgroundColor: selectedGender === 'female' ? '#3b82f6' : '#1e1e24', borderRadius: 12 }}>👩</button>
+          <button onClick={() => setSelectedGender('male')} style={{ fontSize: 40, padding: '10px 30px', cursor: 'pointer', backgroundColor: selectedGender === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selectedGender === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16 }}>🧑</button>
+          <button onClick={() => setSelectedGender('female')} style={{ fontSize: 40, padding: '10px 30px', cursor: 'pointer', backgroundColor: selectedGender === 'female' ? 'rgba(59, 130, 246, 0.2)' : '#1e1e24', border: selectedGender === 'female' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16 }}>👩</button>
         </div>
-        <input type="text" value={inputName} onChange={(e) => setInputName(e.target.value)} placeholder="Ник..." style={{ fontSize: 18, padding: 14, marginBottom: 20, width: '250px', borderRadius: 10, backgroundColor: '#1e1e24', color: 'white', textAlign: 'center' }} />
-        <button onClick={handleRegister} disabled={isSaving} style={{ fontSize: 18, padding: 15, width: '250px', cursor: 'pointer', backgroundColor: '#3b82f6', color: 'white', borderRadius: 10, fontWeight: 'bold' }}>Начать</button>
+        <input type="text" value={inputName} onChange={(e) => setInputName(e.target.value)} placeholder="Твой ник..." style={{ fontSize: 18, padding: 15, marginBottom: 20, width: '280px', borderRadius: 12, backgroundColor: '#1e1e24', color: 'white', border: '1px solid #333', textAlign: 'center', outline: 'none' }} />
+        <button onClick={handleRegister} disabled={isSaving} style={{ ...btnPrimary, width: '280px' }}>Начать жизнь</button>
       </div>
     );
   }
@@ -376,92 +355,119 @@ function App() {
     <div style={{ padding: '20px 20px 90px 20px', fontFamily: 'sans-serif', textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white' }}>
       
       {notification && (
-        <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', backgroundColor: notifColor, color: 'white', padding: '15px 25px', borderRadius: '10px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '300px' }}>{notification}</div>
+        <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', backgroundColor: notifColor, color: 'white', padding: '15px 25px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '300px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>{notification}</div>
       )}
 
       {isSellModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1500, padding: 20 }}>
-          <div style={{ backgroundColor: '#1e1e24', padding: 20, borderRadius: 16, width: '100%', maxWidth: '320px', border: '1px solid #333' }}>
-            <h3 style={{ marginTop: 0, fontSize: 20 }}>Продажа телефона</h3>
-            <input type="number" value={sellPriceInput} onChange={(e) => setSellPriceInput(e.target.value)} style={{ width: '100%', padding: 12, borderRadius: 8, backgroundColor: '#121212', color: '#fff', border: '1px solid #444', textAlign: 'center', fontSize: 18, marginBottom: 20, boxSizing: 'border-box' }} />
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1500, padding: 20 }}>
+          <div style={{ backgroundColor: '#1e1e24', padding: 25, borderRadius: 20, width: '100%', maxWidth: '320px', border: '1px solid #333' }}>
+            <h3 style={{ marginTop: 0, fontSize: 22, textAlign: 'center' }}>Продажа</h3>
+            <input type="number" value={sellPriceInput} onChange={(e) => setSellPriceInput(e.target.value)} style={{ width: '100%', padding: 15, borderRadius: 12, backgroundColor: '#121212', color: '#fff', border: '1px solid #444', textAlign: 'center', fontSize: 18, marginBottom: 20, boxSizing: 'border-box', outline: 'none' }} />
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setIsSellModalOpen(false)} style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#333', color: 'white', border: 'none', fontWeight: 'bold' }}>Отмена</button>
-              <button onClick={handleConfirmSellToMarket} disabled={isSaving} style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#8b5cf6', color: 'white', border: 'none', fontWeight: 'bold' }}>{isSaving ? '...' : 'Выставить'}</button>
+              <button onClick={() => setIsSellModalOpen(false)} style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#333', color: 'white', border: 'none', fontWeight: 'bold' }}>Отмена</button>
+              <button onClick={handleConfirmSellToMarket} disabled={isSaving} style={{ flex: 1, padding: 14, borderRadius: 12, background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white', border: 'none', fontWeight: 'bold' }}>Выставить</button>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', maxWidth: '350px', margin: '0 auto', borderBottom: '1px solid #333', paddingBottom: 15, marginBottom: 20 }}>
-        <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', fontSize: '24px' }}>
-          {user?.photo_url ? <img src={user.photo_url} alt="avatar" style={{ width: 36, height: 36, borderRadius: '50%' }} /> : <span style={{ fontSize: '28px' }}>{gender === 'male' ? '🧑' : '👩'}</span>}
+      {/* ШАПКА ПРОФИЛЯ */}
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', maxWidth: '350px', margin: '0 auto', paddingBottom: 15, marginBottom: 20 }}>
+        <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px', fontSize: '22px', fontWeight: '600' }}>
+          {user?.photo_url ? (
+            <img src={user.photo_url} alt="avatar" style={{ width: 42, height: 42, borderRadius: '50%', border: '2px solid #3b82f6' }} />
+          ) : (
+            <div style={{ width: 42, height: 42, borderRadius: '50%', backgroundColor: '#1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #333' }}>
+              {gender === 'male' ? '🧑' : '👩'}
+            </div>
+          )}
           {nickname}
         </h2>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: '#1e1e24', padding: '15px 25px', borderRadius: '12px', maxWidth: '350px', margin: '0 auto 20px auto', border: '1px solid #333' }}>
-        <div style={{ fontSize: 18 }}>💰 <b>{money}</b></div>
-        <div style={{ fontSize: 18 }}>⚡ <b>{energy}</b>/100</div>
+      {/* HUD */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', background: 'linear-gradient(135deg, #1e1e24 0%, #121212 100%)', padding: '15px 25px', borderRadius: '16px', maxWidth: '350px', margin: '0 auto 25px auto', border: '1px solid #333', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 18, fontWeight: 'bold' }}>
+          <Coins size={22} color="#fbbf24" /> {money}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 18, fontWeight: 'bold' }}>
+          <Zap size={22} color="#3b82f6" /> {energy}/100
+        </div>
       </div>
 
+      {/* ГЛАВНАЯ */}
       {activeTab === 'home' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
-          <button onClick={handleWork} disabled={isSaving || !hasPhone} style={{ fontSize: 18, padding: 16, width: '320px', cursor: (isSaving || !hasPhone) ? 'not-allowed' : 'pointer', backgroundColor: hasPhone ? '#10b981' : '#333', color: hasPhone ? 'white' : '#888', borderRadius: 12, fontWeight: 'bold', border: 'none', opacity: isSaving ? 0.7 : 1 }}>Работать (💰+500, ⚡-20)</button>
-          <button onClick={handleWorkJanitor} disabled={isSaving} style={{ fontSize: 18, padding: 16, width: '320px', backgroundColor: '#f59e0b', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none', opacity: isSaving ? 0.7 : 1 }}>Дворником (💰+200, ⚡-20)</button>
-          <button onClick={handleRest} disabled={isSaving || timeLeft > 0} style={{ fontSize: 18, padding: 16, width: '320px', backgroundColor: timeLeft > 0 ? '#333' : '#3b82f6', color: timeLeft > 0 ? '#888' : 'white', borderRadius: 12, fontWeight: 'bold', border: 'none', opacity: isSaving ? 0.7 : 1 }}>{timeLeft > 0 ? `Ждать ${timeLeft} сек.` : 'Отдохнуть'}</button>
+          {!hasPhone && (
+            <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid #f59e0b', borderRadius: 12, padding: 15, maxWidth: '320px', margin: '0 auto 10px auto', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '10px', fontSize: 14 }}>
+              <ShieldAlert size={20} /> У тебя нет телефона. Купи его в магазине!
+            </div>
+          )}
+          <button onClick={handleWork} disabled={isSaving || !hasPhone || energy < 20} style={{ ...btnPrimary, opacity: (isSaving || !hasPhone || energy < 20) ? 0.5 : 1, cursor: (isSaving || !hasPhone || energy < 20) ? 'not-allowed' : 'pointer' }}>
+            <Briefcase size={20} /> Работать (+500)
+          </button>
+          <button onClick={handleWorkJanitor} disabled={isSaving || energy < 20} style={{ ...btnSecondary, opacity: (isSaving || energy < 20) ? 0.5 : 1, cursor: (isSaving || energy < 20) ? 'not-allowed' : 'pointer' }}>
+            <Users size={20} /> Дворником (+200)
+          </button>
+          <button onClick={handleRest} disabled={isSaving || timeLeft > 0} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: 16, padding: 16, width: '320px', cursor: (isSaving || timeLeft > 0) ? 'not-allowed' : 'pointer', backgroundColor: timeLeft > 0 ? '#333' : '#1e1e24', color: timeLeft > 0 ? '#888' : 'white', borderRadius: 14, fontWeight: 'bold', border: '1px solid #333', transition: '0.2s' }}>
+            <Zap size={20} color={timeLeft > 0 ? '#888' : '#3b82f6'} /> {timeLeft > 0 ? `Ждать ${timeLeft} сек.` : 'Отдохнуть (Полная энергия)'}
+          </button>
         </div>
       )}
 
+      {/* БИЗНЕС */}
       {activeTab === 'business' && (
         <div>
-          <h2>💼 Бизнес</h2>
+          <h2 style={{ marginBottom: 20 }}>Бизнес</h2>
           {myBusiness ? (
             <div style={{ ...cardStyle }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>☕ Кофейня</div>
-              <p>Владелец: <b>Ты</b></p>
-              <p>Сотрудник: <b>{myBusiness.worker_name || 'Нет'}</b></p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: 24, fontWeight: 'bold', marginBottom: 15 }}>
+                <Coffee size={28} color="#d97706" /> Кофейня
+              </div>
+              <p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0' }}>Владелец: <b>Ты</b></p>
+              <p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0' }}>Сотрудник: <b style={{ color: '#3b82f6' }}>{myBusiness.worker_name || 'Нет'}</b></p>
               
               {myBusiness.worker_id ? (
-                <div style={{ backgroundColor: '#121212', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid #333' }}>
-                  <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#a1a1aa' }}>Доход: <b>100 монет / мин</b></p>
-                  <p style={{ margin: 0, fontSize: 20, color: '#10b981', fontWeight: 'bold' }}>
-                    В кассе: {pendingIncome} 💰
+                <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: 15, borderRadius: 12, marginTop: 15, marginBottom: 15, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                  <p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#10b981' }}>Доход: 100 монет / мин</p>
+                  <p style={{ margin: 0, fontSize: 22, color: '#10b981', fontWeight: 'bold' }}>
+                    В кассе: {pendingIncome} <Coins size={18} style={{ display: 'inline', verticalAlign: 'middle' }} />
                   </p>
                 </div>
               ) : (
-                <p style={{ color: '#fbbf24', fontSize: 14 }}>Найми сотрудника, чтобы бизнес начал приносить доход!</p>
+                <p style={{ color: '#fbbf24', fontSize: 14, marginTop: 15 }}>Найми сотрудника, чтобы бизнес приносил доход!</p>
               )}
 
-              <button onClick={handleCollectIncome} disabled={isSaving || pendingIncome <= 0} style={{ fontSize: 16, padding: 15, width: '100%', backgroundColor: pendingIncome > 0 ? '#10b981' : '#333', color: pendingIncome > 0 ? 'white' : '#888', borderRadius: 12, fontWeight: 'bold', border: 'none', marginBottom: 10, opacity: isSaving ? 0.7 : 1 }}>
-                Собрать пассивный доход
+              <button onClick={handleCollectIncome} disabled={isSaving || pendingIncome <= 0} style={{ ...btnPrimary, width: '100%', opacity: (isSaving || pendingIncome <= 0) ? 0.5 : 1 }}>
+                Собрать доход
               </button>
 
-              {myBusiness.worker_id ? (
-                <button onClick={handleFireWorker} disabled={isSaving} style={{ fontSize: 14, padding: 12, width: '100%', backgroundColor: '#ef4444', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none', opacity: isSaving ? 0.7 : 1 }}>Уволить сотрудника</button>
-              ) : null}
+              {myBusiness.worker_id && (
+                <button onClick={handleFireWorker} disabled={isSaving} style={{ marginTop: 10, fontSize: 14, padding: 12, width: '100%', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12, fontWeight: 'bold' }}>Уволить</button>
+              )}
             </div>
           ) : (
             <div style={{ ...cardStyle, textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>🏪</div>
-              <h3>Открыть Кофейню</h3>
-              <p style={{ fontSize: 14, color: '#a1a1aa' }}>Бизнес приносит пассивный доход, если в нем есть сотрудник.</p>
-              <button onClick={handleBuyBusiness} disabled={isSaving || money < BUSINESS_PRICE} style={{ fontSize: 18, padding: 15, width: '100%', backgroundColor: money < BUSINESS_PRICE ? '#333' : '#8b5cf6', color: money < BUSINESS_PRICE ? '#888' : 'white', borderRadius: 12, fontWeight: 'bold', marginTop: 10, border: 'none', opacity: isSaving ? 0.7 : 1 }}>
-                {money < BUSINESS_PRICE ? 'Мало денег' : `Открыть за 💰 ${BUSINESS_PRICE}`}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 15 }}><Store size={48} color="#8b5cf6" /></div>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: 22 }}>Открыть Кофейню</h3>
+              <p style={{ fontSize: 14, color: '#a1a1aa', marginBottom: 20 }}>Бизнес приносит пассивный доход, если в нем есть сотрудник.</p>
+              <button onClick={handleBuyBusiness} disabled={isSaving || money < BUSINESS_PRICE} style={{ ...btnSecondary, background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', width: '100%', opacity: money < BUSINESS_PRICE ? 0.5 : 1 }}>
+                {money < BUSINESS_PRICE ? 'Мало денег' : `Открыть за 10 000`}
               </button>
             </div>
           )}
 
           {!myJob && (
             <div style={{ marginTop: 30 }}>
-              <h3 style={{ color: '#a1a1aa', fontSize: 18 }}>Свободные вакансии</h3>
+              <h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Свободные вакансии</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '350px', margin: '0 auto' }}>
                 {allBusinesses.filter(b => !b.worker_id && b.owner_id !== playerId).map(b => (
-                  <div key={b.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}>
+                  <div key={b.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}>
                     <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontWeight: 'bold' }}>☕ Кофейня</div>
-                      <div style={{ fontSize: 12, color: '#a1a1aa' }}>Владелец: {b.owner_name}</div>
+                      <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}><Coffee size={16}/> Кофейня</div>
+                      <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div>
                     </div>
-                    <button onClick={() => handleHireWorker(b.id, playerId!, nickname)} disabled={isSaving} style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, padding: '8px 12px', cursor: 'pointer', fontWeight: 'bold', opacity: isSaving ? 0.7 : 1 }}>Устроиться</button>
+                    <button onClick={() => handleHireWorker(b.id, playerId!, nickname)} disabled={isSaving} style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>Устроиться</button>
                   </div>
                 ))}
                 {allBusinesses.filter(b => !b.worker_id && b.owner_id !== playerId).length === 0 && (
@@ -473,11 +479,11 @@ function App() {
 
           {myJob && (
             <div style={{ marginTop: 30 }}>
-              <h3 style={{ color: '#a1a1aa', fontSize: 18 }}>Моя работа</h3>
-              <div style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 12, border: '1px solid #333', maxWidth: '350px', margin: '0 auto' }}>
-                <p style={{ margin: '0 0 10px 0', fontSize: 16 }}>☕ Кофейня (Владелец: {myJob.owner_name})</p>
-                <button onClick={handleWorkShift} disabled={isSaving || energy < 20} style={{ backgroundColor: energy < 20 ? '#333' : '#10b981', color: energy < 20 ? '#888' : 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: (isSaving || energy < 20) ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%', fontSize: 16, opacity: isSaving ? 0.7 : 1 }}>
-                  Отработать смену (+{WORKER_SALARY} 💰, ⚡-20)
+              <h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Моя работа</h3>
+              <div style={{ backgroundColor: '#1e1e24', padding: 20, borderRadius: 16, border: '1px solid #333', maxWidth: '350px', margin: '0 auto' }}>
+                <p style={{ margin: '0 0 15px 0', fontSize: 16, display: 'flex', alignItems: 'center', gap: '8px' }}><Coffee size={18} /> Кофейня (Владелец: {myJob.owner_name})</p>
+                <button onClick={handleWorkShift} disabled={isSaving || energy < 20} style={{ ...btnPrimary, width: '100%', opacity: (isSaving || energy < 20) ? 0.5 : 1 }}>
+                  Смена (+{WORKER_SALARY})
                 </button>
               </div>
             </div>
@@ -485,50 +491,56 @@ function App() {
         </div>
       )}
 
+      {/* МАГАЗИН */}
       {activeTab === 'shop' && (
         <div>
-          <h2>🏪 Гос. магазин</h2>
+          <h2 style={{ marginBottom: 20 }}>Гос. Магазин</h2>
           <div style={{ ...cardStyle, textAlign: 'center' }}>
-            <div style={{ fontSize: 60, marginBottom: 10 }}>📱</div>
-            <h3>Смартфон</h3>
-            {hasPhone ? <div style={{ color: '#10b981', fontWeight: 'bold' }}>✅ Куплено</div> : (
-              <button onClick={handleBuyPhone} disabled={isSaving || money < PHONE_PRICE} style={{ fontSize: 18, padding: 15, width: '100%', backgroundColor: money < PHONE_PRICE ? '#333' : '#8b5cf6', color: money < PHONE_PRICE ? '#888' : 'white', borderRadius: 12, fontWeight: 'bold', marginTop: 10, border: 'none', opacity: isSaving ? 0.7 : 1 }}>
-                {money < PHONE_PRICE ? 'Мало денег' : `Купить за 💰 ${PHONE_PRICE}`}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 15 }}><Smartphone size={48} color="#a1a1aa" /></div>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: 22 }}>Смартфон</h3>
+            <p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 20 }}>Необходим для поиска нормальной работы.</p>
+            {hasPhone ? (
+              <div style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><CheckCircle2 size={20} /> Куплено</div>
+            ) : (
+              <button onClick={handleBuyPhone} disabled={isSaving || money < PHONE_PRICE} style={{ ...btnSecondary, background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', width: '100%', opacity: money < PHONE_PRICE ? 0.5 : 1 }}>
+                Купить за 2000
               </button>
             )}
           </div>
         </div>
       )}
 
+      {/* РЫНОК */}
       {activeTab === 'market' && (
         <div>
-          <h2>🌍 Барахолка</h2>
+          <h2 style={{ marginBottom: 20 }}>Барахолка</h2>
           <div style={{ marginBottom: '30px' }}>
-            <h3 style={{ color: '#a1a1aa', fontSize: 18 }}>Топ богачей</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '350px', margin: '0 auto' }}>
+            <h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 10 }}>Топ богачей</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '350px', margin: '0 auto' }}>
               {globalPlayers.map((p, index) => (
-                <div key={p.id} style={{ backgroundColor: '#1e1e24', padding: '10px 15px', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}>
+                <div key={p.id} style={{ backgroundColor: '#1e1e24', padding: '12px 15px', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: 16, color: index === 0 ? '#fbbf24' : index === 1 ? '#9ca3af' : index === 2 ? '#b45309' : '#a1a1aa' }}>{index + 1}.</span>
+                    <span style={{ fontSize: 14, fontWeight: 'bold', color: index === 0 ? '#fbbf24' : index === 1 ? '#9ca3af' : index === 2 ? '#b45309' : '#a1a1aa' }}>#{index + 1}</span>
                     <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
                   </div>
-                  <span style={{ color: '#10b981', fontWeight: 'bold' }}>{p.money} 💰</span>
+                  <span style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>{p.money} <Coins size={14} /></span>
                 </div>
               ))}
             </div>
           </div>
-          <h3 style={{ color: '#a1a1aa', fontSize: 18 }}>Лоты игроков</h3>
+          <h3 style={{ color: '#a1a1aa', fontSize: 16, marginBottom: 10 }}>Лоты игроков</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '350px', margin: '0 auto' }}>
+            {marketItems.length === 0 && <p style={{ color: '#666' }}>Никто ничего не продает...</p>}
             {marketItems.map((item) => (
-              <div key={item.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 12, border: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div key={item.id} style={{ backgroundColor: '#1e1e24', padding: 15, borderRadius: 16, border: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: 24 }}>📱 Смартфон</div>
-                  <div style={{ fontSize: 12, color: '#a1a1aa' }}>Продавец: {item.seller_name}</div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}><Smartphone size={18} /> Смартфон</div>
+                  <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Продавец: {item.seller_name}</div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
-                  <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{item.price} 💰</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                  <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{item.price}</span>
                   {item.seller_id !== playerId ? (
-                    <button onClick={() => handleBuyLot(item)} disabled={isSaving} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontWeight: 'bold', opacity: isSaving ? 0.7 : 1 }}>Купить</button>
+                    <button onClick={() => handleBuyLot(item)} disabled={isSaving} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>Купить</button>
                   ) : <span style={{ fontSize: 12, color: '#a1a1aa' }}>Ваш лот</span>}
                 </div>
               </div>
@@ -537,43 +549,50 @@ function App() {
         </div>
       )}
 
+      {/* ИНВЕНТАРЬ */}
       {activeTab === 'inventory' && (
         <div>
-          <h2>🎒 Инвентарь</h2>
+          <h2 style={{ marginBottom: 20 }}>Инвентарь</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '350px', margin: '0 auto' }}>
             {hasPhone ? (
-              <div style={{ backgroundColor: '#1e1e24', padding: 16, borderRadius: 12, display: 'flex', flexDirection: 'column', gap: '15px', border: '1px solid #333' }}>
+              <div style={{ backgroundColor: '#1e1e24', padding: 20, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: '15px', border: '1px solid #333' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <div style={{ fontSize: 32 }}>📱</div>
+                  <Smartphone size={32} color="#a1a1aa" />
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={() => setIsSellModalOpen(true)} disabled={isSaving} style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>Выставить на рынок</button>
-                  <button onClick={handleSellToGame} disabled={isSaving} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: 8, padding: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>Сдать в ломбард (+{Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER)})</button>
+                  <button onClick={() => setIsSellModalOpen(true)} disabled={isSaving} style={{ ...btnSecondary, background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', width: '100%', padding: 14, fontSize: 14 }}>Выставить на рынок</button>
+                  <button onClick={handleSellToGame} disabled={isSaving} style={{ ...btnPrimary, width: '100%', padding: 14, fontSize: 14 }}>Сдать в ломбард (+{Math.floor(PHONE_PRICE * SELL_TO_GAME_MULTIPLIER)})</button>
                 </div>
               </div>
-            ) : <div style={{ color: '#52525b', padding: 40 }}>Пусто...</div>}
+            ) : <div style={{ color: '#52525b', padding: 40, textAlign: 'center' }}><Backpack size={48} style={{ opacity: 0.5, marginBottom: 10 }}/><br/>Пусто...</div>}
           </div>
         </div>
       )}
 
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#1e1e24', borderTop: '1px solid #333', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
-        <button onClick={() => setActiveTab('home')} style={{ background: 'none', border: 'none', fontSize: 11, color: activeTab === 'home' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px' }}>
-          <span style={{ fontSize: 20 }}>🏠</span> Главная
+      {/* НИЖНЕЕ МЕНЮ */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(30, 30, 36, 0.95)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
+        <button onClick={() => { setActiveTab('home'); hapticFeedback('light'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: activeTab === 'home' ? '#3b82f6' : '#a1a1aa' }}>
+          <Home size={22} style={{ marginBottom: 4 }} />
+          <span style={{ fontSize: 11, fontWeight: activeTab === 'home' ? 'bold' : 'normal' }}>Главная</span>
         </button>
-        <button onClick={() => setActiveTab('business')} style={{ background: 'none', border: 'none', fontSize: 11, color: activeTab === 'business' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px' }}>
-          <span style={{ fontSize: 20 }}>💼</span> Бизнес
+        <button onClick={() => { setActiveTab('business'); hapticFeedback('light'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: activeTab === 'business' ? '#3b82f6' : '#a1a1aa' }}>
+          <Briefcase size={22} style={{ marginBottom: 4 }} />
+          <span style={{ fontSize: 11, fontWeight: activeTab === 'business' ? 'bold' : 'normal' }}>Бизнес</span>
         </button>
-        <button onClick={() => setActiveTab('market')} style={{ background: 'none', border: 'none', fontSize: 11, color: activeTab === 'market' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px' }}>
-          <span style={{ fontSize: 20 }}>🌍</span> Рынок
+        <button onClick={() => { setActiveTab('market'); hapticFeedback('light'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: activeTab === 'market' ? '#3b82f6' : '#a1a1aa' }}>
+          <Globe size={22} style={{ marginBottom: 4 }} />
+          <span style={{ fontSize: 11, fontWeight: activeTab === 'market' ? 'bold' : 'normal' }}>Рынок</span>
         </button>
-        <button onClick={() => setActiveTab('shop')} style={{ background: 'none', border: 'none', fontSize: 11, color: activeTab === 'shop' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px' }}>
-          <span style={{ fontSize: 20 }}>🏪</span> Магазин
+        <button onClick={() => { setActiveTab('shop'); hapticFeedback('light'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: activeTab === 'shop' ? '#3b82f6' : '#a1a1aa' }}>
+          <Store size={22} style={{ marginBottom: 4 }} />
+          <span style={{ fontSize: 11, fontWeight: activeTab === 'shop' ? 'bold' : 'normal' }}>Магазин</span>
         </button>
-        <button onClick={() => setActiveTab('inventory')} style={{ background: 'none', border: 'none', fontSize: 11, color: activeTab === 'inventory' ? '#3b82f6' : '#a1a1aa', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px' }}>
-          <span style={{ fontSize: 20 }}>🎒</span> Сумка
+        <button onClick={() => { setActiveTab('inventory'); hapticFeedback('light'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: activeTab === 'inventory' ? '#3b82f6' : '#a1a1aa' }}>
+          <Backpack size={22} style={{ marginBottom: 4 }} />
+          <span style={{ fontSize: 11, fontWeight: activeTab === 'inventory' ? 'bold' : 'normal' }}>Сумка</span>
         </button>
       </div>
     </div>
