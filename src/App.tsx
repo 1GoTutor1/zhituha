@@ -99,9 +99,8 @@ export default function App() {
   
   const dayMod = getDayModifier();
   const isShiftBoosted = dayMod.type === 'shift';
-  const workPay = isShiftBoosted && dayMod.type === 'work' ? JOB_WORK * 1.5 : JOB_WORK; // Если Тихий день - работа х1.5
-  
-  const shiftPay = isShiftBoosted ? WORKER_SALARY * 2 : (dayMod.type === 'work' ? WORKER_SALARY * 0.5 : WORKER_SALARY);
+  const workPay = dayMod.type === 'work' ? Math.floor(JOB_WORK * 1.5) : JOB_WORK;
+  const shiftPay = isShiftBoosted ? Math.floor(WORKER_SALARY * 2) : (dayMod.type === 'work' ? Math.floor(WORKER_SALARY * 0.5) : WORKER_SALARY);
 
   const showMsg = (msg: string, err = false) => { setToast({ msg, err }); setTimeout(() => setToast(null), 3000); };
   const getUid = () => user?.id?.toString() || localStorage.getItem('zhituha_id') || (() => { const id = 'user_' + Math.random().toString(36).substring(2, 8); localStorage.setItem('zhituha_id', id); return id; })();
@@ -133,7 +132,7 @@ export default function App() {
     const { data: me } = await supabase.from('players').select('referred_by').eq('id', pid).single();
     if (!me || !me.referred_by) return;
     let bonus = Math.floor(amount * 0.05);
-    if (dayMod.type === 'ref') bonus *= 2; // День друзей
+    if (dayMod.type === 'ref') bonus *= 2; 
     if (bonus > 0) await supabase.rpc('add_referral_balance', { p_telegram_id: me.referred_by, p_amount: bonus });
   };
 
@@ -588,7 +587,6 @@ export default function App() {
     setMoney(nM); setEnergy(nE); await sync({ money: nM, energy: nE });
     addReferralBonus(amount); showMsg(`+${amount} монет`); hapticFeedback('medium');
     
-    // Туториал шаг 1
     if (onboardStep === 0) {
       setOnboardStep(1); await sync({ onboarding_step: 1 });
     }
@@ -601,7 +599,6 @@ export default function App() {
     await sync({ energy: maxEnergy, last_rest_time: now });
     showMsg(`Энергия восстановлена!`); hapticFeedback('light');
     
-    // Туториал шаг 2
     if (onboardStep === 1) {
       setOnboardStep(2); await sync({ onboarding_step: 2 });
     }
@@ -610,7 +607,7 @@ export default function App() {
   const buyCoffee = (cafe: any) => action(async () => {
     if (!cafe.worker_id || money < COFFEE_CUP_PRICE || energy >= maxEnergy) return showMsg("Нельзя купить", true);
     let coffeeEnergy = 30;
-    if (dayMod.type === 'coffee_energy') coffeeEnergy = 40; // Буст
+    if (dayMod.type === 'coffee_energy') coffeeEnergy = 40;
     
     const nM = money - COFFEE_CUP_PRICE; setMoney(nM); await sync({ money: nM });
     const { data } = await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single();
@@ -628,7 +625,7 @@ export default function App() {
     const coffeeBiz = myBizs.find(b => b.biz_type === 'coffee');
     if (!coffeeBiz?.coffee_balance) return;
     let inc = coffeeBiz.coffee_balance;
-    if (dayMod.type === 'work') inc = Math.floor(inc * 1.5); // Буст стройки/кафе
+    if (dayMod.type === 'work') inc = Math.floor(inc * 1.5);
     
     const nM = money + inc;
     setMoney(nM);
@@ -729,8 +726,8 @@ export default function App() {
     if (data && data.error) throw new Error(data.error);
     
     let finalPrice = item.price;
-    if (item.item_type === 'car' && dayMod.type === 'car_sell') finalPrice = Math.floor(item.price * 1.3); // Автошоу
-    if (item.item_type === 'phone' && dayMod.type === 'phone_sell') finalPrice = Math.floor(item.price * 1.3); // Хайп
+    if (item.item_type === 'car' && dayMod.type === 'car_sell') finalPrice = Math.floor(item.price * 1.3);
+    if (item.item_type === 'phone' && dayMod.type === 'phone_sell') finalPrice = Math.floor(item.price * 1.3);
 
     setMoney(m => m - finalPrice); 
     if (item.item_type === 'phone') { setPhone(true); await sync({ phone_count: 1 }); setMarketSlots(s => s + 1); }

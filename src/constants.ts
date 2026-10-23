@@ -6,8 +6,8 @@ export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 5000;
 
 export const BASE_MAX_ENERGY = 100;
 export const HOUSE_MAX_ENERGY = 150;
-export const REST_CD = 1200000; // 20 минут (полная за 20 мин по 5/мин)
-export const BASE_REST_TIME = REST_CD; // Время отдыха
+export const REST_CD = 1200000; // 20 минут
+export const BASE_REST_TIME = REST_CD; 
 export const LADA_REST_TIME = 1000000; 
 export const TOYOTA_REST_TIME = 800000;
 
@@ -19,10 +19,9 @@ export const BUILDING_PRICE = 500000, BUILDING_TIME = 900000, APARTMENTS_PER_BUI
 export const COFFEE_BIZ_PRICE = 15000;
 export const SALON_BIZ_PRICE = 150000;
 export const TAXI_BIZ_PRICE = 300000;
-export const PHONE_FACTORY_BIZ_PRICE = 300000; // Цех теперь 300к
+export const PHONE_FACTORY_BIZ_PRICE = 300000;
 export const CONSTRUCTION_BIZ_PRICE = 500000;
 
-// ТЕЛЕФОННЫЙ ЦЕХ
 export const BUTTON_BATCH_SIZE = 10;
 export const BUTTON_BATCH_COST = 5000;
 export const BUTTON_BATCH_TIME = 180000;
@@ -31,7 +30,6 @@ export const SMARTPHONE_BATCH_SIZE = 5;
 export const SMARTPHONE_BATCH_COST = 25000;
 export const SMARTPHONE_BATCH_TIME = 600000;
 
-// ТАКСОПАРК (Пассив 2500 в час, Лада 1000, Тойота 1500)
 export const TAXI_LADA_INCOME = 1000;
 export const TAXI_TOYOTA_INCOME = 1500;
 export const TAXI_MAX_OFFLINE_HOURS = 8;
@@ -64,7 +62,6 @@ export const getStock = (biz: any) => {
   try { return typeof biz.stock === 'string' ? JSON.parse(biz.stock) : biz.stock; } catch (e) { return {}; }
 };
 
-// МОДИФИКАТОРЫ ДНЯ
 export const DAY_MODIFIERS = [
   { id: 1, name: "День студентов", desc: "Смена в кафе x2", type: "shift", mult: 2, color: "#10b981" },
   { id: 2, name: "Час пик", desc: "Таксопарк x2", type: "taxi", mult: 2, color: "#3b82f6" },
@@ -79,11 +76,15 @@ export const DAY_MODIFIERS = [
 ];
 
 export const getDayModifier = () => {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  let hash = 0;
-  for (let i = 0; i < today.length; i++) hash = today.charCodeAt(i) + ((hash << 5) - hash);
-  const index = Math.abs(hash) % DAY_MODIFIERS.length;
-  return DAY_MODIFIERS[index];
+  try {
+    const today = new Date().toISOString().slice(0, 10); 
+    let hash = 0;
+    for (let i = 0; i < today.length; i++) hash = today.charCodeAt(i) + ((hash << 5) - hash);
+    const index = Math.abs(hash) % DAY_MODIFIERS.length;
+    return DAY_MODIFIERS[index] || DAY_MODIFIERS[0]; // Защита от undefined
+  } catch (e) {
+    return DAY_MODIFIERS[0];
+  }
 };
 
 export const S = {
