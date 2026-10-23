@@ -541,44 +541,44 @@ export default function App() {
   const sellBusiness = (biz: any) => action(async () => {
     if (!window.confirm("Продать бизнес за 50% от стоимости?")) return;
     
-    await supabase.from('market_items').delete().eq('seller_id', pid).in('item_type', ['car', 'house', 'phone']);
-    
-    const refund = biz.biz_type === 'coffee' ? COFFEE_BIZ_PRICE/2 : biz.biz_type === 'salon' ? SALON_BIZ_PRICE/2 : biz.biz_type === 'construction' ? CONSTRUCTION_BIZ_PRICE/2 : biz.biz_type === 'taxi' ? TAXI_BIZ_PRICE/2 : PHONE_FACTORY_BIZ_PRICE/2;
-    
-    const nM = money + refund;
-    setMoney(nM); await sync({ money: nM });
-    
-    await supabase.from('businesses').delete().eq('id', biz.id);
-    showMsg(`Бизнес продан за ${refund}!`); loadData(true);
+    const { data, error } = await supabase.rpc('sell_business_rpc', { p_owner_id: pid, p_biz_id: biz.id });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+
+    setMoney(m => m + data.refund);
+    showMsg(`Бизнес продан за ${data.refund}!`); 
+    loadData(true);
   });
 
   const cancelLot = (item: any) => action(async () => {
     if (!window.confirm("Снять лот с продажи?")) return;
     
-    const { error } = await supabase.from('market_items').delete().eq('id', item.id);
-    if (error) throw error;
-    
-    if (item.item_type === 'phone' && item.item_data === 'phone') {
+    const { data, error } = await supabase.rpc('cancel_lot_rpc', { p_player_id: pid, p_item_id: item.id });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+
+    if (data.item_type === 'phone' && data.item_data === 'phone') {
       setPhone(true); await sync({ phone_count: 1 });
-    } else if (item.item_type === 'phone' && (item.item_data === 'button' || item.item_data === 'smartphone')) {
+    } else if (data.item_type === 'phone' && (data.item_data === 'button' || data.item_data === 'smartphone')) {
       const factory = myBizs.find(b => b.biz_type === 'phone_factory');
       if (factory) {
         const currentStock: any = getStock(factory);
-        const newStock = { ...currentStock, [item.item_data]: (currentStock[item.item_data] || 0) + 1 };
+        const newStock = { ...currentStock, [data.item_data]: (currentStock[data.item_data] || 0) + 1 };
         await supabase.from('businesses').update({ stock: newStock }).eq('id', factory.id);
-        showMsg("Телефон возвращен на склад цеха!"); loadData(true);
+        showMsg("Телефон возвращен на склад цеха!");
       }
-    } else if (item.item_type === 'car' || item.item_type === 'house') {
-      const bType = item.item_type === 'car' ? 'salon' : 'construction';
+    } else if (data.item_type === 'car' || data.item_type === 'house') {
+      const bType = data.item_type === 'car' ? 'salon' : 'construction';
       const biz = myBizs.find(b => b.biz_type === bType);
       if (biz) {
         const currentStock: any = getStock(biz);
-        const key = item.item_type === 'car' ? item.item_data : 'apartments';
+        const key = data.item_type === 'car' ? data.item_data : 'apartments';
         const newStock = { ...currentStock, [key]: (currentStock[key] || 0) + 1 };
         await supabase.from('businesses').update({ stock: newStock }).eq('id', biz.id);
-        showMsg("Товар возвращен на склад бизнеса!"); loadData(true);
+        showMsg("Товар возвращен на склад бизнеса!");
       }
     }
+    loadData(true);
   });
 
   const orderCar = (model: 'lada' | 'toyota') => action(async () => {
@@ -712,7 +712,6 @@ export default function App() {
     if (!sellItemData || sellItemData === 'none') return showMsg("Неверный предмет", true);
     if (!sellSource) return showMsg("Не выбран источник предмета", true);
 
-    // Эффективные слоты с учётом акции дня (+2, но не больше 10)
     const effectiveSlots = Math.min(10, marketSlots + (dayMod?.type === 'market_slots' ? 2 : 0));
     const myLots = market.filter((m: any) => m.seller_id === pid).length;
     if (myLots >= effectiveSlots) {
@@ -722,7 +721,6 @@ export default function App() {
     let bizName = nick;
     let currentStock: any = {};
 
-    // ===== ВАЛИДАЦИЯ + ПОДГОТОВКА =====
     if (sellItemType === 'phone') {
       if (sellSource === 'personal') {
         if (!phone) return showMsg("У тебя нет телефона", true);
@@ -753,13 +751,11 @@ export default function App() {
       }
     }
 
-    // ===== ВСТАВКА ЛОТА =====
     const { error } = await supabase.from('market_items').insert([{
       seller_id: pid, seller_name: bizName, item_type: sellItemType, item_data: sellItemData, price: p
     }]);
     if (error) throw error;
 
-    // ===== СПИСАНИЕ ПРЕДМЕТА =====
     if (sellItemType === 'phone') {
       if (sellSource === 'personal') {
         const newSlots = Math.max(3, marketSlots - 1);
@@ -804,7 +800,6 @@ export default function App() {
   });
 
   const buyLot = (item: any) => action(async () => {
-    // Защита: не покупать второй личный телефон
     if (item.item_type === 'phone' && item.item_data === 'phone' && phone) {
       return showMsg("У тебя уже есть личный телефон", true);
     }
@@ -813,7 +808,6 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
 
-    // Синхронизируем деньги из БД (RPC уже списал v_price)
     const { data: fresh } = await supabase.from('players').select('money').eq('id', pid).single();
     if (fresh) setMoney(Number(fresh.money));
 
