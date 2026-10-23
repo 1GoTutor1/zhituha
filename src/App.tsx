@@ -3,7 +3,7 @@ import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { 
   Smartphone, Coins, Zap, Briefcase, Globe, Store, Backpack, 
-  Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User, UserPlus, Gift, Send, Car, Building, Hammer
+  Home, Coffee, Users, CheckCircle2, Settings, Trash2, Lock, User, UserPlus, Gift, Send, Car, Building, Hammer, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 // --- КОНСТАНТЫ ---
@@ -13,7 +13,7 @@ const PHONE_PRICE = 2000, BUSINESS_PRICE = 10000, WORKER_SALARY = 300, COFFEE_PR
 const ADMIN_CODE = "admin2026", REST_CD = 90000, BREW_TIME = 15000, POLL = 5000;
 const LADA_PRICE = 20000, LADA_TIME = 30000;
 const TOYOTA_PRICE = 50000, TOYOTA_TIME = 120000;
-const BUILDING_PRICE = 30000, BUILDING_TIME = 60000; // Постройка дома (1 мин)
+const BUILDING_PRICE = 30000, BUILDING_TIME = 60000;
 
 const AVATARS = [
   { id: 1, gender: 'male', emoji: '🧑‍💻', bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' },
@@ -72,18 +72,18 @@ export default function App() {
   const [tLeft, setTLeft] = useState(0);
   const [bLeft, setBLeft] = useState(0);
 
-  const [bizTab, setBizTab] = useState<'salon' | 'construction'>('salon');
+  const [myBizs, setMyBizs] = useState<any[]>([]);
+  const [activeBizType, setActiveBizType] = useState<'coffee' | 'salon' | 'construction'>('coffee');
+  
   const [carOrderEnd, setCarOrderEnd] = useState(0);
   const [carTimeLeft, setCarTimeLeft] = useState(0);
   const [buildEnd, setBuildEnd] = useState(0);
   const [buildTimeLeft, setBuildTimeLeft] = useState(0);
-  const [stock, setStock] = useState<any>({ lada: 0, toyota: 0, apartments: 0 });
   
   const [marketTab, setMarketTab] = useState<'items' | 'cars' | 'realestate'>('items');
 
   const [players, setPlayers] = useState<any[]>([]);
   const [market, setMarket] = useState<any[]>([]);
-  const [biz, setBiz] = useState<any>(null);
   const [job, setJob] = useState<any>(null);
   const [allBiz, setAllBiz] = useState<any[]>([]);
   const [selCafe, setSelCafe] = useState<any>(null);
@@ -99,7 +99,7 @@ export default function App() {
   const [sellOpen, setSellOpen] = useState(false);
   const [sellPrice, setSellPrice] = useState('2000');
   const [sellItemType, setSellItemType] = useState<'phone' | 'car' | 'house'>('phone');
-  const [sellItemData, setSellItemData] = useState('none'); // Для хранения модели/типа
+  const [sellItemData, setSellItemData] = useState('none');
   
   const [quitOpen, setQuitOpen] = useState(false);
   const [refOpen, setRefOpen] = useState(false);
@@ -192,16 +192,15 @@ export default function App() {
 
           const { data: b } = await supabase.from('businesses').select('*');
           if (b) {
-            const myB = b.find((x: any) => x.owner_id === data.id);
+            const myBs = b.filter((x: any) => x.owner_id === data.id);
             setAllBiz(b);
-            setBiz(myB || null);
+            setMyBizs(myBs);
             setJob(b.find((x: any) => x.worker_id === data.id) || null);
             
-            if (myB) {
-              setCarOrderEnd(Number(myB.car_order_end) || 0);
-              setBuildEnd(Number(myB.build_end) || 0);
-              if (myB.stock) setStock(myB.stock);
-            }
+            const salon = myBs.find((x: any) => x.biz_type === 'salon');
+            if (salon) setCarOrderEnd(Number(salon.car_order_end) || 0);
+            const constr = myBs.find((x: any) => x.biz_type === 'construction');
+            if (constr) setBuildEnd(Number(constr.build_end) || 0);
           }
         } else if (user?.first_name) setInNick(user.first_name);
       }
@@ -249,11 +248,10 @@ export default function App() {
         setCarTimeLeft(r);
         if (r === 0) {
           setCarOrderEnd(0);
-          // Приехала машина в салон! Увеличиваем склад.
-          if (biz) {
-            const newStock = { ...stock, [stock.current_model || 'lada']: (stock[stock.current_model || 'lada'] || 0) + 1 };
-            supabase.from('businesses').update({ car_model: 'none', car_order_end: 0, stock: newStock }).eq('id', biz.id);
-            setStock(newStock);
+          const salon = myBizs.find(b => b.biz_type === 'salon');
+          if (salon) {
+            const newStock = { ...(salon.stock || {}), [salon.stock?.current_model || 'lada']: ((salon.stock?.[salon.stock?.current_model || 'lada'] || 0) + 1) };
+            supabase.from('businesses').update({ car_model: 'none', car_order_end: 0, stock: newStock }).eq('id', salon.id);
             showMsg("Машина приехала на склад автосалона!"); hapticFeedback('heavy');
           }
           loadData(true);
@@ -264,11 +262,10 @@ export default function App() {
         setBuildTimeLeft(r);
         if (r === 0) {
           setBuildEnd(0);
-          // Дом построен! Добавляем 3 квартиры на склад.
-          if (biz) {
-            const newStock = { ...stock, apartments: (stock.apartments || 0) + 3 };
-            supabase.from('businesses').update({ build_end: 0, stock: newStock }).eq('id', biz.id);
-            setStock(newStock);
+          const constr = myBizs.find(b => b.biz_type === 'construction');
+          if (constr) {
+            const newStock = { ...(constr.stock || {}), apartments: ((constr.stock?.apartments || 0) + 3) };
+            supabase.from('businesses').update({ build_end: 0, stock: newStock }).eq('id', constr.id);
             showMsg("Дом построен! 3 квартиры на складе."); hapticFeedback('heavy');
           }
           loadData(true);
@@ -276,7 +273,7 @@ export default function App() {
       }
     }, 1000);
     return () => clearInterval(int);
-  }, [restEnd, brewEnd, carOrderEnd, buildEnd, pid, biz, stock]);
+  }, [restEnd, brewEnd, carOrderEnd, buildEnd, pid, myBizs]);
 
   const selectGender = (g: 'male' | 'female') => {
     setSelG(g);
@@ -312,7 +309,8 @@ export default function App() {
   });
 
   const orderCar = (model: 'lada' | 'toyota') => action(async () => {
-    if (!biz || carOrderEnd > 0) return showMsg("У тебя уже едет машина!", true);
+    const salon = myBizs.find(b => b.biz_type === 'salon');
+    if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едет машина!", true);
     const price = model === 'lada' ? LADA_PRICE : TOYOTA_PRICE;
     const time = model === 'lada' ? LADA_TIME : TOYOTA_TIME;
     
@@ -324,15 +322,14 @@ export default function App() {
     const end = Date.now() + time;
     setCarOrderEnd(end); 
     
-    // Запоминаем, какая машина едет
-    const newStock = { ...stock, current_model: model };
-    await supabase.from('businesses').update({ car_order_end: end, stock: newStock }).eq('id', biz.id);
-    setStock(newStock);
+    const newStock = { ...(salon.stock || {}), current_model: model };
+    await supabase.from('businesses').update({ car_order_end: end, stock: newStock }).eq('id', salon.id);
     showMsg(`Заказ на ${model === 'lada' ? 'Ладу' : 'Тойоту'} оформлен!`); hapticFeedback('heavy');
   });
 
   const startBuild = () => action(async () => {
-    if (!biz || buildEnd > 0) return showMsg("Стройка уже идет!", true);
+    const constr = myBizs.find(b => b.biz_type === 'construction');
+    if (!constr || buildEnd > 0) return showMsg("Стройка уже идет!", true);
     if (money < BUILDING_PRICE) return showMsg("Мало денег!", true);
     
     const nM = money - BUILDING_PRICE;
@@ -341,7 +338,7 @@ export default function App() {
     const end = Date.now() + BUILDING_TIME;
     setBuildEnd(end); 
     
-    await supabase.from('businesses').update({ build_end: end }).eq('id', biz.id);
+    await supabase.from('businesses').update({ build_end: end }).eq('id', constr.id);
     showMsg("Стройка дома началась!"); hapticFeedback('heavy');
   });
 
@@ -384,21 +381,26 @@ export default function App() {
   });
 
   const collect = () => action(async () => {
-    if (!biz?.coffee_balance) return;
-    const inc = biz.coffee_balance;
+    const coffeeBiz = myBizs.find(b => b.biz_type === 'coffee');
+    if (!coffeeBiz?.coffee_balance) return;
+    const inc = coffeeBiz.coffee_balance;
     const nM = money + inc;
     setMoney(nM); await sync({ money: nM });
-    await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', biz.id);
+    await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', coffeeBiz.id);
     addReferralBonus(inc);
     showMsg(`Собрано ${inc}`); hapticFeedback('medium');
     loadData(true);
   });
 
-  const buyBiz = () => action(async () => {
-    if (money < BUSINESS_PRICE || biz) return showMsg("Не хватает денег", true);
+  const buyBiz = (type: 'coffee' | 'salon' | 'construction') => action(async () => {
+    if (money < BUSINESS_PRICE) return showMsg("Не хватает денег", true);
+    if (myBizs.some(b => b.biz_type === type)) return showMsg("У тебя уже есть этот бизнес", true);
+
     const nM = money - BUSINESS_PRICE;
     setMoney(nM); await sync({ money: nM });
-    const { error } = await supabase.from('businesses').insert([{ owner_id: pid, owner_name: nick, worker_id: null, coffee_balance: 0, biz_type: 'coffee', stock: {lada:0, toyota:0, apartments:0} }]);
+    const { error } = await supabase.from('businesses').insert([{ 
+      owner_id: pid, owner_name: nick, worker_id: null, coffee_balance: 0, biz_type: type, stock: {lada:0, toyota:0, apartments:0} 
+    }]);
     if (error) { await sync({ money }); setMoney(money); throw error; }
     showMsg("Бизнес открыт!"); hapticFeedback('heavy'); loadData(true);
   });
@@ -411,8 +413,9 @@ export default function App() {
   });
 
   const fire = () => action(async () => {
-    if (!biz) return;
-    await supabase.from('businesses').update({ worker_id: null, worker_name: null }).eq('id', biz.id);
+    const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
+    if (!activeBiz) return;
+    await supabase.from('businesses').update({ worker_id: null, worker_name: null }).eq('id', activeBiz.id);
     showMsg("Вы уволили сотрудника."); hapticFeedback('heavy'); loadData(true);
   });
 
@@ -437,15 +440,16 @@ export default function App() {
     await sync({ money: nM, phone_count: buy ? 1 : 0 });
   });
 
-  // Универсальная продажа со склада или из инвентаря
   const listItem = () => action(async () => {
     const p = Number(sellPrice);
     if (isNaN(p) || p <= 0) return;
 
-    // Проверяем наличие
+    const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
+    const currentStock = activeBiz?.stock || {};
+
     if (sellItemType === 'phone' && !phone) return;
-    if (sellItemType === 'car' && !hasCar && !(sellItemData === 'lada' && stock.lada > 0) && !(sellItemData === 'toyota' && stock.toyota > 0)) return;
-    if (sellItemType === 'house' && !(stock.apartments > 0)) return;
+    if (sellItemType === 'car' && !hasCar && !(sellItemData === 'lada' && currentStock.lada > 0) && !(sellItemData === 'toyota' && currentStock.toyota > 0)) return;
+    if (sellItemType === 'house' && !(currentStock.apartments > 0)) return;
 
     const { error } = await supabase.from('market_items').insert([{ 
       seller_id: pid, 
@@ -461,15 +465,15 @@ export default function App() {
       setPhone(false); await sync({ phone_count: 0 });
     } else if (sellItemType === 'car') {
       if (hasCar) { setHasCar(false); await sync({ has_car: false, car_model: 'none' }); setCarModel('none'); }
-      else {
-        const newStock = { ...stock, [sellItemData]: stock[sellItemData] - 1 };
-        await supabase.from('businesses').update({ stock: newStock }).eq('id', biz.id);
-        setStock(newStock);
+      else if (activeBiz) {
+        const newStock = { ...currentStock, [sellItemData]: currentStock[sellItemData] - 1 };
+        await supabase.from('businesses').update({ stock: newStock }).eq('id', activeBiz.id);
       }
     } else if (sellItemType === 'house') {
-      const newStock = { ...stock, apartments: stock.apartments - 1 };
-      await supabase.from('businesses').update({ stock: newStock }).eq('id', biz.id);
-      setStock(newStock);
+      if (activeBiz) {
+        const newStock = { ...currentStock, apartments: currentStock.apartments - 1 };
+        await supabase.from('businesses').update({ stock: newStock }).eq('id', activeBiz.id);
+      }
     }
 
     setSellOpen(false); setTab('market'); loadMarket(); showMsg("Выставлено!"); hapticFeedback('medium');
@@ -540,6 +544,8 @@ export default function App() {
   };
 
   const av = getAvatar(avatarId);
+  const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
+  const currentStock = activeBiz?.stock || {};
 
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
   if (isCheckingSub) return <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
@@ -619,28 +625,28 @@ export default function App() {
           <button onClick={() => { setTab('home'); setSelCafe(null); }} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Кафе</h2>
           {bLeft > 0 ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3>Готовим...</h3><p style={{ fontSize: 24, fontWeight: 'bold', color: '#f97316' }}>{bLeft} сек.</p></div>
           : selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>Кофейня</h3><p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 20 }}>Владелец: {selCafe.owner_name}</p><button onClick={() => buyCoffee(selCafe)} disabled={proc || money < COFFEE_PRICE || energy === 100 || !selCafe.worker_id} style={{ ...S.btnYellow, background: (money < COFFEE_PRICE || energy === 100 || !selCafe.worker_id) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (money < COFFEE_PRICE || energy === 100 || !selCafe.worker_id) ? '#888' : 'white', opacity: (proc || money < COFFEE_PRICE || energy === 100 || !selCafe.worker_id) ? 0.5 : 1, marginBottom: 10 }}>{!selCafe.worker_id ? 'Нет бариста' : energy === 100 ? 'Полная энергия' : money < COFFEE_PRICE ? 'Мало денег' : `Купить кофе за ${COFFEE_PRICE}`}</button><button onClick={() => setSelCafe(null)} style={{ ...S.btnSecondary, background: '#333', boxShadow: 'none' }}>Назад</button></div>
-          : <div>{allBiz.filter(b => b.worker_id !== null).map(b => <div key={b.id} onClick={() => setSelCafe(b)} style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333', cursor: 'pointer', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> Кофейня</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div></div><span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span></div>)}{allBiz.filter(b => b.worker_id !== null).length === 0 && <p style={{ color: '#666' }}>Нет открытых кафе.</p>}</div>}
+          : <div>{allBiz.filter(b => b.worker_id !== null && b.biz_type === 'coffee').map(b => <div key={b.id} onClick={() => setSelCafe(b)} style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333', cursor: 'pointer', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> Кофейня</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div></div><span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span></div>)}{allBiz.filter(b => b.worker_id !== null && b.biz_type === 'coffee').length === 0 && <p style={{ color: '#666' }}>Нет открытых кафе.</p>}</div>}
         </div>
       )}
 
       {tab === 'business' && (
         <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
           <button onClick={() => setTab('home')} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Мой Бизнес</h2>
-          {biz ? (
-            <div>
-              <div style={{ display: 'flex', marginBottom: 20, backgroundColor: 'rgba(30, 30, 36, 0.8)', padding: 5, borderRadius: 12 }}>
-                <button onClick={() => setBizTab('salon')} style={{ flex: 1, padding: 10, border: 'none', borderRadius: 8, backgroundColor: bizTab === 'salon' ? '#3b82f6' : 'transparent', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>🚗 Автосалон</button>
-                <button onClick={() => setBizTab('construction')} style={{ flex: 1, padding: 10, border: 'none', borderRadius: 8, backgroundColor: bizTab === 'construction' ? '#f97316' : 'transparent', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>🏗️ Стройка</button>
-              </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <button onClick={() => setActiveBizType('coffee')} disabled={activeBizType === 'coffee'} style={{ background: activeBizType === 'coffee' ? '#3b82f6' : 'transparent', border: '1px solid #3b82f6', borderRadius: 8, padding: 8, cursor: 'pointer', opacity: activeBizType === 'coffee' ? 1 : 0.5 }}><ChevronLeft size={20} color="white" /></button>
+            <div style={{ fontSize: 20, fontWeight: 'bold' }}>{activeBizType === 'coffee' ? '☕ Кофейня' : activeBizType === 'salon' ? '🚗 Автосалон' : '🏗️ Стройтрест'}</div>
+            <button onClick={() => setActiveBizType('salon')} disabled={activeBizType === 'salon'} style={{ background: activeBizType === 'salon' ? '#3b82f6' : 'transparent', border: '1px solid #3b82f6', borderRadius: 8, padding: 8, cursor: 'pointer', opacity: activeBizType === 'salon' ? 1 : 0.5 }}><ChevronRight size={20} color="white" /></button>
+          </div>
 
-              {bizTab === 'salon' && (
-                <div style={S.card}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 24, fontWeight: 'bold', marginBottom: 15 }}><Car size={28} color="#3b82f6" /> Автосалон</div>
-                  <p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0 15px 0' }}>Склад: <b>Лада ({stock.lada || 0}) | Тойота ({stock.toyota || 0})</b></p>
-                  
+          {activeBiz ? (
+            <div style={S.card}>
+              {activeBizType === 'salon' && (
+                <>
+                  <p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0 15px 0' }}>Склад: <b>Лада ({currentStock.lada || 0}) | Тойота ({currentStock.toyota || 0})</b></p>
                   {carOrderEnd > 0 ? (
                     <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid rgba(59, 130, 246, 0.2)', textAlign: 'center' }}>
-                      <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#3b82f6' }}>Едет: <b>{stock.current_model === 'lada' ? 'Лада' : 'Тойота'}</b></p>
+                      <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#3b82f6' }}>Едет: <b>{currentStock.current_model === 'lada' ? 'Лада' : 'Тойота'}</b></p>
                       <p style={{ margin: 0, fontSize: 22, color: '#3b82f6', fontWeight: 'bold' }}>{carTimeLeft} сек.</p>
                     </div>
                   ) : (
@@ -649,16 +655,14 @@ export default function App() {
                       <button onClick={() => orderCar('toyota')} disabled={proc || money < TOYOTA_PRICE} style={{ ...S.btnSecondary, background: '#333', border: '1px solid #3b82f6', opacity: (proc || money < TOYOTA_PRICE) ? 0.5 : 1 }}>Заказать Тойоту (50 000)</button>
                     </div>
                   )}
-                  {stock.lada > 0 && <button onClick={() => { setSellItemType('car'); setSellItemData('lada'); setSellPrice('25000'); setSellOpen(true); }} style={{ ...S.btnPrimary, marginBottom: 10 }}><Car size={18}/> Продать Ладу со склада</button>}
-                  {stock.toyota > 0 && <button onClick={() => { setSellItemType('car'); setSellItemData('toyota'); setSellPrice('60000'); setSellOpen(true); }} style={{ ...S.btnPrimary, marginBottom: 10 }}><Car size={18}/> Продать Тойоту со склада</button>}
-                </div>
+                  {currentStock.lada > 0 && <button onClick={() => { setSellItemType('car'); setSellItemData('lada'); setSellPrice('25000'); setSellOpen(true); }} style={{ ...S.btnPrimary, marginBottom: 10 }}><Car size={18}/> Продать Ладу со склада</button>}
+                  {currentStock.toyota > 0 && <button onClick={() => { setSellItemType('car'); setSellItemData('toyota'); setSellPrice('60000'); setSellOpen(true); }} style={{ ...S.btnPrimary, marginBottom: 10 }}><Car size={18}/> Продать Тойоту со склада</button>}
+                </>
               )}
 
-              {bizTab === 'construction' && (
-                <div style={S.card}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 24, fontWeight: 'bold', marginBottom: 15 }}><Building size={28} color="#f97316" /> Стройтрест</div>
-                  <p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0 15px 0' }}>Склад квартир: <b>{stock.apartments || 0} шт.</b></p>
-                  
+              {activeBizType === 'construction' && (
+                <>
+                  <p style={{ color: '#a1a1aa', fontSize: 15, margin: '5px 0 15px 0' }}>Склад квартир: <b>{currentStock.apartments || 0} шт.</b></p>
                   {buildEnd > 0 ? (
                     <div style={{ background: 'rgba(249, 115, 22, 0.1)', padding: 15, borderRadius: 12, marginBottom: 15, border: '1px solid rgba(249, 115, 22, 0.2)', textAlign: 'center' }}>
                       <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#f97316' }}>Строится дом...</p>
@@ -669,26 +673,28 @@ export default function App() {
                       <Hammer size={20}/> Построить дом (30 000)
                     </button>
                   )}
-                  {stock.apartments > 0 && <button onClick={() => { setSellItemType('house'); setSellItemData('apartment'); setSellPrice('50000'); setSellOpen(true); }} style={{ ...S.btnPrimary, marginBottom: 10 }}><Building size={18}/> Продать квартиру</button>}
-                </div>
+                  {currentStock.apartments > 0 && <button onClick={() => { setSellItemType('house'); setSellItemData('apartment'); setSellPrice('50000'); setSellOpen(true); }} style={{ ...S.btnPrimary, marginBottom: 10 }}><Building size={18}/> Продать квартиру</button>}
+                </>
               )}
 
-              <div style={{ ...S.card, marginTop: 20 }}>
-                <p style={{ fontSize: 14, color: '#a1a1aa', marginBottom: 10 }}>Касса кафе: <b style={{ color: '#10b981' }}>{biz.coffee_balance || 0}</b> монет</p>
-                <button onClick={collect} disabled={proc || !biz.coffee_balance} style={{ ...S.btnPrimary, marginBottom: 15, opacity: (proc || !biz.coffee_balance) ? 0.5 : 1 }}>Собрать кассу (+{biz.coffee_balance || 0})</button>
-                {biz.worker_name ? (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 12 }}>
-                    <span style={{ fontSize: 14 }}>Бариста: {biz.worker_name}</span>
-                    <button onClick={fire} disabled={proc} style={{ ...S.btnDanger, width: 'auto', padding: '6px 12px', fontSize: 12, opacity: proc ? 0.5 : 1 }}>Уволить</button>
-                  </div>
-                ) : <p style={{ fontSize: 14, color: '#f97316', margin: 0 }}>Нет бариста. Кафе не приносит доход!</p>}
-              </div>
+              {activeBizType === 'coffee' && (
+                <div style={{ marginTop: 15 }}>
+                  <p style={{ fontSize: 14, color: '#a1a1aa', marginBottom: 10 }}>Касса кафе: <b style={{ color: '#10b981' }}>{activeBiz.coffee_balance || 0}</b> монет</p>
+                  <button onClick={collect} disabled={proc || !activeBiz.coffee_balance} style={{ ...S.btnPrimary, marginBottom: 15, opacity: (proc || !activeBiz.coffee_balance) ? 0.5 : 1 }}>Собрать кассу (+{activeBiz.coffee_balance || 0})</button>
+                  {activeBiz.worker_name ? (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 12 }}>
+                      <span style={{ fontSize: 14 }}>Бариста: {activeBiz.worker_name}</span>
+                      <button onClick={fire} disabled={proc} style={{ ...S.btnDanger, width: 'auto', padding: '6px 12px', fontSize: 12, opacity: proc ? 0.5 : 1 }}>Уволить</button>
+                    </div>
+                  ) : <p style={{ fontSize: 14, color: '#f97316', margin: 0 }}>Нет бариста. Кафе не приносит доход!</p>}
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ ...S.card, textAlign: 'center' }}>
               <Store size={48} color="#8b5cf6" style={{ marginBottom: 15 }} />
-              <h3>Открыть Бизнес</h3>
-              <button onClick={buyBiz} disabled={proc || money < BUSINESS_PRICE} style={{ ...S.btnPurple, background: money < BUSINESS_PRICE ? '#333' : 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: money < BUSINESS_PRICE ? '#888' : 'white', opacity: (proc || money < BUSINESS_PRICE) ? 0.5 : 1 }}>{proc ? 'Обработка...' : `Купить за ${BUSINESS_PRICE}`}</button>
+              <h3>Купить {activeBizType === 'coffee' ? 'Кофейню' : activeBizType === 'salon' ? 'Автосалон' : 'Стройтрест'}</h3>
+              <button onClick={() => buyBiz(activeBizType)} disabled={proc || money < BUSINESS_PRICE} style={{ ...S.btnPurple, background: money < BUSINESS_PRICE ? '#333' : 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: money < BUSINESS_PRICE ? '#888' : 'white', opacity: (proc || money < BUSINESS_PRICE) ? 0.5 : 1 }}>{proc ? 'Обработка...' : `Купить за ${BUSINESS_PRICE}`}</button>
             </div>
           )}
         </div>
@@ -696,8 +702,8 @@ export default function App() {
 
       {tab === 'jobs' && (
         <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Работа</h2>
-          {boardOpen ? <div><button onClick={() => setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Вакансии</h3><div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{allBiz.filter(b => !b.worker_id && b.owner_id !== pid).map(b => <div key={b.id} style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Car size={16} /> Автосалон</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div></div>{job ? <button disabled style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: 0.5 }}>Уже работаете</button> : <button onClick={() => hire(b.id)} disabled={proc} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: proc ? 0.5 : 1 }}>Устроиться</button>}</div>)}{allBiz.filter(b => !b.worker_id && b.owner_id !== pid).length === 0 && <p style={{ color: '#666', fontSize: 14 }}>Пока нет мест...</p>}</div></div>
-          : job ? <div><h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3><div style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: 20, borderRadius: 16, border: '1px solid #333' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}><Car size={24} color="#3b82f6" /><span style={{ fontSize: 18, fontWeight: 'bold' }}>Автосалон</span></div><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#a1a1aa' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p><p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#a1a1aa' }}>Должность: <b style={{ color: '#3b82f6' }}>Менеджер</b></p><button onClick={shift} disabled={proc || energy < 20} style={{ ...S.btnPrimary, opacity: (proc || energy < 20) ? 0.5 : 1, marginBottom: 10 }}>Смена (+300)</button><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>Вакансии</button><button onClick={() => setQuitOpen(true)} disabled={proc} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12, fontWeight: 'bold', opacity: proc ? 0.5 : 1 }}>Уволиться</button></div></div></div>
+          {boardOpen ? <div><button onClick={() => setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#888', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h3 style={{ color: '#a1a1aa', fontSize: 18, marginBottom: 15 }}>Вакансии</h3><div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{allBiz.filter(b => !b.worker_id && b.owner_id !== pid && b.biz_type === 'coffee').map(b => <div key={b.id} style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: 15, borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> Кофейня</div><div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>Владелец: {b.owner_name}</div></div>{job ? <button disabled style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: 0.5 }}>Уже работаете</button> : <button onClick={() => hire(b.id)} disabled={proc} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 14px', fontSize: 13, opacity: proc ? 0.5 : 1 }}>Устроиться</button>}</div>)}{allBiz.filter(b => !b.worker_id && b.owner_id !== pid && b.biz_type === 'coffee').length === 0 && <p style={{ color: '#666', fontSize: 14 }}>Пока нет мест...</p>}</div></div>
+          : job ? <div><h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3><div style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', backdropFilter: 'blur(10px)', padding: 20, borderRadius: 16, border: '1px solid #333' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 18, fontWeight: 'bold' }}>Кофейня</span></div><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#a1a1aa' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p><p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#a1a1aa' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p><button onClick={shift} disabled={proc || energy < 20} style={{ ...S.btnPrimary, opacity: (proc || energy < 20) ? 0.5 : 1, marginBottom: 10 }}>Смена (+300)</button><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 12, fontWeight: 'bold', border: 'none' }}>Вакансии</button><button onClick={() => setQuitOpen(true)} disabled={proc} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12, fontWeight: 'bold', opacity: proc ? 0.5 : 1 }}>Уволиться</button></div></div></div>
           : <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}><div style={{ fontSize: 50, marginBottom: 10 }}>📉</div><h3>Вы безработный</h3><p style={{ color: '#a1a1aa', fontSize: 14, marginBottom: 20 }}>Пора найти работу!</p><button onClick={() => setBoardOpen(true)} style={S.btnSecondary}><Briefcase size={20} /> Биржа труда</button></div>}
         </div>
       )}
