@@ -6,10 +6,12 @@ export const HomeTab = ({ app }: { app: any }) => {
   const av = getAvatar(app.avatarId);
   const maxEnergy = app.hasHouse ? 150 : 100;
   
+  // Ищем кофейню игрока для сбора кассы
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+      {/* Шапка профиля */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 25 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: '20px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, border: '2px solid rgba(255,255,255,0.1)', cursor: 'pointer', userSelect: 'none' }}>{av.emoji}</div>
@@ -27,27 +29,37 @@ export const HomeTab = ({ app }: { app: any }) => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 25 }}>
-        {myCoffee ? (
-          <div style={{ backgroundColor: '#161324', border: '1px solid rgba(249, 115, 22, 0.3)', borderRadius: 20, padding: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ background: 'rgba(249, 115, 22, 0.15)', padding: 10, borderRadius: 12 }}><Coffee size={24} color="#F97316" /></div>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 'bold' }}>Кофейня</div>
-                <div style={{ fontSize: 12, color: '#8B899A' }}>В кассе: <span style={{color: '#10B981', fontWeight: 'bold'}}>{myCoffee.coffee_balance || 0}</span> монет</div>
-              </div>
-            </div>
-            <Btn variant="primary" onClick={app.collect} disabled={app.proc || !myCoffee.coffee_balance} style={{ width: 'auto', padding: '10px 15px', fontSize: 14 }}>
-              Собрать
-            </Btn>
-          </div>
-        ) : (
-          <button onClick={() => app.setTab('business')} style={{ backgroundColor: 'rgba(30, 30, 36, 0.6)', border: '1px dashed #8B899A', borderRadius: 20, padding: 15, color: '#8B899A', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 'bold' }}>
-            <Briefcase size={20} /> Открыть свой бизнес
-          </button>
-        )}
+      {/* Кнопки навигации: Бизнесы и Кафе */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <button onClick={() => app.setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 20, backgroundColor: '#161324', border: '1px solid rgba(192, 132, 252, 0.3)', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <Briefcase size={24} color="#C084FC" />
+          <span style={{ fontSize: 13 }}>Мои бизнесы</span>
+        </button>
+        <button onClick={() => app.setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 20, backgroundColor: '#161324', border: '1px solid rgba(249, 115, 22, 0.3)', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <Coffee size={24} color="#F97316" />
+          <span style={{ fontSize: 13 }}>Пить кофе</span>
+        </button>
       </div>
 
+      {/* Блок сбора кассы (появляется только если есть кофейня) */}
+      {myCoffee && (
+        <div style={{ backgroundColor: '#161324', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 20, padding: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: 'rgba(16, 185, 129, 0.15)', padding: 10, borderRadius: 12 }}>
+              <Coins size={24} color="#10B981" />
+            </div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 'bold' }}>Касса кофейни</div>
+              <div style={{ fontSize: 12, color: '#8B899A' }}>Доход: <span style={{color: '#10B981', fontWeight: 'bold'}}>{myCoffee.coffee_balance || 0}</span> монет</div>
+            </div>
+          </div>
+          <Btn variant="primary" onClick={app.collect} disabled={app.proc || !myCoffee.coffee_balance} style={{ width: 'auto', padding: '10px 15px', fontSize: 14 }}>
+            Собрать
+          </Btn>
+        </div>
+      )}
+
+      {/* Кнопки действий (Работа и Отдых) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Btn variant="purple" onClick={app.work} disabled={app.proc || app.energy < 20} style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', padding: 20, fontSize: 18 }}>
           <Users size={24} /> Вкалывать на смене (+200)
