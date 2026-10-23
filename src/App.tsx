@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-import { Send, Lock, Settings, Trash2, Coins, UserPlus, Gift, Coffee, Smartphone, CheckCircle2, Backpack, Car, Building, Briefcase, Wrench } from 'lucide-react';
+import { Send, Lock, Settings, Trash2, Coins, UserPlus, Gift, Coffee, Smartphone, CheckCircle2, Backpack, Car, Building, Briefcase, Store } from 'lucide-react';
 import { 
   BOT_USERNAME, CHANNEL_LINK, PHONE_PRICE, WORKER_SALARY, COFFEE_CUP_PRICE, ADMIN_CODE, 
   BREW_TIME, POLL, BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, 
   TOYOTA_REST_TIME, AVATARS, getStock, S, BUILDING_PRICE, BUILDING_TIME, APARTMENTS_PER_BUILD,
-  TAXI_BIZ_PRICE, TAXI_LADA_INCOME, TAXI_TOYOTA_INCOME, TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS,
-  COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE
+  TAXI_BIZ_PRICE, TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS,
+  COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE
 } from './constants';
 import { Btn, Modal, Toast, BottomNav } from './components';
 import { HomeTab, MarketTab, BusinessTab, DailyRewardModal } from './tabs';
@@ -43,7 +43,6 @@ export default function App() {
   // Дейлик
   const [isDailyOpen, setIsDailyOpen] = useState(false);
   const [dailyStreak, setDailyStreak] = useState(0);
-  const [lastClaim, setLastClaim] = useState(0);
   const [boostEnd, setBoostEnd] = useState(0);
 
   const [restEnd, setRestEnd] = useState(0);
@@ -156,7 +155,6 @@ export default function App() {
           setHasHouse(data.has_house || false); setHouseType(data.house_type || 'none');
           setRefBalance(Number(data.referral_balance) || 0);
           setDailyStreak(Number(data.daily_streak) || 0);
-          setLastClaim(Number(data.last_claim) || 0);
           setBoostEnd(Number(data.boost_end) || 0);
 
           // Проверка Daily Reward
@@ -292,13 +290,13 @@ export default function App() {
     const now = Date.now();
     const newStreak = dailyStreak + 1;
     
-    setDailyStreak(newStreak); setLastClaim(now); setIsDailyOpen(false);
+    setDailyStreak(newStreak); setIsDailyOpen(false);
     
     let updates: any = { daily_streak: newStreak, last_claim: now };
     
     if (rw.type === 'money') {
       const boostActive = boostEnd > now;
-      const finalAmount = boostActive ? Math.floor(rw.amount * 1.1) : rw.amount; // Если буст был, даем больше
+      const finalAmount = boostActive ? Math.floor(rw.amount * 1.1) : rw.amount;
       setMoney(m => m + finalAmount);
       updates.money = money + finalAmount;
       
@@ -351,7 +349,7 @@ export default function App() {
     let updatedCars = cars.map((car: any) => {
       if (car.health <= 0) return car;
       const hours = (now - car.last_claim) / 3600000;
-      const income = Math.floor(hours * (car.model === 'lada' ? TAXI_LADA_INCOME : TAXI_TOYOTA_INCOME));
+      const income = Math.floor(hours * (car.model === 'lada' ? 500 : 1500));
       let healthDrop = Math.floor(hours * 10);
       let newHealth = Math.max(0, car.health - healthDrop);
       totalIncome += income;
@@ -409,7 +407,6 @@ export default function App() {
   const sellBusiness = (biz: any) => action(async () => {
     if (!window.confirm("Продать бизнес за 50% от стоимости?")) return;
     
-    // Защита: удаляем все лоты этого игрока (машины и квартиры) с рынка
     await supabase.from('market_items').delete().eq('seller_id', pid).in('item_type', ['car', 'house']);
     
     const refund = biz.biz_type === 'coffee' ? COFFEE_BIZ_PRICE/2 : biz.biz_type === 'salon' ? SALON_BIZ_PRICE/2 : biz.biz_type === 'construction' ? CONSTRUCTION_BIZ_PRICE/2 : TAXI_BIZ_PRICE/2;
@@ -430,7 +427,6 @@ export default function App() {
     if (item.item_type === 'phone') {
       setPhone(true); await sync({ phone_count: 1 });
     } else if (item.item_type === 'car' || item.item_type === 'house') {
-      // Возвращаем в бизнес. Ищем подходящий бизнес (для машины - салон, для дома - стройка)
       const bType = item.item_type === 'car' ? 'salon' : 'construction';
       const biz = myBizs.find(b => b.biz_type === bType);
       if (biz) {
@@ -448,7 +444,7 @@ export default function App() {
   const orderCar = (model: 'lada' | 'toyota') => action(async () => {
     const salon = myBizs.find(b => b.biz_type === 'salon');
     if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едет машина!", true);
-    const price = model === 'lada' ? 20000 : 50000, time = model === 'lada' ? 30000 : 120000;
+    const price = model === 'lada' ? LADA_PRICE : TOYOTA_PRICE, time = model === 'lada' ? 30000 : 120000;
     if (money < price) return showMsg("Мало денег!", true);
     const nM = money - price, end = Date.now() + time;
     const newStock = { ...getStock(salon), current_model: model };
@@ -552,11 +548,11 @@ export default function App() {
   const listItem = () => action(async () => {
     const p = Number(sellPrice); if (isNaN(p) || p <= 0) return;
     
-    let bizName = nick; // По умолчанию ник
+    let bizName = nick;
     
     if (sellItemType === 'car' || sellItemType === 'house') {
       const activeBiz = myBizs.find(b => b.biz_type === (sellItemType === 'car' ? 'salon' : 'construction'));
-      if (activeBiz) bizName = activeBiz.business_name; // Если продаем со склада, используем имя бизнеса
+      if (activeBiz) bizName = activeBiz.business_name;
     }
 
     const currentStock = getStock(myBizs.find(b => b.biz_type === (sellItemType === 'car' ? 'salon' : 'construction')));
