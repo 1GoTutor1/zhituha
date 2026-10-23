@@ -1,4 +1,4 @@
-import { Coins, Zap, UserPlus, User, Briefcase, Coffee, Users, Smartphone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, S } from './constants';
 import { Btn } from './components';
 
@@ -6,12 +6,10 @@ export const HomeTab = ({ app }: { app: any }) => {
   const av = getAvatar(app.avatarId);
   const maxEnergy = app.hasHouse ? 150 : 100;
   
-  // Ищем кофейню игрока для сбора кассы на главной
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-      {/* Шапка профиля */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 25 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: '20px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, border: '2px solid rgba(255,255,255,0.1)', cursor: 'pointer', userSelect: 'none' }}>{av.emoji}</div>
@@ -29,10 +27,7 @@ export const HomeTab = ({ app }: { app: any }) => {
         </div>
       </div>
 
-      {/* Блок бизнесов на главной */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 25 }}>
-        
-        {/* Карточка Кофейни (Сбор денег) */}
         {myCoffee ? (
           <div style={{ backgroundColor: '#161324', border: '1px solid rgba(249, 115, 22, 0.3)', borderRadius: 20, padding: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -53,7 +48,6 @@ export const HomeTab = ({ app }: { app: any }) => {
         )}
       </div>
 
-      {/* Действия */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Btn variant="purple" onClick={app.work} disabled={app.proc || app.energy < 20} style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', padding: 20, fontSize: 18 }}>
           <Users size={24} /> Вкалывать на смене (+200)
