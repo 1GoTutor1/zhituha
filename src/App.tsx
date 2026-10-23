@@ -9,7 +9,7 @@ import {
   TAXI_BIZ_PRICE, TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS,
   COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE,
   PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, BUTTON_BATCH_COST, BUTTON_BATCH_TIME, SMARTPHONE_BATCH_SIZE, SMARTPHONE_BATCH_COST, SMARTPHONE_BATCH_TIME,
-  JOB_WORK, getDayModifier
+  JOB_WORK, getDayModifier, COFFEE_OWNER_INCOME, PHONE_SELL_TO_SHOP
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
 import { 
@@ -93,6 +93,7 @@ export default function App() {
   const [sellPrice, setSellPrice] = useState('2000');
   const [sellItemType, setSellItemType] = useState<'phone' | 'car' | 'house'>('phone');
   const [sellItemData, setSellItemData] = useState('none');
+  const [sellSource, setSellSource] = useState<'personal' | 'stock' | null>(null);
   const [quitOpen, setQuitOpen] = useState(false);
   const [refOpen, setRefOpen] = useState(false);
 
@@ -638,15 +639,15 @@ export default function App() {
   const buyCoffee = (cafe: any) => action(async () => {
     if (!cafe.worker_id || money < COFFEE_CUP_PRICE || energy >= maxEnergy) return showMsg("Нельзя купить", true);
     let coffeeEnergy = 30;
-    if (dayMod?.type === 'coffee_energy') coffeeEnergy = 40;
+    if (dayMod?.type === 'coffee_energy') coffeeEnergy = Math.floor(30 * (dayMod.mult || 1.3));
     
     const nM = money - COFFEE_CUP_PRICE; setMoney(nM); await sync({ money: nM });
     const { data } = await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single();
-    if (data) await supabase.from('businesses').update({ coffee_balance: (Number(data.coffee_balance) || 0) + 450 }).eq('id', cafe.id);
+    if (data) await supabase.from('businesses').update({ coffee_balance: (Number(data.coffee_balance) || 0) + COFFEE_OWNER_INCOME }).eq('id', cafe.id);
     const { data: bOwn } = await supabase.from('businesses').select('owner_id').eq('id', cafe.id).single();
     if (bOwn) {
       const { data: pOwn } = await supabase.from('players').select('referred_by').eq('id', bOwn.owner_id).single();
-      if (pOwn && pOwn.referred_by) await supabase.rpc('add_referral_balance', { p_telegram_id: pOwn.referred_by, p_amount: Math.floor(450 * 0.05) });
+      if (pOwn && pOwn.referred_by) await supabase.rpc('add_referral_balance', { p_telegram_id: pOwn.referred_by, p_amount: Math.floor(COFFEE_OWNER_INCOME * 0.05) });
     }
     const end = Date.now() + BREW_TIME; setBrewEnd(end); localStorage.setItem('zhituha_brew_end', end.toString());
     showMsg(`Кофе готовится (+${coffeeEnergy} энергии)...`); hapticFeedback('heavy');
@@ -697,76 +698,135 @@ export default function App() {
 
   const buyPhone = (buy: boolean) => action(async () => {
     if (buy && money < PHONE_PRICE) return showMsg("Мало денег", true);
-    const nM = buy ? money - PHONE_PRICE : money + 1400;
+    if (buy && phone) return showMsg("У тебя уже есть телефон", true);
+    if (buy && marketSlots >= 10) return showMsg("Максимум слотов", true);
+    const nM = buy ? money - PHONE_PRICE : money + PHONE_SELL_TO_SHOP;
     const newSlots = buy ? marketSlots + 1 : Math.max(3, marketSlots - 1);
     setMarketSlots(newSlots);
-    setMoney(nM); setPhone(buy); showMsg(buy ? "Куплено! +1 слот на рынке" : "Сдан за 1400"); hapticFeedback('heavy');
+    setMoney(nM); setPhone(buy); showMsg(buy ? "Куплено! +1 слот на рынке" : `Сдан за ${PHONE_SELL_TO_SHOP}`); hapticFeedback('heavy');
     await sync({ money: nM, phone_count: buy ? 1 : 0, market_slots: newSlots });
   });
 
   const listItem = () => action(async () => {
-    const p = Number(sellPrice); if (isNaN(p) || p <= 0) return;
-    
+    const p = Number(sellPrice); if (isNaN(p) || p <= 0) return showMsg("Неверная цена", true);
+    if (!sellItemData || sellItemData === 'none') return showMsg("Неверный предмет", true);
+    if (!sellSource) return showMsg("Не выбран источник предмета", true);
+
+    // Эффективные слоты с учётом акции дня (+2, но не больше 10)
+    const effectiveSlots = Math.min(10, marketSlots + (dayMod?.type === 'market_slots' ? 2 : 0));
     const myLots = market.filter((m: any) => m.seller_id === pid).length;
-    if (myLots >= marketSlots && dayMod?.type !== 'market_slots') {
-      return showMsg(`Нет свободных слотов! Купи телефон для +1 слота.`, true);
+    if (myLots >= effectiveSlots) {
+      return showMsg(`Нет свободных слотов! (${myLots}/${effectiveSlots}) Купи телефон для +1 слота.`, true);
     }
 
     let bizName = nick;
     let currentStock: any = {};
 
+    // ===== ВАЛИДАЦИЯ + ПОДГОТОВКА =====
     if (sellItemType === 'phone') {
-      if (sellItemData === 'button' || sellItemData === 'smartphone') {
-        const factory = myBizs.find(b => b.biz_type === 'phone_factory');
-        if (factory) { bizName = factory.business_name; currentStock = getStock(factory); }
-        if (!currentStock[sellItemData] || currentStock[sellItemData] <= 0) return;
+      if (sellSource === 'personal') {
+        if (!phone) return showMsg("У тебя нет телефона", true);
+        if (sellItemData !== 'phone') return showMsg("Неверный тип телефона", true);
       } else {
-        if (!phone) return;
+        if (sellItemData !== 'button' && sellItemData !== 'smartphone') return showMsg("Неверный тип телефона", true);
+        const factory = myBizs.find(b => b.biz_type === 'phone_factory');
+        if (!factory) return showMsg("Нужен телефонный цех", true);
+        bizName = factory.business_name;
+        currentStock = getStock(factory);
+        if ((currentStock[sellItemData] || 0) <= 0) return showMsg("На складе нет такого телефона", true);
       }
     } else if (sellItemType === 'car') {
       const salon = myBizs.find(b => b.biz_type === 'salon');
       if (salon) { bizName = salon.business_name; currentStock = getStock(salon); }
-      if (!hasCar && !(sellItemData === 'lada' && currentStock.lada > 0) && !(sellItemData === 'toyota' && currentStock.toyota > 0)) return;
+      if (sellSource === 'personal') {
+        if (!hasCar || carModel !== sellItemData) return showMsg("У тебя нет этой машины", true);
+      } else {
+        if ((currentStock[sellItemData] || 0) <= 0) return showMsg("На складе нет этой машины", true);
+      }
     } else if (sellItemType === 'house') {
       const constr = myBizs.find(b => b.biz_type === 'construction');
       if (constr) { bizName = constr.business_name; currentStock = getStock(constr); }
-      if (!(currentStock.apartments > 0)) return;
+      if (sellSource === 'personal') {
+        if (!hasHouse) return showMsg("У тебя нет квартиры", true);
+      } else {
+        if ((currentStock.apartments || 0) <= 0) return showMsg("На складе нет квартир", true);
+      }
     }
 
-    const { error } = await supabase.from('market_items').insert([{ seller_id: pid, seller_name: bizName, item_type: sellItemType, item_data: sellItemData, price: p }]);
+    // ===== ВСТАВКА ЛОТА =====
+    const { error } = await supabase.from('market_items').insert([{
+      seller_id: pid, seller_name: bizName, item_type: sellItemType, item_data: sellItemData, price: p
+    }]);
     if (error) throw error;
-    
-    if (sellItemType === 'phone' && sellItemData === 'phone') { setPhone(false); await sync({ phone_count: 0 }); } 
-    else if (sellItemType === 'phone') {
-      const factory = myBizs.find(b => b.biz_type === 'phone_factory');
-      if (factory) { const nS = { ...currentStock, [sellItemData]: currentStock[sellItemData] - 1 }; await supabase.from('businesses').update({ stock: nS }).eq('id', factory.id); setMyBizs(prev => prev.map(b => b.id === factory.id ? { ...b, stock: nS } : b)); }
-    }
-    else if (sellItemType === 'car') {
-      const activeBiz = myBizs.find(b => b.biz_type === 'salon');
-      if (hasCar) { setHasCar(false); await sync({ has_car: false, car_model: 'none' }); setCarModel('none'); }
-      else if (activeBiz) { const nS = { ...currentStock, [sellItemData]: currentStock[sellItemData] - 1 }; await supabase.from('businesses').update({ stock: nS }).eq('id', activeBiz.id); setMyBizs(prev => prev.map(b => b.id === activeBiz.id ? { ...b, stock: nS } : b)); }
+
+    // ===== СПИСАНИЕ ПРЕДМЕТА =====
+    if (sellItemType === 'phone') {
+      if (sellSource === 'personal') {
+        const newSlots = Math.max(3, marketSlots - 1);
+        setPhone(false); setMarketSlots(newSlots);
+        await sync({ phone_count: 0, market_slots: newSlots });
+      } else {
+        const factory = myBizs.find(b => b.biz_type === 'phone_factory');
+        if (factory) {
+          const nS = { ...currentStock, [sellItemData]: (currentStock[sellItemData] || 0) - 1 };
+          await supabase.from('businesses').update({ stock: nS }).eq('id', factory.id);
+          setMyBizs(prev => prev.map(b => b.id === factory.id ? { ...b, stock: nS } : b));
+        }
+      }
+    } else if (sellItemType === 'car') {
+      if (sellSource === 'personal') {
+        setHasCar(false); setCarModel('none');
+        await sync({ has_car: false, car_model: 'none' });
+      } else {
+        const salon = myBizs.find(b => b.biz_type === 'salon');
+        if (salon) {
+          const nS = { ...currentStock, [sellItemData]: (currentStock[sellItemData] || 0) - 1 };
+          await supabase.from('businesses').update({ stock: nS }).eq('id', salon.id);
+          setMyBizs(prev => prev.map(b => b.id === salon.id ? { ...b, stock: nS } : b));
+        }
+      }
     } else if (sellItemType === 'house') {
-      const activeBiz = myBizs.find(b => b.biz_type === 'construction');
-      if (hasHouse) { setHasHouse(false); await sync({ has_house: false, house_type: 'none' }); setHouseType('none'); }
-      else if (activeBiz) { const nS = { ...currentStock, apartments: currentStock.apartments - 1 }; await supabase.from('businesses').update({ stock: nS }).eq('id', activeBiz.id); setMyBizs(prev => prev.map(b => b.id === activeBiz.id ? { ...b, stock: nS } : b)); }
+      if (sellSource === 'personal') {
+        setHasHouse(false); setHouseType('none');
+        await sync({ has_house: false, house_type: 'none' });
+      } else {
+        const constr = myBizs.find(b => b.biz_type === 'construction');
+        if (constr) {
+          const nS = { ...currentStock, apartments: (currentStock.apartments || 0) - 1 };
+          await supabase.from('businesses').update({ stock: nS }).eq('id', constr.id);
+          setMyBizs(prev => prev.map(b => b.id === constr.id ? { ...b, stock: nS } : b));
+        }
+      }
     }
-    setSellOpen(false); setTab('market'); loadMarket(); showMsg("Выставлено!"); hapticFeedback('medium');
+
+    setSellOpen(false); setSellSource(null); setTab('market'); loadMarket();
+    showMsg("Выставлено!"); hapticFeedback('medium');
   });
 
   const buyLot = (item: any) => action(async () => {
+    // Защита: не покупать второй личный телефон
+    if (item.item_type === 'phone' && item.item_data === 'phone' && phone) {
+      return showMsg("У тебя уже есть личный телефон", true);
+    }
+
     const { data, error } = await supabase.rpc('buy_market_item', { p_buyer_id: pid, p_item_id: item.id });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
-    
-    let finalPrice = item.price;
-    if (item.item_type === 'car' && dayMod?.type === 'car_sell') finalPrice = Math.floor(item.price * 1.3);
-    if (item.item_type === 'phone' && dayMod?.type === 'phone_sell') finalPrice = Math.floor(item.price * 1.3);
 
-    setMoney(m => m - finalPrice); 
-    if (item.item_type === 'phone') { setPhone(true); await sync({ phone_count: 1 }); setMarketSlots(s => s + 1); }
+    // Синхронизируем деньги из БД (RPC уже списал v_price)
+    const { data: fresh } = await supabase.from('players').select('money').eq('id', pid).single();
+    if (fresh) setMoney(Number(fresh.money));
+
+    if (item.item_type === 'phone') {
+      const newSlots = Math.min(10, marketSlots + 1);
+      setPhone(true); setMarketSlots(newSlots);
+      await sync({ phone_count: 1, market_slots: newSlots });
+    }
     if (item.item_type === 'car') { setHasCar(true); setCarModel(item.item_data); }
     if (item.item_type === 'house') { setHasHouse(true); setHouseType(item.item_data); }
-    showMsg(`Покупка успешна!`); hapticFeedback('heavy'); loadMarket();
+
+    showMsg(`Покупка успешна!`); hapticFeedback('heavy');
+    loadMarket();
   });
 
   const inviteFriend = () => {
@@ -811,17 +871,16 @@ export default function App() {
     setPromoInput('');
   });
 
-  // ОПТИМИЗАЦИЯ: useMemo предотвращает лишние перерисовки
   const app = useMemo(() => ({
     user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, market, job, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, 
-    sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, setModifierOpen,
+    sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, setModifierOpen,
     isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, shiftPay,
     promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee,
     action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, verifySubscription, selectGender, reg, claimTutorialReward,
     cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData
   }), [
     user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, market, job, allBiz, selCafe, boardOpen, 
-    sellOpen, sellPrice, sellItemType, sellItemData, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen,
+    sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen,
     isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, shiftPay,
     promoOpen, promoInput, adminTab, role
   ]);
@@ -883,7 +942,6 @@ export default function App() {
         <Btn variant="secondary" onClick={() => setModifierOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Понятно</Btn>
       </Modal>
 
-      {/* ВЫНЕСЕННЫЕ ВКЛАДКИ */}
       {tab === 'home' && <HomeTab app={app} />}
       {tab === 'cafe' && <CafeTab app={app} />}
       {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}

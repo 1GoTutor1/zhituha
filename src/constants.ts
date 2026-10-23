@@ -38,6 +38,16 @@ export const TAXI_MAX_OFFLINE_HOURS = 8;
 export const TAXI_REPAIR_LADA = 3000;
 export const TAXI_REPAIR_TOYOTA = 10000;
 
+// ==== Дефолтные цены для продажи (используются в UI как стартовое значение) ====
+export const DEFAULT_SELL_LADA = 25000;
+export const DEFAULT_SELL_TOYOTA = 60000;
+export const DEFAULT_SELL_APARTMENT = 50000;
+export const DEFAULT_SELL_PHONE = 2000;
+export const DEFAULT_SELL_BUTTON = 2000;
+export const DEFAULT_SELL_SMARTPHONE = 15000;
+export const PHONE_SELL_TO_SHOP = 1400;
+export const COFFEE_OWNER_INCOME = 450;
+
 export const DAILY_REWARDS = [
   { type: 'money', amount: 500 },
   { type: 'coffee', amount: 1 },
