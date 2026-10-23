@@ -324,11 +324,15 @@ export default function App() {
     addReferralBonus(inc); showMsg(`Собрано ${inc}`); hapticFeedback('medium'); loadData(true);
   });
 
-  const buyBiz = (type: 'coffee' | 'salon' | 'construction') => action(async () => {
-    if (money < 10000) return showMsg("Не хватает денег", true);
+    const buyBiz = (type: 'coffee' | 'salon' | 'construction') => action(async () => {
+    const price = type === 'coffee' ? 15000 : type === 'salon' ? 150000 : 500000;
+    if (money < price) return showMsg("Не хватает денег", true);
     if (myBizs.some(b => b.biz_type === type)) return showMsg("У тебя уже есть этот бизнес", true);
-    const nM = money - 10000; setMoney(nM); await sync({ money: nM });
-    const { error } = await supabase.from('businesses').insert([{ owner_id: pid, owner_name: nick, worker_id: null, coffee_balance: 0, biz_type: type, stock: {lada:0, toyota:0, apartments:0} }]);
+    
+    const nM = money - price; setMoney(nM); await sync({ money: nM });
+    const { error } = await supabase.from('businesses').insert([{ 
+      owner_id: pid, owner_name: nick, worker_id: null, coffee_balance: 0, biz_type: type, stock: {lada:0, toyota:0, apartments:0} 
+    }]);
     if (error) { await sync({ money }); setMoney(money); throw error; }
     showMsg("Бизнес открыт!"); hapticFeedback('heavy'); loadData(true);
   });
