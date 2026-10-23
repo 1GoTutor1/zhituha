@@ -1,7 +1,15 @@
 export const BOT_USERNAME = "zhituha_bot"; 
 export const CHANNEL_LINK = "https://t.me/zhituha_news";
 export const PHONE_PRICE = 2000, BUSINESS_PRICE = 10000, WORKER_SALARY = 300, COFFEE_PRICE = 500;
-export const ADMIN_CODE = "admin2026", REST_CD = 90000, BREW_TIME = 15000, POLL = 5000;
+export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 5000;
+
+// --- НОВЫЕ КОНСТАНТЫ ЭНЕРГИИ И ОТДЫХА ---
+export const BASE_MAX_ENERGY = 100;
+export const HOUSE_MAX_ENERGY = 150;
+export const BASE_REST_TIME = 90000; // 90 сек
+export const LADA_REST_TIME = 70000; // 70 сек
+export const TOYOTA_REST_TIME = 50000; // 50 сек
+
 export const LADA_PRICE = 20000, LADA_TIME = 30000;
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 120000;
 export const BUILDING_PRICE = 30000, BUILDING_TIME = 60000;
