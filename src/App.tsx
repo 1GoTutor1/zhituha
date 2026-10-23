@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-import { Send, Lock, Settings, Trash2, Coins, UserPlus, Gift, Coffee, Smartphone, CheckCircle2, Backpack, Car, Building, Briefcase } from 'lucide-react';
+import { Send, Lock, Settings, Trash2, Coins, UserPlus, Gift, Coffee, Smartphone, CheckCircle2, Backpack, Car, Building, Briefcase, Wrench } from 'lucide-react';
 import { 
   BOT_USERNAME, CHANNEL_LINK, PHONE_PRICE, WORKER_SALARY, COFFEE_CUP_PRICE, ADMIN_CODE, 
   BREW_TIME, POLL, BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, 
-  TOYOTA_REST_TIME, AVATARS, getStock, S 
+  TOYOTA_REST_TIME, AVATARS, getStock, S, BUILDING_PRICE, BUILDING_TIME, APARTMENTS_PER_BUILD,
+  TAXI_BIZ_PRICE, TAXI_LADA_INCOME, TAXI_TOYOTA_INCOME, TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS,
+  COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE
 } from './constants';
 import { Btn, Modal, Toast, BottomNav } from './components';
-import { HomeTab, MarketTab, BusinessTab } from './tabs';
+import { HomeTab, MarketTab, BusinessTab, DailyRewardModal } from './tabs';
 
 export default function App() {
   const { user, hapticFeedback, tg, startParam } = useTelegram();
@@ -38,13 +40,23 @@ export default function App() {
   const [refBalance, setRefBalance] = useState(0);
   const [myRefs, setMyRefs] = useState<any[]>([]);
   
+  // Дейлик
+  const [isDailyOpen, setIsDailyOpen] = useState(false);
+  const [dailyStreak, setDailyStreak] = useState(0);
+  const [lastClaim, setLastClaim] = useState(0);
+  const [boostEnd, setBoostEnd] = useState(0);
+
   const [restEnd, setRestEnd] = useState(0);
   const [brewEnd, setBrewEnd] = useState(0);
   const [tLeft, setTLeft] = useState(0);
   const [bLeft, setBLeft] = useState(0);
 
   const [myBizs, setMyBizs] = useState<any[]>([]);
-  const [activeBizType, setActiveBizType] = useState<'coffee' | 'salon' | 'construction'>('coffee');
+  const [activeBizType, setActiveBizType] = useState<'coffee' | 'salon' | 'construction' | 'taxi'>('coffee');
+  
+  // Нейминг бизнеса
+  const [buyingType, setBuyingType] = useState<string | null>(null);
+  const [bizNameInput, setBizNameInput] = useState('');
   
   const [carOrderEnd, setCarOrderEnd] = useState(0);
   const [carTimeLeft, setCarTimeLeft] = useState(0);
@@ -143,6 +155,20 @@ export default function App() {
           setHasCar(data.has_car || false); setCarModel(data.car_model || 'none');
           setHasHouse(data.has_house || false); setHouseType(data.house_type || 'none');
           setRefBalance(Number(data.referral_balance) || 0);
+          setDailyStreak(Number(data.daily_streak) || 0);
+          setLastClaim(Number(data.last_claim) || 0);
+          setBoostEnd(Number(data.boost_end) || 0);
+
+          // Проверка Daily Reward
+          const now = Date.now();
+          const timeDiff = now - (Number(data.last_claim) || 0);
+          if (timeDiff > 86400000) { // Прошло больше 24ч
+             if (timeDiff > 172800000) { // Прошло больше 48ч - сбрасываем стрик
+                setDailyStreak(0);
+                await supabase.from('players').update({ daily_streak: 0 }).eq('id', data.id);
+             }
+             setIsDailyOpen(true);
+          }
           
           const last = Number(data.last_rest_time) || 0;
           setRestEnd(last + (data.car_model === 'toyota' ? TOYOTA_REST_TIME : data.car_model === 'lada' ? LADA_REST_TIME : BASE_REST_TIME) > Date.now() ? last + (data.car_model === 'toyota' ? TOYOTA_REST_TIME : data.car_model === 'lada' ? LADA_REST_TIME : BASE_REST_TIME) : 0);
@@ -230,9 +256,9 @@ export default function App() {
             supabase.from('businesses').select('stock').eq('id', constr.id).single().then(({ data }) => {
               if (data) {
                 const currentStock = getStock(data);
-                const newStock = { ...currentStock, apartments: (currentStock.apartments || 0) + 3 };
+                const newStock = { ...currentStock, apartments: (currentStock.apartments || 0) + APARTMENTS_PER_BUILD };
                 supabase.from('businesses').update({ build_end: 0, stock: newStock }).eq('id', constr.id).then(({ error }) => {
-                  if (!error) { showMsg("Дом построен! 3 квартиры на складе."); hapticFeedback('heavy'); loadData(true); }
+                  if (!error) { showMsg(`Дом построен! ${APARTMENTS_PER_BUILD} квартир на складе.`); hapticFeedback('heavy'); loadData(true); }
                 });
               }
             });
@@ -259,6 +285,166 @@ export default function App() {
     if (refBy) showMsg("Бонус +1000 монет за приглашение!");
   });
 
+  // ДЕЙЛИК
+  const claimDaily = () => action(async () => {
+    if (dailyStreak >= 7) return showMsg("Приходи завтра!", true);
+    const rw = DAILY_REWARDS[dailyStreak];
+    const now = Date.now();
+    const newStreak = dailyStreak + 1;
+    
+    setDailyStreak(newStreak); setLastClaim(now); setIsDailyOpen(false);
+    
+    let updates: any = { daily_streak: newStreak, last_claim: now };
+    
+    if (rw.type === 'money') {
+      const boostActive = boostEnd > now;
+      const finalAmount = boostActive ? Math.floor(rw.amount * 1.1) : rw.amount; // Если буст был, даем больше
+      setMoney(m => m + finalAmount);
+      updates.money = money + finalAmount;
+      
+      if (rw.boost) {
+        const newBoostEnd = now + 86400000;
+        setBoostEnd(newBoostEnd);
+        updates.boost_end = newBoostEnd;
+        showMsg(`Награда: +${finalAmount} монет и БУСТ x1.1 на 24ч!`);
+      } else {
+        showMsg(`Награда: +${finalAmount} монет!`);
+      }
+    } else if (rw.type === 'coffee') {
+      const targetEnergy = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
+      setEnergy(targetEnergy);
+      updates.energy = targetEnergy;
+      showMsg(`Награда: Кофе! Энергия восстановлена!`);
+    }
+    
+    await sync(updates);
+    hapticFeedback('heavy');
+  });
+
+  // ТАКСОПАРК
+  const addTaxiCar = (model: 'lada' | 'toyota') => action(async () => {
+    const taxi = myBizs.find(b => b.biz_type === 'taxi');
+    if (!taxi) return;
+    const price = model === 'lada' ? LADA_PRICE : TOYOTA_PRICE;
+    if (money < price) return showMsg("Мало денег!", true);
+    
+    const nM = money - price;
+    setMoney(nM); await sync({ money: nM });
+    
+    const currentStock = getStock(taxi);
+    const cars = currentStock.taxi_cars || [];
+    cars.push({ model, health: 100, last_claim: Date.now() });
+    
+    await supabase.from('businesses').update({ stock: { ...currentStock, taxi_cars: cars } }).eq('id', taxi.id);
+    showMsg(`Машина добавлена в таксопарк!`); loadData(true);
+  });
+
+  const collectTaxi = () => action(async () => {
+    const taxi = myBizs.find(b => b.biz_type === 'taxi');
+    if (!taxi) return;
+    const currentStock = getStock(taxi);
+    let cars = currentStock.taxi_cars || [];
+    if (!cars.length) return;
+    
+    const now = Date.now();
+    let totalIncome = 0;
+    let updatedCars = cars.map((car: any) => {
+      if (car.health <= 0) return car;
+      const hours = (now - car.last_claim) / 3600000;
+      const income = Math.floor(hours * (car.model === 'lada' ? TAXI_LADA_INCOME : TAXI_TOYOTA_INCOME));
+      let healthDrop = Math.floor(hours * 10);
+      let newHealth = Math.max(0, car.health - healthDrop);
+      totalIncome += income;
+      return { ...car, health: newHealth, last_claim: now };
+    });
+    
+    if (totalIncome === 0) return showMsg("Еще рано собирать доход", true);
+    
+    const nM = money + totalIncome;
+    setMoney(nM); await sync({ money: nM });
+    await supabase.from('businesses').update({ stock: { ...currentStock, taxi_cars: updatedCars } }).eq('id', taxi.id);
+    showMsg(`Собрано ${totalIncome} монет!`); loadData(true);
+  });
+
+  const repairTaxiCar = (index: number) => action(async () => {
+    const taxi = myBizs.find(b => b.biz_type === 'taxi');
+    if (!taxi) return;
+    const currentStock = getStock(taxi);
+    const cars = [...(currentStock.taxi_cars || [])];
+    const car = cars[index];
+    const repairCost = car.model === 'lada' ? TAXI_REPAIR_LADA : TAXI_REPAIR_TOYOTA;
+    
+    if (money < repairCost) return showMsg("Мало денег на ремонт", true);
+    
+    const nM = money - repairCost;
+    setMoney(nM); await sync({ money: nM });
+    
+    cars[index] = { ...car, health: 100, last_claim: Date.now() };
+    await supabase.from('businesses').update({ stock: { ...currentStock, taxi_cars: cars } }).eq('id', taxi.id);
+    showMsg("Машина отремонтирована!"); loadData(true);
+  });
+
+  // ПОКУПКА БИЗНЕСА (С НЕЙМИНГОМ)
+  const submitBizName = () => action(async () => {
+    if (!buyingType) return;
+    const name = bizNameInput.trim();
+    if (!/^[A-Za-z0-9 ]{3,20}$/.test(name)) return showMsg("Только англ. буквы и цифры (3-20 символов)", true);
+    
+    const price = buyingType === 'coffee' ? COFFEE_BIZ_PRICE : buyingType === 'salon' ? SALON_BIZ_PRICE : buyingType === 'construction' ? CONSTRUCTION_BIZ_PRICE : TAXI_BIZ_PRICE;
+    if (money < price) return showMsg("Не хватает денег", true);
+    
+    const { data, error } = await supabase.rpc('buy_business_rpc', { 
+      p_owner_id: pid, p_owner_name: nick, p_biz_type: buyingType, p_biz_name: name, p_price: price 
+    });
+    
+    if (error) throw error;
+    if (data && data.error) throw new Error(data.error);
+    
+    setMoney(m => m - price);
+    setBuyingType(null);
+    setBizNameInput('');
+    showMsg("Бизнес открыт!"); loadData(true);
+  });
+
+  const sellBusiness = (biz: any) => action(async () => {
+    if (!window.confirm("Продать бизнес за 50% от стоимости?")) return;
+    
+    // Защита: удаляем все лоты этого игрока (машины и квартиры) с рынка
+    await supabase.from('market_items').delete().eq('seller_id', pid).in('item_type', ['car', 'house']);
+    
+    const refund = biz.biz_type === 'coffee' ? COFFEE_BIZ_PRICE/2 : biz.biz_type === 'salon' ? SALON_BIZ_PRICE/2 : biz.biz_type === 'construction' ? CONSTRUCTION_BIZ_PRICE/2 : TAXI_BIZ_PRICE/2;
+    
+    const nM = money + refund;
+    setMoney(nM); await sync({ money: nM });
+    
+    await supabase.from('businesses').delete().eq('id', biz.id);
+    showMsg(`Бизнес продан за ${refund}!`); loadData(true);
+  });
+
+  const cancelLot = (item: any) => action(async () => {
+    if (!window.confirm("Снять лот с продажи?")) return;
+    
+    const { error } = await supabase.from('market_items').delete().eq('id', item.id);
+    if (error) throw error;
+    
+    if (item.item_type === 'phone') {
+      setPhone(true); await sync({ phone_count: 1 });
+    } else if (item.item_type === 'car' || item.item_type === 'house') {
+      // Возвращаем в бизнес. Ищем подходящий бизнес (для машины - салон, для дома - стройка)
+      const bType = item.item_type === 'car' ? 'salon' : 'construction';
+      const biz = myBizs.find(b => b.biz_type === bType);
+      if (biz) {
+        const currentStock = getStock(biz);
+        const key = item.item_type === 'car' ? item.item_data : 'apartments';
+        const newStock = { ...currentStock, [key]: (currentStock[key] || 0) + 1 };
+        await supabase.from('businesses').update({ stock: newStock }).eq('id', biz.id);
+        showMsg("Товар возвращен на склад бизнеса!"); loadData(true);
+      } else {
+        showMsg("Ошибка: бизнес не найден, товар потерян", true);
+      }
+    }
+  });
+
   const orderCar = (model: 'lada' | 'toyota') => action(async () => {
     const salon = myBizs.find(b => b.biz_type === 'salon');
     if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едет машина!", true);
@@ -277,8 +463,8 @@ export default function App() {
   const startBuild = () => action(async () => {
     const constr = myBizs.find(b => b.biz_type === 'construction');
     if (!constr || buildEnd > 0) return showMsg("Стройка уже идет!", true);
-    if (money < 30000) return showMsg("Мало денег!", true);
-    const nM = money - 30000, end = Date.now() + 60000;
+    if (money < BUILDING_PRICE) return showMsg("Мало денег!", true);
+    const nM = money - BUILDING_PRICE, end = Date.now() + BUILDING_TIME;
     const { error: bErr } = await supabase.from('businesses').update({ build_end: end }).eq('id', constr.id);
     if (bErr) throw new Error("Ошибка стройки: " + bErr.message);
     const { error: mErr } = await supabase.from('players').update({ money: nM }).eq('id', pid);
@@ -289,9 +475,12 @@ export default function App() {
 
   const work = () => action(async () => {
     if (energy < 20) return showMsg("Ты слишком устал!", true);
-    const amount = 200, nM = money + amount, nE = energy - 20;
+    const baseAmount = 200;
+    const boostActive = boostEnd > Date.now();
+    const amount = boostActive ? 220 : baseAmount;
+    const nM = money + amount, nE = energy - 20;
     setMoney(nM); setEnergy(nE); await sync({ money: nM, energy: nE });
-    addReferralBonus(amount); showMsg(`+${amount} монет`); hapticFeedback('medium');
+    addReferralBonus(amount); showMsg(`+${amount} монет${boostActive ? ' (Буст!)' : ''}`); hapticFeedback('medium');
   });
 
   const rest = () => action(async () => {
@@ -299,7 +488,7 @@ export default function App() {
     const now = Date.now();
     setEnergy(maxEnergy); setRestEnd(now + restTime);
     await sync({ energy: maxEnergy, last_rest_time: now });
-    showMsg(`Энергия восстановлена! (- ${restTime / 1000} сек)`); hapticFeedback('light');
+    showMsg(`Энергия восстановлена!`); hapticFeedback('light');
   });
 
   const buyCoffee = (cafe: any) => action(async () => {
@@ -324,19 +513,6 @@ export default function App() {
     addReferralBonus(inc); showMsg(`Собрано ${inc}`); hapticFeedback('medium'); loadData(true);
   });
 
-  const buyBiz = (type: 'coffee' | 'salon' | 'construction') => action(async () => {
-    const price = type === 'coffee' ? 15000 : type === 'salon' ? 150000 : 500000;
-    if (money < price) return showMsg("Не хватает денег", true);
-    if (myBizs.some(b => b.biz_type === type)) return showMsg("У тебя уже есть этот бизнес", true);
-    
-    const nM = money - price; setMoney(nM); await sync({ money: nM });
-    const { error } = await supabase.from('businesses').insert([{ 
-      owner_id: pid, owner_name: nick, worker_id: null, coffee_balance: 0, biz_type: type, stock: {lada:0, toyota:0, apartments:0} 
-    }]);
-    if (error) { await sync({ money }); setMoney(money); throw error; }
-    showMsg("Бизнес открыт!"); hapticFeedback('heavy'); loadData(true);
-  });
-
   const hire = (bId: string) => action(async () => {
     if (job) return showMsg("Вы уже работаете", true);
     const { error } = await supabase.from('businesses').update({ worker_id: pid, worker_name: nick }).eq('id', bId);
@@ -359,9 +535,11 @@ export default function App() {
 
   const shift = () => action(async () => {
     if (!job || energy < 20) return;
-    const nM = money + WORKER_SALARY, nE = energy - 20;
-    setMoney(nM); setEnergy(nE); showMsg(`+${WORKER_SALARY} за смену`); hapticFeedback('medium');
-    await sync({ money: nM, energy: nE }); addReferralBonus(WORKER_SALARY);
+    const boostActive = boostEnd > Date.now();
+    const amount = boostActive ? 330 : WORKER_SALARY;
+    const nM = money + amount, nE = energy - 20;
+    setMoney(nM); setEnergy(nE); showMsg(`+${amount} за смену${boostActive ? ' (Буст!)' : ''}`); hapticFeedback('medium');
+    await sync({ money: nM, energy: nE }); addReferralBonus(amount);
   });
 
   const buyPhone = (buy: boolean) => action(async () => {
@@ -373,18 +551,29 @@ export default function App() {
 
   const listItem = () => action(async () => {
     const p = Number(sellPrice); if (isNaN(p) || p <= 0) return;
-    const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
-    const currentStock = getStock(activeBiz);
+    
+    let bizName = nick; // По умолчанию ник
+    
+    if (sellItemType === 'car' || sellItemType === 'house') {
+      const activeBiz = myBizs.find(b => b.biz_type === (sellItemType === 'car' ? 'salon' : 'construction'));
+      if (activeBiz) bizName = activeBiz.business_name; // Если продаем со склада, используем имя бизнеса
+    }
+
+    const currentStock = getStock(myBizs.find(b => b.biz_type === (sellItemType === 'car' ? 'salon' : 'construction')));
     if (sellItemType === 'phone' && !phone) return;
     if (sellItemType === 'car' && !hasCar && !(sellItemData === 'lada' && currentStock.lada > 0) && !(sellItemData === 'toyota' && currentStock.toyota > 0)) return;
     if (sellItemType === 'house' && !(currentStock.apartments > 0)) return;
-    const { error } = await supabase.from('market_items').insert([{ seller_id: pid, seller_name: nick, item_type: sellItemType, item_data: sellItemData, price: p }]);
+
+    const { error } = await supabase.from('market_items').insert([{ seller_id: pid, seller_name: bizName, item_type: sellItemType, item_data: sellItemData, price: p }]);
     if (error) throw error;
+    
     if (sellItemType === 'phone') { setPhone(false); await sync({ phone_count: 0 }); } 
     else if (sellItemType === 'car') {
+      const activeBiz = myBizs.find(b => b.biz_type === 'salon');
       if (hasCar) { setHasCar(false); await sync({ has_car: false, car_model: 'none' }); setCarModel('none'); }
       else if (activeBiz) { const nS = { ...currentStock, [sellItemData]: currentStock[sellItemData] - 1 }; await supabase.from('businesses').update({ stock: nS }).eq('id', activeBiz.id); setMyBizs(prev => prev.map(b => b.id === activeBiz.id ? { ...b, stock: nS } : b)); }
     } else if (sellItemType === 'house') {
+      const activeBiz = myBizs.find(b => b.biz_type === 'construction');
       if (hasHouse) { setHasHouse(false); await sync({ has_house: false, house_type: 'none' }); setHouseType('none'); }
       else if (activeBiz) { const nS = { ...currentStock, apartments: currentStock.apartments - 1 }; await supabase.from('businesses').update({ stock: nS }).eq('id', activeBiz.id); setMyBizs(prev => prev.map(b => b.id === activeBiz.id ? { ...b, stock: nS } : b)); }
     }
@@ -432,7 +621,9 @@ export default function App() {
 
   const app = {
     user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, marketTab, setMarketTab, players, market, job, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, authOpen, setAuthOpen, adminOpen, setAdminOpen, adminCode, setAdminCode, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime,
-    action, work, rest, buyCoffee, collect, buyBiz, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, checkAuth, adminMoney, adminReset, verifySubscription, selectGender, reg
+    isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName,
+    action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, checkAuth, adminMoney, adminReset, verifySubscription, selectGender, reg,
+    cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar
   };
 
   const bgColors: Record<string, string> = { home: '#16161a', jobs: '#16161a', market: '#16161a', cafe: '#16161a', shop: '#16161a', inventory: '#16161a' };
@@ -473,6 +664,7 @@ export default function App() {
   return (
     <div style={{ padding: '20px 20px 90px 20px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: bgColors[tab] || '#16161a', color: 'white', transition: 'background 0.5s ease' }}>
       <Toast toast={toast} />
+      <DailyRewardModal app={app} />
 
       <Modal open={refOpen} onClose={() => setRefOpen(false)}>
         <Gift size={40} color="#ec4899" style={{ marginBottom: 15 }} /><h3 style={{ marginTop: 0, fontSize: 20 }}>Рефералка</h3>
@@ -509,14 +701,22 @@ export default function App() {
         <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => setSellOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn><Btn variant="purple" onClick={listItem}>Выставить</Btn></div>
       </Modal>
 
+      <Modal open={buyingType !== null} onClose={() => setBuyingType(null)}>
+        <Store size={40} color="#C084FC" style={{ marginBottom: 15 }} />
+        <h3>Название бизнеса</h3>
+        <p style={{ color: '#8B899A', fontSize: 13, marginBottom: 15 }}>Только английские буквы и цифры</p>
+        <input type="text" value={bizNameInput} onChange={e => setBizNameInput(e.target.value)} placeholder="Speed Motors" style={S.input} />
+        <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => setBuyingType(null)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn><Btn variant="purple" onClick={submitBizName}>Купить</Btn></div>
+      </Modal>
+
       {tab === 'home' && <HomeTab app={app} />}
       
       {tab === 'cafe' && (
         <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
           <button onClick={() => { setTab('home'); setSelCafe(null); }} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Кафе</h2>
           {bLeft > 0 ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3>Готовим...</h3><p style={{ fontSize: 24, fontWeight: 'bold', color: '#f97316', fontFamily: 'Space Grotesk' }}>{bLeft} сек.</p></div>
-          : selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>Кофейня</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Владелец: {selCafe.owner_name}</p><Btn variant="yellow" onClick={() => buyCoffee(selCafe)} disabled={proc || money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id} style={{ background: (money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id) ? '#8B899A' : 'white', marginBottom: 10 }}>{!selCafe.worker_id ? 'Нет бариста' : energy >= maxEnergy ? 'Полная энергия' : money < COFFEE_CUP_PRICE ? 'Мало денег' : `Купить кофе за ${COFFEE_CUP_PRICE}`}</Btn><Btn variant="secondary" onClick={() => setSelCafe(null)} style={{ background: '#333', boxShadow: 'none' }}>Назад</Btn></div>
-          : <div>{allBiz.filter((b: any) => b.worker_id !== null && b.biz_type === 'coffee').map((b: any) => <div key={b.id} onClick={() => setSelCafe(b)} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> Кофейня</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div></div><span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span></div>)}{allBiz.filter((b: any) => b.worker_id !== null && b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A' }}>Нет открытых кафе.</p>}</div>}
+          : selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>{selCafe.business_name}</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Владелец: {selCafe.owner_name}</p><Btn variant="yellow" onClick={() => buyCoffee(selCafe)} disabled={proc || money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id} style={{ background: (money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id) ? '#8B899A' : 'white', marginBottom: 10 }}>{!selCafe.worker_id ? 'Нет бариста' : energy >= maxEnergy ? 'Полная энергия' : money < COFFEE_CUP_PRICE ? 'Мало денег' : `Купить кофе за ${COFFEE_CUP_PRICE}`}</Btn><Btn variant="secondary" onClick={() => setSelCafe(null)} style={{ background: '#333', boxShadow: 'none' }}>Назад</Btn></div>
+          : <div>{allBiz.filter((b: any) => b.worker_id !== null && b.biz_type === 'coffee').map((b: any) => <div key={b.id} onClick={() => setSelCafe(b)} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div></div><span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span></div>)}{allBiz.filter((b: any) => b.worker_id !== null && b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A' }}>Нет открытых кафе.</p>}</div>}
         </div>
       )}
 
@@ -524,8 +724,8 @@ export default function App() {
 
       {tab === 'jobs' && (
         <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Работа</h2>
-          {boardOpen ? <div><button onClick={() => setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h3 style={{ color: '#8B899A', fontSize: 18, marginBottom: 15 }}>Вакансии</h3><div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{allBiz.filter((b: any) => !b.worker_id && b.owner_id !== pid && b.biz_type === 'coffee').map((b: any) => <div key={b.id} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> Кофейня</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div></div>{job ? <Btn variant="secondary" disabled style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Уже работаете</Btn> : <Btn variant="secondary" onClick={() => hire(b.id)} disabled={proc} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Устроиться</Btn>}</div>)}{allBiz.filter((b: any) => !b.worker_id && b.owner_id !== pid && b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A', fontSize: 14 }}>Пока нет мест...</p>}</div></div>
-          : job ? <div><h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3><div style={{ backgroundColor: '#161324', padding: 20, borderRadius: 20, border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 18, fontWeight: 'bold' }}>Кофейня</span></div><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#8B899A' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p><p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#8B899A' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p><Btn variant="primary" onClick={shift} disabled={proc || energy < 20} style={{ marginBottom: 10 }}>Смена (+300)</Btn><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 16, fontWeight: 'bold', border: 'none' }}>Вакансии</button><Btn variant="danger" onClick={() => setQuitOpen(true)} disabled={proc} style={{ flex: 1, fontSize: 14, padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>Уволиться</Btn></div></div></div>
+          {boardOpen ? <div><button onClick={() => setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h3 style={{ color: '#8B899A', fontSize: 18, marginBottom: 15 }}>Вакансии</h3><div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{allBiz.filter((b: any) => !b.worker_id && b.owner_id !== pid && b.biz_type === 'coffee').map((b: any) => <div key={b.id} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div></div>{job ? <Btn variant="secondary" disabled style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Уже работаете</Btn> : <Btn variant="secondary" onClick={() => hire(b.id)} disabled={proc} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Устроиться</Btn>}</div>)}{allBiz.filter((b: any) => !b.worker_id && b.owner_id !== pid && b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A', fontSize: 14 }}>Пока нет мест...</p>}</div></div>
+          : job ? <div><h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3><div style={{ backgroundColor: '#161324', padding: 20, borderRadius: 20, border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 18, fontWeight: 'bold' }}>{job.business_name}</span></div><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#8B899A' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p><p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#8B899A' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p><Btn variant="primary" onClick={shift} disabled={proc || energy < 20} style={{ marginBottom: 10 }}>Смена (+{boostEnd > Date.now() ? 330 : 300})</Btn><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 16, fontWeight: 'bold', border: 'none' }}>Вакансии</button><Btn variant="danger" onClick={() => setQuitOpen(true)} disabled={proc} style={{ flex: 1, fontSize: 14, padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>Уволиться</Btn></div></div></div>
           : <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}><div style={{ fontSize: 50, marginBottom: 10 }}>📉</div><h3>Вы безработный</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Пора найти работу!</p><Btn variant="secondary" onClick={() => setBoardOpen(true)}><Briefcase size={20} /> Биржа труда</Btn></div>}
         </div>
       )}

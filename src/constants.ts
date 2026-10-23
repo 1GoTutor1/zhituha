@@ -3,21 +3,39 @@ export const CHANNEL_LINK = "https://t.me/zhituha_news";
 export const PHONE_PRICE = 2000, WORKER_SALARY = 300, COFFEE_CUP_PRICE = 500;
 export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 5000;
 
-// --- НОВЫЕ ЦЕНЫ НА БИЗНЕСЫ ---
-export const COFFEE_BIZ_PRICE = 15000;
-export const SALON_BIZ_PRICE = 150000;
-export const CONSTRUCTION_BIZ_PRICE = 500000;
-
-// --- КОНСТАНТЫ ЭНЕРГИИ И ОТДЫХА ---
 export const BASE_MAX_ENERGY = 100;
 export const HOUSE_MAX_ENERGY = 150;
-export const BASE_REST_TIME = 90000; // 90 сек
-export const LADA_REST_TIME = 70000; // 70 сек
-export const TOYOTA_REST_TIME = 50000; // 50 сек
+export const BASE_REST_TIME = 90000;
+export const LADA_REST_TIME = 70000;
+export const TOYOTA_REST_TIME = 50000;
 
 export const LADA_PRICE = 20000, LADA_TIME = 30000;
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 120000;
-export const BUILDING_PRICE = 30000, BUILDING_TIME = 60000;
+
+// Стройтрест: 300к за 10 квартир, 15 минут
+export const BUILDING_PRICE = 300000, BUILDING_TIME = 900000, APARTMENTS_PER_BUILD = 10;
+
+export const COFFEE_BIZ_PRICE = 15000;
+export const SALON_BIZ_PRICE = 150000;
+export const CONSTRUCTION_BIZ_PRICE = 300000;
+export const TAXI_BIZ_PRICE = 300000; // Новый Таксопарк
+
+// Таксопарк
+export const TAXI_LADA_INCOME = 500; // в час
+export const TAXI_TOYOTA_INCOME = 1500; // в час
+export const TAXI_REPAIR_LADA = 3000;
+export const TAXI_REPAIR_TOYOTA = 10000;
+
+// Ежедневные награды
+export const DAILY_REWARDS = [
+  { type: 'money', amount: 500 },
+  { type: 'coffee', amount: 1 },
+  { type: 'money', amount: 1000 },
+  { type: 'coffee', amount: 1 },
+  { type: 'money', amount: 1500 },
+  { type: 'coffee', amount: 1 },
+  { type: 'money', amount: 3500, boost: true } // На 7-й день буст
+];
 
 export const AVATARS = [
   { id: 1, gender: 'male', emoji: '🧑‍💻', bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' },
