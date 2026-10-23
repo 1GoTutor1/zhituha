@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
-  TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S,
+  TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier,
   BUTTON_BATCH_COST, SMARTPHONE_BATCH_COST
 } from './constants';
 import { Btn, Modal } from './components';
@@ -80,14 +80,46 @@ export const DailyRewardModal = ({ app }: { app: any }) => {
   );
 };
 
+export const TutorialCard = ({ app }: { app: any }) => {
+  if (app.onboardStep >= 6) return null;
+
+  const steps = [
+    "Тапни 'Подработка' 3 раза",
+    "Энергия упала — тапни 'Отдых'",
+    "Держи кофе в подарок! ☕",
+    "Загляни в 'Бизнесы'",
+    "Посмотри цены на Рынке",
+    "Ты в теме! Забери ежедневку 🎁"
+  ];
+
+  return (
+    <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid #3b82f6', borderRadius: 16, padding: 15, marginBottom: 20, position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <div style={{ fontSize: 30 }}>👨‍🦳</div>
+        <div>
+          <div style={{ fontWeight: 'bold', color: '#60a5fa' }}>Дядя Гоша</div>
+          <div style={{ fontSize: 12, color: '#8B899A' }}>Шаг {app.onboardStep + 1} из 6</div>
+        </div>
+      </div>
+      <div style={{ fontSize: 14, color: 'white', marginBottom: 10 }}>{steps[app.onboardStep]}</div>
+      {app.onboardStep === 5 && (
+        <Btn variant="primary" onClick={app.claimTutorialReward} disabled={app.proc} style={{ padding: 10, fontSize: 14 }}>
+          Забрать 2000 монет
+        </Btn>
+      )}
+    </div>
+  );
+};
+
 export const HomeTab = ({ app }: { app: any }) => {
   const av = getAvatar(app.avatarId);
   const maxEnergy = app.hasHouse ? 150 : 100;
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
+  const modifier = getDayModifier();
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 25 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: '20px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, border: '2px solid rgba(255,255,255,0.1)', cursor: 'pointer', userSelect: 'none' }}>{av.emoji}</div>
           <div>
@@ -107,6 +139,18 @@ export const HomeTab = ({ app }: { app: any }) => {
           <div style={{ color: '#C084FC', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontSize: 14 }}><Zap size={16} /> {app.energy}/{maxEnergy}</div>
         </div>
       </div>
+
+      {/* МОДИФИКАТОР ДНЯ */}
+      <div onClick={() => app.setModifierOpen(true)} style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: `1px solid ${modifier.color}`, borderRadius: 16, padding: 12, marginBottom: 15, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+        <div style={{ fontSize: 20 }}>🔥</div>
+        <div style={{ textAlign: 'left', flex: 1 }}>
+          <div style={{ fontWeight: 'bold', color: modifier.color, fontSize: 14 }}>{modifier.name}</div>
+          <div style={{ fontSize: 12, color: '#8B899A' }}>{modifier.desc}</div>
+        </div>
+        <div style={{ fontSize: 12, color: '#8B899A' }}>Подробнее →</div>
+      </div>
+
+      <TutorialCard app={app} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
         <button onClick={() => app.setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 20, backgroundColor: '#161324', border: '1px solid rgba(192, 132, 252, 0.3)', color: 'white', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -131,8 +175,8 @@ export const HomeTab = ({ app }: { app: any }) => {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Btn variant="purple" onClick={app.work} disabled={app.proc || app.energy < 20} style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', padding: 20, fontSize: 18 }}>
-          <Users size={24} /> Вкалывать на смене (+{app.boostEnd > Date.now() ? 220 : 200})
+        <Btn variant="purple" onClick={app.work} disabled={app.proc || app.energy < 10} style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', padding: 20, fontSize: 18 }}>
+          <Users size={24} /> Вкалывать на смене (+{app.workPay})
         </Btn>
         <Btn variant="secondary" onClick={app.rest} disabled={app.proc || app.tLeft > 0 || app.energy >= maxEnergy} style={{ background: '#161324', border: '1px solid rgba(255,255,255,0.1)', color: app.tLeft > 0 ? '#8B899A' : 'white', padding: 20, fontSize: 18 }}>
           <Zap size={24} color={app.tLeft > 0 ? '#8B899A' : '#10B981'} /> {app.tLeft > 0 ? `Отдыхаем ${app.tLeft} сек...` : `Отдых (${app.restTime / 1000} сек)`}
@@ -165,35 +209,47 @@ export const MarketItem = ({ item, app, type }: any) => (
   </div>
 );
 
-export const MarketTab = ({ app }: { app: any }) => (
-  <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-    <h2>Рынок</h2>
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#161324', padding: 5, borderRadius: 16 }}>
-      {['items', 'cars', 'realestate'].map((t: any) => (
-        <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, padding: 12, border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3b82f6' : 'transparent', color: app.marketTab === t ? 'white' : '#8B899A', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
-          {t === 'items' ? '📱 Предметы' : t === 'cars' ? '🚗 Авто' : '🏠 Жильё'}
-        </button>
-      ))}
-    </div>
-    <div style={{ marginBottom: 30 }}>
-      <h3 style={{ color: '#8B899A', fontSize: 16, marginBottom: 10 }}>Топ богачей</h3>
-      {app.players.map((p: any, i: number) => (
-        <div key={p.id} style={{ backgroundColor: '#161324', padding: '12px 15px', borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#F97316' : i === 1 ? '#C084FC' : i === 2 ? '#3b82f6' : '#8B899A' }}>#{i + 1}</span>
-            <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
+export const MarketTab = ({ app }: { app: any }) => {
+  const myLots = app.market.filter((m: any) => m.seller_id === app.pid).length;
+  const maxSlots = app.marketSlots;
+
+  return (
+    <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+      <h2>Рынок</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+        <div style={{ fontSize: 14, color: '#8B899A' }}>Твои слоты: <b style={{color: '#fff'}}>{myLots} / {maxSlots}</b></div>
+        <div style={{ fontSize: 12, color: '#C084FC' }}>+1 слот за телефон</div>
+      </div>
+      
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#161324', padding: 5, borderRadius: 16 }}>
+        {['items', 'cars', 'realestate'].map((t: any) => (
+          <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, padding: 12, border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3b82f6' : 'transparent', color: app.marketTab === t ? 'white' : '#8B899A', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
+            {t === 'items' ? '📱 Предметы' : t === 'cars' ? '🚗 Авто' : '🏠 Жильё'}
+          </button>
+        ))}
+      </div>
+      
+      <div style={{ marginBottom: 30 }}>
+        <h3 style={{ color: '#8B899A', fontSize: 16, marginBottom: 10 }}>Топ богачей</h3>
+        {app.players.map((p: any, i: number) => (
+          <div key={p.id} style={{ backgroundColor: '#161324', padding: '12px 15px', borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#F97316' : i === 1 ? '#C084FC' : i === 2 ? '#3b82f6' : '#8B899A' }}>#{i + 1}</span>
+              <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
+            </div>
+            <span style={{ color: '#10B981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{p.money.toLocaleString('ru-RU')} <Coins size={14} /></span>
           </div>
-          <span style={{ color: '#10B981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{p.money.toLocaleString('ru-RU')} <Coins size={14} /></span>
-        </div>
+        ))}
+      </div>
+
+      <h3 style={{ color: '#8B899A', fontSize: 16, marginBottom: 10 }}>{app.marketTab === 'items' ? 'Лоты (Предметы)' : app.marketTab === 'cars' ? 'Лоты (Авто)' : 'Лоты (Жилье)'}</h3>
+      {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).length === 0 && <p style={{ color: '#8B899A' }}>Пусто...</p>}
+      {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).map((item: any) => (
+        <MarketItem key={item.id} item={item} app={app} type={item.item_type} />
       ))}
     </div>
-    <h3 style={{ color: '#8B899A', fontSize: 16, marginBottom: 10 }}>{app.marketTab === 'items' ? 'Лоты (Предметы)' : app.marketTab === 'cars' ? 'Лоты (Авто)' : 'Лоты (Жилье)'}</h3>
-    {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).length === 0 && <p style={{ color: '#8B899A' }}>Пусто...</p>}
-    {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).map((item: any) => (
-      <MarketItem key={item.id} item={item} app={app} type={item.item_type} />
-    ))}
-  </div>
-);
+  );
+};
 
 export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   const bizTypes = ['coffee', 'salon', 'taxi', 'phone_factory', 'construction'];

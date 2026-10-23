@@ -1,13 +1,15 @@
 export const BOT_USERNAME = "zhituha_bot"; 
 export const CHANNEL_LINK = "https://t.me/zhituha_news";
-export const PHONE_PRICE = 2000, WORKER_SALARY = 300, COFFEE_CUP_PRICE = 500;
+export const PHONE_PRICE = 2000, WORKER_SALARY = 600, COFFEE_CUP_PRICE = 500;
+export const JOB_WORK = 150; // Подработка
 export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 5000;
 
 export const BASE_MAX_ENERGY = 100;
 export const HOUSE_MAX_ENERGY = 150;
-export const BASE_REST_TIME = 90000;
-export const LADA_REST_TIME = 70000;
-export const TOYOTA_REST_TIME = 50000;
+export const REST_CD = 1200000; // 20 минут (полная за 20 мин по 5/мин)
+export const BASE_REST_TIME = REST_CD; // Время отдыха
+export const LADA_REST_TIME = 1000000; 
+export const TOYOTA_REST_TIME = 800000;
 
 export const LADA_PRICE = 20000, LADA_TIME = 30000;
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 120000;
@@ -17,20 +19,22 @@ export const BUILDING_PRICE = 500000, BUILDING_TIME = 900000, APARTMENTS_PER_BUI
 export const COFFEE_BIZ_PRICE = 15000;
 export const SALON_BIZ_PRICE = 150000;
 export const TAXI_BIZ_PRICE = 300000;
-export const PHONE_FACTORY_BIZ_PRICE = 400000;
+export const PHONE_FACTORY_BIZ_PRICE = 300000; // Цех теперь 300к
 export const CONSTRUCTION_BIZ_PRICE = 500000;
 
 // ТЕЛЕФОННЫЙ ЦЕХ
 export const BUTTON_BATCH_SIZE = 10;
 export const BUTTON_BATCH_COST = 5000;
-export const BUTTON_BATCH_TIME = 180000; // 3 минуты
+export const BUTTON_BATCH_TIME = 180000;
 
 export const SMARTPHONE_BATCH_SIZE = 5;
 export const SMARTPHONE_BATCH_COST = 25000;
-export const SMARTPHONE_BATCH_TIME = 600000; // 10 минут
+export const SMARTPHONE_BATCH_TIME = 600000;
 
-export const TAXI_LADA_INCOME = 500;
+// ТАКСОПАРК (Пассив 2500 в час, Лада 1000, Тойота 1500)
+export const TAXI_LADA_INCOME = 1000;
 export const TAXI_TOYOTA_INCOME = 1500;
+export const TAXI_MAX_OFFLINE_HOURS = 8;
 export const TAXI_REPAIR_LADA = 3000;
 export const TAXI_REPAIR_TOYOTA = 10000;
 
@@ -58,6 +62,28 @@ export const getAvatar = (id: number) => AVATARS.find(a => a.id === id) || AVATA
 export const getStock = (biz: any) => {
   if (!biz || !biz.stock) return {};
   try { return typeof biz.stock === 'string' ? JSON.parse(biz.stock) : biz.stock; } catch (e) { return {}; }
+};
+
+// МОДИФИКАТОРЫ ДНЯ
+export const DAY_MODIFIERS = [
+  { id: 1, name: "День студентов", desc: "Смена в кафе x2", type: "shift", mult: 2, color: "#10b981" },
+  { id: 2, name: "Час пик", desc: "Таксопарк x2", type: "taxi", mult: 2, color: "#3b82f6" },
+  { id: 3, name: "Хайп на телефоны", desc: "Продажа телефонов +30%", type: "phone_sell", mult: 1.3, color: "#8b5cf6" },
+  { id: 4, name: "Автошоу", desc: "Продажа машин +30%", type: "car_sell", mult: 1.3, color: "#f97316" },
+  { id: 5, name: "Ажиотаж", desc: "Слоты рынка +2", type: "market_slots", mult: 2, color: "#ec4899" },
+  { id: 6, name: "Кофейный бум", desc: "Кофе дает +30% энергии", type: "coffee_energy", mult: 1.3, color: "#f59e0b" },
+  { id: 7, name: "День друзей", desc: "Реферальные бонусы x2", type: "ref", mult: 2, color: "#ef4444" },
+  { id: 8, name: "Стройка века", desc: "Стройтрест x1.5", type: "build", mult: 1.5, color: "#d97706" },
+  { id: 9, name: "Тихий день", desc: "Работа x1.5, но Смена x0.5", type: "work", mult: 1.5, color: "#6b7280" },
+  { id: 10, name: "Госзаказ", desc: "Цех и Автосалон x1.5", type: "factory", mult: 1.5, color: "#0ea5e9" },
+];
+
+export const getDayModifier = () => {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  let hash = 0;
+  for (let i = 0; i < today.length; i++) hash = today.charCodeAt(i) + ((hash << 5) - hash);
+  const index = Math.abs(hash) % DAY_MODIFIERS.length;
+  return DAY_MODIFIERS[index];
 };
 
 export const S = {
