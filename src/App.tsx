@@ -226,7 +226,7 @@ export default function App() {
     }
   }, [tab]);
 
-  // ИСПРАВЛЕННЫЙ ТАЙМЕР (теперь он делает свежий запрос к БД при завершении)
+  // ТАЙМЕРЫ (Доставка авто и постройка)
   useEffect(() => {
     const int = setInterval(() => {
       const now = Date.now();
@@ -245,21 +245,25 @@ export default function App() {
         }
       }
       
+      // Доставка авто
       if (carOrderEnd > 0) {
         const r = Math.max(0, Math.ceil((carOrderEnd - now) / 1000));
         setCarTimeLeft(r);
         if (r === 0) {
-          setCarOrderEnd(0); // Мгновенно убираем таймер, чтобы не сработал дважды
+          setCarOrderEnd(0); // Убираем таймер
           const salon = myBizs.find(b => b.biz_type === 'salon');
           if (salon) {
             supabase.from('businesses').select('stock').eq('id', salon.id).single().then(({ data }) => {
               if (data) {
-                const currentStock = data.stock || {};
+                let currentStock = {};
+                try { currentStock = typeof data.stock === 'string' ? JSON.parse(data.stock) : (data.stock || {}); } catch(e) {}
                 const model = currentStock.current_model || 'lada';
                 const newStock = { ...currentStock, [model]: (currentStock[model] || 0) + 1, current_model: 'none' };
-                supabase.from('businesses').update({ car_order_end: 0, stock: newStock }).eq('id', salon.id).then(() => {
-                  showMsg(`Машина приехала на склад!`); hapticFeedback('heavy');
-                  loadData(true);
+                supabase.from('businesses').update({ car_order_end: 0, stock: newStock }).eq('id', salon.id).then(({ error }) => {
+                  if (!error) {
+                    showMsg(`Машина приехала на склад!`); hapticFeedback('heavy');
+                    loadData(true);
+                  }
                 });
               }
             });
@@ -267,6 +271,7 @@ export default function App() {
         }
       } else { setCarTimeLeft(0); }
 
+      // Стройка
       if (buildEnd > 0) {
         const r = Math.max(0, Math.ceil((buildEnd - now) / 1000));
         setBuildTimeLeft(r);
@@ -276,11 +281,14 @@ export default function App() {
           if (constr) {
             supabase.from('businesses').select('stock').eq('id', constr.id).single().then(({ data }) => {
               if (data) {
-                const currentStock = data.stock || {};
+                let currentStock = {};
+                try { currentStock = typeof data.stock === 'string' ? JSON.parse(data.stock) : (data.stock || {}); } catch(e) {}
                 const newStock = { ...currentStock, apartments: (currentStock.apartments || 0) + 3 };
-                supabase.from('businesses').update({ build_end: 0, stock: newStock }).eq('id', constr.id).then(() => {
-                  showMsg("Дом построен! 3 квартиры на складе."); hapticFeedback('heavy');
-                  loadData(true);
+                supabase.from('businesses').update({ build_end: 0, stock: newStock }).eq('id', constr.id).then(({ error }) => {
+                  if (!error) {
+                    showMsg("Дом построен! 3 квартиры на складе."); hapticFeedback('heavy');
+                    loadData(true);
+                  }
                 });
               }
             });
@@ -324,7 +332,7 @@ export default function App() {
     if (refBy) showMsg("Бонус +1000 монет за приглашение!");
   });
 
-  // ИСПРАВЛЕНО: Локальное обновление стейта (setMyBizs), чтобы UI сразу видел изменения
+  // ИСПРАВЛЕННЫЙ ЗАКАЗ АВТО (Сначала пишем в БД, потом списываем бабки)
   const orderCar = (model: 'lada' | 'toyota') => action(async () => {
     const salon = myBizs.find(b => b.biz_type === 'salon');
     if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едет машина!", true);
@@ -334,30 +342,54 @@ export default function App() {
     if (money < price) return showMsg("Мало денег!", true);
     
     const nM = money - price;
-    setMoney(nM); await sync({ money: nM });
-    
     const end = Date.now() + time;
-    setCarOrderEnd(end); 
     
-    const newStock = { ...(salon.stock || {}), current_model: model };
-    await supabase.from('businesses').update({ car_order_end: end, stock: newStock }).eq('id', salon.id);
-    
+    let safeStock = {};
+    try { safeStock = typeof salon.stock === 'string' ? JSON.parse(salon.stock) : (salon.stock || {}); } catch(e) {}
+    const newStock = { ...safeStock, current_model: model };
+
+    // 1. Сохраняем таймер в БД
+    const { error: bizError } = await supabase.from('businesses').update({ car_order_end: end, stock: newStock }).eq('id', salon.id);
+    if (bizError) throw new Error("Ошибка автосалона: " + bizError.message);
+
+    // 2. Списываем деньги в БД
+    const { error: moneyError } = await supabase.from('players').update({ money: nM }).eq('id', pid);
+    if (moneyError) {
+      // Откатываем таймер, если бабок не хватило
+      await supabase.from('businesses').update({ car_order_end: salon.car_order_end || 0, stock: salon.stock }).eq('id', salon.id);
+      throw new Error("Ошибка списания: " + moneyError.message);
+    }
+
+    // 3. Обновляем экран
+    setMoney(nM);
+    setCarOrderEnd(end);
     setMyBizs(prev => prev.map(b => b.id === salon.id ? { ...b, car_order_end: end, stock: newStock } : b));
     showMsg(`Заказ на ${model === 'lada' ? 'Ладу' : 'Тойоту'} оформлен!`); hapticFeedback('heavy');
   });
 
+  // ИСПРАВЛЕННАЯ СТРОЙКА (Сначала пишем в БД, потом списываем бабки)
   const startBuild = () => action(async () => {
     const constr = myBizs.find(b => b.biz_type === 'construction');
     if (!constr || buildEnd > 0) return showMsg("Стройка уже идет!", true);
     if (money < BUILDING_PRICE) return showMsg("Мало денег!", true);
     
     const nM = money - BUILDING_PRICE;
-    setMoney(nM); await sync({ money: nM });
-    
     const end = Date.now() + BUILDING_TIME;
-    setBuildEnd(end); 
-    
-    await supabase.from('businesses').update({ build_end: end }).eq('id', constr.id);
+
+    // 1. Сохраняем таймер в БД
+    const { error: bizError } = await supabase.from('businesses').update({ build_end: end }).eq('id', constr.id);
+    if (bizError) throw new Error("Ошибка стройки: " + bizError.message);
+
+    // 2. Списываем деньги в БД
+    const { error: moneyError } = await supabase.from('players').update({ money: nM }).eq('id', pid);
+    if (moneyError) {
+      await supabase.from('businesses').update({ build_end: 0 }).eq('id', constr.id);
+      throw new Error("Ошибка денег: " + moneyError.message);
+    }
+
+    // 3. Обновляем экран
+    setMoney(nM);
+    setBuildEnd(end);
     setMyBizs(prev => prev.map(b => b.id === constr.id ? { ...b, build_end: end } : b));
     showMsg("Стройка дома началась!"); hapticFeedback('heavy');
   });
@@ -465,7 +497,8 @@ export default function App() {
     if (isNaN(p) || p <= 0) return;
 
     const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
-    const currentStock = activeBiz?.stock || {};
+    let currentStock = {};
+    try { currentStock = activeBiz && typeof activeBiz.stock === 'string' ? JSON.parse(activeBiz.stock) : (activeBiz?.stock || {}); } catch(e) {}
 
     if (sellItemType === 'phone' && !phone) return;
     if (sellItemType === 'car' && !hasCar && !(sellItemData === 'lada' && currentStock.lada > 0) && !(sellItemData === 'toyota' && currentStock.toyota > 0)) return;
@@ -567,7 +600,8 @@ export default function App() {
 
   const av = getAvatar(avatarId);
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
-  const currentStock = activeBiz?.stock || {};
+  let currentStock = {};
+  try { currentStock = activeBiz && typeof activeBiz.stock === 'string' ? JSON.parse(activeBiz.stock) : (activeBiz?.stock || {}); } catch(e) {}
 
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
   if (isCheckingSub) return <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
