@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-
 import { Send, Lock, Settings, Trash2, Coins, UserPlus, Gift, Coffee, Smartphone, CheckCircle2, Backpack, Car, Building, Briefcase, Store } from 'lucide-react';
 import { 
   BOT_USERNAME, CHANNEL_LINK, PHONE_PRICE, WORKER_SALARY, COFFEE_CUP_PRICE, ADMIN_CODE, 
@@ -168,8 +167,12 @@ export default function App() {
             }
           }
           
+          // ИСПРАВЛЕНО: Сразу высчитываем tLeft, чтобы кнопка не горела при загрузке
           const last = Number(data.last_rest_time) || 0;
-          setRestEnd(last + (data.car_model === 'toyota' ? TOYOTA_REST_TIME : data.car_model === 'lada' ? LADA_REST_TIME : BASE_REST_TIME) > Date.now() ? last + (data.car_model === 'toyota' ? TOYOTA_REST_TIME : data.car_model === 'lada' ? LADA_REST_TIME : BASE_REST_TIME) : 0);
+          const cRestTime = data.car_model === 'toyota' ? TOYOTA_REST_TIME : data.car_model === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
+          const end = last + cRestTime > Date.now() ? last + cRestTime : 0;
+          setRestEnd(end);
+          if (end > 0) setTLeft(Math.max(0, Math.ceil((end - Date.now()) / 1000)));
 
           const savedBrew = localStorage.getItem('zhituha_brew_end');
           if (savedBrew) {
@@ -335,6 +338,7 @@ export default function App() {
     showMsg(`Машина добавлена в таксопарк!`); loadData(true);
   });
 
+  // ИСПРАВЛЕНО: Мгновенное обновление локального стейта после сбора такси
   const collectTaxi = () => action(async () => {
     const taxi = myBizs.find(b => b.biz_type === 'taxi');
     if (!taxi) return;
@@ -357,9 +361,14 @@ export default function App() {
     if (totalIncome === 0) return showMsg("Еще рано собирать доход", true);
     
     const nM = money + totalIncome;
-    setMoney(nM); await sync({ money: nM });
+    setMoney(nM);
+    
+    // Локальное обновление склада
+    setMyBizs(prev => prev.map(b => b.id === taxi.id ? { ...b, stock: { ...currentStock, taxi_cars: updatedCars } } : b));
+    
+    await sync({ money: nM });
     await supabase.from('businesses').update({ stock: { ...currentStock, taxi_cars: updatedCars } }).eq('id', taxi.id);
-    showMsg(`Собрано ${totalIncome} монет!`); loadData(true);
+    showMsg(`Собрано ${totalIncome} монет!`); 
   });
 
   const repairTaxiCar = (index: number) => action(async () => {
@@ -498,12 +507,19 @@ export default function App() {
     showMsg("Кофе готовится..."); hapticFeedback('heavy');
   });
 
+  // ИСПРАВЛЕНО: Мгновенное обновление локального стейта после сбора кофейни
   const collect = () => action(async () => {
     const coffeeBiz = myBizs.find(b => b.biz_type === 'coffee');
     if (!coffeeBiz?.coffee_balance) return;
     const inc = coffeeBiz.coffee_balance, nM = money + inc;
-    setMoney(nM); await sync({ money: nM }); await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', coffeeBiz.id);
-    addReferralBonus(inc); showMsg(`Собрано ${inc}`); hapticFeedback('medium'); loadData(true);
+    setMoney(nM);
+    
+    // Локально обнуляем кассу, чтобы кнопка сразу заблокировалась
+    setMyBizs(prev => prev.map(b => b.id === coffeeBiz.id ? { ...b, coffee_balance: 0 } : b));
+    
+    await sync({ money: nM }); 
+    await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', coffeeBiz.id);
+    addReferralBonus(inc); showMsg(`Собрано ${inc}`); hapticFeedback('medium'); 
   });
 
   const hire = (bId: string) => action(async () => {
