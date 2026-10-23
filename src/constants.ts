@@ -6,10 +6,12 @@ export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 5000;
 
 export const BASE_MAX_ENERGY = 100;
 export const HOUSE_MAX_ENERGY = 150;
-export const REST_CD = 1200000; // 20 минут
+
+// НОРМАЛЬНЫЕ ТАЙМЕРЫ ОТДЫХА (В СЕКУНДАХ * 1000)
+export const REST_CD = 60000; // 60 секунд
 export const BASE_REST_TIME = REST_CD; 
-export const LADA_REST_TIME = 1000000; 
-export const TOYOTA_REST_TIME = 800000;
+export const LADA_REST_TIME = 50000; // 50 секунд
+export const TOYOTA_REST_TIME = 40000; // 40 секунд
 
 export const LADA_PRICE = 20000, LADA_TIME = 30000;
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 120000;
@@ -22,6 +24,7 @@ export const TAXI_BIZ_PRICE = 300000;
 export const PHONE_FACTORY_BIZ_PRICE = 300000;
 export const CONSTRUCTION_BIZ_PRICE = 500000;
 
+// ТЕЛЕФОННЫЙ ЦЕХ
 export const BUTTON_BATCH_SIZE = 10;
 export const BUTTON_BATCH_COST = 5000;
 export const BUTTON_BATCH_TIME = 180000;
@@ -30,6 +33,7 @@ export const SMARTPHONE_BATCH_SIZE = 5;
 export const SMARTPHONE_BATCH_COST = 25000;
 export const SMARTPHONE_BATCH_TIME = 600000;
 
+// ТАКСОПАРК
 export const TAXI_LADA_INCOME = 1000;
 export const TAXI_TOYOTA_INCOME = 1500;
 export const TAXI_MAX_OFFLINE_HOURS = 8;
@@ -81,7 +85,7 @@ export const getDayModifier = () => {
     let hash = 0;
     for (let i = 0; i < today.length; i++) hash = today.charCodeAt(i) + ((hash << 5) - hash);
     const index = Math.abs(hash) % DAY_MODIFIERS.length;
-    return DAY_MODIFIERS[index] || DAY_MODIFIERS[0]; // Защита от undefined
+    return DAY_MODIFIERS[index] || DAY_MODIFIERS[0]; 
   } catch (e) {
     return DAY_MODIFIERS[0];
   }
