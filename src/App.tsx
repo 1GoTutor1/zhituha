@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-import { Send, Lock, Settings, Trash2, Coins, UserPlus, Gift, Coffee, Smartphone, CheckCircle2, Backpack, Car, Building, Briefcase, Store } from 'lucide-react';
+import { Send, ShieldAlert, Coffee, Smartphone, CheckCircle2, Backpack, Car, Building, Briefcase } from 'lucide-react';
 import { 
-  BOT_USERNAME, CHANNEL_LINK, PHONE_PRICE, WORKER_SALARY, COFFEE_CUP_PRICE, ADMIN_CODE, 
+  BOT_USERNAME, CHANNEL_LINK, PHONE_PRICE, WORKER_SALARY, COFFEE_CUP_PRICE, 
   BREW_TIME, POLL, BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, 
   TOYOTA_REST_TIME, AVATARS, getStock, S, BUILDING_PRICE, BUILDING_TIME, APARTMENTS_PER_BUILD,
   TAXI_BIZ_PRICE, TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS,
   COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE
 } from './constants';
-import { Btn, Modal, Toast, BottomNav } from './components';
-import { HomeTab, MarketTab, BusinessTab, DailyRewardModal } from './tabs';
+import { Btn, Toast, BottomNav } from './components';
+import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals } from './tabs';
 
 export default function App() {
   const { user, hapticFeedback, tg, startParam } = useTelegram();
@@ -21,13 +21,15 @@ export default function App() {
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
   const [toast, setToast] = useState<{ msg: string, err: boolean } | null>(null);
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe'>('home');
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'admin'>('home');
 
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [selG, setSelG] = useState<'male' | 'female' | null>(null);
   const [avatarId, setAvatarId] = useState(1);
+  const [role, setRole] = useState('player');
+  const [isBanned, setIsBanned] = useState(false);
   
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
@@ -67,13 +69,14 @@ export default function App() {
   const [allBiz, setAllBiz] = useState<any[]>([]);
   const [selCafe, setSelCafe] = useState<any>(null);
   const [boardOpen, setBoardOpen] = useState(false);
+  const [adminTab, setAdminTab] = useState<'players' | 'promos'>('players');
   
   const [, setClicks] = useState(0);
   const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   
-  const [authOpen, setAuthOpen] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [adminCode, setAdminCode] = useState('');
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoInput, setPromoInput] = useState('');
+  
   const [sellOpen, setSellOpen] = useState(false);
   const [sellPrice, setSellPrice] = useState('2000');
   const [sellItemType, setSellItemType] = useState<'phone' | 'car' | 'house'>('phone');
@@ -147,7 +150,10 @@ export default function App() {
         ]);
         if (pRes.data) {
           const data = pRes.data;
+          if (data.is_banned) { setIsBanned(true); setLoading(false); return; }
+          
           setPid(data.id); setNick(data.nickname); setGender(data.gender); setAvatarId(data.avatar_id || 1);
+          setRole(data.role || 'player');
           setMoney(Number(data.money)); setEnergy(Number(data.energy)); setPhone(Number(data.phone_count) > 0);
           setHasCar(data.has_car || false); setCarModel(data.car_model || 'none');
           setHasHouse(data.has_house || false); setHouseType(data.house_type || 'none');
@@ -167,7 +173,6 @@ export default function App() {
             }
           }
           
-          // ИСПРАВЛЕНО: Сразу высчитываем tLeft, чтобы кнопка не горела при загрузке
           const last = Number(data.last_rest_time) || 0;
           const cRestTime = data.car_model === 'toyota' ? TOYOTA_REST_TIME : data.car_model === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
           const end = last + cRestTime > Date.now() ? last + cRestTime : 0;
@@ -214,6 +219,7 @@ export default function App() {
     }
   }, [tab]);
 
+  // ТАЙМЕРЫ
   useEffect(() => {
     const int = setInterval(() => {
       const now = Date.now();
@@ -276,7 +282,7 @@ export default function App() {
     if (!final.trim() || !selG) return showMsg("Заполни поля!", true);
     let refBy = null;
     if (startParam) { refBy = startParam.startsWith('ref_') ? startParam.split('_')[1] : startParam; if (refBy === getUid()) refBy = null; }
-    let { data, error } = await supabase.from('players').insert([{ telegram_id: getUid(), nickname: final, gender: selG, avatar_id: avatarId, money: refBy ? 4500 : 3500, energy: 80, phone_count: 0, has_car: false, has_house: false, last_rest_time: 0, referred_by: refBy, is_subscribed: true }]).select().single();
+    let { data, error } = await supabase.from('players').insert([{ telegram_id: getUid(), nickname: final, gender: selG, avatar_id: avatarId, money: refBy ? 4500 : 3500, energy: 80, phone_count: 0, has_car: false, has_house: false, last_rest_time: 0, referred_by: refBy, is_subscribed: true, role: 'player' }]).select().single();
     if (error) throw error;
     if (refBy && data) {
       const { data: rUser } = await supabase.from('players').select('money').eq('telegram_id', refBy).single();
@@ -338,7 +344,6 @@ export default function App() {
     showMsg(`Машина добавлена в таксопарк!`); loadData(true);
   });
 
-  // ИСПРАВЛЕНО: Мгновенное обновление локального стейта после сбора такси
   const collectTaxi = () => action(async () => {
     const taxi = myBizs.find(b => b.biz_type === 'taxi');
     if (!taxi) return;
@@ -362,8 +367,6 @@ export default function App() {
     
     const nM = money + totalIncome;
     setMoney(nM);
-    
-    // Локальное обновление склада
     setMyBizs(prev => prev.map(b => b.id === taxi.id ? { ...b, stock: { ...currentStock, taxi_cars: updatedCars } } : b));
     
     await sync({ money: nM });
@@ -507,16 +510,12 @@ export default function App() {
     showMsg("Кофе готовится..."); hapticFeedback('heavy');
   });
 
-  // ИСПРАВЛЕНО: Мгновенное обновление локального стейта после сбора кофейни
   const collect = () => action(async () => {
     const coffeeBiz = myBizs.find(b => b.biz_type === 'coffee');
     if (!coffeeBiz?.coffee_balance) return;
     const inc = coffeeBiz.coffee_balance, nM = money + inc;
     setMoney(nM);
-    
-    // Локально обнуляем кассу, чтобы кнопка сразу заблокировалась
     setMyBizs(prev => prev.map(b => b.id === coffeeBiz.id ? { ...b, coffee_balance: 0 } : b));
-    
     await sync({ money: nM }); 
     await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', coffeeBiz.id);
     addReferralBonus(inc); showMsg(`Собрано ${inc}`); hapticFeedback('medium'); 
@@ -614,33 +613,57 @@ export default function App() {
   });
 
   const handleAvatar = () => {
-    setClicks(c => { if (c + 1 >= 5) { setAuthOpen(true); setAdminCode(''); hapticFeedback('heavy'); return 0; } return c + 1; });
+    if (role === 'superadmin' || role === 'admin') {
+      setTab('admin'); hapticFeedback('heavy'); return;
+    }
+    
+    setClicks(c => { 
+      if (c + 1 >= 5) { 
+        if (role === 'superadmin' || role === 'admin') setTab('admin');
+        else showMsg("Вы не админ", true);
+        return 0; 
+      } 
+      return c + 1; 
+    });
     if (clickTimeout.current) clearTimeout(clickTimeout.current);
     clickTimeout.current = setTimeout(() => setClicks(0), 2000);
   };
-  const checkAuth = () => { if (adminCode === ADMIN_CODE) { setAuthOpen(false); setAdminOpen(true); } else showMsg("Неверный код!", true); };
-  const adminMoney = () => action(async () => { setAdminOpen(false); showMsg("+100 000"); setMoney(m => m + 100000); await sync({ money: money + 100000 }); });
-  const adminReset = async () => {
-    if (!window.confirm("Удалить ВСЕХ?")) return; setLoading(true);
-    await supabase.from('market_items').delete().gte('created_at', '2000-01-01');
-    await supabase.from('businesses').delete().gte('created_at', '2000-01-01');
-    await supabase.from('players').delete().gte('created_at', '2000-01-01');
-    localStorage.removeItem('zhituha_id'); window.location.reload();
-  };
+
+  const redeemPromo = () => action(async () => {
+    if (!promoInput) return;
+    const { data, error } = await supabase.rpc('redeem_promo', { p_code: promoInput.toUpperCase(), p_player_id: pid });
+    if (error) throw error;
+    if (data && data.error) throw new Error(data.error);
+    
+    setMoney(m => m + data.amount);
+    showMsg(`+${data.amount} монет!`);
+    setPromoOpen(false);
+    setPromoInput('');
+  });
 
   const app = {
-    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, marketTab, setMarketTab, players, market, job, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, authOpen, setAuthOpen, adminOpen, setAdminOpen, adminCode, setAdminCode, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime,
+    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, marketTab, setMarketTab, players, market, job, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, 
+    sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime,
     isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName,
-    action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, checkAuth, adminMoney, adminReset, verifySubscription, selectGender, reg,
+    promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg,
+    action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, verifySubscription, selectGender, reg,
     cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar
   };
 
-  const bgColors: Record<string, string> = { home: '#16161a', jobs: '#16161a', market: '#16161a', cafe: '#16161a', shop: '#16161a', inventory: '#16161a' };
+  const bgColors: Record<string, string> = { home: '#16161a', jobs: '#16161a', market: '#16161a', cafe: '#16161a', shop: '#16161a', inventory: '#16161a', admin: '#16161a' };
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
   const currentStock = getStock(activeBiz);
 
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '90px' }}>Загрузка...</div>;
   if (isCheckingSub) return <div style={{ padding: '90px 20px 50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
+
+  if (isBanned) return (
+    <div style={{ padding: '90px 20px 50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <ShieldAlert size={80} color="#ef4444" style={{ marginBottom: 20 }} />
+      <h1 style={{ marginBottom: 10 }}>Вы забанены!</h1>
+      <p style={{ color: '#8B899A', maxWidth: '300px' }}>Администрация заблокировала ваш аккаунт. Если вы считаете это ошибкой — напишите в поддержку.</p>
+    </div>
+  );
 
   if (user && !isSubscribed) return (
     <div style={{ padding: '90px 20px 50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -674,49 +697,7 @@ export default function App() {
     <div style={{ padding: '90px 20px 90px 20px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: bgColors[tab] || '#16161a', color: 'white', transition: 'background 0.5s ease' }}>
       <Toast toast={toast} />
       <DailyRewardModal app={app} />
-
-      <Modal open={refOpen} onClose={() => setRefOpen(false)}>
-        <Gift size={40} color="#ec4899" style={{ marginBottom: 15 }} /><h3 style={{ marginTop: 0, fontSize: 20 }}>Рефералка</h3>
-        <Btn variant="purple" onClick={inviteFriend} style={{ background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', marginBottom: 15, padding: 12 }}><UserPlus size={20} /> Пригласить друга</Btn>
-        <p style={{ color: '#8B899A', fontSize: 14, marginBottom: 10 }}>Приглашено друзей: <b>{myRefs.length}</b></p>
-        <div style={{ background: 'rgba(236, 72, 153, 0.1)', padding: 15, borderRadius: 16, marginBottom: 15, border: '1px solid rgba(236, 72, 153, 0.2)' }}><p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#ec4899' }}>Накоплено 5% с доходов:</p><p style={{ margin: 0, fontSize: 24, color: '#ec4899', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>{refBalance} <Coins size={18} style={{ display: 'inline' }} /></p></div>
-        <Btn variant="primary" onClick={collectRefBonus} disabled={proc || refBalance <= 0} style={{ background: refBalance > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#333', marginBottom: 10 }}>Собрать 5%</Btn>
-        <Btn variant="secondary" onClick={() => setRefOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Закрыть</Btn>
-      </Modal>
-
-      <Modal open={quitOpen} onClose={() => setQuitOpen(false)}>
-        <h3 style={{ marginTop: 0, fontSize: 20 }}>Увольнение</h3><p style={{ color: '#8B899A', fontSize: 15, marginBottom: 20 }}>Ты уверен?</p>
-        <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => setQuitOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn><Btn variant="danger" onClick={quit} disabled={proc}>Уволиться</Btn></div>
-      </Modal>
-
-      <Modal open={authOpen} onClose={() => setAuthOpen(false)}>
-        <Lock size={40} color="#f59e0b" style={{ marginBottom: 15 }} /><h3>Код</h3>
-        <input type="password" value={adminCode} onChange={(e: any) => setAdminCode(e.target.value)} style={S.input} />
-        <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => setAuthOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn><Btn variant="yellow" onClick={checkAuth}>Войти</Btn></div>
-      </Modal>
-
-      <Modal open={adminOpen} onClose={() => setAdminOpen(false)}>
-        <div style={{ border: '1px solid #ef4444', padding: 10, borderRadius: 16 }}>
-          <h3 style={{ color: '#ef4444', display: 'flex', justifyContent: 'center', gap: 10 }}><Settings size={24} /> ADMIN</h3>
-          <Btn variant="yellow" onClick={adminMoney} style={{ marginBottom: 10 }}><Coins size={20} /> +100 000</Btn>
-          <Btn variant="danger" onClick={adminReset} style={{ marginBottom: 15 }}><Trash2 size={20} /> Сброс</Btn>
-          <Btn variant="secondary" onClick={() => setAdminOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Закрыть</Btn>
-        </div>
-      </Modal>
-
-      <Modal open={sellOpen} onClose={() => setSellOpen(false)}>
-        <h3>Продажа {sellItemType === 'phone' ? 'телефона' : sellItemType === 'car' ? 'машины' : 'квартиры'}</h3>
-        <input type="number" value={sellPrice} onChange={(e: any) => setSellPrice(e.target.value)} style={S.input} />
-        <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => setSellOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn><Btn variant="purple" onClick={listItem}>Выставить</Btn></div>
-      </Modal>
-
-      <Modal open={buyingType !== null} onClose={() => setBuyingType(null)}>
-        <Store size={40} color="#C084FC" style={{ marginBottom: 15 }} />
-        <h3>Название бизнеса</h3>
-        <p style={{ color: '#8B899A', fontSize: 13, marginBottom: 15 }}>Только английские буквы и цифры</p>
-        <input type="text" value={bizNameInput} onChange={e => setBizNameInput(e.target.value)} placeholder="Speed Motors" style={S.input} />
-        <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => setBuyingType(null)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn><Btn variant="purple" onClick={submitBizName}>Купить</Btn></div>
-      </Modal>
+      <AppModals app={app} />
 
       {tab === 'home' && <HomeTab app={app} />}
       
@@ -745,6 +726,7 @@ export default function App() {
       )}
 
       {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}
+      {tab === 'admin' && <AdminTab app={app} />}
 
       {tab === 'jobs' && (
         <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Работа</h2>
@@ -768,7 +750,7 @@ export default function App() {
         </div>
       )}
 
-      <BottomNav app={app} />
+      {tab !== 'admin' && <BottomNav app={app} />}
     </div>
   );
 }
