@@ -12,17 +12,25 @@ export const TOYOTA_REST_TIME = 50000;
 export const LADA_PRICE = 20000, LADA_TIME = 30000;
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 120000;
 
-export const BUILDING_PRICE = 300000, BUILDING_TIME = 900000, APARTMENTS_PER_BUILD = 10;
+export const BUILDING_PRICE = 500000, BUILDING_TIME = 900000, APARTMENTS_PER_BUILD = 10;
 
-// ЦЕНЫ НА БИЗНЕСЫ ПО ГРАДАЦИИ
 export const COFFEE_BIZ_PRICE = 15000;
 export const SALON_BIZ_PRICE = 150000;
 export const TAXI_BIZ_PRICE = 300000;
+export const PHONE_FACTORY_BIZ_PRICE = 400000;
 export const CONSTRUCTION_BIZ_PRICE = 500000;
 
-// Таксопарк
-export const TAXI_LADA_INCOME = 500; // в час
-export const TAXI_TOYOTA_INCOME = 1500; // в час
+// ТЕЛЕФОННЫЙ ЦЕХ
+export const BUTTON_BATCH_SIZE = 10;
+export const BUTTON_BATCH_COST = 5000;
+export const BUTTON_BATCH_TIME = 180000; // 3 минуты
+
+export const SMARTPHONE_BATCH_SIZE = 5;
+export const SMARTPHONE_BATCH_COST = 25000;
+export const SMARTPHONE_BATCH_TIME = 600000; // 10 минут
+
+export const TAXI_LADA_INCOME = 500;
+export const TAXI_TOYOTA_INCOME = 1500;
 export const TAXI_REPAIR_LADA = 3000;
 export const TAXI_REPAIR_TOYOTA = 10000;
 

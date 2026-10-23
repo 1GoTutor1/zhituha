@@ -7,7 +7,8 @@ import {
   BREW_TIME, POLL, BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, 
   TOYOTA_REST_TIME, AVATARS, getStock, S, BUILDING_PRICE, BUILDING_TIME, APARTMENTS_PER_BUILD,
   TAXI_BIZ_PRICE, TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS,
-  COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE
+  COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE,
+  PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, BUTTON_BATCH_COST, BUTTON_BATCH_TIME, SMARTPHONE_BATCH_SIZE, SMARTPHONE_BATCH_COST, SMARTPHONE_BATCH_TIME
 } from './constants';
 import { Btn, Toast, BottomNav } from './components';
 import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals } from './tabs';
@@ -52,7 +53,7 @@ export default function App() {
   const [bLeft, setBLeft] = useState(0);
 
   const [myBizs, setMyBizs] = useState<any[]>([]);
-  const [activeBizType, setActiveBizType] = useState<'coffee' | 'salon' | 'construction' | 'taxi'>('coffee');
+  const [activeBizType, setActiveBizType] = useState<'coffee' | 'salon' | 'construction' | 'taxi' | 'phone_factory'>('coffee');
   
   const [buyingType, setBuyingType] = useState<string | null>(null);
   const [bizNameInput, setBizNameInput] = useState('');
@@ -61,6 +62,9 @@ export default function App() {
   const [carTimeLeft, setCarTimeLeft] = useState(0);
   const [buildEnd, setBuildEnd] = useState(0);
   const [buildTimeLeft, setBuildTimeLeft] = useState(0);
+  const [phoneProdEnd, setPhoneProdEnd] = useState(0);
+  const [phoneProdTimeLeft, setPhoneProdTimeLeft] = useState(0);
+  
   const [marketTab, setMarketTab] = useState<'items' | 'cars' | 'realestate'>('items');
 
   const [players, setPlayers] = useState<any[]>([]);
@@ -194,6 +198,8 @@ export default function App() {
             if (salon) setCarOrderEnd(Number(salon.car_order_end) || 0);
             const constr = myBs.find((x: any) => x.biz_type === 'construction');
             if (constr) setBuildEnd(Number(constr.build_end) || 0);
+            const factory = myBs.find((x: any) => x.biz_type === 'phone_factory');
+            if (factory) setPhoneProdEnd(Number(factory.build_end) || 0);
           }
         } else if (user?.first_name) setInNick(user.first_name);
       }
@@ -271,9 +277,31 @@ export default function App() {
           }
         }
       } else { setBuildTimeLeft(0); }
+
+      if (phoneProdEnd > 0) {
+        const r = Math.max(0, Math.ceil((phoneProdEnd - now) / 1000)); setPhoneProdTimeLeft(r);
+        if (r === 0) {
+          setPhoneProdEnd(0);
+          const factory = myBizs.find(b => b.biz_type === 'phone_factory');
+          if (factory) {
+            supabase.from('businesses').select('stock').eq('id', factory.id).single().then(({ data }) => {
+              if (data) {
+                const currentStock = getStock(data);
+                const model = currentStock.current_phone_model || 'button';
+                const amount = model === 'button' ? BUTTON_BATCH_SIZE : SMARTPHONE_BATCH_SIZE;
+                const newStock = { ...currentStock, [model]: (currentStock[model] || 0) + amount, current_phone_model: 'none' };
+                supabase.from('businesses').update({ build_end: 0, stock: newStock }).eq('id', factory.id).then(({ error }) => {
+                  if (!error) { showMsg(`Партия готова!`); hapticFeedback('heavy'); loadData(true); }
+                });
+              }
+            });
+          }
+        }
+      } else { setPhoneProdTimeLeft(0); }
+
     }, 1000);
     return () => clearInterval(int);
-  }, [restEnd, brewEnd, carOrderEnd, buildEnd, pid, myBizs, hasHouse]);
+  }, [restEnd, brewEnd, carOrderEnd, buildEnd, phoneProdEnd, pid, myBizs, hasHouse]);
 
   const selectGender = (g: 'male' | 'female') => { setSelG(g); setAvatarId(AVATARS.find(a => a.gender === g)?.id || 1); hapticFeedback('light'); };
   const reg = () => action(async () => {
@@ -391,12 +419,32 @@ export default function App() {
     showMsg("Машина отремонтирована!"); loadData(true);
   });
 
+  const orderPhones = (model: 'button' | 'smartphone') => action(async () => {
+    const factory = myBizs.find(b => b.biz_type === 'phone_factory');
+    if (!factory || phoneProdEnd > 0) return showMsg("Производство уже идет!", true);
+    
+    const price = model === 'button' ? BUTTON_BATCH_COST : SMARTPHONE_BATCH_COST;
+    const time = model === 'button' ? BUTTON_BATCH_TIME : SMARTPHONE_BATCH_TIME;
+    
+    if (money < price) return showMsg("Мало денег!", true);
+    
+    const nM = money - price;
+    setMoney(nM); await sync({ money: nM });
+    
+    const end = Date.now() + time;
+    setPhoneProdEnd(end);
+    
+    const currentStock = getStock(factory);
+    await supabase.from('businesses').update({ build_end: end, stock: { ...currentStock, current_phone_model: model } }).eq('id', factory.id);
+    showMsg(`Заказана партия: ${model === 'button' ? 'Кнопочные' : 'Смартфоны'}`); hapticFeedback('heavy');
+  });
+
   const submitBizName = () => action(async () => {
     if (!buyingType) return;
     const name = bizNameInput.trim();
     if (!/^[A-Za-z0-9 ]{3,20}$/.test(name)) return showMsg("Только англ. буквы и цифры (3-20 символов)", true);
     
-    const price = buyingType === 'coffee' ? COFFEE_BIZ_PRICE : buyingType === 'salon' ? SALON_BIZ_PRICE : buyingType === 'construction' ? CONSTRUCTION_BIZ_PRICE : TAXI_BIZ_PRICE;
+    const price = buyingType === 'coffee' ? COFFEE_BIZ_PRICE : buyingType === 'salon' ? SALON_BIZ_PRICE : buyingType === 'construction' ? CONSTRUCTION_BIZ_PRICE : buyingType === 'taxi' ? TAXI_BIZ_PRICE : PHONE_FACTORY_BIZ_PRICE;
     if (money < price) return showMsg("Не хватает денег", true);
     
     const { data, error } = await supabase.rpc('buy_business_rpc', { 
@@ -415,9 +463,9 @@ export default function App() {
   const sellBusiness = (biz: any) => action(async () => {
     if (!window.confirm("Продать бизнес за 50% от стоимости?")) return;
     
-    await supabase.from('market_items').delete().eq('seller_id', pid).in('item_type', ['car', 'house']);
+    await supabase.from('market_items').delete().eq('seller_id', pid).in('item_type', ['car', 'house', 'phone']);
     
-    const refund = biz.biz_type === 'coffee' ? COFFEE_BIZ_PRICE/2 : biz.biz_type === 'salon' ? SALON_BIZ_PRICE/2 : biz.biz_type === 'construction' ? CONSTRUCTION_BIZ_PRICE/2 : TAXI_BIZ_PRICE/2;
+    const refund = biz.biz_type === 'coffee' ? COFFEE_BIZ_PRICE/2 : biz.biz_type === 'salon' ? SALON_BIZ_PRICE/2 : biz.biz_type === 'construction' ? CONSTRUCTION_BIZ_PRICE/2 : biz.biz_type === 'taxi' ? TAXI_BIZ_PRICE/2 : PHONE_FACTORY_BIZ_PRICE/2;
     
     const nM = money + refund;
     setMoney(nM); await sync({ money: nM });
@@ -432,19 +480,25 @@ export default function App() {
     const { error } = await supabase.from('market_items').delete().eq('id', item.id);
     if (error) throw error;
     
-    if (item.item_type === 'phone') {
+    if (item.item_type === 'phone' && item.item_data === 'phone') {
       setPhone(true); await sync({ phone_count: 1 });
+    } else if (item.item_type === 'phone' && (item.item_data === 'button' || item.item_data === 'smartphone')) {
+      const factory = myBizs.find(b => b.biz_type === 'phone_factory');
+      if (factory) {
+        const currentStock: any = getStock(factory); // ИСПРАВЛЕНО: any
+        const newStock = { ...currentStock, [item.item_data]: (currentStock[item.item_data] || 0) + 1 };
+        await supabase.from('businesses').update({ stock: newStock }).eq('id', factory.id);
+        showMsg("Телефон возвращен на склад цеха!"); loadData(true);
+      }
     } else if (item.item_type === 'car' || item.item_type === 'house') {
       const bType = item.item_type === 'car' ? 'salon' : 'construction';
       const biz = myBizs.find(b => b.biz_type === bType);
       if (biz) {
-        const currentStock = getStock(biz);
+        const currentStock: any = getStock(biz); // ИСПРАВЛЕНО: any
         const key = item.item_type === 'car' ? item.item_data : 'apartments';
         const newStock = { ...currentStock, [key]: (currentStock[key] || 0) + 1 };
         await supabase.from('businesses').update({ stock: newStock }).eq('id', biz.id);
         showMsg("Товар возвращен на склад бизнеса!"); loadData(true);
-      } else {
-        showMsg("Ошибка: бизнес не найден, товар потерян", true);
       }
     }
   });
@@ -560,21 +614,35 @@ export default function App() {
     const p = Number(sellPrice); if (isNaN(p) || p <= 0) return;
     
     let bizName = nick;
-    
-    if (sellItemType === 'car' || sellItemType === 'house') {
-      const activeBiz = myBizs.find(b => b.biz_type === (sellItemType === 'car' ? 'salon' : 'construction'));
-      if (activeBiz) bizName = activeBiz.business_name;
-    }
+    let stockKey = '';
+    let currentStock: any = {}; // ИСПРАВЛЕНО: any
 
-    const currentStock = getStock(myBizs.find(b => b.biz_type === (sellItemType === 'car' ? 'salon' : 'construction')));
-    if (sellItemType === 'phone' && !phone) return;
-    if (sellItemType === 'car' && !hasCar && !(sellItemData === 'lada' && currentStock.lada > 0) && !(sellItemData === 'toyota' && currentStock.toyota > 0)) return;
-    if (sellItemType === 'house' && !(currentStock.apartments > 0)) return;
+    if (sellItemType === 'phone') {
+      if (sellItemData === 'button' || sellItemData === 'smartphone') {
+        const factory = myBizs.find(b => b.biz_type === 'phone_factory');
+        if (factory) { bizName = factory.business_name; currentStock = getStock(factory); stockKey = sellItemData; }
+        if (!currentStock[stockKey] || currentStock[stockKey] <= 0) return;
+      } else {
+        if (!phone) return;
+      }
+    } else if (sellItemType === 'car') {
+      const salon = myBizs.find(b => b.biz_type === 'salon');
+      if (salon) { bizName = salon.business_name; currentStock = getStock(salon); }
+      if (!hasCar && !(sellItemData === 'lada' && currentStock.lada > 0) && !(sellItemData === 'toyota' && currentStock.toyota > 0)) return;
+    } else if (sellItemType === 'house') {
+      const constr = myBizs.find(b => b.biz_type === 'construction');
+      if (constr) { bizName = constr.business_name; currentStock = getStock(constr); }
+      if (!(currentStock.apartments > 0)) return;
+    }
 
     const { error } = await supabase.from('market_items').insert([{ seller_id: pid, seller_name: bizName, item_type: sellItemType, item_data: sellItemData, price: p }]);
     if (error) throw error;
     
-    if (sellItemType === 'phone') { setPhone(false); await sync({ phone_count: 0 }); } 
+    if (sellItemType === 'phone' && sellItemData === 'phone') { setPhone(false); await sync({ phone_count: 0 }); } 
+    else if (sellItemType === 'phone') {
+      const factory = myBizs.find(b => b.biz_type === 'phone_factory');
+      if (factory) { const nS = { ...currentStock, [sellItemData]: currentStock[sellItemData] - 1 }; await supabase.from('businesses').update({ stock: nS }).eq('id', factory.id); setMyBizs(prev => prev.map(b => b.id === factory.id ? { ...b, stock: nS } : b)); }
+    }
     else if (sellItemType === 'car') {
       const activeBiz = myBizs.find(b => b.biz_type === 'salon');
       if (hasCar) { setHasCar(false); await sync({ has_car: false, car_model: 'none' }); setCarModel('none'); }
@@ -592,7 +660,7 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
     setMoney(m => m - item.price); 
-    if (item.item_type === 'phone') setPhone(true);
+    if (item.item_type === 'phone') { setPhone(true); await sync({ phone_count: 1 }); }
     if (item.item_type === 'car') { setHasCar(true); setCarModel(item.item_data); }
     if (item.item_type === 'house') { setHasHouse(true); setHouseType(item.item_data); }
     showMsg("Покупка успешна!"); hapticFeedback('heavy'); loadMarket();
@@ -641,12 +709,12 @@ export default function App() {
   });
 
   const app = {
-    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, marketTab, setMarketTab, players, market, job, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, 
+    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, market, job, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, 
     sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime,
     isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName,
     promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg,
     action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, verifySubscription, selectGender, reg,
-    cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, loadData // <-- ДОБАВИЛИ loadData ДЛЯ АДМИНКИ
+    cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData
   };
 
   const bgColors: Record<string, string> = { home: '#16161a', jobs: '#16161a', market: '#16161a', cafe: '#16161a', shop: '#16161a', inventory: '#16161a', admin: '#16161a' };
