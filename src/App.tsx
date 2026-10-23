@@ -40,7 +40,6 @@ export default function App() {
   const [refBalance, setRefBalance] = useState(0);
   const [myRefs, setMyRefs] = useState<any[]>([]);
   
-  // Дейлик
   const [isDailyOpen, setIsDailyOpen] = useState(false);
   const [dailyStreak, setDailyStreak] = useState(0);
   const [boostEnd, setBoostEnd] = useState(0);
@@ -53,7 +52,6 @@ export default function App() {
   const [myBizs, setMyBizs] = useState<any[]>([]);
   const [activeBizType, setActiveBizType] = useState<'coffee' | 'salon' | 'construction' | 'taxi'>('coffee');
   
-  // Нейминг бизнеса
   const [buyingType, setBuyingType] = useState<string | null>(null);
   const [bizNameInput, setBizNameInput] = useState('');
   
@@ -284,7 +282,6 @@ export default function App() {
     if (refBy) showMsg("Бонус +1000 монет за приглашение!");
   });
 
-  // ДЕЙЛИК
   const claimDaily = () => action(async () => {
     if (dailyStreak >= 7) return showMsg("Приходи завтра!", true);
     const rw = DAILY_REWARDS[dailyStreak];
@@ -320,7 +317,6 @@ export default function App() {
     hapticFeedback('heavy');
   });
 
-  // ТАКСОПАРК
   const addTaxiCar = (model: 'lada' | 'toyota') => action(async () => {
     const taxi = myBizs.find(b => b.biz_type === 'taxi');
     if (!taxi) return;
@@ -383,7 +379,6 @@ export default function App() {
     showMsg("Машина отремонтирована!"); loadData(true);
   });
 
-  // ПОКУПКА БИЗНЕСА (С НЕЙМИНГОМ)
   const submitBizName = () => action(async () => {
     if (!buyingType) return;
     const name = bizNameInput.trim();
@@ -623,16 +618,15 @@ export default function App() {
     cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar
   };
 
-  // Добавлен paddingTop: '50px' для всех экранов
   const bgColors: Record<string, string> = { home: '#16161a', jobs: '#16161a', market: '#16161a', cafe: '#16161a', shop: '#16161a', inventory: '#16161a' };
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
   const currentStock = getStock(activeBiz);
 
-  if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '80px' }}>Загрузка...</div>;
-  if (isCheckingSub) return <div style={{ padding: '50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
+  if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '90px' }}>Загрузка...</div>;
+  if (isCheckingSub) return <div style={{ padding: '90px 20px 50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
 
   if (user && !isSubscribed) return (
-    <div style={{ padding: '50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ padding: '90px 20px 50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <Toast toast={toast} /><Send size={60} color="#3b82f6" style={{ marginBottom: 20 }} /><h1 style={{ marginBottom: 10 }}>Подпишись на канал!</h1>
       <p style={{ color: '#8B899A', marginBottom: 30, maxWidth: '300px' }}>Чтобы играть в Житуху, нужно быть подписанным на наш новостной канал.</p>
       <Btn variant="secondary" onClick={() => tg?.openTelegramLink(CHANNEL_LINK)} style={{ maxWidth: '280px', marginBottom: 15 }}><Send size={20} /> Подписаться</Btn>
@@ -641,7 +635,7 @@ export default function App() {
   );
 
   if (!nick || !gender) return (
-    <div style={{ padding: '50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ padding: '90px 20px 50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <Toast toast={toast} /><h1>Житуха</h1><p style={{ color: '#8B899A', marginBottom: '30px' }}>Создай персонажа</p>
       <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
         <button onClick={() => selectGender('male')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#161324', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Парень</button>
@@ -660,7 +654,7 @@ export default function App() {
   );
 
   return (
-    <div style={{ padding: '50px 20px 90px 20px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: bgColors[tab] || '#16161a', color: 'white', transition: 'background 0.5s ease' }}>
+    <div style={{ padding: '90px 20px 90px 20px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: bgColors[tab] || '#16161a', color: 'white', transition: 'background 0.5s ease' }}>
       <Toast toast={toast} />
       <DailyRewardModal app={app} />
 
