@@ -226,6 +226,7 @@ export default function App() {
     }
   }, [tab]);
 
+  // ИСПРАВЛЕННЫЙ ТАЙМЕР (теперь он делает свежий запрос к БД при завершении)
   useEffect(() => {
     const int = setInterval(() => {
       const now = Date.now();
@@ -243,20 +244,29 @@ export default function App() {
           showMsg("Кофе готов! Энергия восстановлена!"); hapticFeedback('heavy');
         }
       }
+      
       if (carOrderEnd > 0) {
         const r = Math.max(0, Math.ceil((carOrderEnd - now) / 1000));
         setCarTimeLeft(r);
         if (r === 0) {
-          setCarOrderEnd(0);
+          setCarOrderEnd(0); // Мгновенно убираем таймер, чтобы не сработал дважды
           const salon = myBizs.find(b => b.biz_type === 'salon');
           if (salon) {
-            const newStock = { ...(salon.stock || {}), [salon.stock?.current_model || 'lada']: ((salon.stock?.[salon.stock?.current_model || 'lada'] || 0) + 1) };
-            supabase.from('businesses').update({ car_model: 'none', car_order_end: 0, stock: newStock }).eq('id', salon.id);
-            showMsg("Машина приехала на склад автосалона!"); hapticFeedback('heavy');
+            supabase.from('businesses').select('stock').eq('id', salon.id).single().then(({ data }) => {
+              if (data) {
+                const currentStock = data.stock || {};
+                const model = currentStock.current_model || 'lada';
+                const newStock = { ...currentStock, [model]: (currentStock[model] || 0) + 1, current_model: 'none' };
+                supabase.from('businesses').update({ car_order_end: 0, stock: newStock }).eq('id', salon.id).then(() => {
+                  showMsg(`Машина приехала на склад!`); hapticFeedback('heavy');
+                  loadData(true);
+                });
+              }
+            });
           }
-          loadData(true);
         }
-      }
+      } else { setCarTimeLeft(0); }
+
       if (buildEnd > 0) {
         const r = Math.max(0, Math.ceil((buildEnd - now) / 1000));
         setBuildTimeLeft(r);
@@ -264,13 +274,19 @@ export default function App() {
           setBuildEnd(0);
           const constr = myBizs.find(b => b.biz_type === 'construction');
           if (constr) {
-            const newStock = { ...(constr.stock || {}), apartments: ((constr.stock?.apartments || 0) + 3) };
-            supabase.from('businesses').update({ build_end: 0, stock: newStock }).eq('id', constr.id);
-            showMsg("Дом построен! 3 квартиры на складе."); hapticFeedback('heavy');
+            supabase.from('businesses').select('stock').eq('id', constr.id).single().then(({ data }) => {
+              if (data) {
+                const currentStock = data.stock || {};
+                const newStock = { ...currentStock, apartments: (currentStock.apartments || 0) + 3 };
+                supabase.from('businesses').update({ build_end: 0, stock: newStock }).eq('id', constr.id).then(() => {
+                  showMsg("Дом построен! 3 квартиры на складе."); hapticFeedback('heavy');
+                  loadData(true);
+                });
+              }
+            });
           }
-          loadData(true);
         }
-      }
+      } else { setBuildTimeLeft(0); }
     }, 1000);
     return () => clearInterval(int);
   }, [restEnd, brewEnd, carOrderEnd, buildEnd, pid, myBizs]);
@@ -308,6 +324,7 @@ export default function App() {
     if (refBy) showMsg("Бонус +1000 монет за приглашение!");
   });
 
+  // ИСПРАВЛЕНО: Локальное обновление стейта (setMyBizs), чтобы UI сразу видел изменения
   const orderCar = (model: 'lada' | 'toyota') => action(async () => {
     const salon = myBizs.find(b => b.biz_type === 'salon');
     if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едет машина!", true);
@@ -324,6 +341,8 @@ export default function App() {
     
     const newStock = { ...(salon.stock || {}), current_model: model };
     await supabase.from('businesses').update({ car_order_end: end, stock: newStock }).eq('id', salon.id);
+    
+    setMyBizs(prev => prev.map(b => b.id === salon.id ? { ...b, car_order_end: end, stock: newStock } : b));
     showMsg(`Заказ на ${model === 'lada' ? 'Ладу' : 'Тойоту'} оформлен!`); hapticFeedback('heavy');
   });
 
@@ -339,6 +358,7 @@ export default function App() {
     setBuildEnd(end); 
     
     await supabase.from('businesses').update({ build_end: end }).eq('id', constr.id);
+    setMyBizs(prev => prev.map(b => b.id === constr.id ? { ...b, build_end: end } : b));
     showMsg("Стройка дома началась!"); hapticFeedback('heavy');
   });
 
@@ -468,11 +488,13 @@ export default function App() {
       else if (activeBiz) {
         const newStock = { ...currentStock, [sellItemData]: currentStock[sellItemData] - 1 };
         await supabase.from('businesses').update({ stock: newStock }).eq('id', activeBiz.id);
+        setMyBizs(prev => prev.map(b => b.id === activeBiz.id ? { ...b, stock: newStock } : b));
       }
     } else if (sellItemType === 'house') {
       if (activeBiz) {
         const newStock = { ...currentStock, apartments: currentStock.apartments - 1 };
         await supabase.from('businesses').update({ stock: newStock }).eq('id', activeBiz.id);
+        setMyBizs(prev => prev.map(b => b.id === activeBiz.id ? { ...b, stock: newStock } : b));
       }
     }
 
