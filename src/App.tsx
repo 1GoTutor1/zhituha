@@ -548,6 +548,7 @@ export default function App() {
     setMoney(m => m + data.refund);
     showMsg(`Бизнес продан за ${data.refund}!`); 
     loadData(true);
+    loadMarket(); // <-- ДОБАВЛЕНО: моментально убираем лоты с рынка
   });
 
   const cancelLot = (item: any) => action(async () => {
@@ -579,6 +580,7 @@ export default function App() {
       }
     }
     loadData(true);
+    loadMarket(); // <-- ДОБАВЛЕНО: моментально убираем лот с рынка
   });
 
   const orderCar = (model: 'lada' | 'toyota') => action(async () => {
