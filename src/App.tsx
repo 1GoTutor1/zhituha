@@ -548,7 +548,7 @@ export default function App() {
     setMoney(m => m + data.refund);
     showMsg(`Бизнес продан за ${data.refund}!`); 
     loadData(true);
-    loadMarket(); // <-- ДОБАВЛЕНО: моментально убираем лоты с рынка
+    loadMarket();
   });
 
   const cancelLot = (item: any) => action(async () => {
@@ -580,7 +580,7 @@ export default function App() {
       }
     }
     loadData(true);
-    loadMarket(); // <-- ДОБАВЛЕНО: моментально убираем лот с рынка
+    loadMarket();
   });
 
   const orderCar = (model: 'lada' | 'toyota') => action(async () => {
@@ -710,94 +710,29 @@ export default function App() {
   });
 
   const listItem = () => action(async () => {
-    const p = Number(sellPrice); if (isNaN(p) || p <= 0) return showMsg("Неверная цена", true);
+    const p = Number(sellPrice); 
+    if (isNaN(p) || p <= 0) return showMsg("Неверная цена", true);
     if (!sellItemData || sellItemData === 'none') return showMsg("Неверный предмет", true);
     if (!sellSource) return showMsg("Не выбран источник предмета", true);
 
-    const effectiveSlots = Math.min(10, marketSlots + (dayMod?.type === 'market_slots' ? 2 : 0));
-    const myLots = market.filter((m: any) => m.seller_id === pid).length;
-    if (myLots >= effectiveSlots) {
-      return showMsg(`Нет свободных слотов! (${myLots}/${effectiveSlots}) Купи телефон для +1 слота.`, true);
-    }
+    // Бонус слотов от акции
+    const bonusSlots = dayMod?.type === 'market_slots' ? 2 : 0;
 
-    let bizName = nick;
-    let currentStock: any = {};
+    const { data, error } = await supabase.rpc('list_item_rpc', {
+      p_seller_id: pid,
+      p_item_type: sellItemType,
+      p_item_data: sellItemData,
+      p_price: p,
+      p_source: sellSource,
+      p_bonus_slots: bonusSlots
+    });
 
-    if (sellItemType === 'phone') {
-      if (sellSource === 'personal') {
-        if (!phone) return showMsg("У тебя нет телефона", true);
-        if (sellItemData !== 'phone') return showMsg("Неверный тип телефона", true);
-      } else {
-        if (sellItemData !== 'button' && sellItemData !== 'smartphone') return showMsg("Неверный тип телефона", true);
-        const factory = myBizs.find(b => b.biz_type === 'phone_factory');
-        if (!factory) return showMsg("Нужен телефонный цех", true);
-        bizName = factory.business_name;
-        currentStock = getStock(factory);
-        if ((currentStock[sellItemData] || 0) <= 0) return showMsg("На складе нет такого телефона", true);
-      }
-    } else if (sellItemType === 'car') {
-      const salon = myBizs.find(b => b.biz_type === 'salon');
-      if (salon) { bizName = salon.business_name; currentStock = getStock(salon); }
-      if (sellSource === 'personal') {
-        if (!hasCar || carModel !== sellItemData) return showMsg("У тебя нет этой машины", true);
-      } else {
-        if ((currentStock[sellItemData] || 0) <= 0) return showMsg("На складе нет этой машины", true);
-      }
-    } else if (sellItemType === 'house') {
-      const constr = myBizs.find(b => b.biz_type === 'construction');
-      if (constr) { bizName = constr.business_name; currentStock = getStock(constr); }
-      if (sellSource === 'personal') {
-        if (!hasHouse) return showMsg("У тебя нет квартиры", true);
-      } else {
-        if ((currentStock.apartments || 0) <= 0) return showMsg("На складе нет квартир", true);
-      }
-    }
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
 
-    const { error } = await supabase.from('market_items').insert([{
-      seller_id: pid, seller_name: bizName, item_type: sellItemType, item_data: sellItemData, price: p
-    }]);
-    if (error) throw error;
-
-    if (sellItemType === 'phone') {
-      if (sellSource === 'personal') {
-        const newSlots = Math.max(3, marketSlots - 1);
-        setPhone(false); setMarketSlots(newSlots);
-        await sync({ phone_count: 0, market_slots: newSlots });
-      } else {
-        const factory = myBizs.find(b => b.biz_type === 'phone_factory');
-        if (factory) {
-          const nS = { ...currentStock, [sellItemData]: (currentStock[sellItemData] || 0) - 1 };
-          await supabase.from('businesses').update({ stock: nS }).eq('id', factory.id);
-          setMyBizs(prev => prev.map(b => b.id === factory.id ? { ...b, stock: nS } : b));
-        }
-      }
-    } else if (sellItemType === 'car') {
-      if (sellSource === 'personal') {
-        setHasCar(false); setCarModel('none');
-        await sync({ has_car: false, car_model: 'none' });
-      } else {
-        const salon = myBizs.find(b => b.biz_type === 'salon');
-        if (salon) {
-          const nS = { ...currentStock, [sellItemData]: (currentStock[sellItemData] || 0) - 1 };
-          await supabase.from('businesses').update({ stock: nS }).eq('id', salon.id);
-          setMyBizs(prev => prev.map(b => b.id === salon.id ? { ...b, stock: nS } : b));
-        }
-      }
-    } else if (sellItemType === 'house') {
-      if (sellSource === 'personal') {
-        setHasHouse(false); setHouseType('none');
-        await sync({ has_house: false, house_type: 'none' });
-      } else {
-        const constr = myBizs.find(b => b.biz_type === 'construction');
-        if (constr) {
-          const nS = { ...currentStock, apartments: (currentStock.apartments || 0) - 1 };
-          await supabase.from('businesses').update({ stock: nS }).eq('id', constr.id);
-          setMyBizs(prev => prev.map(b => b.id === constr.id ? { ...b, stock: nS } : b));
-        }
-      }
-    }
-
-    setSellOpen(false); setSellSource(null); setTab('market'); loadMarket();
+    setSellOpen(false); setSellSource(null); setTab('market'); 
+    loadData(true); 
+    loadMarket();
     showMsg("Выставлено!"); hapticFeedback('medium');
   });
 
