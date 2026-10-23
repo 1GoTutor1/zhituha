@@ -1,17 +1,17 @@
 export const BOT_USERNAME = "zhituha_bot"; 
 export const CHANNEL_LINK = "https://t.me/zhituha_news";
 export const PHONE_PRICE = 2000, WORKER_SALARY = 600, COFFEE_CUP_PRICE = 500;
-export const JOB_WORK = 150; // Подработка
+export const JOB_WORK = 150; 
 export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 5000;
 
 export const BASE_MAX_ENERGY = 100;
 export const HOUSE_MAX_ENERGY = 150;
 
-// НОРМАЛЬНЫЕ ТАЙМЕРЫ ОТДЫХА (В СЕКУНДАХ * 1000)
-export const REST_CD = 60000; // 60 секунд
+// 90 СЕКУНД БАЗОВЫЙ ОТДЫХ
+export const REST_CD = 90000; 
 export const BASE_REST_TIME = REST_CD; 
-export const LADA_REST_TIME = 50000; // 50 секунд
-export const TOYOTA_REST_TIME = 40000; // 40 секунд
+export const LADA_REST_TIME = 80000; // -10 сек
+export const TOYOTA_REST_TIME = 70000; // -20 сек
 
 export const LADA_PRICE = 20000, LADA_TIME = 30000;
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 120000;
@@ -24,7 +24,6 @@ export const TAXI_BIZ_PRICE = 300000;
 export const PHONE_FACTORY_BIZ_PRICE = 300000;
 export const CONSTRUCTION_BIZ_PRICE = 500000;
 
-// ТЕЛЕФОННЫЙ ЦЕХ
 export const BUTTON_BATCH_SIZE = 10;
 export const BUTTON_BATCH_COST = 5000;
 export const BUTTON_BATCH_TIME = 180000;
@@ -33,7 +32,6 @@ export const SMARTPHONE_BATCH_SIZE = 5;
 export const SMARTPHONE_BATCH_COST = 25000;
 export const SMARTPHONE_BATCH_TIME = 600000;
 
-// ТАКСОПАРК
 export const TAXI_LADA_INCOME = 1000;
 export const TAXI_TOYOTA_INCOME = 1500;
 export const TAXI_MAX_OFFLINE_HOURS = 8;

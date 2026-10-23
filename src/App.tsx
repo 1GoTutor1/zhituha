@@ -128,6 +128,12 @@ export default function App() {
     return true;
   };
 
+  // ПРОДВИЖЕНИЕ ТУТОРИАЛА (с сохранением в БД)
+  const advanceTutorial = async (step: number) => {
+    setOnboardStep(step);
+    await sync({ onboarding_step: step });
+  };
+
   const addReferralBonus = async (amount: number) => {
     const { data: me } = await supabase.from('players').select('referred_by').eq('id', pid).single();
     if (!me || !me.referred_by) return;
@@ -184,7 +190,7 @@ export default function App() {
           setRefBalance(Number(data.referral_balance) || 0);
           setDailyStreak(Number(data.daily_streak) || 0);
           setBoostEnd(Number(data.boost_end) || 0);
-          setOnboardStep(Number(data.onboarding_step) || 0);
+          setOnboardStep(Number(data.onboarding_step) || 0); // Загружаем шаг
           setMarketSlots(Number(data.market_slots) || 3);
 
           if (!silent) {
@@ -246,6 +252,12 @@ export default function App() {
       return () => clearInterval(int);
     }
   }, [tab]);
+
+  // ТРИГГЕРЫ ДЛЯ ТУТОРИАЛА
+  useEffect(() => {
+    if (onboardStep === 3 && tab === 'business') advanceTutorial(4);
+    if (onboardStep === 4 && tab === 'market') advanceTutorial(5);
+  }, [tab, onboardStep]);
 
   useEffect(() => {
     const int = setInterval(() => {
@@ -361,8 +373,9 @@ export default function App() {
   const claimTutorialReward = () => action(async () => {
     if (onboardStep === 5) {
       const nM = money + 2000;
-      setMoney(nM); setOnboardStep(6);
-      await sync({ money: nM, onboarding_step: 6 });
+      setMoney(nM); 
+      await advanceTutorial(6);
+      await sync({ money: nM });
       showMsg("Туториал пройден! +2000 монет"); hapticFeedback('heavy');
     }
   });
@@ -430,7 +443,7 @@ export default function App() {
     let totalIncome = 0;
     let updatedCars = cars.map((car: any) => {
       if (car.health <= 0) return car;
-      const hours = Math.min((now - car.last_claim) / 3600000, 8); // Кэп 8 часов!
+      const hours = Math.min((now - car.last_claim) / 3600000, 8); 
       let income = Math.floor(hours * (car.model === 'lada' ? 1000 : 1500));
       if (dayMod?.type === 'taxi') income *= 2;
       let healthDrop = Math.floor(hours * 10);
@@ -587,9 +600,7 @@ export default function App() {
     setMoney(nM); setEnergy(nE); await sync({ money: nM, energy: nE });
     addReferralBonus(amount); showMsg(`+${amount} монет`); hapticFeedback('medium');
     
-    if (onboardStep === 0) {
-      setOnboardStep(1); await sync({ onboarding_step: 1 });
-    }
+    if (onboardStep === 0) await advanceTutorial(1);
   });
 
   const rest = () => action(async () => {
@@ -599,9 +610,7 @@ export default function App() {
     await sync({ energy: maxEnergy, last_rest_time: now });
     showMsg(`Энергия восстановлена!`); hapticFeedback('light');
     
-    if (onboardStep === 1) {
-      setOnboardStep(2); await sync({ onboarding_step: 2 });
-    }
+    if (onboardStep === 1) await advanceTutorial(2);
   });
 
   const buyCoffee = (cafe: any) => action(async () => {
@@ -619,6 +628,8 @@ export default function App() {
     }
     const end = Date.now() + BREW_TIME; setBrewEnd(end); localStorage.setItem('zhituha_brew_end', end.toString());
     showMsg(`Кофе готовится (+${coffeeEnergy} энергии)...`); hapticFeedback('heavy');
+    
+    if (onboardStep === 2) await advanceTutorial(3);
   });
 
   const collect = () => action(async () => {
