@@ -1,6 +1,6 @@
 import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench } from 'lucide-react';
 import { 
-  getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, TAXI_BIZ_PRICE,
+  getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S 
 } from './constants';
 import { Btn } from './components';
@@ -151,13 +151,14 @@ export const MarketTab = ({ app }: any) => (
 );
 
 export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
-  const bizTypes = ['coffee', 'salon', 'construction', 'taxi'];
+  // ИЗМЕНЕН ПОРЯДОК ПО ЦЕНЕ: Кофейня -> Автосалон -> Таксопарк -> Стройтрест
+  const bizTypes = ['coffee', 'salon', 'taxi', 'construction'];
   const currentIndex = bizTypes.indexOf(app.activeBizType);
   const prevType = bizTypes[(currentIndex - 1 + 4) % 4];
   const nextType = bizTypes[(currentIndex + 1) % 4];
 
-  const getPrice = (type: string) => type === 'coffee' ? COFFEE_BIZ_PRICE : type === 'salon' ? SALON_BIZ_PRICE : type === 'construction' ? CONSTRUCTION_BIZ_PRICE : TAXI_BIZ_PRICE;
-  const getBizName = (type: string) => type === 'coffee' ? 'Кофейня' : type === 'salon' ? 'Автосалон' : type === 'construction' ? 'Стройтрест' : 'Таксопарк';
+  const getPrice = (type: string) => type === 'coffee' ? COFFEE_BIZ_PRICE : type === 'salon' ? SALON_BIZ_PRICE : type === 'taxi' ? TAXI_BIZ_PRICE : CONSTRUCTION_BIZ_PRICE;
+  const getBizName = (type: string) => type === 'coffee' ? 'Кофейня' : type === 'salon' ? 'Автосалон' : type === 'taxi' ? 'Таксопарк' : 'Стройтрест';
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -213,7 +214,6 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
             </div>
           )}
 
-          {/* Продажа бизнеса */}
           <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
             <Btn variant="danger" onClick={() => app.sellBusiness(activeBiz)} disabled={app.proc} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444' }}>
               Продать бизнес (за 50%)

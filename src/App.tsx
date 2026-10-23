@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
+
 import { Send, Lock, Settings, Trash2, Coins, UserPlus, Gift, Coffee, Smartphone, CheckCircle2, Backpack, Car, Building, Briefcase, Store } from 'lucide-react';
 import { 
   BOT_USERNAME, CHANNEL_LINK, PHONE_PRICE, WORKER_SALARY, COFFEE_CUP_PRICE, ADMIN_CODE, 

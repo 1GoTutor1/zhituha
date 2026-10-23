@@ -12,13 +12,13 @@ export const TOYOTA_REST_TIME = 50000;
 export const LADA_PRICE = 20000, LADA_TIME = 30000;
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 120000;
 
-// Стройтрест: 300к за 10 квартир, 15 минут
 export const BUILDING_PRICE = 300000, BUILDING_TIME = 900000, APARTMENTS_PER_BUILD = 10;
 
+// ЦЕНЫ НА БИЗНЕСЫ ПО ГРАДАЦИИ
 export const COFFEE_BIZ_PRICE = 15000;
 export const SALON_BIZ_PRICE = 150000;
-export const CONSTRUCTION_BIZ_PRICE = 300000;
-export const TAXI_BIZ_PRICE = 300000; // Новый Таксопарк
+export const TAXI_BIZ_PRICE = 300000;
+export const CONSTRUCTION_BIZ_PRICE = 500000;
 
 // Таксопарк
 export const TAXI_LADA_INCOME = 500; // в час
@@ -26,7 +26,6 @@ export const TAXI_TOYOTA_INCOME = 1500; // в час
 export const TAXI_REPAIR_LADA = 3000;
 export const TAXI_REPAIR_TOYOTA = 10000;
 
-// Ежедневные награды
 export const DAILY_REWARDS = [
   { type: 'money', amount: 500 },
   { type: 'coffee', amount: 1 },
@@ -34,7 +33,7 @@ export const DAILY_REWARDS = [
   { type: 'coffee', amount: 1 },
   { type: 'money', amount: 1500 },
   { type: 'coffee', amount: 1 },
-  { type: 'money', amount: 3500, boost: true } // На 7-й день буст
+  { type: 'money', amount: 3500, boost: true } 
 ];
 
 export const AVATARS = [
