@@ -1,7 +1,8 @@
 // api/bot.js
-const { Telegraf } = require('telegraf');
+import { Telegraf } from 'telegraf';
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+// Проверяем токен
+const bot = new Telegraf(process.env.BOT_TOKEN || '123456:FAKE');
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://zhituha-ashen.vercel.app'; 
 
 bot.start((ctx) => {
@@ -11,8 +12,7 @@ bot.start((ctx) => {
     : WEBAPP_URL;
 
   const welcomeText = `Привет, ${ctx.from.first_name}! 👋\n\n` +
-                      `Добро пожаловать в «Житуху» — экономическую симуляцию, где ты строишь свой бизнес-империум с нуля.\n\n` +
-                      `Жми кнопку ниже, чтобы начать! 👇`;
+                      `Добро пожаловать в «Житуху»! Жми кнопку ниже, чтобы начать! 👇`;
 
   ctx.reply(welcomeText, {
     reply_markup: {
@@ -27,8 +27,13 @@ bot.catch((err, ctx) => {
   console.error(`Ошибка для ${ctx.updateType}`, err);
 });
 
-// Экспортируем для Vercel
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
+  // Если открыли в браузере (GET) - показываем, что бот работает
+  if (req.method === 'GET') {
+    return res.status(200).send('Бот работает и ждет сообщений от Telegram!');
+  }
+
+  // Обработка POST запроса от Telegram
   try {
     await bot.handleUpdate(req.body);
     res.status(200).send('OK');
