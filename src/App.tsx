@@ -9,7 +9,7 @@ import {
   TAXI_BIZ_PRICE, TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS,
   COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE,
   PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, BUTTON_BATCH_COST, BUTTON_BATCH_TIME, SMARTPHONE_BATCH_SIZE, SMARTPHONE_BATCH_COST, SMARTPHONE_BATCH_TIME,
-  JOB_WORK, getDayModifier, COFFEE_OWNER_INCOME, PHONE_SELL_TO_SHOP
+  JOB_WORK, getDayModifier, COFFEE_OWNER_INCOME, PHONE_SELL_TO_SHOP, TAXI_HEALTH_DROP_RATE
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
 import { 
@@ -100,12 +100,14 @@ export default function App() {
   const lock = useRef(false);
 
   const maxEnergy = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
-  const restTime = carModel === 'toyota' ? TOYOTA_REST_TIME : carModel === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
+  const dayMod = getDayModifier(); // <-- ТЕПЕРЬ ОБЪЯВЛЯЕТСЯ ЗДЕСЬ
   
-  const dayMod = getDayModifier();
+  const baseRestTime = carModel === 'toyota' ? TOYOTA_REST_TIME : carModel === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
+  const restTime = dayMod?.type === 'car_sell' ? Math.floor(baseRestTime * 0.8) : baseRestTime;
+  
   const isShiftBoosted = dayMod?.type === 'shift';
   const workPay = dayMod?.type === 'work' ? Math.floor(JOB_WORK * 1.5) : JOB_WORK;
-  const shiftPay = isShiftBoosted ? Math.floor(WORKER_SALARY * 2) : (dayMod?.type === 'work' ? Math.floor(WORKER_SALARY * 0.5) : WORKER_SALARY);
+  const shiftPay = isShiftBoosted ? Math.floor(WORKER_SALARY * 2) : (dayMod?.type === 'work' ? Math.floor(WORKER_SALARY * 1.5) : WORKER_SALARY);
 
   const showMsg = (msg: string, err = false) => { setToast({ msg, err }); setTimeout(() => setToast(null), 3000); };
   const getUid = () => user?.id?.toString() || localStorage.getItem('zhituha_id') || (() => { const id = 'user_' + Math.random().toString(36).substring(2, 8); localStorage.setItem('zhituha_id', id); return id; })();
@@ -462,7 +464,7 @@ export default function App() {
       const hours = Math.min((now - car.last_claim) / 3600000, 8); 
       let income = Math.floor(hours * (car.model === 'lada' ? 1000 : 1500));
       if (dayMod?.type === 'taxi') income *= 2;
-      let healthDrop = Math.floor(hours * 10);
+      let healthDrop = Math.floor(hours * TAXI_HEALTH_DROP_RATE);
       let newHealth = Math.max(0, car.health - healthDrop);
       totalIncome += income;
       return { ...car, health: newHealth, last_claim: now };
@@ -502,9 +504,12 @@ export default function App() {
     if (!factory || phoneProdEnd > 0) return showMsg("Производство уже идет!", true);
     
     const price = model === 'button' ? BUTTON_BATCH_COST : SMARTPHONE_BATCH_COST;
-    const time = model === 'button' ? BUTTON_BATCH_TIME : SMARTPHONE_BATCH_TIME;
+    const baseTime = model === 'button' ? BUTTON_BATCH_TIME : SMARTPHONE_BATCH_TIME;
     
     if (money < price) return showMsg("Мало денег!", true);
+    
+    const timeMult = (dayMod?.type === 'factory' || dayMod?.type === 'phone_sell') ? 1.5 : 1;
+    const time = baseTime / timeMult;
     
     const nM = money - price;
     setMoney(nM); await sync({ money: nM });
@@ -602,7 +607,10 @@ export default function App() {
     const constr = myBizs.find(b => b.biz_type === 'construction');
     if (!constr || buildEnd > 0) return showMsg("Стройка уже идет!", true);
     if (money < BUILDING_PRICE) return showMsg("Мало денег!", true);
-    const nM = money - BUILDING_PRICE, end = Date.now() + BUILDING_TIME;
+    
+    const timeMult = dayMod?.type === 'build' ? 1.5 : 1;
+    const nM = money - BUILDING_PRICE, end = Date.now() + (BUILDING_TIME / timeMult);
+    
     const { error: bErr } = await supabase.from('businesses').update({ build_end: end }).eq('id', constr.id);
     if (bErr) throw new Error("Ошибка стройки: " + bErr.message);
     const { error: mErr } = await supabase.from('players').update({ money: nM }).eq('id', pid);
@@ -660,8 +668,7 @@ export default function App() {
   const collect = () => action(async () => {
     const coffeeBiz = myBizs.find(b => b.biz_type === 'coffee');
     if (!coffeeBiz?.coffee_balance) return;
-    let inc = coffeeBiz.coffee_balance;
-    if (dayMod?.type === 'work') inc = Math.floor(inc * 1.5);
+    const inc = coffeeBiz.coffee_balance;
     
     const nM = money + inc;
     setMoney(nM);
@@ -715,7 +722,6 @@ export default function App() {
     if (!sellItemData || sellItemData === 'none') return showMsg("Неверный предмет", true);
     if (!sellSource) return showMsg("Не выбран источник предмета", true);
 
-    // Бонус слотов от акции
     const bonusSlots = dayMod?.type === 'market_slots' ? 2 : 0;
 
     const { data, error } = await supabase.rpc('list_item_rpc', {

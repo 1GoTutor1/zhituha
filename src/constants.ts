@@ -24,9 +24,10 @@ export const TAXI_BIZ_PRICE = 300000;
 export const PHONE_FACTORY_BIZ_PRICE = 300000;
 export const CONSTRUCTION_BIZ_PRICE = 500000;
 
+// Бета сказал: партия 10 шт за 7000. Время 4 минуты (адаптировано под масштаб игры)
 export const BUTTON_BATCH_SIZE = 10;
-export const BUTTON_BATCH_COST = 5000;
-export const BUTTON_BATCH_TIME = 180000;
+export const BUTTON_BATCH_COST = 7000;
+export const BUTTON_BATCH_TIME = 240000; 
 
 export const SMARTPHONE_BATCH_SIZE = 5;
 export const SMARTPHONE_BATCH_COST = 25000;
@@ -38,7 +39,10 @@ export const TAXI_MAX_OFFLINE_HOURS = 8;
 export const TAXI_REPAIR_LADA = 3000;
 export const TAXI_REPAIR_TOYOTA = 10000;
 
-// ==== Дефолтные цены для продажи (используются в UI как стартовое значение) ====
+// Новое: износ такси 8%/час (по ТЗ Беты)
+export const TAXI_HEALTH_DROP_RATE = 8;
+
+// ==== Дефолтные цены для продажи ====
 export const DEFAULT_SELL_LADA = 25000;
 export const DEFAULT_SELL_TOYOTA = 60000;
 export const DEFAULT_SELL_APARTMENT = 50000;
@@ -77,14 +81,14 @@ export const getStock = (biz: any) => {
 export const DAY_MODIFIERS = [
   { id: 1, name: "День студентов", desc: "Смена в кафе x2", type: "shift", mult: 2, color: "#10b981" },
   { id: 2, name: "Час пик", desc: "Таксопарк x2", type: "taxi", mult: 2, color: "#3b82f6" },
-  { id: 3, name: "Хайп на телефоны", desc: "Продажа телефонов +30%", type: "phone_sell", mult: 1.3, color: "#8b5cf6" },
-  { id: 4, name: "Автошоу", desc: "Продажа машин +30%", type: "car_sell", mult: 1.3, color: "#f97316" },
+  { id: 3, name: "Хайп на телефоны", desc: "Производство телефонов +50% скорости", type: "phone_sell", mult: 1.5, color: "#8b5cf6" },
+  { id: 4, name: "Автошоу", desc: "Отдых на машинах +20% быстрее", type: "car_sell", mult: 1.2, color: "#f97316" },
   { id: 5, name: "Ажиотаж", desc: "Слоты рынка +2", type: "market_slots", mult: 2, color: "#ec4899" },
   { id: 6, name: "Кофейный бум", desc: "Кофе дает +30% энергии", type: "coffee_energy", mult: 1.3, color: "#f59e0b" },
   { id: 7, name: "День друзей", desc: "Реферальные бонусы x2", type: "ref", mult: 2, color: "#ef4444" },
-  { id: 8, name: "Стройка века", desc: "Стройтрест x1.5", type: "build", mult: 1.5, color: "#d97706" },
-  { id: 9, name: "Тихий день", desc: "Работа x1.5, но Смена x0.5", type: "work", mult: 1.5, color: "#6b7280" },
-  { id: 10, name: "Госзаказ", desc: "Цех и Автосалон x1.5", type: "factory", mult: 1.5, color: "#0ea5e9" },
+  { id: 8, name: "Стройка века", desc: "Стройка дома +50% скорости", type: "build", mult: 1.5, color: "#d97706" },
+  { id: 9, name: "Тихий день", desc: "Работа x1.5", type: "work", mult: 1.5, color: "#6b7280" },
+  { id: 10, name: "Госзаказ", desc: "Производство телефонов +50% скорости", type: "factory", mult: 1.5, color: "#0ea5e9" },
 ];
 
 export const getDayModifier = () => {
