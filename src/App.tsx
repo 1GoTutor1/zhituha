@@ -33,6 +33,7 @@ export default function App() {
   const [role, setRole] = useState('player');
   const [isBanned, setIsBanned] = useState(false);
   const [onboardStep, setOnboardStep] = useState(0);
+  const [tutorialWorkClicks, setTutorialWorkClicks] = useState(0); // Счетчик кликов для шага 1
   const [marketSlots, setMarketSlots] = useState(3);
   
   const [money, setMoney] = useState(3500);
@@ -134,6 +135,19 @@ export default function App() {
     await sync({ onboarding_step: step });
   };
 
+  const skipTutorial = () => {
+    advanceTutorial(onboardStep + 1);
+    hapticFeedback('light');
+  };
+
+  const drinkTutorialCoffee = () => action(async () => {
+    const targetEnergy = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
+    setEnergy(targetEnergy);
+    await sync({ energy: targetEnergy });
+    await advanceTutorial(3); // Переходим к шагу "Бизнесы"
+    showMsg("Кофе выпит! Энергия восстановлена."); hapticFeedback('heavy');
+  });
+
   const addReferralBonus = async (amount: number) => {
     const { data: me } = await supabase.from('players').select('referred_by').eq('id', pid).single();
     if (!me || !me.referred_by) return;
@@ -190,7 +204,7 @@ export default function App() {
           setRefBalance(Number(data.referral_balance) || 0);
           setDailyStreak(Number(data.daily_streak) || 0);
           setBoostEnd(Number(data.boost_end) || 0);
-          setOnboardStep(Number(data.onboarding_step) || 0); // Загружаем шаг
+          setOnboardStep(Number(data.onboarding_step) || 0);
           setMarketSlots(Number(data.market_slots) || 3);
 
           if (!silent) {
@@ -600,7 +614,14 @@ export default function App() {
     setMoney(nM); setEnergy(nE); await sync({ money: nM, energy: nE });
     addReferralBonus(amount); showMsg(`+${amount} монет`); hapticFeedback('medium');
     
-    if (onboardStep === 0) await advanceTutorial(1);
+    if (onboardStep === 0) {
+      if (tutorialWorkClicks >= 2) {
+        setTutorialWorkClicks(0);
+        await advanceTutorial(1);
+      } else {
+        setTutorialWorkClicks(c => c + 1);
+      }
+    }
   });
 
   const rest = () => action(async () => {
@@ -629,7 +650,7 @@ export default function App() {
     const end = Date.now() + BREW_TIME; setBrewEnd(end); localStorage.setItem('zhituha_brew_end', end.toString());
     showMsg(`Кофе готовится (+${coffeeEnergy} энергии)...`); hapticFeedback('heavy');
     
-    if (onboardStep === 2) await advanceTutorial(3);
+    if (onboardStep === 2) await advanceTutorial(3); // Пропускаем шаг, если купил сам
   });
 
   const collect = () => action(async () => {
@@ -791,9 +812,9 @@ export default function App() {
 
   const app = {
     user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, market, job, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, 
-    sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, marketSlots, workPay, modifierOpen, setModifierOpen,
+    sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, setModifierOpen,
     isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName,
-    promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg,
+    promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee,
     action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, verifySubscription, selectGender, reg, claimTutorialReward,
     cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData
   };

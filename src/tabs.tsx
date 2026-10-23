@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier,
@@ -84,9 +84,9 @@ export const TutorialCard = ({ app }: { app: any }) => {
   if (app.onboardStep >= 6) return null;
 
   const steps = [
-    "Тапни 'Подработка' 3 раза",
+    `Тапни 'Подработка' (${app.tutorialWorkClicks || 0}/3)`,
     "Энергия упала — тапни 'Отдых'",
-    "Держи кофе в подарок! ☕",
+    "Выпей кофе из туториала ☕",
     "Загляни в 'Бизнесы'",
     "Посмотри цены на Рынке",
     "Ты в теме! Забери ежедневку 🎁"
@@ -94,6 +94,12 @@ export const TutorialCard = ({ app }: { app: any }) => {
 
   return (
     <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid #3b82f6', borderRadius: 16, padding: 15, marginBottom: 20, position: 'relative' }}>
+      
+      {/* Кнопка СКИП */}
+      <button onClick={app.skipTutorial} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', color: '#8B899A', cursor: 'pointer' }}>
+        <X size={18} />
+      </button>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         <div style={{ fontSize: 30 }}>👨‍🦳</div>
         <div>
@@ -102,6 +108,14 @@ export const TutorialCard = ({ app }: { app: any }) => {
         </div>
       </div>
       <div style={{ fontSize: 14, color: 'white', marginBottom: 10 }}>{steps[app.onboardStep]}</div>
+      
+      {/* Кнопка взять кофе прямо в туториале */}
+      {app.onboardStep === 2 && (
+        <Btn variant="primary" onClick={app.drinkTutorialCoffee} disabled={app.proc} style={{ padding: 10, fontSize: 14, marginBottom: 10 }}>
+          Взять кофе (+100 энергии)
+        </Btn>
+      )}
+
       {app.onboardStep === 5 && (
         <Btn variant="primary" onClick={app.claimTutorialReward} disabled={app.proc} style={{ padding: 10, fontSize: 14 }}>
           Забрать 2000 монет
