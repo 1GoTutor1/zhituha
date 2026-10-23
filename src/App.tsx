@@ -219,7 +219,6 @@ export default function App() {
     }
   }, [tab]);
 
-  // ТАЙМЕРЫ
   useEffect(() => {
     const int = setInterval(() => {
       const now = Date.now();
@@ -647,7 +646,7 @@ export default function App() {
     isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName,
     promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg,
     action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, verifySubscription, selectGender, reg,
-    cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar
+    cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, loadData // <-- ДОБАВИЛИ loadData ДЛЯ АДМИНКИ
   };
 
   const bgColors: Record<string, string> = { home: '#16161a', jobs: '#16161a', market: '#16161a', cafe: '#16161a', shop: '#16161a', inventory: '#16161a', admin: '#16161a' };
