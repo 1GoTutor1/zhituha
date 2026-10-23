@@ -140,7 +140,6 @@ export const HomeTab = ({ app }: { app: any }) => {
         </div>
       </div>
 
-      {/* МОДИФИКАТОР ДНЯ */}
       <div onClick={() => app.setModifierOpen(true)} style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: `1px solid ${modifier.color}`, borderRadius: 16, padding: 12, marginBottom: 15, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
         <div style={{ fontSize: 20 }}>🔥</div>
         <div style={{ textAlign: 'left', flex: 1 }}>

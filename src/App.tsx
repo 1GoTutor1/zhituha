@@ -98,9 +98,9 @@ export default function App() {
   const restTime = carModel === 'toyota' ? TOYOTA_REST_TIME : carModel === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
   
   const dayMod = getDayModifier();
-  const isShiftBoosted = dayMod.type === 'shift';
-  const workPay = dayMod.type === 'work' ? Math.floor(JOB_WORK * 1.5) : JOB_WORK;
-  const shiftPay = isShiftBoosted ? Math.floor(WORKER_SALARY * 2) : (dayMod.type === 'work' ? Math.floor(WORKER_SALARY * 0.5) : WORKER_SALARY);
+  const isShiftBoosted = dayMod?.type === 'shift';
+  const workPay = dayMod?.type === 'work' ? Math.floor(JOB_WORK * 1.5) : JOB_WORK;
+  const shiftPay = isShiftBoosted ? Math.floor(WORKER_SALARY * 2) : (dayMod?.type === 'work' ? Math.floor(WORKER_SALARY * 0.5) : WORKER_SALARY);
 
   const showMsg = (msg: string, err = false) => { setToast({ msg, err }); setTimeout(() => setToast(null), 3000); };
   const getUid = () => user?.id?.toString() || localStorage.getItem('zhituha_id') || (() => { const id = 'user_' + Math.random().toString(36).substring(2, 8); localStorage.setItem('zhituha_id', id); return id; })();
@@ -132,7 +132,7 @@ export default function App() {
     const { data: me } = await supabase.from('players').select('referred_by').eq('id', pid).single();
     if (!me || !me.referred_by) return;
     let bonus = Math.floor(amount * 0.05);
-    if (dayMod.type === 'ref') bonus *= 2; 
+    if (dayMod?.type === 'ref') bonus *= 2; 
     if (bonus > 0) await supabase.rpc('add_referral_balance', { p_telegram_id: me.referred_by, p_amount: bonus });
   };
 
@@ -432,7 +432,7 @@ export default function App() {
       if (car.health <= 0) return car;
       const hours = Math.min((now - car.last_claim) / 3600000, 8); // Кэп 8 часов!
       let income = Math.floor(hours * (car.model === 'lada' ? 1000 : 1500));
-      if (dayMod.type === 'taxi') income *= 2;
+      if (dayMod?.type === 'taxi') income *= 2;
       let healthDrop = Math.floor(hours * 10);
       let newHealth = Math.max(0, car.health - healthDrop);
       totalIncome += income;
@@ -607,7 +607,7 @@ export default function App() {
   const buyCoffee = (cafe: any) => action(async () => {
     if (!cafe.worker_id || money < COFFEE_CUP_PRICE || energy >= maxEnergy) return showMsg("Нельзя купить", true);
     let coffeeEnergy = 30;
-    if (dayMod.type === 'coffee_energy') coffeeEnergy = 40;
+    if (dayMod?.type === 'coffee_energy') coffeeEnergy = 40;
     
     const nM = money - COFFEE_CUP_PRICE; setMoney(nM); await sync({ money: nM });
     const { data } = await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single();
@@ -625,7 +625,7 @@ export default function App() {
     const coffeeBiz = myBizs.find(b => b.biz_type === 'coffee');
     if (!coffeeBiz?.coffee_balance) return;
     let inc = coffeeBiz.coffee_balance;
-    if (dayMod.type === 'work') inc = Math.floor(inc * 1.5);
+    if (dayMod?.type === 'work') inc = Math.floor(inc * 1.5);
     
     const nM = money + inc;
     setMoney(nM);
@@ -675,7 +675,7 @@ export default function App() {
     const p = Number(sellPrice); if (isNaN(p) || p <= 0) return;
     
     const myLots = market.filter((m: any) => m.seller_id === pid).length;
-    if (myLots >= marketSlots && dayMod.type !== 'market_slots') {
+    if (myLots >= marketSlots && dayMod?.type !== 'market_slots') {
       return showMsg(`Нет свободных слотов! Купи телефон для +1 слота.`, true);
     }
 
@@ -726,8 +726,8 @@ export default function App() {
     if (data && data.error) throw new Error(data.error);
     
     let finalPrice = item.price;
-    if (item.item_type === 'car' && dayMod.type === 'car_sell') finalPrice = Math.floor(item.price * 1.3);
-    if (item.item_type === 'phone' && dayMod.type === 'phone_sell') finalPrice = Math.floor(item.price * 1.3);
+    if (item.item_type === 'car' && dayMod?.type === 'car_sell') finalPrice = Math.floor(item.price * 1.3);
+    if (item.item_type === 'phone' && dayMod?.type === 'phone_sell') finalPrice = Math.floor(item.price * 1.3);
 
     setMoney(m => m - finalPrice); 
     if (item.item_type === 'phone') { setPhone(true); await sync({ phone_count: 1 }); setMarketSlots(s => s + 1); }
@@ -838,8 +838,8 @@ export default function App() {
 
       <Modal open={modifierOpen} onClose={() => setModifierOpen(false)}>
         <div style={{ fontSize: 40, marginBottom: 10 }}>🔥</div>
-        <h3 style={{ marginTop: 0, color: dayMod.color }}>{dayMod.name}</h3>
-        <p style={{ fontSize: 16 }}>{dayMod.desc}</p>
+        <h3 style={{ marginTop: 0, color: dayMod?.color || '#fff' }}>{dayMod?.name || 'Событие'}</h3>
+        <p style={{ fontSize: 16 }}>{dayMod?.desc || 'Описание'}</p>
         <p style={{ color: '#8B899A', fontSize: 12, marginBottom: 20 }}>Модификатор действует до полуночи по серверному времени.</p>
         <Btn variant="secondary" onClick={() => setModifierOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Понятно</Btn>
       </Modal>
