@@ -157,15 +157,16 @@ export default function App() {
           setDailyStreak(Number(data.daily_streak) || 0);
           setBoostEnd(Number(data.boost_end) || 0);
 
-          // Проверка Daily Reward
-          const now = Date.now();
-          const timeDiff = now - (Number(data.last_claim) || 0);
-          if (timeDiff > 86400000) { // Прошло больше 24ч
-             if (timeDiff > 172800000) { // Прошло больше 48ч - сбрасываем стрик
-                setDailyStreak(0);
-                await supabase.from('players').update({ daily_streak: 0 }).eq('id', data.id);
-             }
-             setIsDailyOpen(true);
+          if (!silent) {
+            const now = Date.now();
+            const timeDiff = now - (Number(data.last_claim) || 0);
+            if (timeDiff > 86400000) { 
+               if (timeDiff > 172800000) { 
+                  setDailyStreak(0);
+                  await supabase.from('players').update({ daily_streak: 0 }).eq('id', data.id);
+               }
+               setIsDailyOpen(true);
+            }
           }
           
           const last = Number(data.last_rest_time) || 0;
@@ -622,15 +623,16 @@ export default function App() {
     cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar
   };
 
+  // Добавлен paddingTop: '50px' для всех экранов
   const bgColors: Record<string, string> = { home: '#16161a', jobs: '#16161a', market: '#16161a', cafe: '#16161a', shop: '#16161a', inventory: '#16161a' };
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
   const currentStock = getStock(activeBiz);
 
-  if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
-  if (isCheckingSub) return <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
+  if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '80px' }}>Загрузка...</div>;
+  if (isCheckingSub) return <div style={{ padding: '50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
 
   if (user && !isSubscribed) return (
-    <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ padding: '50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <Toast toast={toast} /><Send size={60} color="#3b82f6" style={{ marginBottom: 20 }} /><h1 style={{ marginBottom: 10 }}>Подпишись на канал!</h1>
       <p style={{ color: '#8B899A', marginBottom: 30, maxWidth: '300px' }}>Чтобы играть в Житуху, нужно быть подписанным на наш новостной канал.</p>
       <Btn variant="secondary" onClick={() => tg?.openTelegramLink(CHANNEL_LINK)} style={{ maxWidth: '280px', marginBottom: 15 }}><Send size={20} /> Подписаться</Btn>
@@ -639,7 +641,7 @@ export default function App() {
   );
 
   if (!nick || !gender) return (
-    <div style={{ padding: 20, textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ padding: '50px 20px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <Toast toast={toast} /><h1>Житуха</h1><p style={{ color: '#8B899A', marginBottom: '30px' }}>Создай персонажа</p>
       <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
         <button onClick={() => selectGender('male')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#161324', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Парень</button>
@@ -658,7 +660,7 @@ export default function App() {
   );
 
   return (
-    <div style={{ padding: '20px 20px 90px 20px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: bgColors[tab] || '#16161a', color: 'white', transition: 'background 0.5s ease' }}>
+    <div style={{ padding: '50px 20px 90px 20px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: bgColors[tab] || '#16161a', color: 'white', transition: 'background 0.5s ease' }}>
       <Toast toast={toast} />
       <DailyRewardModal app={app} />
 
@@ -712,7 +714,22 @@ export default function App() {
           <button onClick={() => { setTab('home'); setSelCafe(null); }} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Кафе</h2>
           {bLeft > 0 ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3>Готовим...</h3><p style={{ fontSize: 24, fontWeight: 'bold', color: '#f97316', fontFamily: 'Space Grotesk' }}>{bLeft} сек.</p></div>
           : selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>{selCafe.business_name}</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Владелец: {selCafe.owner_name}</p><Btn variant="yellow" onClick={() => buyCoffee(selCafe)} disabled={proc || money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id} style={{ background: (money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id) ? '#8B899A' : 'white', marginBottom: 10 }}>{!selCafe.worker_id ? 'Нет бариста' : energy >= maxEnergy ? 'Полная энергия' : money < COFFEE_CUP_PRICE ? 'Мало денег' : `Купить кофе за ${COFFEE_CUP_PRICE}`}</Btn><Btn variant="secondary" onClick={() => setSelCafe(null)} style={{ background: '#333', boxShadow: 'none' }}>Назад</Btn></div>
-          : <div>{allBiz.filter((b: any) => b.worker_id !== null && b.biz_type === 'coffee').map((b: any) => <div key={b.id} onClick={() => setSelCafe(b)} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div></div><span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span></div>)}{allBiz.filter((b: any) => b.worker_id !== null && b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A' }}>Нет открытых кафе.</p>}</div>}
+          : <div>
+              {allBiz.filter((b: any) => b.biz_type === 'coffee').map((b: any) => (
+                <div key={b.id} onClick={() => setSelCafe(b)} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', marginBottom: 10 }}>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Coffee size={16} /> {b.business_name}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div>
+                    {!b.worker_id && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>Нет бариста</div>}
+                  </div>
+                  <span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span>
+                </div>
+              ))}
+              {allBiz.filter((b: any) => b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A' }}>Нет открытых кафе.</p>}
+            </div>
+          }
         </div>
       )}
 
