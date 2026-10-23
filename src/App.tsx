@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-import { Send, ShieldAlert, Coffee, Smartphone, CheckCircle2, Backpack, Car, Building, Briefcase } from 'lucide-react';
+import { Send, ShieldAlert } from 'lucide-react';
 import { 
   BOT_USERNAME, CHANNEL_LINK, PHONE_PRICE, WORKER_SALARY, COFFEE_CUP_PRICE, 
   BREW_TIME, POLL, BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, 
@@ -12,7 +12,10 @@ import {
   JOB_WORK, getDayModifier
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
-import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals } from './tabs';
+import { 
+  HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals,
+  CafeTab, JobsTab, ShopTab, InventoryTab
+} from './tabs';
 
 export default function App() {
   const { user, hapticFeedback, tg, startParam } = useTelegram();
@@ -33,7 +36,7 @@ export default function App() {
   const [role, setRole] = useState('player');
   const [isBanned, setIsBanned] = useState(false);
   const [onboardStep, setOnboardStep] = useState(0);
-  const [tutorialWorkClicks, setTutorialWorkClicks] = useState(0); // Счетчик кликов для шага 1
+  const [tutorialWorkClicks, setTutorialWorkClicks] = useState(0);
   const [marketSlots, setMarketSlots] = useState(3);
   
   const [money, setMoney] = useState(3500);
@@ -129,7 +132,6 @@ export default function App() {
     return true;
   };
 
-  // ПРОДВИЖЕНИЕ ТУТОРИАЛА (с сохранением в БД)
   const advanceTutorial = async (step: number) => {
     setOnboardStep(step);
     await sync({ onboarding_step: step });
@@ -144,7 +146,7 @@ export default function App() {
     const targetEnergy = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
     setEnergy(targetEnergy);
     await sync({ energy: targetEnergy });
-    await advanceTutorial(3); // Переходим к шагу "Бизнесы"
+    await advanceTutorial(3);
     showMsg("Кофе выпит! Энергия восстановлена."); hapticFeedback('heavy');
   });
 
@@ -267,7 +269,6 @@ export default function App() {
     }
   }, [tab]);
 
-  // ТРИГГЕРЫ ДЛЯ ТУТОРИАЛА
   useEffect(() => {
     if (onboardStep === 3 && tab === 'business') advanceTutorial(4);
     if (onboardStep === 4 && tab === 'market') advanceTutorial(5);
@@ -650,7 +651,7 @@ export default function App() {
     const end = Date.now() + BREW_TIME; setBrewEnd(end); localStorage.setItem('zhituha_brew_end', end.toString());
     showMsg(`Кофе готовится (+${coffeeEnergy} энергии)...`); hapticFeedback('heavy');
     
-    if (onboardStep === 2) await advanceTutorial(3); // Пропускаем шаг, если купил сам
+    if (onboardStep === 2) await advanceTutorial(3);
   });
 
   const collect = () => action(async () => {
@@ -810,14 +811,20 @@ export default function App() {
     setPromoInput('');
   });
 
-  const app = {
+  // ОПТИМИЗАЦИЯ: useMemo предотвращает лишние перерисовки
+  const app = useMemo(() => ({
     user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, market, job, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, 
     sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, setModifierOpen,
-    isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName,
+    isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, shiftPay,
     promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee,
     action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, verifySubscription, selectGender, reg, claimTutorialReward,
     cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData
-  };
+  }), [
+    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, market, job, allBiz, selCafe, boardOpen, 
+    sellOpen, sellPrice, sellItemType, sellItemData, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen,
+    isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, shiftPay,
+    promoOpen, promoInput, adminTab, role
+  ]);
 
   const bgColors: Record<string, string> = { home: '#16161a', jobs: '#16161a', market: '#16161a', cafe: '#16161a', shop: '#16161a', inventory: '#16161a', admin: '#16161a' };
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
@@ -876,56 +883,15 @@ export default function App() {
         <Btn variant="secondary" onClick={() => setModifierOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Понятно</Btn>
       </Modal>
 
+      {/* ВЫНЕСЕННЫЕ ВКЛАДКИ */}
       {tab === 'home' && <HomeTab app={app} />}
-      
-      {tab === 'cafe' && (
-        <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-          <button onClick={() => { setTab('home'); setSelCafe(null); }} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Кафе</h2>
-          {bLeft > 0 ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3>Готовим...</h3><p style={{ fontSize: 24, fontWeight: 'bold', color: '#f97316', fontFamily: 'Space Grotesk' }}>{bLeft} сек.</p></div>
-          : selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>{selCafe.business_name}</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Владелец: {selCafe.owner_name}</p><Btn variant="yellow" onClick={() => buyCoffee(selCafe)} disabled={proc || money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id} style={{ background: (money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (money < COFFEE_CUP_PRICE || energy >= maxEnergy || !selCafe.worker_id) ? '#8B899A' : 'white', marginBottom: 10 }}>{!selCafe.worker_id ? 'Нет бариста' : energy >= maxEnergy ? 'Полная энергия' : money < COFFEE_CUP_PRICE ? 'Мало денег' : `Купить кофе за ${COFFEE_CUP_PRICE}`}</Btn><Btn variant="secondary" onClick={() => setSelCafe(null)} style={{ background: '#333', boxShadow: 'none' }}>Назад</Btn></div>
-          : <div>
-              {allBiz.filter((b: any) => b.biz_type === 'coffee').map((b: any) => (
-                <div key={b.id} onClick={() => setSelCafe(b)} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', marginBottom: 10 }}>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Coffee size={16} /> {b.business_name}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div>
-                    {!b.worker_id && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>Нет бариста</div>}
-                  </div>
-                  <span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span>
-                </div>
-              ))}
-              {allBiz.filter((b: any) => b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A' }}>Нет открытых кафе.</p>}
-            </div>
-          }
-        </div>
-      )}
-
+      {tab === 'cafe' && <CafeTab app={app} />}
       {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}
-      {tab === 'admin' && <AdminTab app={app} />}
-
-      {tab === 'jobs' && (
-        <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Работа</h2>
-          {boardOpen ? <div><button onClick={() => setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h3 style={{ color: '#8B899A', fontSize: 18, marginBottom: 15 }}>Вакансии</h3><div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{allBiz.filter((b: any) => !b.worker_id && b.owner_id !== pid && b.biz_type === 'coffee').map((b: any) => <div key={b.id} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div></div>{job ? <Btn variant="secondary" disabled style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Уже работаете</Btn> : <Btn variant="secondary" onClick={() => hire(b.id)} disabled={proc} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Устроиться</Btn>}</div>)}{allBiz.filter((b: any) => !b.worker_id && b.owner_id !== pid && b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A', fontSize: 14 }}>Пока нет мест...</p>}</div></div>
-          : job ? <div><h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3><div style={{ backgroundColor: '#161324', padding: 20, borderRadius: 20, border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 18, fontWeight: 'bold' }}>{job.business_name}</span></div><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#8B899A' }}>Владелец: <b style={{ color: 'white' }}>{job.owner_name}</b></p><p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#8B899A' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p><Btn variant="primary" onClick={shift} disabled={proc || energy < 25} style={{ marginBottom: 10 }}>Смена (+{shiftPay})</Btn><div style={{ display: 'flex', gap: 10 }}><button onClick={() => setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 16, fontWeight: 'bold', border: 'none' }}>Вакансии</button><Btn variant="danger" onClick={() => setQuitOpen(true)} disabled={proc} style={{ flex: 1, fontSize: 14, padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>Уволиться</Btn></div></div></div>
-          : <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}><div style={{ fontSize: 50, marginBottom: 10 }}>📉</div><h3>Вы безработный</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Пора найти работу!</p><Btn variant="secondary" onClick={() => setBoardOpen(true)}><Briefcase size={20} /> Биржа труда</Btn></div>}
-        </div>
-      )}
-
-      {tab === 'shop' && <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Магазин</h2><div style={{ ...S.card, textAlign: 'center' }}><Smartphone size={48} color="#8B899A" style={{ marginBottom: 15 }} /><h3>Смартфон</h3><p style={{ fontSize: 13, color: '#a1a1aa', marginBottom: 15 }}>Каждый телефон дает +1 слот на рынке (макс 10).</p>{phone ? <div style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckCircle2 size={20} /> Куплено</div> : <Btn variant="purple" onClick={() => buyPhone(true)} disabled={proc || money < PHONE_PRICE || marketSlots >= 10}>Купить за 2000</Btn>}</div></div>}
-
+      {tab === 'jobs' && <JobsTab app={app} />}
+      {tab === 'shop' && <ShopTab app={app} />}
       {tab === 'market' && <MarketTab app={app} />}
-
-      {tab === 'inventory' && (
-        <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-          <h2>Инвентарь</h2>
-          {phone ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Smartphone size={32} color="#8B899A" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div></div><Btn variant="purple" onClick={() => { setSellItemType('phone'); setSellItemData('phone'); setSellPrice('2000'); setSellOpen(true); }} disabled={proc}>Выставить</Btn><Btn variant="primary" onClick={() => buyPhone(false)} disabled={proc}>Сдать (+1400)</Btn></div> : null}
-          {hasCar ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Car size={32} color="#3b82f6" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>{carModel === 'lada' ? 'Лада' : carModel === 'toyota' ? 'Тойота' : 'Автомобиль'}</div><div style={{ fontSize: 12, color: '#10b981', marginTop: 4 }}>Отдых: {restTime / 1000} сек.</div></div></div><Btn variant="purple" onClick={() => { setSellItemType('car'); setSellItemData(carModel); setSellPrice('30000'); setSellOpen(true); }} disabled={proc}>Выставить на рынок</Btn></div> : null}
-          {hasHouse ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Building size={32} color="#f97316" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Квартира</div><div style={{ fontSize: 12, color: '#10b981', marginTop: 4 }}>Макс. энергия: {maxEnergy}</div></div></div><Btn variant="purple" onClick={() => { setSellItemType('house'); setSellItemData(houseType); setSellPrice('50000'); setSellOpen(true); }} disabled={proc}>Выставить на рынок</Btn></div> : null}
-          {!phone && !hasCar && !hasHouse && <div style={{ color: '#8B899A', padding: 40, textAlign: 'center' }}><Backpack size={48} style={{ opacity: 0.5, marginBottom: 10 }} /><br />Пусто...</div>}
-        </div>
-      )}
+      {tab === 'inventory' && <InventoryTab app={app} />}
+      {tab === 'admin' && <AdminTab app={app} />}
 
       {tab !== 'admin' && <BottomNav app={app} />}
     </div>

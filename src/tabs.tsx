@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
-  TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier,
+  TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, PHONE_PRICE,
   BUTTON_BATCH_COST, SMARTPHONE_BATCH_COST
 } from './constants';
 import { Btn, Modal } from './components';
@@ -33,14 +33,14 @@ export const AppModals = ({ app }: { app: any }) => (
       <Store size={40} color="#C084FC" style={{ marginBottom: 15 }} />
       <h3>Название бизнеса</h3>
       <p style={{ color: '#8B899A', fontSize: 13, marginBottom: 15 }}>Только английские буквы и цифры</p>
-      <input type="text" value={app.bizNameInput} onChange={e => app.setBizNameInput(e.target.value)} placeholder="Speed Motors" style={S.input} />
+      <input type="text" value={app.bizNameInput} onChange={(e: any) => app.setBizNameInput(e.target.value)} placeholder="Speed Motors" style={S.input} />
       <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => app.setBuyingType(null)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn><Btn variant="purple" onClick={app.submitBizName}>Купить</Btn></div>
     </Modal>
 
     <Modal open={app.promoOpen} onClose={() => app.setPromoOpen(false)}>
       <Gift size={40} color="#10b981" style={{ marginBottom: 15 }} />
       <h3>Активация промокода</h3>
-      <input type="text" value={app.promoInput} onChange={e => app.setPromoInput(e.target.value.toUpperCase())} placeholder="ALPHA100" style={S.input} />
+      <input type="text" value={app.promoInput} onChange={(e: any) => app.setPromoInput(e.target.value.toUpperCase())} placeholder="ALPHA100" style={S.input} />
       <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => app.setPromoOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn><Btn variant="primary" onClick={app.redeemPromo}>Активировать</Btn></div>
     </Modal>
   </>
@@ -95,7 +95,6 @@ export const TutorialCard = ({ app }: { app: any }) => {
   return (
     <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid #3b82f6', borderRadius: 16, padding: 15, marginBottom: 20, position: 'relative' }}>
       
-      {/* Кнопка СКИП */}
       <button onClick={app.skipTutorial} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', color: '#8B899A', cursor: 'pointer' }}>
         <X size={18} />
       </button>
@@ -109,7 +108,6 @@ export const TutorialCard = ({ app }: { app: any }) => {
       </div>
       <div style={{ fontSize: 14, color: 'white', marginBottom: 10 }}>{steps[app.onboardStep]}</div>
       
-      {/* Кнопка взять кофе прямо в туториале */}
       {app.onboardStep === 2 && (
         <Btn variant="primary" onClick={app.drinkTutorialCoffee} disabled={app.proc} style={{ padding: 10, fontSize: 14, marginBottom: 10 }}>
           Взять кофе (+100 энергии)
@@ -502,3 +500,53 @@ export const AdminTab = ({ app }: { app: any }) => {
     </div>
   );
 };
+
+// --- НОВЫЕ ВКЛАДКИ (ВЫНЕСЕНЫ ИЗ APP.TSX) ---
+
+export const CafeTab = ({ app }: { app: any }) => (
+  <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+    <button onClick={() => { app.setTab('home'); app.setSelCafe(null); }} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Кафе</h2>
+    {app.bLeft > 0 ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3>Готовим...</h3><p style={{ fontSize: 24, fontWeight: 'bold', color: '#f97316', fontFamily: 'Space Grotesk' }}>{app.bLeft} сек.</p></div>
+    : app.selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>{app.selCafe.business_name}</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Владелец: {app.selCafe.owner_name}</p><Btn variant="yellow" onClick={() => app.buyCoffee(app.selCafe)} disabled={app.proc || app.money < 500 || app.energy >= app.maxEnergy || !app.selCafe.worker_id} style={{ background: (app.money < 500 || app.energy >= app.maxEnergy || !app.selCafe.worker_id) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (app.money < 500 || app.energy >= app.maxEnergy || !app.selCafe.worker_id) ? '#8B899A' : 'white', marginBottom: 10 }}>{!app.selCafe.worker_id ? 'Нет бариста' : app.energy >= app.maxEnergy ? 'Полная энергия' : app.money < 500 ? 'Мало денег' : `Купить кофе за 500`}</Btn><Btn variant="secondary" onClick={() => app.setSelCafe(null)} style={{ background: '#333', boxShadow: 'none' }}>Назад</Btn></div>
+    : <div>
+        {app.allBiz.filter((b: any) => b.biz_type === 'coffee').map((b: any) => (
+          <div key={b.id} onClick={() => app.setSelCafe(b)} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', marginBottom: 10 }}>
+            <div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div>{!b.worker_id && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>Нет бариста</div>}</div>
+            <span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span>
+          </div>
+        ))}
+        {app.allBiz.filter((b: any) => b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A' }}>Нет открытых кафе.</p>}
+      </div>
+    }
+  </div>
+);
+
+export const JobsTab = ({ app }: { app: any }) => (
+  <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Работа</h2>
+    {app.boardOpen ? <div><button onClick={() => app.setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h3 style={{ color: '#8B899A', fontSize: 18, marginBottom: 15 }}>Вакансии</h3><div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{app.allBiz.filter((b: any) => !b.worker_id && b.owner_id !== app.pid && b.biz_type === 'coffee').map((b: any) => <div key={b.id} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div></div>{app.job ? <Btn variant="secondary" disabled style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Уже работаете</Btn> : <Btn variant="secondary" onClick={() => app.hire(b.id)} disabled={app.proc} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Устроиться</Btn>}</div>)}{app.allBiz.filter((b: any) => !b.worker_id && b.owner_id !== app.pid && b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A', fontSize: 14 }}>Пока нет мест...</p>}</div></div>
+    : app.job ? <div><h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3><div style={{ backgroundColor: '#161324', padding: 20, borderRadius: 20, border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 18, fontWeight: 'bold' }}>{app.job.business_name}</span></div><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#8B899A' }}>Владелец: <b style={{ color: 'white' }}>{app.job.owner_name}</b></p><p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#8B899A' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p><Btn variant="primary" onClick={app.shift} disabled={app.proc || app.energy < 25} style={{ marginBottom: 10 }}>Смена (+{app.shiftPay})</Btn><div style={{ display: 'flex', gap: 10 }}><button onClick={() => app.setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 16, fontWeight: 'bold', border: 'none' }}>Вакансии</button><Btn variant="danger" onClick={() => app.setQuitOpen(true)} disabled={app.proc} style={{ flex: 1, fontSize: 14, padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>Уволиться</Btn></div></div></div>
+    : <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}><div style={{ fontSize: 50, marginBottom: 10 }}>📉</div><h3>Вы безработный</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Пора найти работу!</p><Btn variant="secondary" onClick={() => app.setBoardOpen(true)}><Briefcase size={20} /> Биржа труда</Btn></div>}
+  </div>
+);
+
+export const ShopTab = ({ app }: { app: any }) => (
+  <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+    <h2>Магазин</h2>
+    <div style={{ ...S.card, textAlign: 'center' }}>
+      <Smartphone size={48} color="#8B899A" style={{ marginBottom: 15 }} />
+      <h3>Смартфон</h3>
+      <p style={{ fontSize: 13, color: '#a1a1aa', marginBottom: 15 }}>Каждый телефон дает +1 слот на рынке (макс 10).</p>
+      {app.phone ? <div style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckCircle2 size={20} /> Куплено</div> : <Btn variant="purple" onClick={() => app.buyPhone(true)} disabled={app.proc || app.money < PHONE_PRICE || app.marketSlots >= 10}>Купить за 2000</Btn>}
+    </div>
+  </div>
+);
+
+export const InventoryTab = ({ app }: { app: any }) => (
+  <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+    <h2>Инвентарь</h2>
+    {app.phone ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Smartphone size={32} color="#8B899A" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div></div><Btn variant="purple" onClick={() => { app.setSellItemType('phone'); app.setSellItemData('phone'); app.setSellPrice('2000'); app.setSellOpen(true); }} disabled={app.proc}>Выставить</Btn><Btn variant="primary" onClick={() => app.buyPhone(false)} disabled={app.proc}>Сдать (+1400)</Btn></div> : null}
+    {app.hasCar ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Car size={32} color="#3b82f6" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>{app.carModel === 'lada' ? 'Лада' : app.carModel === 'toyota' ? 'Тойота' : 'Автомобиль'}</div><div style={{ fontSize: 12, color: '#10b981', marginTop: 4 }}>Отдых: {app.restTime / 1000} сек.</div></div></div><Btn variant="purple" onClick={() => { app.setSellItemType('car'); app.setSellItemData(app.carModel); app.setSellPrice('30000'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
+    {app.hasHouse ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Building size={32} color="#f97316" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Квартира</div><div style={{ fontSize: 12, color: '#10b981', marginTop: 4 }}>Макс. энергия: {app.maxEnergy}</div></div></div><Btn variant="purple" onClick={() => { app.setSellItemType('house'); app.setSellItemData(app.houseType); app.setSellPrice('50000'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
+    {!app.phone && !app.hasCar && !app.hasHouse && <div style={{ color: '#8B899A', padding: 40, textAlign: 'center' }}><Backpack size={48} style={{ opacity: 0.5, marginBottom: 10 }} /><br />Пусто...</div>}
+  </div>
+);
