@@ -612,19 +612,18 @@ export default function App() {
     showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium'); loadData(true);
   });
 
-  // ИСПРАВЛЕНО: обновляем стейт после увольнения
   const fire = (workerId: string) => action(async () => {
     const { error } = await supabase.from('business_workers').delete().eq('id', workerId);
     if (error) throw error;
     showMsg("Сотрудник уволен."); hapticFeedback('heavy');
-    loadData(true); // Перезапрашиваем данные
+    setAllWorkers(prev => prev.filter(w => w.id !== workerId)); // Мгновенно убираем
+    loadData(true); 
   });
 
-  // ИСПРАВЛЕНО: обновляем стейт после увольнения
   const quit = () => action(async () => {
     if (!myJob) return;
     await supabase.from('business_workers').delete().eq('id', myJob.id);
-    setMyJob(null); // Мгновенно убираем работу из стейта
+    setMyJob(null); // Мгновенно убираем работу
     setQuitOpen(false); setBoardOpen(false); showMsg("Вы уволились."); hapticFeedback('heavy'); loadData(true);
   });
 
