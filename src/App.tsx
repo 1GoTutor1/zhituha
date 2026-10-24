@@ -125,7 +125,6 @@ export default function App() {
       });
 
       if (!res.ok) {
-        // Пытаемся прочитать точную ошибку от сервера Vercel
         const errorData = await res.json().catch(() => null);
         throw new Error(errorData?.error || `Ошибка сервера: ${res.status}`);
       }
@@ -690,9 +689,24 @@ export default function App() {
     setMoney(m => m + data.amount); showMsg(`+${data.amount} монет!`); setPromoOpen(false); setPromoInput('');
   });
 
+  const resetGame = () => action(async () => {
+    const c1 = window.confirm("ВНИМАНИЕ! Ты собираешься ПОЛНОСТЬЮ ОБНУЛИТЬ игру (деньги, бизнесы, машины, квартиры у ВСЕХ игроков). Продолжить?");
+    if (!c1) return;
+    const c2 = window.confirm("ТОЧНО-ТОЧНО? Это действие нельзя будет отменить!");
+    if (!c2) return;
+
+    const { data, error } = await supabase.rpc('reset_game_rpc', { p_admin_id: pid });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+
+    showMsg("Игра полностью сброшена!"); hapticFeedback('heavy');
+    loadData(true);
+    loadMarket();
+  });
+
   const app = useMemo(() => ({
     user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, market, myJob, allWorkers, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, shiftPay, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData,
-    bugOpen, setBugOpen, bugText, setBugText, submitBug
+    bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame
   }), [
     user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, shiftPay, promoOpen, promoInput, adminTab, role, bugOpen, bugText
   ]);
