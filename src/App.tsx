@@ -612,29 +612,28 @@ export default function App() {
     showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium'); loadData(true);
   });
 
-  // ФИКС: Принудительно очищаем стейт и делаем паузу перед обновлением
+  // ИСПРАВЛЕНО: Атомарное увольнение сотрудника
   const fire = (workerId: string) => action(async () => {
     const { error } = await supabase.from('business_workers').delete().eq('id', workerId);
     if (error) throw error;
     showMsg("Сотрудник уволен."); hapticFeedback('heavy');
     setAllWorkers(prev => prev.filter(w => w.id !== workerId));
-    setTimeout(() => loadData(true), 500);
+    loadData(true);
   });
 
-  // ФИКС: Принудительно очищаем стейт и делаем паузу перед обновлением
+  // ИСПРАВЛЕНО: Атомарное увольнение самого игрока через RPC
   const quit = () => action(async () => {
     if (!myJob) return;
-    const jobId = myJob.id;
+    const { data, error } = await supabase.rpc('quit_job_rpc', { p_player_id: pid });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+
     setMyJob(null); 
     setQuitOpen(false); 
     setBoardOpen(false); 
     showMsg("Вы уволились."); 
     hapticFeedback('heavy');
-    
-    const { error } = await supabase.from('business_workers').delete().eq('id', jobId);
-    if (error) throw error;
-    
-    setTimeout(() => loadData(true), 500);
+    loadData(true);
   });
 
   const shift = () => action(async () => {
