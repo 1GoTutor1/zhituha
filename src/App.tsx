@@ -3,13 +3,13 @@ import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { Send, ShieldAlert } from 'lucide-react';
 import { 
-  BOT_USERNAME, CHANNEL_LINK, PHONE_PRICE, COFFEE_CUP_PRICE, BREW_TIME, POLL, 
+  BOT_USERNAME, CHANNEL_LINK, COFFEE_CUP_PRICE, BREW_TIME, POLL, 
   BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, TOYOTA_REST_TIME, AVATARS, 
   getStock, S, BUILDING_PRICE, BUILDING_TIME, APARTMENTS_PER_BUILD, TAXI_BIZ_PRICE, 
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, 
   CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, 
   BUTTON_BATCH_COST, BUTTON_BATCH_TIME, SMARTPHONE_BATCH_SIZE, SMARTPHONE_BATCH_COST, 
-  SMARTPHONE_BATCH_TIME, JOB_WORK, getDayModifier, COFFEE_OWNER_INCOME, PHONE_SELL_TO_SHOP, TAXI_HEALTH_DROP_RATE
+  SMARTPHONE_BATCH_TIME, JOB_WORK, getDayModifier, COFFEE_OWNER_INCOME, TAXI_HEALTH_DROP_RATE
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
 import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals, CafeTab, JobsTab, ShopTab, InventoryTab } from './tabs';
@@ -149,6 +149,17 @@ export default function App() {
     return true;
   };
 
+  const changeStats = async (moneyDiff: number, energyDiff: number) => {
+    if (!pid) return false;
+    const { data, error } = await supabase.rpc('change_stats', { p_player_id: pid, p_money_diff: moneyDiff, p_energy_diff: energyDiff });
+    if (error) throw new Error("Ошибка баланса: " + error.message);
+    if (data) {
+      setMoney(data.money);
+      setEnergy(data.energy);
+    }
+    return true;
+  };
+
   const advanceTutorial = async (step: number) => { setOnboardStep(step); await sync({ onboarding_step: step }); };
   const skipTutorial = () => { advanceTutorial(onboardStep + 1); hapticFeedback('light'); };
 
@@ -231,7 +242,8 @@ export default function App() {
   useEffect(() => { if (user) loadData(); }, [user]);
 
   useEffect(() => {
-    if (tab === 'market') loadMarket();
+    if (tab === 'market') { loadMarket(); loadData(true); }
+    if (tab === 'shop' || tab === 'inventory') loadData(true);
     if (['business', 'jobs', 'cafe'].includes(tab)) {
       loadData(true);
       const int = setInterval(() => loadData(true), POLL);
@@ -313,6 +325,7 @@ export default function App() {
 
   const selectGender = (g: 'male' | 'female') => { setSelG(g); setAvatarId(AVATARS.find(a => a.gender === g)?.id || 1); hapticFeedback('light'); };
   
+  // ИСПРАВЛЕНО: select('id') вместо select('money')
   const reg = () => action(async () => {
     const final = user?.first_name || inNick;
     if (!final.trim() || !selG) return showMsg("Заполни поля!", true);
@@ -327,8 +340,8 @@ export default function App() {
     
     if (error) throw error;
     if (refBy && data) {
-      const { data: rUser } = await supabase.from('players').select('money').eq('telegram_id', refBy).single();
-      if (rUser) await supabase.from('players').update({ money: Number(rUser.money) + 500 }).eq('telegram_id', refBy);
+      const { data: rUser } = await supabase.from('players').select('id').eq('telegram_id', refBy).single();
+      if (rUser) await supabase.rpc('change_stats', { p_player_id: rUser.id, p_money_diff: 500, p_energy_diff: 0 });
     }
     setPid(data.id); setNick(final); setGender(selG);
     if (refBy) showMsg("Бонус +1000 монет за приглашение!");
@@ -359,7 +372,7 @@ export default function App() {
 
   const drinkTutorialCoffee = () => action(async () => {
     const target = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
-    setEnergy(target); await sync({ energy: target }); await advanceTutorial(3);
+    await changeStats(0, target - energy); await advanceTutorial(3);
     showMsg("Кофе выпит! Энергия восстановлена."); hapticFeedback('heavy');
   });
 
@@ -373,8 +386,7 @@ export default function App() {
 
   const claimTutorialReward = () => action(async () => {
     if (onboardStep !== 5) return;
-    const nM = money + 2000;
-    setMoney(nM); await advanceTutorial(6); await sync({ money: nM });
+    await changeStats(2000, 0); await advanceTutorial(6);
     showMsg("Туториал пройден! +2000 монет"); hapticFeedback('heavy');
   });
 
@@ -386,12 +398,12 @@ export default function App() {
     
     if (rw.type === 'money') {
       const finalAmount = boostEnd > now ? Math.floor(rw.amount * 1.1) : rw.amount;
-      setMoney(m => m + finalAmount); updates.money = money + finalAmount;
+      await changeStats(finalAmount, 0);
       if (rw.boost) { const nb = now + 86400000; setBoostEnd(nb); updates.boost_end = nb; showMsg(`Награда: +${finalAmount} монет и БУСТ x1.1!`); }
       else showMsg(`Награда: +${finalAmount} монет!`);
     } else if (rw.type === 'coffee') {
       const target = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
-      setEnergy(target); updates.energy = target; showMsg(`Награда: Кофе! Энергия восстановлена!`);
+      await changeStats(0, target - energy); showMsg(`Награда: Кофе! Энергия восстановлена!`);
     }
     await sync(updates); hapticFeedback('heavy');
   });
@@ -402,7 +414,7 @@ export default function App() {
     const price = model === 'lada' ? LADA_PRICE : TOYOTA_PRICE;
     if (money < price) return showMsg("Мало денег!", true);
     
-    const nM = money - price; setMoney(nM); await sync({ money: nM });
+    await changeStats(-price, 0);
     const s = getStock(taxi); const cars = s.taxi_cars || [];
     cars.push({ model, health: 100, last_claim: Date.now() });
     await supabase.from('businesses').update({ stock: { ...s, taxi_cars: cars } }).eq('id', taxi.id);
@@ -426,9 +438,8 @@ export default function App() {
     });
     
     if (totalIncome === 0) return showMsg("Еще рано собирать доход", true);
-    const nM = money + totalIncome; setMoney(nM);
+    await changeStats(totalIncome, 0);
     setMyBizs(prev => prev.map(b => b.id === taxi.id ? { ...b, stock: { ...s, taxi_cars: updatedCars } } : b));
-    await sync({ money: nM });
     await supabase.from('businesses').update({ stock: { ...s, taxi_cars: updatedCars } }).eq('id', taxi.id);
     showMsg(`Собрано ${totalIncome} монет!`); 
   });
@@ -440,7 +451,7 @@ export default function App() {
     const repairCost = car.model === 'lada' ? TAXI_REPAIR_LADA : TAXI_REPAIR_TOYOTA;
     if (money < repairCost) return showMsg("Мало денег на ремонт", true);
     
-    const nM = money - repairCost; setMoney(nM); await sync({ money: nM });
+    await changeStats(-repairCost, 0);
     cars[index] = { ...car, health: 100, last_claim: Date.now() };
     await supabase.from('businesses').update({ stock: { ...s, taxi_cars: cars } }).eq('id', taxi.id);
     showMsg("Машина отремонтирована!"); loadData(true);
@@ -454,7 +465,7 @@ export default function App() {
     if (money < price) return showMsg("Мало денег!", true);
     const time = (model === 'button' ? BUTTON_BATCH_TIME : SMARTPHONE_BATCH_TIME) / ((dayMod?.type === 'factory' || dayMod?.type === 'phone_sell') ? 1.5 : 1);
     
-    const nM = money - price; setMoney(nM); await sync({ money: nM });
+    await changeStats(-price, 0);
     const end = Date.now() + time; setPhoneProdEnd(end);
     const s = getStock(factory);
     await supabase.from('businesses').update({ build_end: end, stock: { ...s, current_phone_model: model } }).eq('id', factory.id);
@@ -473,7 +484,7 @@ export default function App() {
     if (error) throw error;
     if (data && data.error) throw new Error(data.error);
     
-    setMoney(m => m - price); setBuyingType(null); setBizNameInput('');
+    setBuyingType(null); setBizNameInput('');
     showMsg("Бизнес открыт!"); loadData(true);
   });
 
@@ -482,7 +493,7 @@ export default function App() {
     const { data, error } = await supabase.rpc('sell_business_rpc', { p_owner_id: pid, p_biz_id: biz.id });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
-    setMoney(m => m + data.refund); showMsg(`Бизнес продан за ${data.refund}!`); loadData(true); loadMarket();
+    showMsg(`Бизнес продан за ${data.refund}!`); loadData(true); loadMarket();
   });
 
   const cancelLot = (item: any) => action(async () => {
@@ -516,14 +527,11 @@ export default function App() {
     const price = model === 'lada' ? LADA_PRICE : TOYOTA_PRICE;
     if (money < price) return showMsg("Мало денег!", true);
     
-    const nM = money - price, end = Date.now() + (model === 'lada' ? 30000 : 120000);
+    await changeStats(-price, 0);
+    const end = Date.now() + (model === 'lada' ? 30000 : 120000);
     const nS = { ...getStock(salon), current_model: model };
-    const { error: bErr } = await supabase.from('businesses').update({ car_order_end: end, stock: nS }).eq('id', salon.id);
-    if (bErr) throw new Error("Ошибка: " + bErr.message);
-    
-    const { error: mErr } = await supabase.from('players').update({ money: nM }).eq('id', pid);
-    if (mErr) { await supabase.from('businesses').update({ car_order_end: salon.car_order_end || 0, stock: salon.stock }).eq('id', salon.id); throw new Error("Ошибка: " + mErr.message); }
-    setMoney(nM); setCarOrderEnd(end); setMyBizs(prev => prev.map(b => b.id === salon.id ? { ...b, car_order_end: end, stock: nS } : b));
+    await supabase.from('businesses').update({ car_order_end: end, stock: nS }).eq('id', salon.id);
+    setCarOrderEnd(end); setMyBizs(prev => prev.map(b => b.id === salon.id ? { ...b, car_order_end: end, stock: nS } : b));
     showMsg(`Заказ на ${model === 'lada' ? 'Ладу' : 'Тойоту'} оформлен!`); hapticFeedback('heavy');
   });
 
@@ -532,29 +540,29 @@ export default function App() {
     if (!constr || buildEnd > 0) return showMsg("Стройка уже идет!", true);
     if (money < BUILDING_PRICE) return showMsg("Мало денег!", true);
     
-    const nM = money - BUILDING_PRICE, end = Date.now() + (BUILDING_TIME / (dayMod?.type === 'build' ? 1.5 : 1));
-    const { error: bErr } = await supabase.from('businesses').update({ build_end: end }).eq('id', constr.id);
-    if (bErr) throw new Error("Ошибка: " + bErr.message);
-    
-    const { error: mErr } = await supabase.from('players').update({ money: nM }).eq('id', pid);
-    if (mErr) { await supabase.from('businesses').update({ build_end: 0 }).eq('id', constr.id); throw new Error("Ошибка: " + mErr.message); }
-    setMoney(nM); setBuildEnd(end); setMyBizs(prev => prev.map(b => b.id === constr.id ? { ...b, build_end: end } : b));
+    await changeStats(-BUILDING_PRICE, 0);
+    const end = Date.now() + (BUILDING_TIME / (dayMod?.type === 'build' ? 1.5 : 1));
+    await supabase.from('businesses').update({ build_end: end }).eq('id', constr.id);
+    setBuildEnd(end); setMyBizs(prev => prev.map(b => b.id === constr.id ? { ...b, build_end: end } : b));
     showMsg("Стройка началась!"); hapticFeedback('heavy');
   });
 
   const work = () => action(async () => {
     const energyCost = hasCar ? 10 : 20;
     if (energy < energyCost) return showMsg("Ты слишком устал!", true);
-    const nM = money + workPay, nE = energy - energyCost;
-    setMoney(nM); setEnergy(nE); await sync({ money: nM, energy: nE });
+    await changeStats(workPay, -energyCost);
     addReferralBonus(workPay); showMsg(`+${workPay} монет`); hapticFeedback('medium');
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }
   });
 
   const rest = () => action(async () => {
     if (tLeft > 0 || energy >= maxEnergy) return;
-    setEnergy(maxEnergy); setRestEnd(Date.now() + restTime);
-    await sync({ energy: maxEnergy, last_rest_time: Date.now() });
+    const { data, error } = await supabase.rpc('rest_rpc', { p_player_id: pid, p_target_energy: maxEnergy });
+    if (error) throw error;
+    if (data && data.error) throw new Error(data.error);
+    
+    setEnergy(maxEnergy);
+    setRestEnd(Date.now() + restTime);
     showMsg(`Энергия восстановлена!`); hapticFeedback('light');
     if (onboardStep === 1) await advanceTutorial(2);
   });
@@ -564,7 +572,7 @@ export default function App() {
     if (!hasBarista || money < COFFEE_CUP_PRICE || energy >= maxEnergy) return showMsg("Нельзя купить", true);
     const coffeeEnergy = Math.floor(30 * (dayMod?.type === 'coffee_energy' ? (dayMod.mult || 1.3) : 1));
     
-    const nM = money - COFFEE_CUP_PRICE; setMoney(nM); await sync({ money: nM });
+    await changeStats(-COFFEE_CUP_PRICE, 0);
     await supabase.from('businesses').update({ coffee_balance: (Number((await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single()).data?.coffee_balance) || 0) + COFFEE_OWNER_INCOME }).eq('id', cafe.id);
     
     if (cafe.owner_id) {
@@ -579,9 +587,9 @@ export default function App() {
   const collect = () => action(async () => {
     const coffeeBiz = myBizs.find(b => b.biz_type === 'coffee');
     if (!coffeeBiz?.coffee_balance) return;
-    const nM = money + coffeeBiz.coffee_balance;
-    setMoney(nM); setMyBizs(prev => prev.map(b => b.id === coffeeBiz.id ? { ...b, coffee_balance: 0 } : b));
-    await sync({ money: nM }); await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', coffeeBiz.id);
+    await changeStats(coffeeBiz.coffee_balance, 0);
+    setMyBizs(prev => prev.map(b => b.id === coffeeBiz.id ? { ...b, coffee_balance: 0 } : b));
+    await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', coffeeBiz.id);
     addReferralBonus(coffeeBiz.coffee_balance); showMsg(`Собрано ${coffeeBiz.coffee_balance}`); hapticFeedback('medium'); 
   });
 
@@ -608,20 +616,20 @@ export default function App() {
   const shift = () => action(async () => {
     const energyCost = hasCar ? 10 : 20;
     if (!myJob || energy < energyCost) return;
-    const nM = money + shiftPay, nE = energy - energyCost;
-    setMoney(nM); setEnergy(nE); showMsg(`+${shiftPay} за смену`); hapticFeedback('medium');
-    await sync({ money: nM, energy: nE }); addReferralBonus(shiftPay);
+    await changeStats(shiftPay, -energyCost);
+    showMsg(`+${shiftPay} за смену`); hapticFeedback('medium');
+    addReferralBonus(shiftPay);
   });
 
   const buyPhone = (buy: boolean) => action(async () => {
-    if (buy && money < PHONE_PRICE) return showMsg("Мало денег", true);
-    if (buy && phone) return showMsg("У тебя уже есть телефон", true);
-    if (buy && marketSlots >= 10) return showMsg("Максимум слотов", true);
-    const nM = buy ? money - PHONE_PRICE : money + PHONE_SELL_TO_SHOP;
-    const newSlots = buy ? marketSlots + 1 : Math.max(3, marketSlots - 1);
-    setMarketSlots(newSlots); setMoney(nM); setPhone(buy); 
-    showMsg(buy ? "Куплено! +1 слот" : `Сдан за ${PHONE_SELL_TO_SHOP}`); hapticFeedback('heavy');
-    await sync({ money: nM, phone_count: buy ? 1 : 0, market_slots: newSlots });
+    const { data, error } = await supabase.rpc('buy_phone_rpc', { p_player_id: pid, p_is_buying: buy });
+    if (error) throw error;
+    if (data && data.error) throw new Error(data.error);
+    
+    setMoney(data.money);
+    setMarketSlots(data.market_slots);
+    setPhone(buy);
+    showMsg(buy ? "Куплено! +1 слот" : `Сдан за 1400`); hapticFeedback('heavy');
   });
 
   const listItem = () => action(async () => {
@@ -666,9 +674,13 @@ export default function App() {
   };
 
   const collectRefBonus = () => action(async () => {
-    if (refBalance <= 0) return;
-    const nM = money + refBalance; setMoney(nM); setRefBalance(0);
-    await sync({ money: nM, referral_balance: 0 }); showMsg(`Собрано ${refBalance} с рефералов!`); hapticFeedback('heavy'); setRefOpen(false);
+    const { data, error } = await supabase.rpc('collect_ref_bonus_rpc', { p_player_id: pid });
+    if (error) throw error;
+    if (data && data.error) throw new Error(data.error);
+    
+    setMoney(data.money);
+    setRefBalance(0);
+    showMsg(`Собрано ${data.collected} с рефералов!`); hapticFeedback('heavy'); setRefOpen(false);
   });
 
   const handleAvatar = () => {
