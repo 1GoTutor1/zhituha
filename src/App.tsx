@@ -98,7 +98,6 @@ export default function App() {
   const baseRestTime = carModel === 'toyota' ? TOYOTA_REST_TIME : carModel === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
   const restTime = dayMod?.type === 'car_sell' ? Math.floor(baseRestTime * 0.8) : baseRestTime;
   
-  const bizBonusTypes = ['coffee', 'salon', 'taxi', 'phone_factory', 'construction'];
   let bizBonusPercent = 0;
   myBizs.forEach(b => {
     if (b.biz_type === 'coffee') bizBonusPercent += 5;
@@ -276,6 +275,10 @@ export default function App() {
           setBrewEnd(0); const target = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
           setEnergy(target); localStorage.removeItem('zhituha_brew_end');
           if (pid) supabase.from('players').update({ energy: target }).eq('id', pid);
+          
+          // ФИКС: Принудительно обновляем данные с сервера, чтобы стейт не рассинхронился
+          loadData(true); 
+          
           showMsg("Кофе готов! Энергия восстановлена!"); hapticFeedback('heavy');
           sendNotification("☕ Твой кофе готов! Энергия восстановлена, залетай в игру!");
         }
