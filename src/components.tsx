@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Home, Briefcase, Globe, Store, Backpack } from 'lucide-react';
 import { S } from './constants';
 
@@ -11,29 +12,53 @@ export const Modal = ({ open, onClose, children }: any) => {
   return <div style={S.modalBg} onClick={onClose}><div style={S.modalBox} onClick={(e: any) => e.stopPropagation()}>{children}</div></div>;
 };
 
-export const Toast = ({ toast }: { toast: any }) => {
-  if (!toast) return null;
+export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) => {
+  const [visible, setVisible] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => {
+    if (toast) {
+      setVisible(true);
+      setLeaving(false);
+
+      // 2.5 секунды висит, потом 0.3 секунды утекает вниз
+      const hideTimer = setTimeout(() => setLeaving(true), 2500);
+      const removeTimer = setTimeout(() => {
+        setVisible(false);
+        onClose();
+      }, 2800); 
+
+      return () => {
+        clearTimeout(hideTimer);
+        clearTimeout(removeTimer);
+      };
+    }
+  }, [toast]); // Срабатывает при каждом новом id тоста
+
+  if (!visible || !toast) return null;
+
   return (
     <div style={{ 
       position: 'fixed', 
-      bottom: '90px', // Над нижним меню
+      bottom: '90px', 
       left: '50%', 
-      transform: 'translateX(-50%)', 
+      transform: leaving ? 'translate(-50%, 20px)' : 'translate(-50%, 0)', // Утекает вниз на 20px
+      opacity: leaving ? 0 : 1, // Плавно растворяется
+      transition: 'all 0.3s ease-in-out', 
       backgroundColor: toast.err ? 'rgba(239, 68, 68, 0.95)' : 'rgba(16, 185, 129, 0.95)', 
       color: 'white', 
       padding: '12px 24px', 
       borderRadius: '20px', 
       fontWeight: 'bold', 
-      zIndex: 9999, // Поверх всех модалок
+      zIndex: 9999, 
       width: 'auto', 
       minWidth: '200px',
       maxWidth: '90vw', 
       boxShadow: '0 10px 25px rgba(0,0,0,0.5)', 
       textAlign: 'center',
-      pointerEvents: 'none', // Клики проходят сквозь уведомление
+      pointerEvents: 'none',
       backdropFilter: 'blur(5px)',
       border: `1px solid ${toast.err ? '#f87171' : '#34d399'}`,
-      animation: 'slideUp 0.3s ease-out'
     }}>
       {toast.msg}
     </div>
