@@ -13,7 +13,31 @@ export const Modal = ({ open, onClose, children }: any) => {
 
 export const Toast = ({ toast }: { toast: any }) => {
   if (!toast) return null;
-  return <div style={{ position: 'fixed', top: 90, left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.err ? '#ef4444' : '#10b981', color: 'white', padding: '12px 20px', borderRadius: '12px', fontWeight: 'bold', zIndex: 2000, width: '80%', maxWidth: '280px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', textAlign: 'center' }}>{toast.msg}</div>;
+  return (
+    <div style={{ 
+      position: 'fixed', 
+      bottom: '90px', // Над нижним меню
+      left: '50%', 
+      transform: 'translateX(-50%)', 
+      backgroundColor: toast.err ? 'rgba(239, 68, 68, 0.95)' : 'rgba(16, 185, 129, 0.95)', 
+      color: 'white', 
+      padding: '12px 24px', 
+      borderRadius: '20px', 
+      fontWeight: 'bold', 
+      zIndex: 9999, // Поверх всех модалок
+      width: 'auto', 
+      minWidth: '200px',
+      maxWidth: '90vw', 
+      boxShadow: '0 10px 25px rgba(0,0,0,0.5)', 
+      textAlign: 'center',
+      pointerEvents: 'none', // Клики проходят сквозь уведомление
+      backdropFilter: 'blur(5px)',
+      border: `1px solid ${toast.err ? '#f87171' : '#34d399'}`,
+      animation: 'slideUp 0.3s ease-out'
+    }}>
+      {toast.msg}
+    </div>
+  );
 };
 
 export const BottomNav = ({ app }: { app: any }) => {
