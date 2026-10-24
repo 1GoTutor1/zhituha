@@ -125,7 +125,7 @@ export const TutorialCard = ({ app }: { app: any }) => {
 
 export const HomeTab = ({ app }: { app: any }) => {
   const av = getAvatar(app.avatarId);
-  const maxEnergy = app.hasHouse ? 150 : 100;
+  const maxEnergy = app.maxEnergy;
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
   const modifier = getDayModifier();
   const energyCost = app.hasCar ? 10 : 20;
@@ -372,7 +372,15 @@ export const AdminTab = ({ app }: { app: any }) => {
 
   const handleSearch = async () => { if (!searchQ) return; const { data } = await app.supabase.from('players').select('*').ilike('nickname', `%${searchQ}%`).limit(5); setFoundPlayers(data || []); };
   const loadPlayerDetails = async (p: any) => { setSelectedPlayer(p); const { data } = await app.supabase.from('businesses').select('*').eq('owner_id', p.id); setPlayerBizs(data || []); };
-  const handleGiveMoney = async (amount: number) => { if (!selectedPlayer) return; const newMoney = Math.max(0, selectedPlayer.money + amount); await app.supabase.from('players').update({ money: newMoney }).eq('id', selectedPlayer.id); setSelectedPlayer({ ...selectedPlayer, money: newMoney }); app.showMsg(`Выдано ${amount}`); if (app.loadData) app.loadData(true); };
+  const handleGiveMoney = async (amount: number) => { 
+    if (!selectedPlayer) return; 
+    const { data, error } = await app.supabase.rpc('change_stats', { p_player_id: selectedPlayer.id, p_money_diff: amount, p_energy_diff: 0 });
+    if (error) return app.showMsg(error.message, true);
+    const newMoney = Math.max(0, Number(data?.money ?? selectedPlayer.money + amount));
+    setSelectedPlayer({ ...selectedPlayer, money: newMoney });
+    app.showMsg(`Выдано ${amount}`); 
+    if (app.loadData) app.loadData(true); 
+  };
   const handleBan = async () => { if (!selectedPlayer) return; const newStatus = !selectedPlayer.is_banned; await app.supabase.from('players').update({ is_banned: newStatus }).eq('id', selectedPlayer.id); setSelectedPlayer({ ...selectedPlayer, is_banned: newStatus }); app.showMsg(newStatus ? "Забанен" : "Разбанен"); if (app.loadData) app.loadData(true); };
   const handleDeleteBiz = async (bizId: string) => { if (!window.confirm("Удалить этот бизнес?")) return; await app.supabase.from('businesses').delete().eq('id', bizId); setPlayerBizs(prev => prev.filter(b => b.id !== bizId)); app.showMsg("Бизнес удален"); if (app.loadData) app.loadData(true); };
   const handleCreatePromo = async () => { if (!promoCode || !promoAmount) return; const { error } = await app.supabase.from('promo_codes').insert([{ code: promoCode.toUpperCase(), amount: parseInt(promoAmount), max_uses: parseInt(promoLimit) }]); if (error) return app.showMsg(error.message, true); app.showMsg("Промокод создан!"); setPromoCode(''); setPromoAmount(''); };

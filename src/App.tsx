@@ -45,7 +45,7 @@ export default function App() {
   const [hasHouse, setHasHouse] = useState(false);
   const [houseType, setHouseType] = useState('none');
   const [refBalance, setRefBalance] = useState(0);
-  const [tipBalance, setTipBalance] = useState(0); // НОВОЕ
+  const [tipBalance, setTipBalance] = useState(0);
   const [myRefs, setMyRefs] = useState<any[]>([]);
   const [isDailyOpen, setIsDailyOpen] = useState(false);
   const [dailyStreak, setDailyStreak] = useState(0);
@@ -170,7 +170,7 @@ export default function App() {
   const advanceTutorial = async (step: number) => { setOnboardStep(step); await sync({ onboarding_step: step }); };
   const skipTutorial = () => { advanceTutorial(onboardStep + 1); hapticFeedback('light'); };
 
-    const checkCoffee = async () => {
+  const checkCoffee = async () => {
     if (!pid) return;
     const { data, error } = await supabase.rpc('collect_coffee_energy_rpc', { p_player_id: pid });
     if (error) return;
@@ -213,7 +213,7 @@ export default function App() {
       setBoostEnd(Number(d.boost_end) || 0); setOnboardStep(Number(d.onboarding_step) || 0);
       setMarketSlots(Number(d.market_slots) || 3);
       setBrewEnd(Number(d.brew_end) || 0);
-      setTipBalance(Number(d.tip_balance) || 0); // НОВОЕ
+      setTipBalance(Number(d.tip_balance) || 0);
 
       if (!silent) {
         const timeDiff = Date.now() - (Number(d.last_claim) || 0);
@@ -278,7 +278,7 @@ export default function App() {
       
       if (brewEnd > 0) {
         const r = Math.max(0, Math.ceil((brewEnd - now) / 1000)); setBLeft(r);
-        checkCoffee();
+        if (r === 0) checkCoffee();
       } else { setBLeft(0); }
       
       if (carOrderEnd > 0) {
@@ -502,7 +502,7 @@ export default function App() {
     const { data, error } = await supabase.rpc('sell_business_rpc', { p_owner_id: pid, p_biz_id: biz.id });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
-    showMsg(`Бизнес продан за ${data.refund}!`); loadData(true); loadMarket();
+    showMsg(`Бизнес продан за ${data?.refund ?? 0}!`); loadData(true); loadMarket();
   });
 
   const cancelLot = (item: any) => action(async () => {
@@ -578,12 +578,12 @@ export default function App() {
     if (onboardStep === 1) await advanceTutorial(2);
   });
 
-    const buyCoffee = (cafe: any) => action(async () => {
+  const buyCoffee = (cafe: any) => action(async () => {
     const { data, error } = await supabase.rpc('buy_coffee_rpc', { p_buyer_id: pid, p_cafe_id: cafe.id });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
     
-    setBrewEnd(data.brew_end); // <-- ВОТ ЭТА СТРОКА (ставит таймер)
+    setBrewEnd(data.brew_end);
     showMsg(`Кофе готовится (15 сек)...`); hapticFeedback('heavy');
   });
 
@@ -663,16 +663,14 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
 
-    const { data: fresh } = await supabase.from('players').select('money').eq('id', pid).single();
-    if (fresh) setMoney(Number(fresh.money));
-
-    if (item.item_type === 'phone') {
-      const newSlots = Math.min(10, marketSlots + 1);
-      setPhone(true); setMarketSlots(newSlots); await sync({ phone_count: 1, market_slots: newSlots });
-    }
+    // market_slots начисляет RPC — локально только UI
+    if (item.item_type === 'phone') setPhone(true);
     if (item.item_type === 'car') { setHasCar(true); setCarModel(item.item_data); }
     if (item.item_type === 'house') { setHasHouse(true); setHouseType(item.item_data); }
-    showMsg(`Покупка успешна!`); hapticFeedback('heavy'); loadMarket();
+
+    showMsg(`Покупка успешна!`); hapticFeedback('heavy');
+    await loadData(true);
+    loadMarket();
   });
 
   const inviteFriend = () => {
@@ -692,7 +690,6 @@ export default function App() {
     showMsg(`Собрано ${data.collected} с рефералов!`); hapticFeedback('heavy'); setRefOpen(false);
   });
 
-  // НОВОЕ: Сбор чаевых
   const collectTips = () => action(async () => {
     const { data, error } = await supabase.rpc('collect_tips_rpc', { p_player_id: pid });
     if (error) throw error;
