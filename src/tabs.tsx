@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug, AlertTriangle, TrendingUp, Wallet } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
@@ -510,9 +510,9 @@ export const JobsTab = ({ app }: { app: any }) => {
             <>
               <p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#8B899A' }}>Ты получаешь <b style={{ color: '#10b981' }}>{app.myJob.salary}₽</b> с каждой проданной чашки.</p>
               <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: 15, borderRadius: 16, marginBottom: 15, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                <p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#10b981' }}>Накопленная касса:</p>
-                <p style={{ margin: 0, fontSize: 24, color: '#10b981', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>{app.money} <Coins size={18} style={{ display: 'inline' }} /></p>
-                <p style={{ fontSize: 11, color: '#8B899A', marginTop: 5 }}>* Деньги уже на балансе</p>
+                <p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#10b981' }}>Накопленные чаевые:</p>
+                <p style={{ margin: 0, fontSize: 24, color: '#10b981', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>{app.tipBalance || 0} <Coins size={18} style={{ display: 'inline' }} /></p>
+                <Btn variant="primary" onClick={app.collectTips} disabled={app.proc || !app.tipBalance} style={{ marginTop: 10, padding: 8, fontSize: 13 }}><Wallet size={16} style={{ display: 'inline', marginRight: 5 }}/> Забрать чаевые</Btn>
               </div>
             </>
           ) : (
