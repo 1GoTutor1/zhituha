@@ -129,7 +129,8 @@ export default function App() {
     if (!bugText.trim()) return showMsg("Напиши текст сообщения", true);
     try {
       const res = await fetch('/api/report-bug', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ player_name: nick, player_id: tgId, message: bugText })
       });
       if (!res.ok) {
@@ -170,7 +171,6 @@ export default function App() {
   const advanceTutorial = async (step: number) => { setOnboardStep(step); await sync({ onboarding_step: step }); };
   const skipTutorial = () => { advanceTutorial(onboardStep + 1); hapticFeedback('light'); };
 
-  // Проверка готовности кофе (вызывается каждую секунду)
   const checkCoffee = async () => {
     if (!pid) return;
     const { data, error } = await supabase.rpc('collect_coffee_energy_rpc', { p_player_id: pid });
@@ -181,7 +181,7 @@ export default function App() {
       showMsg("Кофе готов! Энергия восстановлена!");
       hapticFeedback('heavy');
       sendNotification("☕ Твой кофе готов! Энергия восстановлена, залетай в игру!");
-      loadData(true); // Перезапрашиваем данные для синхронизации
+      loadData(true);
     } else if (data && data.brew_end) {
       setBrewEnd(data.brew_end);
     }
@@ -276,7 +276,6 @@ export default function App() {
       const now = Date.now();
       if (restEnd > 0) { const r = Math.max(0, Math.ceil((restEnd - now) / 1000)); setTLeft(r); if (r === 0) setRestEnd(0); }
       
-      // Проверяем кофе на сервере каждую секунду
       if (brewEnd > 0) {
         const r = Math.max(0, Math.ceil((brewEnd - now) / 1000)); setBLeft(r);
         checkCoffee();
@@ -590,7 +589,7 @@ export default function App() {
     
     const end = Date.now() + BREW_TIME;
     setBrewEnd(end);
-    await sync({ brew_end: end }); // Сохраняем таймер в базу!
+    await sync({ brew_end: end });
     
     showMsg(`Кофе готовится...`); hapticFeedback('heavy');
     if (onboardStep === 2) await advanceTutorial(3);
@@ -613,15 +612,19 @@ export default function App() {
     showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium'); loadData(true);
   });
 
+  // ИСПРАВЛЕНО: обновляем стейт после увольнения
   const fire = (workerId: string) => action(async () => {
     const { error } = await supabase.from('business_workers').delete().eq('id', workerId);
     if (error) throw error;
-    showMsg("Сотрудник уволен."); hapticFeedback('heavy'); loadData(true);
+    showMsg("Сотрудник уволен."); hapticFeedback('heavy');
+    loadData(true); // Перезапрашиваем данные
   });
 
+  // ИСПРАВЛЕНО: обновляем стейт после увольнения
   const quit = () => action(async () => {
     if (!myJob) return;
     await supabase.from('business_workers').delete().eq('id', myJob.id);
+    setMyJob(null); // Мгновенно убираем работу из стейта
     setQuitOpen(false); setBoardOpen(false); showMsg("Вы уволились."); hapticFeedback('heavy'); loadData(true);
   });
 
