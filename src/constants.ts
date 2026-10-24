@@ -7,11 +7,10 @@ export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 5000;
 export const BASE_MAX_ENERGY = 100;
 export const HOUSE_MAX_ENERGY = 150;
 
-// 90 СЕКУНД БАЗОВЫЙ ОТДЫХ
 export const REST_CD = 90000; 
 export const BASE_REST_TIME = REST_CD; 
-export const LADA_REST_TIME = 80000; // -10 сек
-export const TOYOTA_REST_TIME = 70000; // -20 сек
+export const LADA_REST_TIME = 80000;
+export const TOYOTA_REST_TIME = 70000;
 
 export const LADA_PRICE = 20000, LADA_TIME = 30000;
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 120000;
@@ -24,7 +23,6 @@ export const TAXI_BIZ_PRICE = 300000;
 export const PHONE_FACTORY_BIZ_PRICE = 300000;
 export const CONSTRUCTION_BIZ_PRICE = 500000;
 
-// Бета сказал: партия 10 шт за 7000. Время 4 минуты (адаптировано под масштаб игры)
 export const BUTTON_BATCH_SIZE = 10;
 export const BUTTON_BATCH_COST = 7000;
 export const BUTTON_BATCH_TIME = 240000; 
@@ -38,11 +36,8 @@ export const TAXI_TOYOTA_INCOME = 1500;
 export const TAXI_MAX_OFFLINE_HOURS = 8;
 export const TAXI_REPAIR_LADA = 3000;
 export const TAXI_REPAIR_TOYOTA = 10000;
-
-// Новое: износ такси 8%/час (по ТЗ Беты)
 export const TAXI_HEALTH_DROP_RATE = 8;
 
-// ==== Дефолтные цены для продажи ====
 export const DEFAULT_SELL_LADA = 25000;
 export const DEFAULT_SELL_TOYOTA = 60000;
 export const DEFAULT_SELL_APARTMENT = 50000;
@@ -101,6 +96,30 @@ export const getDayModifier = () => {
   } catch (e) {
     return DAY_MODIFIERS[0];
   }
+};
+
+// ДОБАВЛЕНО: Список всех рабочих мест
+export const BIZ_JOBS: Record<string, { role: string, salary: number, max: number }[]> = {
+  coffee: [
+    { role: 'Бариста', salary: 600, max: 1 },
+    { role: 'Помощник бариста', salary: 500, max: 1 }
+  ],
+  salon: [
+    { role: 'Механик', salary: 800, max: 1 },
+    { role: 'Продавец', salary: 1000, max: 1 }
+  ],
+  phone_factory: [
+    { role: 'Сборщик', salary: 900, max: 2 },
+    { role: 'Инженер', salary: 1200, max: 1 }
+  ],
+  taxi: [
+    { role: 'Водитель', salary: 1000, max: 2 },
+    { role: 'Механик', salary: 1200, max: 1 }
+  ],
+  construction: [
+    { role: 'Строитель', salary: 1200, max: 3 },
+    { role: 'Прораб', salary: 1500, max: 1 }
+  ]
 };
 
 export const S = {

@@ -5,7 +5,7 @@ import {
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, PHONE_PRICE, COFFEE_CUP_PRICE,
   BUTTON_BATCH_COST, SMARTPHONE_BATCH_COST, BUTTON_BATCH_SIZE, SMARTPHONE_BATCH_SIZE,
   DEFAULT_SELL_LADA, DEFAULT_SELL_TOYOTA, DEFAULT_SELL_APARTMENT, DEFAULT_SELL_PHONE,
-  DEFAULT_SELL_BUTTON, DEFAULT_SELL_SMARTPHONE, PHONE_SELL_TO_SHOP
+  DEFAULT_SELL_BUTTON, DEFAULT_SELL_SMARTPHONE, PHONE_SELL_TO_SHOP, BIZ_JOBS
 } from './constants';
 import { Btn, Modal } from './components';
 
@@ -61,11 +61,7 @@ export const DailyRewardModal = ({ app }: { app: any }) => {
             const isClaimed = app.dailyStreak > i;
             const isCurrent = app.dailyStreak === i;
             return (
-              <div key={i} style={{ 
-                backgroundColor: isCurrent ? 'rgba(236, 72, 153, 0.2)' : '#0B0914', 
-                border: isCurrent ? '1px solid #ec4899' : '1px solid rgba(255,255,255,0.05)', 
-                borderRadius: 12, padding: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: isClaimed ? 0.5 : 1
-              }}>
+              <div key={i} style={{ backgroundColor: isCurrent ? 'rgba(236, 72, 153, 0.2)' : '#0B0914', border: isCurrent ? '1px solid #ec4899' : '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: isClaimed ? 0.5 : 1 }}>
                 <div style={{ fontSize: 10, color: '#8B899A', marginBottom: 5 }}>День {i + 1}</div>
                 {rw.type === 'money' ? <Coins size={20} color="#F97316" /> : <Coffee size={20} color="#10B981" />}
                 <div style={{ fontSize: 12, fontWeight: 'bold', marginTop: 5 }}>{rw.amount} {rw.type === 'money' ? 'монет' : 'шт.'}</div>
@@ -97,31 +93,14 @@ export const TutorialCard = ({ app }: { app: any }) => {
 
   return (
     <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid #3b82f6', borderRadius: 16, padding: 15, marginBottom: 20, position: 'relative' }}>
-      
-      <button onClick={app.skipTutorial} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', color: '#8B899A', cursor: 'pointer' }}>
-        <X size={18} />
-      </button>
-
+      <button onClick={app.skipTutorial} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', color: '#8B899A', cursor: 'pointer' }}><X size={18} /></button>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         <div style={{ fontSize: 30 }}>👨‍🦳</div>
-        <div>
-          <div style={{ fontWeight: 'bold', color: '#60a5fa' }}>Дядя Гоша</div>
-          <div style={{ fontSize: 12, color: '#8B899A' }}>Шаг {app.onboardStep + 1} из 6</div>
-        </div>
+        <div><div style={{ fontWeight: 'bold', color: '#60a5fa' }}>Дядя Гоша</div><div style={{ fontSize: 12, color: '#8B899A' }}>Шаг {app.onboardStep + 1} из 6</div></div>
       </div>
       <div style={{ fontSize: 14, color: 'white', marginBottom: 10 }}>{steps[app.onboardStep]}</div>
-      
-      {app.onboardStep === 2 && (
-        <Btn variant="primary" onClick={app.drinkTutorialCoffee} disabled={app.proc} style={{ padding: 10, fontSize: 14, marginBottom: 10 }}>
-          Взять кофе (+100 энергии)
-        </Btn>
-      )}
-
-      {app.onboardStep === 5 && (
-        <Btn variant="primary" onClick={app.claimTutorialReward} disabled={app.proc} style={{ padding: 10, fontSize: 14 }}>
-          Забрать 2000 монет
-        </Btn>
-      )}
+      {app.onboardStep === 2 && <Btn variant="primary" onClick={app.drinkTutorialCoffee} disabled={app.proc} style={{ padding: 10, fontSize: 14, marginBottom: 10 }}>Взять кофе (+100 энергии)</Btn>}
+      {app.onboardStep === 5 && <Btn variant="primary" onClick={app.claimTutorialReward} disabled={app.proc} style={{ padding: 10, fontSize: 14 }}>Забрать 2000 монет</Btn>}
     </div>
   );
 };
@@ -131,7 +110,7 @@ export const HomeTab = ({ app }: { app: any }) => {
   const maxEnergy = app.hasHouse ? 150 : 100;
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
   const modifier = getDayModifier();
-  const energyCost = app.hasCar ? 10 : 20; // Динамическая стоимость энергии
+  const energyCost = app.hasCar ? 10 : 20;
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -180,17 +159,13 @@ export const HomeTab = ({ app }: { app: any }) => {
         <div style={{ backgroundColor: '#161324', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 20, padding: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ background: 'rgba(16, 185, 129, 0.15)', padding: 10, borderRadius: 12 }}><Coins size={24} color="#10B981" /></div>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 'bold' }}>Касса: {myCoffee.business_name}</div>
-              <div style={{ fontSize: 12, color: '#8B899A' }}>Доход: <span style={{color: '#10B981', fontWeight: 'bold'}}>{myCoffee.coffee_balance || 0}</span> монет</div>
-            </div>
+            <div><div style={{ fontSize: 16, fontWeight: 'bold' }}>Касса: {myCoffee.business_name}</div><div style={{ fontSize: 12, color: '#8B899A' }}>Доход: <span style={{color: '#10B981', fontWeight: 'bold'}}>{myCoffee.coffee_balance || 0}</span> монет</div></div>
           </div>
           <Btn variant="primary" onClick={app.collect} disabled={app.proc || !myCoffee.coffee_balance} style={{ width: 'auto', padding: '10px 15px', fontSize: 14 }}>Собрать</Btn>
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* ИЗМЕНЕНО: Показываем стоимость энергии и правильно блокируем кнопку */}
         <Btn variant="purple" onClick={app.work} disabled={app.proc || app.energy < energyCost} style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', padding: 20, fontSize: 18 }}>
           <Users size={24} /> Вкалывать (-{energyCost}⚡ +{app.workPay}💰)
         </Btn>
@@ -209,9 +184,7 @@ export const MarketItem = ({ item, app, type }: any) => (
       <div style={{ fontSize: 16, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>
         {type === 'phone' ? (item.item_data === 'button' ? <Phone size={18} color="#8B899A" /> : <Smartphone size={18} color="#8B899A" />) 
         : type === 'car' ? <Car size={18} /> : <Building size={18} />} 
-        {type === 'car' ? (item.item_data === 'lada' ? 'Лада' : 'Тойота') 
-        : type === 'house' ? 'Квартира' 
-        : (item.item_data === 'button' ? 'Кнопочный тел.' : item.item_data === 'smartphone' ? 'Смартфон' : 'Телефон')}
+        {type === 'car' ? (item.item_data === 'lada' ? 'Лада' : 'Тойота') : type === 'house' ? 'Квартира' : (item.item_data === 'button' ? 'Кнопочный тел.' : item.item_data === 'smartphone' ? 'Смартфон' : 'Телефон')}
       </div>
       <div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Продавец: {item.seller_name}</div>
     </div>
@@ -237,7 +210,6 @@ export const MarketTab = ({ app }: { app: any }) => {
         <div style={{ fontSize: 14, color: '#8B899A' }}>Твои слоты: <b style={{color: '#fff'}}>{myLots} / {maxSlots}</b></div>
         <div style={{ fontSize: 12, color: '#C084FC' }}>+1 слот за телефон</div>
       </div>
-      
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#161324', padding: 5, borderRadius: 16 }}>
         {['items', 'cars', 'realestate'].map((t: any) => (
           <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, padding: 12, border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3b82f6' : 'transparent', color: app.marketTab === t ? 'white' : '#8B899A', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
@@ -245,20 +217,15 @@ export const MarketTab = ({ app }: { app: any }) => {
           </button>
         ))}
       </div>
-      
       <div style={{ marginBottom: 30 }}>
         <h3 style={{ color: '#8B899A', fontSize: 16, marginBottom: 10 }}>Топ богачей</h3>
         {app.players.map((p: any, i: number) => (
           <div key={p.id} style={{ backgroundColor: '#161324', padding: '12px 15px', borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#F97316' : i === 1 ? '#C084FC' : i === 2 ? '#3b82f6' : '#8B899A' }}>#{i + 1}</span>
-              <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
-            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#F97316' : i === 1 ? '#C084FC' : i === 2 ? '#3b82f6' : '#8B899A' }}>#{i + 1}</span><span style={{ fontWeight: 'bold' }}>{p.nickname}</span></div>
             <span style={{ color: '#10B981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{p.money.toLocaleString('ru-RU')} <Coins size={14} /></span>
           </div>
         ))}
       </div>
-
       <h3 style={{ color: '#8B899A', fontSize: 16, marginBottom: 10 }}>{app.marketTab === 'items' ? 'Лоты (Предметы)' : app.marketTab === 'cars' ? 'Лоты (Авто)' : 'Лоты (Жилье)'}</h3>
       {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).length === 0 && <p style={{ color: '#8B899A' }}>Пусто...</p>}
       {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).map((item: any) => (
@@ -276,6 +243,9 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
 
   const getPrice = (type: string) => type === 'coffee' ? COFFEE_BIZ_PRICE : type === 'salon' ? SALON_BIZ_PRICE : type === 'taxi' ? TAXI_BIZ_PRICE : type === 'phone_factory' ? PHONE_FACTORY_BIZ_PRICE : CONSTRUCTION_BIZ_PRICE;
   const getBizName = (type: string) => type === 'coffee' ? 'Кофейня' : type === 'salon' ? 'Автосалон' : type === 'taxi' ? 'Таксопарк' : type === 'phone_factory' ? 'Телефонный цех' : 'Стройтрест';
+
+  // Получаем список работников для ЭТОГО бизнеса
+  const bizWorkers = app.allWorkers?.filter((w: any) => w.business_id === activeBiz?.id) || [];
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -306,25 +276,8 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
 
           {app.activeBizType === 'phone_factory' && (<>
               <p style={{ color: '#8B899A', fontSize: 15, margin: '5px 0 15px 0' }}>Склад: <b>Кнопочные ({currentStock.button || 0}) | Смартфоны ({currentStock.smartphone || 0})</b></p>
-              
-              {app.phoneProdEnd > 0 ? (
-                <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: 15, borderRadius: 16, marginBottom: 15, border: '1px solid rgba(139, 92, 246, 0.2)', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#8b5cf6' }}>Производится партия...</p>
-                  <p style={{ margin: 0, fontSize: 22, color: '#8b5cf6', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>{app.phoneProdTimeLeft} сек.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 15 }}>
-                  <Btn variant="secondary" onClick={() => app.orderPhones('button')} disabled={app.proc || app.money < BUTTON_BATCH_COST} style={{ background: 'rgba(255,255,255,0.05)', color: '#8B899A', border: '1px solid #444', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Кнопочные ({BUTTON_BATCH_SIZE} шт.)</span>
-                    <span>{BUTTON_BATCH_COST.toLocaleString('ru-RU')}</span>
-                  </Btn>
-                  <Btn variant="secondary" onClick={() => app.orderPhones('smartphone')} disabled={app.proc || app.money < SMARTPHONE_BATCH_COST} style={{ background: 'rgba(255,255,255,0.05)', color: '#8B899A', border: '1px solid #444', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Смартфоны ({SMARTPHONE_BATCH_SIZE} шт.)</span>
-                    <span>{SMARTPHONE_BATCH_COST.toLocaleString('ru-RU')}</span>
-                  </Btn>
-                </div>
-              )}
-              
+              {app.phoneProdEnd > 0 ? (<div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: 15, borderRadius: 16, marginBottom: 15, border: '1px solid rgba(139, 92, 246, 0.2)', textAlign: 'center' }}><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#8b5cf6' }}>Производится партия...</p><p style={{ margin: 0, fontSize: 22, color: '#8b5cf6', fontWeight: 'bold', fontFamily: 'Space Grotesk' }}>{app.phoneProdTimeLeft} сек.</p></div>)
+              : (<div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 15 }}><Btn variant="secondary" onClick={() => app.orderPhones('button')} disabled={app.proc || app.money < BUTTON_BATCH_COST} style={{ background: 'rgba(255,255,255,0.05)', color: '#8B899A', border: '1px solid #444', display: 'flex', justifyContent: 'space-between' }}><span>Кнопочные ({BUTTON_BATCH_SIZE} шт.)</span><span>{BUTTON_BATCH_COST.toLocaleString('ru-RU')}</span></Btn><Btn variant="secondary" onClick={() => app.orderPhones('smartphone')} disabled={app.proc || app.money < SMARTPHONE_BATCH_COST} style={{ background: 'rgba(255,255,255,0.05)', color: '#8B899A', border: '1px solid #444', display: 'flex', justifyContent: 'space-between' }}><span>Смартфоны ({SMARTPHONE_BATCH_SIZE} шт.)</span><span>{SMARTPHONE_BATCH_COST.toLocaleString('ru-RU')}</span></Btn></div>)}
               {currentStock.button > 0 && <Btn variant="primary" onClick={() => { app.setSellItemType('phone'); app.setSellItemData('button'); app.setSellPrice(String(DEFAULT_SELL_BUTTON)); app.setSellSource('stock'); app.setSellOpen(true); }} style={{ marginBottom: 10 }}><Phone size={18}/> Продать кнопочный</Btn>}
               {currentStock.smartphone > 0 && <Btn variant="primary" onClick={() => { app.setSellItemType('phone'); app.setSellItemData('smartphone'); app.setSellPrice(String(DEFAULT_SELL_SMARTPHONE)); app.setSellSource('stock'); app.setSellOpen(true); }} style={{ marginBottom: 10 }}><Smartphone size={18}/> Продать смартфон</Btn>}
           </>)}
@@ -334,10 +287,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 15 }}>
                 {currentStock.taxi_cars?.map((car: any, i: number) => (
                   <div key={i} style={{ background: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ fontWeight: 'bold' }}>{car.model === 'lada' ? 'Лада' : 'Тойота'}</span>
-                      <span style={{ color: car.health > 50 ? '#10b981' : car.health > 0 ? '#f59e0b' : '#ef4444' }}>{car.health}%</span>
-                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}><span style={{ fontWeight: 'bold' }}>{car.model === 'lada' ? 'Лада' : 'Тойота'}</span><span style={{ color: car.health > 50 ? '#10b981' : car.health > 0 ? '#f59e0b' : '#ef4444' }}>{car.health}%</span></div>
                     {car.health <= 0 && <Btn variant="danger" onClick={() => app.repairTaxiCar(i)} disabled={app.proc} style={{ padding: 8, fontSize: 12, marginTop: 5 }}><Wrench size={14}/> Ремонт ({car.model === 'lada' ? TAXI_REPAIR_LADA : TAXI_REPAIR_TOYOTA})</Btn>}
                   </div>
                 ))}
@@ -349,28 +299,35 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
                 <Btn variant="secondary" onClick={() => app.addTaxiCar('toyota')} disabled={app.proc} style={{ padding: 10, fontSize: 12 }}>+ Тойота</Btn>
               </div>
           </>)}
+          
           {app.activeBizType === 'coffee' && (
             <div style={{ marginTop: 15 }}>
               <p style={{ fontSize: 14, color: '#8B899A', marginBottom: 10 }}>Касса кафе: <b style={{ color: '#10b981', fontSize: 18, fontFamily: 'Space Grotesk' }}>{activeBiz.coffee_balance || 0}</b> монет</p>
               <Btn variant="primary" onClick={app.collect} disabled={app.proc || !activeBiz.coffee_balance} style={{ marginBottom: 15 }}>Собрать кассу</Btn>
-              {activeBiz.worker_name ? (<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: 12, borderRadius: 16 }}><span style={{ fontSize: 14, color: '#8B899A' }}>Бариста: <b>{activeBiz.worker_name}</b></span><Btn variant="danger" onClick={app.fire} disabled={app.proc} style={{ width: 'auto', padding: '8px 12px', fontSize: 12 }}>Уволить</Btn></div>) 
-              : <p style={{ fontSize: 14, color: '#f97316', margin: 0 }}>Нет бариста. Наймите сотрудника!</p>}
             </div>
           )}
 
+          {/* БЛОК СОТРУДНИКОВ */}
+          <div style={{ marginTop: 20, paddingTop: 15, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: 14, color: '#8B899A' }}>Сотрудники ({bizWorkers.length})</h4>
+            {bizWorkers.length === 0 && <p style={{ fontSize: 12, color: '#f97316', margin: 0 }}>Нет сотрудников. Биржа труда ждет!</p>}
+            {bizWorkers.map((w: any) => (
+              <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 12, marginBottom: 8 }}>
+                <div style={{ fontSize: 13, textAlign: 'left' }}><b>{w.player_name}</b><br/><span style={{ color: '#8B899A', fontSize: 11 }}>{w.role} (ЗП: {w.salary})</span></div>
+                <Btn variant="danger" onClick={() => app.fire(w.id)} disabled={app.proc} style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }}>Уволить</Btn>
+              </div>
+            ))}
+          </div>
+
           <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            <Btn variant="danger" onClick={() => app.sellBusiness(activeBiz)} disabled={app.proc} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444' }}>
-              Продать бизнес (за 50%)
-            </Btn>
+            <Btn variant="danger" onClick={() => app.sellBusiness(activeBiz)} disabled={app.proc} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444' }}>Продать бизнес (за 50%)</Btn>
           </div>
         </div>
       ) : (
         <div style={{ ...S.card, textAlign: 'center' }}>
           <Store size={48} color="#C084FC" style={{ marginBottom: 15 }} />
           <h3>Купить {getBizName(app.activeBizType)}</h3>
-          <Btn variant="purple" onClick={() => app.setBuyingType(app.activeBizType)} disabled={app.proc || app.money < getPrice(app.activeBizType)} style={{ background: app.money < getPrice(app.activeBizType) ? '#333' : 'linear-gradient(135deg, #C084FC 0%, #8b5cf6 100%)', color: app.money < getPrice(app.activeBizType) ? '#8B899A' : 'white' }}>
-            {app.proc ? 'Обработка...' : `Купить за ${getPrice(app.activeBizType).toLocaleString('ru-RU')}`}
-          </Btn>
+          <Btn variant="purple" onClick={() => app.setBuyingType(app.activeBizType)} disabled={app.proc || app.money < getPrice(app.activeBizType)} style={{ background: app.money < getPrice(app.activeBizType) ? '#333' : 'linear-gradient(135deg, #C084FC 0%, #8b5cf6 100%)', color: app.money < getPrice(app.activeBizType) ? '#8B899A' : 'white' }}>{app.proc ? 'Обработка...' : `Купить за ${getPrice(app.activeBizType).toLocaleString('ru-RU')}`}</Btn>
         </div>
       )}
     </div>
@@ -382,7 +339,6 @@ export const AdminTab = ({ app }: { app: any }) => {
   const [foundPlayers, setFoundPlayers] = useState<any[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [playerBizs, setPlayerBizs] = useState<any[]>([]);
-
   const [promoCode, setPromoCode] = useState('');
   const [promoAmount, setPromoAmount] = useState('');
   const [promoLimit, setPromoLimit] = useState('100');
@@ -392,146 +348,103 @@ export const AdminTab = ({ app }: { app: any }) => {
     const { data } = await app.supabase.from('players').select('*').ilike('nickname', `%${searchQ}%`).limit(5);
     setFoundPlayers(data || []);
   };
-
-  const loadPlayerDetails = async (p: any) => {
-    setSelectedPlayer(p);
-    const { data } = await app.supabase.from('businesses').select('*').eq('owner_id', p.id);
-    setPlayerBizs(data || []);
-  };
-
-  const handleGiveMoney = async (amount: number) => {
-    if (!selectedPlayer) return;
-    const newMoney = Math.max(0, selectedPlayer.money + amount);
-    await app.supabase.from('players').update({ money: newMoney }).eq('id', selectedPlayer.id);
-    setSelectedPlayer({ ...selectedPlayer, money: newMoney });
-    app.showMsg(`Выдано ${amount}`);
-    if (app.loadData) app.loadData(true); 
-  };
-
-  const handleBan = async () => {
-    if (!selectedPlayer) return;
-    const newStatus = !selectedPlayer.is_banned;
-    await app.supabase.from('players').update({ is_banned: newStatus }).eq('id', selectedPlayer.id);
-    setSelectedPlayer({ ...selectedPlayer, is_banned: newStatus });
-    app.showMsg(newStatus ? "Забанен" : "Разбанен");
-    if (app.loadData) app.loadData(true); 
-  };
-
-  const handleDeleteBiz = async (bizId: string) => {
-    if (!window.confirm("Удалить этот бизнес?")) return;
-    await app.supabase.from('businesses').delete().eq('id', bizId);
-    setPlayerBizs(prev => prev.filter(b => b.id !== bizId));
-    app.showMsg("Бизнес удален");
-    if (app.loadData) app.loadData(true); 
-  };
-
-  const handleCreatePromo = async () => {
-    if (!promoCode || !promoAmount) return;
-    const { error } = await app.supabase.from('promo_codes').insert([{ 
-      code: promoCode.toUpperCase(), 
-      amount: parseInt(promoAmount), 
-      max_uses: parseInt(promoLimit) 
-    }]);
-    if (error) return app.showMsg(error.message, true);
-    app.showMsg("Промокод создан!");
-    setPromoCode(''); setPromoAmount('');
-  };
+  const loadPlayerDetails = async (p: any) => { setSelectedPlayer(p); const { data } = await app.supabase.from('businesses').select('*').eq('owner_id', p.id); setPlayerBizs(data || []); };
+  const handleGiveMoney = async (amount: number) => { if (!selectedPlayer) return; const newMoney = Math.max(0, selectedPlayer.money + amount); await app.supabase.from('players').update({ money: newMoney }).eq('id', selectedPlayer.id); setSelectedPlayer({ ...selectedPlayer, money: newMoney }); app.showMsg(`Выдано ${amount}`); if (app.loadData) app.loadData(true); };
+  const handleBan = async () => { if (!selectedPlayer) return; const newStatus = !selectedPlayer.is_banned; await app.supabase.from('players').update({ is_banned: newStatus }).eq('id', selectedPlayer.id); setSelectedPlayer({ ...selectedPlayer, is_banned: newStatus }); app.showMsg(newStatus ? "Забанен" : "Разбанен"); if (app.loadData) app.loadData(true); };
+  const handleDeleteBiz = async (bizId: string) => { if (!window.confirm("Удалить этот бизнес?")) return; await app.supabase.from('businesses').delete().eq('id', bizId); setPlayerBizs(prev => prev.filter(b => b.id !== bizId)); app.showMsg("Бизнес удален"); if (app.loadData) app.loadData(true); };
+  const handleCreatePromo = async () => { if (!promoCode || !promoAmount) return; const { error } = await app.supabase.from('promo_codes').insert([{ code: promoCode.toUpperCase(), amount: parseInt(promoAmount), max_uses: parseInt(promoLimit) }]); if (error) return app.showMsg(error.message, true); app.showMsg("Промокод создан!"); setPromoCode(''); setPromoAmount(''); };
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 'none', color: '#8B899A', cursor: 'pointer' }}><ArrowLeft size={20} /></button>
-        <h2 style={{ margin: 0, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 5 }}><ShieldAlert size={20}/> Админка</h2>
-      </div>
-
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        <Btn variant={app.adminTab === 'players' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('players')} style={{ padding: 10, background: app.adminTab === 'players' ? '#ef4444' : '#161324' }}>Игроки</Btn>
-        <Btn variant={app.adminTab === 'promos' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('promos')} style={{ padding: 10, background: app.adminTab === 'promos' ? '#ef4444' : '#161324' }}>Промокоды</Btn>
-      </div>
-
-      {app.adminTab === 'players' && (
-        <div>
-          {!selectedPlayer ? (
-            <>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 15 }}>
-                <input type="text" placeholder="Поиск по нику..." value={searchQ} onChange={e => setSearchQ(e.target.value)} style={{ ...S.input, marginBottom: 0, flex: 1 }} />
-                <Btn variant="primary" onClick={handleSearch} style={{ width: 'auto', padding: '0 15px' }}><Search size={20}/></Btn>
-              </div>
-              {foundPlayers.map(p => (
-                <div key={p.id} onClick={() => loadPlayerDetails(p)} style={{ background: '#161324', padding: 15, borderRadius: 16, marginBottom: 10, cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
-                  <span style={{ color: '#10B981' }}>{p.money} <Coins size={12}/></span>
-                </div>
-              ))}
-            </>
-          ) : (
-            <div style={S.card}>
-              <button onClick={() => setSelectedPlayer(null)} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 10, cursor: 'pointer' }}>← К поиску</button>
-              <h3 style={{ margin: '0 0 5px 0' }}>{selectedPlayer.nickname}</h3>
-              <p style={{ color: '#8B899A', fontSize: 12, margin: '0 0 15px 0' }}>ID: {selectedPlayer.telegram_id}</p>
-              
-              <div style={{ background: '#0B0914', padding: 10, borderRadius: 12, marginBottom: 15 }}>
-                <p style={{ margin: '0 0 5px 0' }}>Баланс: <b style={{ color: '#10B981' }}>{selectedPlayer.money}</b></p>
-                <p style={{ margin: 0 }}>Статус: <b style={{ color: selectedPlayer.is_banned ? '#ef4444' : '#10B981' }}>{selectedPlayer.is_banned ? 'ЗАБАНЕН' : 'Активен'}</b></p>
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, marginBottom: 15 }}>
-                <Btn variant="primary" onClick={() => handleGiveMoney(10000)} style={{ padding: 10, fontSize: 13 }}>+10k</Btn>
-                <Btn variant="danger" onClick={() => handleGiveMoney(-10000)} style={{ padding: 10, fontSize: 13 }}>-10k</Btn>
-                <Btn variant={selectedPlayer.is_banned ? 'secondary' : 'danger'} onClick={handleBan} style={{ padding: 10, fontSize: 13 }}><Ban size={16}/> {selectedPlayer.is_banned ? 'Разбан' : 'Бан'}</Btn>
-              </div>
-
-              <h4 style={{ margin: '15px 0 10px 0', borderTop: '1px solid #333', paddingTop: 15 }}>Бизнесы ({playerBizs.length})</h4>
-              {playerBizs.map(b => (
-                <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 12, marginBottom: 8 }}>
-                  <span style={{ fontSize: 13 }}>{b.business_name} ({b.biz_type})</span>
-                  <button onClick={() => handleDeleteBiz(b.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16}/></button>
-                </div>
-              ))}
-              {playerBizs.length === 0 && <p style={{ color: '#8B899A', fontSize: 12 }}>Нет бизнесов.</p>}
-            </div>
-          )}
-        </div>
-      )}
-
-      {app.adminTab === 'promos' && (
-        <div style={S.card}>
-          <h3>Создать промокод</h3>
-          <input type="text" placeholder="КОД (Англ. буквы)" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} style={S.input} />
-          <input type="number" placeholder="Сумма монет" value={promoAmount} onChange={e => setPromoAmount(e.target.value)} style={S.input} />
-          <input type="number" placeholder="Лимит активаций" value={promoLimit} onChange={e => setPromoLimit(e.target.value)} style={S.input} />
-          <Btn variant="primary" onClick={handleCreatePromo}>Создать</Btn>
-        </div>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}><button onClick={() => app.setTab('home')} style={{ background: 'none', border: 'none', color: '#8B899A', cursor: 'pointer' }}><ArrowLeft size={20} /></button><h2 style={{ margin: 0, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 5 }}><ShieldAlert size={20}/> Админка</h2></div>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}><Btn variant={app.adminTab === 'players' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('players')} style={{ padding: 10, background: app.adminTab === 'players' ? '#ef4444' : '#161324' }}>Игроки</Btn><Btn variant={app.adminTab === 'promos' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('promos')} style={{ padding: 10, background: app.adminTab === 'promos' ? '#ef4444' : '#161324' }}>Промокоды</Btn></div>
+      {app.adminTab === 'players' && (<div>{!selectedPlayer ? (<><div style={{ display: 'flex', gap: 10, marginBottom: 15 }}><input type="text" placeholder="Поиск по нику..." value={searchQ} onChange={e => setSearchQ(e.target.value)} style={{ ...S.input, marginBottom: 0, flex: 1 }} /><Btn variant="primary" onClick={handleSearch} style={{ width: 'auto', padding: '0 15px' }}><Search size={20}/></Btn></div>{foundPlayers.map(p => (<div key={p.id} onClick={() => loadPlayerDetails(p)} style={{ background: '#161324', padding: 15, borderRadius: 16, marginBottom: 10, cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 'bold' }}>{p.nickname}</span><span style={{ color: '#10B981' }}>{p.money} <Coins size={12}/></span></div>))}</>) : (<div style={S.card}><button onClick={() => setSelectedPlayer(null)} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 10, cursor: 'pointer' }}>← К поиску</button><h3 style={{ margin: '0 0 5px 0' }}>{selectedPlayer.nickname}</h3><p style={{ color: '#8B899A', fontSize: 12, margin: '0 0 15px 0' }}>ID: {selectedPlayer.telegram_id}</p><div style={{ background: '#0B0914', padding: 10, borderRadius: 12, marginBottom: 15 }}><p style={{ margin: '0 0 5px 0' }}>Баланс: <b style={{ color: '#10B981' }}>{selectedPlayer.money}</b></p><p style={{ margin: 0 }}>Статус: <b style={{ color: selectedPlayer.is_banned ? '#ef4444' : '#10B981' }}>{selectedPlayer.is_banned ? 'ЗАБАНЕН' : 'Активен'}</b></p></div><div style={{ display: 'flex', gap: 10, marginBottom: 15 }}><Btn variant="primary" onClick={() => handleGiveMoney(10000)} style={{ padding: 10, fontSize: 13 }}>+10k</Btn><Btn variant="danger" onClick={() => handleGiveMoney(-10000)} style={{ padding: 10, fontSize: 13 }}>-10k</Btn><Btn variant={selectedPlayer.is_banned ? 'secondary' : 'danger'} onClick={handleBan} style={{ padding: 10, fontSize: 13 }}><Ban size={16}/> {selectedPlayer.is_banned ? 'Разбан' : 'Бан'}</Btn></div><h4 style={{ margin: '15px 0 10px 0', borderTop: '1px solid #333', paddingTop: 15 }}>Бизнесы ({playerBizs.length})</h4>{playerBizs.map(b => (<div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 12, marginBottom: 8 }}><span style={{ fontSize: 13 }}>{b.business_name} ({b.biz_type})</span><button onClick={() => handleDeleteBiz(b.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16}/></button></div>))}{playerBizs.length === 0 && <p style={{ color: '#8B899A', fontSize: 12 }}>Нет бизнесов.</p>}</div>)}</div>)}
+      {app.adminTab === 'promos' && (<div style={S.card}><h3>Создать промокод</h3><input type="text" placeholder="КОД (Англ. буквы)" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} style={S.input} /><input type="number" placeholder="Сумма монет" value={promoAmount} onChange={e => setPromoAmount(e.target.value)} style={S.input} /><input type="number" placeholder="Лимит активаций" value={promoLimit} onChange={e => setPromoLimit(e.target.value)} style={S.input} /><Btn variant="primary" onClick={handleCreatePromo}>Создать</Btn></div>)}
     </div>
   );
 };
 
-export const CafeTab = ({ app }: { app: any }) => (
-  <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-    <button onClick={() => { app.setTab('home'); app.setSelCafe(null); }} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Кафе</h2>
-    {app.bLeft > 0 ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3>Готовим...</h3><p style={{ fontSize: 24, fontWeight: 'bold', color: '#f97316', fontFamily: 'Space Grotesk' }}>{app.bLeft} сек.</p></div>
-    : app.selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>{app.selCafe.business_name}</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Владелец: {app.selCafe.owner_name}</p><Btn variant="yellow" onClick={() => app.buyCoffee(app.selCafe)} disabled={app.proc || app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !app.selCafe.worker_id} style={{ background: (app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !app.selCafe.worker_id) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !app.selCafe.worker_id) ? '#8B899A' : 'white', marginBottom: 10 }}>{!app.selCafe.worker_id ? 'Нет бариста' : app.energy >= app.maxEnergy ? 'Полная энергия' : app.money < COFFEE_CUP_PRICE ? 'Мало денег' : `Купить кофе за ${COFFEE_CUP_PRICE}`}</Btn><Btn variant="secondary" onClick={() => app.setSelCafe(null)} style={{ background: '#333', boxShadow: 'none' }}>Назад</Btn></div>
-    : <div>
-        {app.allBiz.filter((b: any) => b.biz_type === 'coffee').map((b: any) => (
-          <div key={b.id} onClick={() => app.setSelCafe(b)} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', marginBottom: 10 }}>
-            <div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div>{!b.worker_id && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>Нет бариста</div>}</div>
-            <span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span>
-          </div>
-        ))}
-        {app.allBiz.filter((b: any) => b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A' }}>Нет открытых кафе.</p>}
-      </div>
-    }
-  </div>
-);
+export const CafeTab = ({ app }: { app: any }) => {
+  const hasBarista = app.allWorkers?.some((w: any) => w.business_id === app.selCafe?.id && w.role === 'Бариста');
 
-export const JobsTab = ({ app }: { app: any }) => (
-  <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}><h2>Работа</h2>
-    {app.boardOpen ? <div><button onClick={() => app.setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h3 style={{ color: '#8B899A', fontSize: 18, marginBottom: 15 }}>Вакансии</h3><div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{app.allBiz.filter((b: any) => !b.worker_id && b.owner_id !== app.pid && b.biz_type === 'coffee').map((b: any) => <div key={b.id} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div></div>{app.job ? <Btn variant="secondary" disabled style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Уже работаете</Btn> : <Btn variant="secondary" onClick={() => app.hire(b.id)} disabled={app.proc} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Устроиться</Btn>}</div>)}{app.allBiz.filter((b: any) => !b.worker_id && b.owner_id !== app.pid && b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A', fontSize: 14 }}>Пока нет мест...</p>}</div></div>
-    : app.job ? <div><h3 style={{ color: '#10b981', fontSize: 18, marginBottom: 15 }}>Моя работа</h3><div style={{ backgroundColor: '#161324', padding: 20, borderRadius: 20, border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}><Coffee size={24} color="#f97316" /><span style={{ fontSize: 18, fontWeight: 'bold' }}>{app.job.business_name}</span></div><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#8B899A' }}>Владелец: <b style={{ color: 'white' }}>{app.job.owner_name}</b></p><p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#8B899A' }}>Должность: <b style={{ color: '#3b82f6' }}>Бариста</b></p><Btn variant="primary" onClick={app.shift} disabled={app.proc || app.energy < 25} style={{ marginBottom: 10 }}>Смена (+{app.shiftPay})</Btn><div style={{ display: 'flex', gap: 10 }}><button onClick={() => app.setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 16, fontWeight: 'bold', border: 'none' }}>Вакансии</button><Btn variant="danger" onClick={() => app.setQuitOpen(true)} disabled={app.proc} style={{ flex: 1, fontSize: 14, padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>Уволиться</Btn></div></div></div>
-    : <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}><div style={{ fontSize: 50, marginBottom: 10 }}>📉</div><h3>Вы безработный</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Пора найти работу!</p><Btn variant="secondary" onClick={() => app.setBoardOpen(true)}><Briefcase size={20} /> Биржа труда</Btn></div>}
-  </div>
-);
+  return (
+    <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+      <button onClick={() => { app.setTab('home'); app.setSelCafe(null); }} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Кафе</h2>
+      {app.bLeft > 0 ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3>Готовим...</h3><p style={{ fontSize: 24, fontWeight: 'bold', color: '#f97316', fontFamily: 'Space Grotesk' }}>{app.bLeft} сек.</p></div>
+      : app.selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#f97316" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>{app.selCafe.business_name}</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Владелец: {app.selCafe.owner_name}</p><Btn variant="yellow" onClick={() => app.buyCoffee(app.selCafe)} disabled={app.proc || app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !hasBarista} style={{ background: (app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !hasBarista) ? '#333' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !hasBarista) ? '#8B899A' : 'white', marginBottom: 10 }}>{!hasBarista ? 'Нет бариста' : app.energy >= app.maxEnergy ? 'Полная энергия' : app.money < COFFEE_CUP_PRICE ? 'Мало денег' : `Купить кофе за ${COFFEE_CUP_PRICE}`}</Btn><Btn variant="secondary" onClick={() => app.setSelCafe(null)} style={{ background: '#333', boxShadow: 'none' }}>Назад</Btn></div>
+      : <div>{app.allBiz.filter((b: any) => b.biz_type === 'coffee').map((b: any) => { const barista = app.allWorkers?.find((w: any) => w.business_id === b.id && w.role === 'Бариста'); return (<div key={b.id} onClick={() => app.setSelCafe(b)} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>Владелец: {b.owner_name}</div>{!barista && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>Нет бариста</div>}</div><span style={{ color: '#f97316', fontWeight: 'bold' }}>→</span></div>); })}{app.allBiz.filter((b: any) => b.biz_type === 'coffee').length === 0 && <p style={{ color: '#8B899A' }}>Нет открытых кафе.</p>}</div>}
+    </div>
+  );
+};
+
+export const JobsTab = ({ app }: { app: any }) => {
+  if (app.boardOpen) {
+    const availableJobs: any[] = [];
+    app.allBiz.forEach((biz: any) => {
+      if (biz.owner_id === app.pid) return; // Не нанимаемся к себе
+      const roles = BIZ_JOBS[biz.biz_type] || [];
+      roles.forEach((roleInfo: any) => {
+        const hiredCount = app.allWorkers.filter((w: any) => w.business_id === biz.id && w.role === roleInfo.role).length;
+        if (hiredCount < roleInfo.max) {
+          availableJobs.push({ biz, role: roleInfo.role, salary: roleInfo.salary });
+        }
+      });
+    });
+
+    return (
+      <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+        <button onClick={() => app.setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
+        <h2>Вакансии</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {availableJobs.length === 0 && <p style={{ color: '#8B899A' }}>Пока нет свободных мест...</p>}
+          {availableJobs.map((job, idx) => (
+            <div key={idx} style={{ backgroundColor: '#161324', padding: 15, borderRadius: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>{job.role}</div>
+                <div style={{ fontSize: 12, color: '#8B899A', marginTop: 4 }}>{job.biz.business_name} ({job.biz.owner_name})</div>
+                <div style={{ fontSize: 12, color: '#3b82f6', marginTop: 2 }}>ЗП: {job.salary} 💰</div>
+              </div>
+              <Btn variant="secondary" onClick={() => app.hire(job.biz.id, job.role, job.salary)} disabled={app.proc || app.myJob !== null} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>{app.myJob ? 'Уже работаете' : 'Устроиться'}</Btn>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (app.myJob) {
+    const energyCost = app.hasCar ? 10 : 20;
+    const biz = app.allBiz.find((b:any) => b.id === app.myJob.business_id);
+    return (
+      <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+        <h2>Моя работа</h2>
+        <div style={{ backgroundColor: '#161324', padding: 20, borderRadius: 20, border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
+            <span style={{ fontSize: 18, fontWeight: 'bold' }}>{app.myJob.role}</span>
+          </div>
+          <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#8B899A' }}>Бизнес: <b style={{ color: 'white' }}>{biz?.business_name || 'Неизвестно'}</b></p>
+          <p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#8B899A' }}>Зарплата: <b style={{ color: '#10b981' }}>{app.myJob.salary} 💰</b></p>
+          <p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#8B899A' }}>Трата энергии: <b style={{ color: '#ef4444' }}>{energyCost} ⚡</b></p>
+          <Btn variant="primary" onClick={app.shift} disabled={app.proc || app.energy < energyCost} style={{ marginBottom: 10 }}>Смена (+{app.shiftPay}💰)</Btn>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => app.setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#333', color: 'white', borderRadius: 16, fontWeight: 'bold', border: 'none' }}>Вакансии</button>
+            <Btn variant="danger" onClick={() => app.setQuitOpen(true)} disabled={app.proc} style={{ flex: 1, fontSize: 14, padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>Уволиться</Btn>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+      <h2>Работа</h2>
+      <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}>
+        <div style={{ fontSize: 50, marginBottom: 10 }}>📉</div><h3>Вы безработный</h3><p style={{ color: '#8B899A', fontSize: 14, marginBottom: 20 }}>Пора найти работу!</p>
+        <Btn variant="secondary" onClick={() => app.setBoardOpen(true)}><Briefcase size={20} /> Биржа труда</Btn>
+      </div>
+    </div>
+  );
+};
 
 export const ShopTab = ({ app }: { app: any }) => (
   <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
