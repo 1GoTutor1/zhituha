@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
+
 import { Send, ShieldAlert } from 'lucide-react';
 import { 
   BOT_USERNAME, CHANNEL_LINK, POLL, 
@@ -10,7 +11,7 @@ import {
   CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, 
   BUTTON_BATCH_COST, BUTTON_BATCH_TIME, SMARTPHONE_BATCH_SIZE, SMARTPHONE_BATCH_COST, 
   SMARTPHONE_BATCH_TIME, JOB_WORK, getDayModifier, TAXI_HEALTH_DROP_RATE,
-  LADA_TIME, TOYOTA_TIME, PHONE_PRICE
+  LADA_TIME, TOYOTA_TIME
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
 import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals, CafeTab, JobsTab, ShopTab, InventoryTab } from './tabs';
