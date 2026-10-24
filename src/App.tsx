@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-
 import { Send, ShieldAlert } from 'lucide-react';
 import { 
   BOT_USERNAME, CHANNEL_LINK, PHONE_PRICE, WORKER_SALARY, COFFEE_CUP_PRICE, BREW_TIME, POLL, 
@@ -18,13 +17,12 @@ import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals,
 export default function App() {
   const { user, hapticFeedback, tg, startParam } = useTelegram();
   
-  // Состояния загрузки и профиля
   const [loading, setLoading] = useState(true);
   const [isCheckingSub, setIsCheckingSub] = useState(true);
   const [proc, setProc] = useState(false);
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
-  const [toast, setToast] = useState<{ msg: string, err: boolean } | null>(null);
+  const [toast, setToast] = useState<{ msg: string, err: boolean, id: number } | null>(null);
   const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'admin'>('home');
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
@@ -38,7 +36,6 @@ export default function App() {
   const [marketSlots, setMarketSlots] = useState(3);
   const [isSubscribed, setIsSubscribed] = useState(false);
 
-  // Экономика и инвентарь
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
   const [phone, setPhone] = useState(false);
@@ -52,7 +49,6 @@ export default function App() {
   const [dailyStreak, setDailyStreak] = useState(0);
   const [boostEnd, setBoostEnd] = useState(0);
 
-  // Таймеры
   const [restEnd, setRestEnd] = useState(0);
   const [brewEnd, setBrewEnd] = useState(0);
   const [tLeft, setTLeft] = useState(0);
@@ -64,7 +60,6 @@ export default function App() {
   const [phoneProdEnd, setPhoneProdEnd] = useState(0);
   const [phoneProdTimeLeft, setPhoneProdTimeLeft] = useState(0);
 
-  // Бизнесы и рынок
   const [myBizs, setMyBizs] = useState<any[]>([]);
   const [activeBizType, setActiveBizType] = useState<'coffee' | 'salon' | 'construction' | 'taxi' | 'phone_factory'>('coffee');
   const [buyingType, setBuyingType] = useState<string | null>(null);
@@ -78,7 +73,6 @@ export default function App() {
   const [boardOpen, setBoardOpen] = useState(false);
   const [adminTab, setAdminTab] = useState<'players' | 'promos'>('players');
 
-  // Модалки и UI
   const [, setClicks] = useState(0);
   const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
@@ -93,7 +87,6 @@ export default function App() {
   const [refOpen, setRefOpen] = useState(false);
   const lock = useRef(false);
 
-  // Вычисления
   const maxEnergy = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
   const dayMod = getDayModifier();
   const baseRestTime = carModel === 'toyota' ? TOYOTA_REST_TIME : carModel === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
@@ -101,7 +94,8 @@ export default function App() {
   const workPay = dayMod?.type === 'work' ? Math.floor(JOB_WORK * 1.5) : JOB_WORK;
   const shiftPay = dayMod?.type === 'shift' ? Math.floor(WORKER_SALARY * 2) : (dayMod?.type === 'work' ? Math.floor(WORKER_SALARY * 1.5) : WORKER_SALARY);
 
-  const showMsg = (msg: string, err = false) => { setToast({ msg, err }); setTimeout(() => setToast(null), 3000); };
+  const showMsg = (msg: string, err = false) => { setToast({ msg, err, id: Date.now() }); };
+  const closeToast = () => setToast(null);
   const getUid = () => user?.id?.toString() || localStorage.getItem('zhituha_id') || (() => { const id = 'user_' + Math.random().toString(36).substring(2, 8); localStorage.setItem('zhituha_id', id); return id; })();
 
   const sendNotification = (text: string) => {
@@ -129,7 +123,6 @@ export default function App() {
   const advanceTutorial = async (step: number) => { setOnboardStep(step); await sync({ onboarding_step: step }); };
   const skipTutorial = () => { advanceTutorial(onboardStep + 1); hapticFeedback('light'); };
 
-  // --- ЗАГРУЗКА ДАННЫХ ---
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     if (lock.current) return;
@@ -200,7 +193,6 @@ export default function App() {
     if (mRes.data) setMarket(mRes.data);
   };
 
-  // --- ЭФФЕКТЫ ---
   useEffect(() => { if (user) loadData(); }, [user]);
 
   useEffect(() => {
@@ -217,7 +209,6 @@ export default function App() {
     if (onboardStep === 4 && tab === 'market') advanceTutorial(5);
   }, [tab, onboardStep]);
 
-  // Таймеры
   useEffect(() => {
     const int = setInterval(() => {
       const now = Date.now();
@@ -285,7 +276,6 @@ export default function App() {
     return () => clearInterval(int);
   }, [restEnd, brewEnd, carOrderEnd, buildEnd, phoneProdEnd, pid, myBizs, hasHouse]);
 
-  // --- ДЕЙСТВИЯ ---
   const selectGender = (g: 'male' | 'female') => { setSelG(g); setAvatarId(AVATARS.find(a => a.gender === g)?.id || 1); hapticFeedback('light'); };
   
   const reg = () => action(async () => {
@@ -659,7 +649,6 @@ export default function App() {
     setMoney(m => m + data.amount); showMsg(`+${data.amount} монет!`); setPromoOpen(false); setPromoInput('');
   });
 
-  // --- РЕНДЕР ---
   const app = useMemo(() => ({
     user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, market, job, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, shiftPay, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData
   }), [
@@ -675,7 +664,7 @@ export default function App() {
   
   if (user && !isSubscribed) return (
     <div style={{ padding: '90px 20px 50px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <Toast toast={toast} /><Send size={60} color="#3b82f6" style={{ marginBottom: 20 }} /><h1>Подпишись на канал!</h1>
+      <Toast toast={toast} onClose={closeToast} /><Send size={60} color="#3b82f6" style={{ marginBottom: 20 }} /><h1>Подпишись на канал!</h1>
       <p style={{ color: '#8B899A', marginBottom: 30, maxWidth: '300px' }}>Чтобы играть в Житуху, нужно быть подписанным на наш канал.</p>
       <Btn variant="secondary" onClick={() => tg?.openTelegramLink(CHANNEL_LINK)} style={{ maxWidth: '280px', marginBottom: 15 }}><Send size={20} /> Подписаться</Btn>
       <Btn variant="primary" onClick={verifySubscription} style={{ maxWidth: '280px' }}>Я подписался</Btn>
@@ -684,7 +673,7 @@ export default function App() {
 
   if (!nick || !gender) return (
     <div style={{ padding: '90px 20px 50px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <Toast toast={toast} /><h1>Житуха</h1><p style={{ color: '#8B899A', marginBottom: '30px' }}>Создай персонажа</p>
+      <Toast toast={toast} onClose={closeToast} /><h1>Житуха</h1><p style={{ color: '#8B899A', marginBottom: '30px' }}>Создай персонажа</p>
       <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
         <button onClick={() => selectGender('male')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#161324', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Парень</button>
         <button onClick={() => selectGender('female')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'female' ? 'rgba(59, 130, 246, 0.2)' : '#161324', border: selG === 'female' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Девушка</button>
@@ -697,7 +686,7 @@ export default function App() {
 
   return (
     <div style={{ padding: '90px 20px 90px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: '#16161a', color: 'white' }}>
-      <Toast toast={toast} /><DailyRewardModal app={app} /><AppModals app={app} />
+      <Toast toast={toast} onClose={closeToast} /><DailyRewardModal app={app} /><AppModals app={app} />
       <Modal open={modifierOpen} onClose={() => setModifierOpen(false)}>
         <div style={{ fontSize: 40, marginBottom: 10 }}>🔥</div>
         <h3 style={{ marginTop: 0, color: dayMod?.color || '#fff' }}>{dayMod?.name || 'Событие'}</h3>
