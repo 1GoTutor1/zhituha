@@ -129,8 +129,7 @@ export default function App() {
     if (!bugText.trim()) return showMsg("Напиши текст сообщения", true);
     try {
       const res = await fetch('/api/report-bug', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ player_name: nick, player_id: tgId, message: bugText })
       });
       if (!res.ok) {
@@ -171,6 +170,23 @@ export default function App() {
   const advanceTutorial = async (step: number) => { setOnboardStep(step); await sync({ onboarding_step: step }); };
   const skipTutorial = () => { advanceTutorial(onboardStep + 1); hapticFeedback('light'); };
 
+  // Проверка готовности кофе (вызывается каждую секунду)
+  const checkCoffee = async () => {
+    if (!pid) return;
+    const { data, error } = await supabase.rpc('collect_coffee_energy_rpc', { p_player_id: pid });
+    if (error) return;
+    if (data && data.success) {
+      setEnergy(data.energy);
+      setBrewEnd(0);
+      showMsg("Кофе готов! Энергия восстановлена!");
+      hapticFeedback('heavy');
+      sendNotification("☕ Твой кофе готов! Энергия восстановлена, залетай в игру!");
+      loadData(true); // Перезапрашиваем данные для синхронизации
+    } else if (data && data.brew_end) {
+      setBrewEnd(data.brew_end);
+    }
+  };
+
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     if (lock.current) return;
@@ -197,6 +213,7 @@ export default function App() {
       setRefBalance(Number(d.referral_balance) || 0); setDailyStreak(Number(d.daily_streak) || 0);
       setBoostEnd(Number(d.boost_end) || 0); setOnboardStep(Number(d.onboarding_step) || 0);
       setMarketSlots(Number(d.market_slots) || 3);
+      setBrewEnd(Number(d.brew_end) || 0);
 
       if (!silent) {
         const timeDiff = Date.now() - (Number(d.last_claim) || 0);
@@ -211,16 +228,6 @@ export default function App() {
       const end = last + cRestTime > Date.now() ? last + cRestTime : 0;
       setRestEnd(end); if (end > 0) setTLeft(Math.max(0, Math.ceil((end - Date.now()) / 1000)));
 
-      const savedBrew = localStorage.getItem('zhituha_brew_end');
-      if (savedBrew) {
-        const bEnd = Number(savedBrew);
-        if (bEnd > Date.now()) setBrewEnd(bEnd);
-        else { 
-          localStorage.removeItem('zhituha_brew_end'); 
-          setEnergy(d.has_house ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY); 
-          await supabase.from('players').update({ energy: d.has_house ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY }).eq('id', d.id); 
-        }
-      }
       if (rRes.data) setMyRefs(rRes.data);
       
       if (bRes.data) {
@@ -269,23 +276,11 @@ export default function App() {
       const now = Date.now();
       if (restEnd > 0) { const r = Math.max(0, Math.ceil((restEnd - now) / 1000)); setTLeft(r); if (r === 0) setRestEnd(0); }
       
+      // Проверяем кофе на сервере каждую секунду
       if (brewEnd > 0) {
         const r = Math.max(0, Math.ceil((brewEnd - now) / 1000)); setBLeft(r);
-        if (r === 0) {
-          setBrewEnd(0); 
-          localStorage.removeItem('zhituha_brew_end');
-          
-          // ФИКС: Даем фулл энергию и ПРИНУДИТЕЛЬНО перезагружаем данные с сервера
-          const target = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
-          if (pid) supabase.from('players').update({ energy: target }).eq('id', pid);
-          
-          loadData(true); 
-          
-          showMsg("Кофе готов! Энергия восстановлена!"); 
-          hapticFeedback('heavy');
-          sendNotification("☕ Твой кофе готов! Энергия восстановлена, залетай в игру!");
-        }
-      }
+        checkCoffee();
+      } else { setBLeft(0); }
       
       if (carOrderEnd > 0) {
         const r = Math.max(0, Math.ceil((carOrderEnd - now) / 1000)); setCarTimeLeft(r);
@@ -592,7 +587,11 @@ export default function App() {
       const { data: pOwn } = await supabase.from('players').select('referred_by').eq('id', cafe.owner_id).single();
       if (pOwn?.referred_by) await supabase.rpc('add_referral_balance', { p_telegram_id: pOwn.referred_by, p_amount: Math.floor(COFFEE_OWNER_INCOME * 0.05) });
     }
-    const end = Date.now() + BREW_TIME; setBrewEnd(end); localStorage.setItem('zhituha_brew_end', end.toString());
+    
+    const end = Date.now() + BREW_TIME;
+    setBrewEnd(end);
+    await sync({ brew_end: end }); // Сохраняем таймер в базу!
+    
     showMsg(`Кофе готовится...`); hapticFeedback('heavy');
     if (onboardStep === 2) await advanceTutorial(3);
   });
