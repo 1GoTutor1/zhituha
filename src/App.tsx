@@ -714,12 +714,15 @@ export default function App() {
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
   const currentStock = getStock(activeBiz);
 
-  if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '90px' }}>Загрузка...</div>;
-  if (isCheckingSub) return <div style={{ padding: '90px 20px 50px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
-  if (isBanned) return <div style={{ padding: '90px 20px 50px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}><ShieldAlert size={80} color="#ef4444" style={{ marginBottom: 20 }} /><h1>Вы забанены!</h1><p style={{ color: '#8B899A', maxWidth: '300px' }}>Администрация заблокировала ваш аккаунт.</p></div>;
+  const pageStyle: any = { padding: 'calc(100px + env(safe-area-inset-top, 20px)) 20px calc(90px + env(safe-area-inset-bottom, 20px))', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: '#16161a', color: 'white' };
+  const authPageStyle: any = { ...pageStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' };
+
+  if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: 'calc(100px + env(safe-area-inset-top, 20px))' }}>Загрузка...</div>;
+  if (isCheckingSub) return <div style={authPageStyle}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
+  if (isBanned) return <div style={authPageStyle}><ShieldAlert size={80} color="#ef4444" style={{ marginBottom: 20 }} /><h1>Вы забанены!</h1><p style={{ color: '#8B899A', maxWidth: '300px' }}>Администрация заблокировала ваш аккаунт.</p></div>;
   
   if (user && !isSubscribed) return (
-    <div style={{ padding: '90px 20px 50px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={authPageStyle}>
       <Toast toast={toast} onClose={closeToast} /><Send size={60} color="#3b82f6" style={{ marginBottom: 20 }} /><h1>Подпишись на канал!</h1>
       <p style={{ color: '#8B899A', marginBottom: 30, maxWidth: '300px' }}>Чтобы играть в Житуху, нужно быть подписанным на наш канал.</p>
       <Btn variant="secondary" onClick={() => tg?.openTelegramLink(CHANNEL_LINK)} style={{ maxWidth: '280px', marginBottom: 15 }}><Send size={20} /> Подписаться</Btn>
@@ -728,7 +731,7 @@ export default function App() {
   );
 
   if (!nick || !gender) return (
-    <div style={{ padding: '90px 20px 50px', textAlign: 'center', minHeight: '100vh', backgroundColor: '#16161a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={authPageStyle}>
       <Toast toast={toast} onClose={closeToast} /><h1>Житуха</h1><p style={{ color: '#8B899A', marginBottom: '30px' }}>Создай персонажа</p>
       <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
         <button onClick={() => selectGender('male')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#161324', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Парень</button>
@@ -741,7 +744,7 @@ export default function App() {
   );
 
   return (
-    <div style={{ padding: '90px 20px 90px', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: '#16161a', color: 'white' }}>
+    <div style={pageStyle}>
       <Toast toast={toast} onClose={closeToast} /><DailyRewardModal app={app} /><AppModals app={app} />
       <Modal open={modifierOpen} onClose={() => setModifierOpen(false)}>
         <div style={{ fontSize: 40, marginBottom: 10 }}>🔥</div>

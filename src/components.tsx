@@ -20,8 +20,6 @@ export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) =
     if (toast) {
       setVisible(true);
       setLeaving(false);
-
-      // 2.5 секунды висит, потом 0.3 секунды утекает вниз
       const hideTimer = setTimeout(() => setLeaving(true), 2500);
       const removeTimer = setTimeout(() => {
         setVisible(false);
@@ -33,17 +31,17 @@ export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) =
         clearTimeout(removeTimer);
       };
     }
-  }, [toast]); // Срабатывает при каждом новом id тоста
+  }, [toast]);
 
   if (!visible || !toast) return null;
 
   return (
     <div style={{ 
       position: 'fixed', 
-      bottom: '90px', 
+      bottom: 'calc(90px + env(safe-area-inset-bottom, 20px))', 
       left: '50%', 
-      transform: leaving ? 'translate(-50%, 20px)' : 'translate(-50%, 0)', // Утекает вниз на 20px
-      opacity: leaving ? 0 : 1, // Плавно растворяется
+      transform: leaving ? 'translate(-50%, 20px)' : 'translate(-50%, 0)',
+      opacity: leaving ? 0 : 1,
       transition: 'all 0.3s ease-in-out', 
       backgroundColor: toast.err ? 'rgba(239, 68, 68, 0.95)' : 'rgba(16, 185, 129, 0.95)', 
       color: 'white', 
@@ -71,7 +69,7 @@ export const BottomNav = ({ app }: { app: any }) => {
     { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'shop', icon: Store, text: 'Магазин' }, { id: 'inventory', icon: Backpack, text: 'Сумка' }
   ];
   return (
-    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(20, 20, 20, 0.95)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px 0', zIndex: 100 }}>
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(20, 20, 20, 0.95)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 calc(20px + env(safe-area-inset-bottom, 20px)) 0', zIndex: 100 }}>
       {items.map(t => (
         <button key={t.id} onClick={() => { app.setTab(t.id); app.hapticFeedback('light'); app.setBoardOpen(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: app.tab === t.id ? '#3b82f6' : '#a1a1aa', transition: 'color 0.2s' }}>
           <t.icon size={22} style={{ marginBottom: 4 }} /><span style={{ fontSize: 10, fontWeight: app.tab === t.id ? 'bold' : 'normal' }}>{t.text}</span>
