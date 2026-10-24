@@ -612,19 +612,29 @@ export default function App() {
     showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium'); loadData(true);
   });
 
+  // ФИКС: Принудительно очищаем стейт и делаем паузу перед обновлением
   const fire = (workerId: string) => action(async () => {
     const { error } = await supabase.from('business_workers').delete().eq('id', workerId);
     if (error) throw error;
     showMsg("Сотрудник уволен."); hapticFeedback('heavy');
-    setAllWorkers(prev => prev.filter(w => w.id !== workerId)); // Мгновенно убираем
-    loadData(true); 
+    setAllWorkers(prev => prev.filter(w => w.id !== workerId));
+    setTimeout(() => loadData(true), 500);
   });
 
+  // ФИКС: Принудительно очищаем стейт и делаем паузу перед обновлением
   const quit = () => action(async () => {
     if (!myJob) return;
-    await supabase.from('business_workers').delete().eq('id', myJob.id);
-    setMyJob(null); // Мгновенно убираем работу
-    setQuitOpen(false); setBoardOpen(false); showMsg("Вы уволились."); hapticFeedback('heavy'); loadData(true);
+    const jobId = myJob.id;
+    setMyJob(null); 
+    setQuitOpen(false); 
+    setBoardOpen(false); 
+    showMsg("Вы уволились."); 
+    hapticFeedback('heavy');
+    
+    const { error } = await supabase.from('business_workers').delete().eq('id', jobId);
+    if (error) throw error;
+    
+    setTimeout(() => loadData(true), 500);
   });
 
   const shift = () => action(async () => {
