@@ -272,14 +272,17 @@ export default function App() {
       if (brewEnd > 0) {
         const r = Math.max(0, Math.ceil((brewEnd - now) / 1000)); setBLeft(r);
         if (r === 0) {
-          setBrewEnd(0); const target = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
-          setEnergy(target); localStorage.removeItem('zhituha_brew_end');
+          setBrewEnd(0); 
+          localStorage.removeItem('zhituha_brew_end');
+          
+          // ФИКС: Даем фулл энергию и ПРИНУДИТЕЛЬНО перезагружаем данные с сервера
+          const target = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
           if (pid) supabase.from('players').update({ energy: target }).eq('id', pid);
           
-          // ФИКС: Принудительно обновляем данные с сервера, чтобы стейт не рассинхронился
           loadData(true); 
           
-          showMsg("Кофе готов! Энергия восстановлена!"); hapticFeedback('heavy');
+          showMsg("Кофе готов! Энергия восстановлена!"); 
+          hapticFeedback('heavy');
           sendNotification("☕ Твой кофе готов! Энергия восстановлена, залетай в игру!");
         }
       }
