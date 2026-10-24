@@ -1,6 +1,6 @@
 export const BOT_USERNAME = "zhituha_bot"; 
 export const CHANNEL_LINK = "https://t.me/zhituha_news";
-export const PHONE_PRICE = 2000, WORKER_SALARY = 600, COFFEE_CUP_PRICE = 500;
+export const PHONE_PRICE = 2000, COFFEE_CUP_PRICE = 500;
 export const JOB_WORK = 150; 
 export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 5000;
 
@@ -9,13 +9,13 @@ export const HOUSE_MAX_ENERGY = 150;
 
 export const REST_CD = 90000; 
 export const BASE_REST_TIME = REST_CD; 
-export const LADA_REST_TIME = 80000;
-export const TOYOTA_REST_TIME = 70000;
+export const LADA_REST_TIME = 80000; 
+export const TOYOTA_REST_TIME = 70000; 
 
-export const LADA_PRICE = 20000, LADA_TIME = 30000;
-export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 120000;
+export const LADA_PRICE = 20000, LADA_TIME = 900000; // 15 минут
+export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 2700000; // 45 минут
 
-export const BUILDING_PRICE = 500000, BUILDING_TIME = 900000, APARTMENTS_PER_BUILD = 10;
+export const BUILDING_PRICE = 350000, BUILDING_TIME = 3600000, APARTMENTS_PER_BUILD = 10; // 1 час
 
 export const COFFEE_BIZ_PRICE = 15000;
 export const SALON_BIZ_PRICE = 150000;
@@ -25,11 +25,11 @@ export const CONSTRUCTION_BIZ_PRICE = 500000;
 
 export const BUTTON_BATCH_SIZE = 10;
 export const BUTTON_BATCH_COST = 7000;
-export const BUTTON_BATCH_TIME = 240000; 
+export const BUTTON_BATCH_TIME = 600000; // 10 минут
 
 export const SMARTPHONE_BATCH_SIZE = 5;
 export const SMARTPHONE_BATCH_COST = 25000;
-export const SMARTPHONE_BATCH_TIME = 600000;
+export const SMARTPHONE_BATCH_TIME = 1800000; // 30 минут
 
 export const TAXI_LADA_INCOME = 1000;
 export const TAXI_TOYOTA_INCOME = 1500;
@@ -38,14 +38,14 @@ export const TAXI_REPAIR_LADA = 3000;
 export const TAXI_REPAIR_TOYOTA = 10000;
 export const TAXI_HEALTH_DROP_RATE = 8;
 
-export const DEFAULT_SELL_LADA = 25000;
-export const DEFAULT_SELL_TOYOTA = 60000;
+export const DEFAULT_SELL_LADA = 28000;
+export const DEFAULT_SELL_TOYOTA = 65000;
 export const DEFAULT_SELL_APARTMENT = 50000;
 export const DEFAULT_SELL_PHONE = 2000;
 export const DEFAULT_SELL_BUTTON = 2000;
 export const DEFAULT_SELL_SMARTPHONE = 15000;
 export const PHONE_SELL_TO_SHOP = 1400;
-export const COFFEE_OWNER_INCOME = 450;
+export const COFFEE_OWNER_INCOME = 410;
 
 export const DAILY_REWARDS = [
   { type: 'money', amount: 500 },
@@ -78,7 +78,7 @@ export const DAY_MODIFIERS = [
   { id: 2, name: "Час пик", desc: "Таксопарк x2", type: "taxi", mult: 2, color: "#3b82f6" },
   { id: 3, name: "Хайп на телефоны", desc: "Производство телефонов +50% скорости", type: "phone_sell", mult: 1.5, color: "#8b5cf6" },
   { id: 4, name: "Автошоу", desc: "Отдых на машинах +20% быстрее", type: "car_sell", mult: 1.2, color: "#f97316" },
-  { id: 5, name: "Ажиотаж", desc: "Слоты рынка +2", type: "market_slots", mult: 2, color: "#ec4899" },
+  { id: 5, name: "Ажиотаж", desc: "Слоты рынка +2, комиссия 0%", type: "market_slots", mult: 2, color: "#ec4899" },
   { id: 6, name: "Кофейный бум", desc: "Кофе дает +30% энергии", type: "coffee_energy", mult: 1.3, color: "#f59e0b" },
   { id: 7, name: "День друзей", desc: "Реферальные бонусы x2", type: "ref", mult: 2, color: "#ef4444" },
   { id: 8, name: "Стройка века", desc: "Стройка дома +50% скорости", type: "build", mult: 1.5, color: "#d97706" },
@@ -98,28 +98,15 @@ export const getDayModifier = () => {
   }
 };
 
-// ДОБАВЛЕНО: Список всех рабочих мест
 export const BIZ_JOBS: Record<string, { role: string, salary: number, max: number }[]> = {
   coffee: [
-    { role: 'Бариста', salary: 600, max: 1 },
-    { role: 'Помощник бариста', salary: 500, max: 1 }
+    { role: 'Бариста', salary: 60, max: 1 },
+    { role: 'Помощник бариста', salary: 30, max: 1 }
   ],
-  salon: [
-    { role: 'Механик', salary: 800, max: 1 },
-    { role: 'Продавец', salary: 1000, max: 1 }
-  ],
-  phone_factory: [
-    { role: 'Сборщик', salary: 900, max: 2 },
-    { role: 'Инженер', salary: 1200, max: 1 }
-  ],
-  taxi: [
-    { role: 'Водитель', salary: 1000, max: 2 },
-    { role: 'Механик', salary: 1200, max: 1 }
-  ],
-  construction: [
-    { role: 'Строитель', salary: 1200, max: 3 },
-    { role: 'Прораб', salary: 1500, max: 1 }
-  ]
+  salon: [{ role: 'Механик', salary: 800, max: 1 }, { role: 'Продавец', salary: 1000, max: 1 }],
+  phone_factory: [{ role: 'Сборщик', salary: 900, max: 2 }, { role: 'Инженер', salary: 1200, max: 1 }],
+  taxi: [{ role: 'Водитель', salary: 1000, max: 2 }, { role: 'Механик', salary: 1200, max: 1 }],
+  construction: [{ role: 'Строитель', salary: 1200, max: 3 }, { role: 'Прораб', salary: 1500, max: 1 }]
 };
 
 export const S = {

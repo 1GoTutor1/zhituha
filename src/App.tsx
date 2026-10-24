@@ -3,13 +3,14 @@ import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { Send, ShieldAlert } from 'lucide-react';
 import { 
-  BOT_USERNAME, CHANNEL_LINK, COFFEE_CUP_PRICE, BREW_TIME, POLL, 
+  BOT_USERNAME, CHANNEL_LINK, POLL, 
   BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, TOYOTA_REST_TIME, AVATARS, 
   getStock, S, BUILDING_PRICE, BUILDING_TIME, APARTMENTS_PER_BUILD, TAXI_BIZ_PRICE, 
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, 
   CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, 
   BUTTON_BATCH_COST, BUTTON_BATCH_TIME, SMARTPHONE_BATCH_SIZE, SMARTPHONE_BATCH_COST, 
-  SMARTPHONE_BATCH_TIME, JOB_WORK, getDayModifier, COFFEE_OWNER_INCOME, TAXI_HEALTH_DROP_RATE
+  SMARTPHONE_BATCH_TIME, JOB_WORK, getDayModifier, TAXI_HEALTH_DROP_RATE,
+  LADA_TIME, TOYOTA_TIME, PHONE_PRICE
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
 import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals, CafeTab, JobsTab, ShopTab, InventoryTab } from './tabs';
@@ -133,10 +134,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ player_name: nick, player_id: tgId, message: bugText })
       });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
-        throw new Error(errorData?.error || `Ошибка сервера: ${res.status}`);
-      }
+      if (!res.ok) throw new Error('Ошибка сервера');
       showMsg("Баг отправлен! Спасибо."); 
       setBugOpen(false); setBugText(''); hapticFeedback('heavy');
     } catch (e: any) {
@@ -288,9 +286,10 @@ export default function App() {
           const salon = myBizs.find(b => b.biz_type === 'salon');
           if (salon) supabase.from('businesses').select('stock').eq('id', salon.id).single().then(({ data }) => {
             if (data) {
-              const s = getStock(data); const model = s.current_model || 'lada';
-              supabase.from('businesses').update({ car_order_end: 0, stock: { ...s, [model]: (s[model] || 0) + 1, current_model: 'none' } }).eq('id', salon.id).then(({ error }) => {
-                if (!error) { showMsg(`Машина приехала!`); hapticFeedback('heavy'); loadData(true); sendNotification(`🚗 В автосалон приехала ${model === 'lada' ? 'Лада' : 'Тойота'}!`); }
+              const s = getStock(data); const model = s.current_model || 'lada'; const amount = s.order_amount || 1;
+              const newStock = { ...s, [model]: (s[model] || 0) + amount, current_model: 'none', order_amount: 0 };
+              supabase.from('businesses').update({ car_order_end: 0, stock: newStock }).eq('id', salon.id).then(({ error }) => {
+                if (!error) { showMsg(`Машины приехали!`); hapticFeedback('heavy'); loadData(true); sendNotification(`🚗 В автосалон приехали ${amount} ${model === 'lada' ? 'Лада' : 'Тойота'}!`); }
               });
             }
           });
@@ -529,18 +528,20 @@ export default function App() {
     loadData(true); loadMarket();
   });
 
-  const orderCar = (model: 'lada' | 'toyota') => action(async () => {
+  const orderCar = (model: 'lada' | 'toyota', amount: number) => action(async () => {
     const salon = myBizs.find(b => b.biz_type === 'salon');
-    if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едет машина!", true);
+    if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едут машины!", true);
     const price = model === 'lada' ? LADA_PRICE : TOYOTA_PRICE;
-    if (money < price) return showMsg("Мало денег!", true);
+    const totalPrice = price * amount;
+    if (money < totalPrice) return showMsg("Мало денег!", true);
     
-    await changeStats(-price, 0);
-    const end = Date.now() + (model === 'lada' ? 30000 : 120000);
-    const nS = { ...getStock(salon), current_model: model };
+    await changeStats(-totalPrice, 0);
+    const time = model === 'lada' ? LADA_TIME : TOYOTA_TIME;
+    const end = Date.now() + time;
+    const nS = { ...getStock(salon), current_model: model, order_amount: amount };
     await supabase.from('businesses').update({ car_order_end: end, stock: nS }).eq('id', salon.id);
     setCarOrderEnd(end); setMyBizs(prev => prev.map(b => b.id === salon.id ? { ...b, car_order_end: end, stock: nS } : b));
-    showMsg(`Заказ на ${model === 'lada' ? 'Ладу' : 'Тойоту'} оформлен!`); hapticFeedback('heavy');
+    showMsg(`Заказ на ${amount} ${model === 'lada' ? 'Лад' : 'Тойот'} оформлен!`); hapticFeedback('heavy');
   });
 
   const startBuild = () => action(async () => {
@@ -576,23 +577,12 @@ export default function App() {
   });
 
   const buyCoffee = (cafe: any) => action(async () => {
-    const hasBarista = allWorkers.some(w => w.business_id === cafe.id && w.role === 'Бариста');
-    if (!hasBarista || money < COFFEE_CUP_PRICE || energy >= maxEnergy) return showMsg("Нельзя купить", true);
+    const { data, error } = await supabase.rpc('buy_coffee_rpc', { p_buyer_id: pid, p_cafe_id: cafe.id });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
     
-    await changeStats(-COFFEE_CUP_PRICE, 0);
-    await supabase.from('businesses').update({ coffee_balance: (Number((await supabase.from('businesses').select('coffee_balance').eq('id', cafe.id).single()).data?.coffee_balance) || 0) + COFFEE_OWNER_INCOME }).eq('id', cafe.id);
-    
-    if (cafe.owner_id) {
-      const { data: pOwn } = await supabase.from('players').select('referred_by').eq('id', cafe.owner_id).single();
-      if (pOwn?.referred_by) await supabase.rpc('add_referral_balance', { p_telegram_id: pOwn.referred_by, p_amount: Math.floor(COFFEE_OWNER_INCOME * 0.05) });
-    }
-    
-    const end = Date.now() + BREW_TIME;
-    setBrewEnd(end);
-    await sync({ brew_end: end });
-    
-    showMsg(`Кофе готовится...`); hapticFeedback('heavy');
-    if (onboardStep === 2) await advanceTutorial(3);
+    setEnergy(data.energy);
+    showMsg(`Кофе готов! Энергия восстановлена!`); hapticFeedback('heavy');
   });
 
   const collect = () => action(async () => {
@@ -612,28 +602,21 @@ export default function App() {
     showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium'); loadData(true);
   });
 
-  // ИСПРАВЛЕНО: Атомарное увольнение сотрудника через RPC
   const fire = (workerId: string) => action(async () => {
     const { data, error } = await supabase.rpc('fire_worker_rpc', { p_worker_id: workerId });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
-    
     setAllWorkers(data.workers || []);
     showMsg("Сотрудник уволен."); hapticFeedback('heavy');
   });
 
-  // ИСПРАВЛЕНО: Атомарное увольнение самого игрока через RPC
   const quit = () => action(async () => {
     if (!myJob) return;
     const { data, error } = await supabase.rpc('quit_job_rpc', { p_player_id: pid });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
-
     setMyJob(null); 
-    setQuitOpen(false); 
-    setBoardOpen(false); 
-    showMsg("Вы уволились."); 
-    hapticFeedback('heavy');
+    setQuitOpen(false); setBoardOpen(false); showMsg("Вы уволились."); hapticFeedback('heavy');
   });
 
   const shift = () => action(async () => {
@@ -673,7 +656,8 @@ export default function App() {
 
   const buyLot = (item: any) => action(async () => {
     if (item.item_type === 'phone' && item.item_data === 'phone' && phone) return showMsg("У тебя уже есть телефон", true);
-    const { data, error } = await supabase.rpc('buy_market_item', { p_buyer_id: pid, p_item_id: item.id });
+    const commission = dayMod?.type === 'market_slots' ? 0 : 5;
+    const { data, error } = await supabase.rpc('buy_market_item', { p_buyer_id: pid, p_item_id: item.id, p_commission_percent: commission });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
 
