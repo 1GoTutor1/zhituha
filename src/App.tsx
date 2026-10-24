@@ -612,15 +612,17 @@ export default function App() {
     showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium'); loadData(true);
   });
 
-  // ФИКС: Атомарное увольнение сотрудника. Удаляем из базы и моментально чистим стейт.
+  // ИСПРАВЛЕНО: Атомарное увольнение сотрудника через RPC
   const fire = (workerId: string) => action(async () => {
-    const { error } = await supabase.from('business_workers').delete().eq('id', workerId);
-    if (error) throw error;
-    setAllWorkers(prev => prev.filter(w => w.id !== workerId));
+    const { data, error } = await supabase.rpc('fire_worker_rpc', { p_worker_id: workerId });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+    
+    setAllWorkers(data.workers || []);
     showMsg("Сотрудник уволен."); hapticFeedback('heavy');
   });
 
-  // ФИКС: Атомарное увольнение самого игрока через RPC
+  // ИСПРАВЛЕНО: Атомарное увольнение самого игрока через RPC
   const quit = () => action(async () => {
     if (!myJob) return;
     const { data, error } = await supabase.rpc('quit_job_rpc', { p_player_id: pid });
