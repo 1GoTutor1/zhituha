@@ -170,7 +170,7 @@ export default function App() {
   const advanceTutorial = async (step: number) => { setOnboardStep(step); await sync({ onboarding_step: step }); };
   const skipTutorial = () => { advanceTutorial(onboardStep + 1); hapticFeedback('light'); };
 
-  const checkCoffee = async () => {
+    const checkCoffee = async () => {
     if (!pid) return;
     const { data, error } = await supabase.rpc('collect_coffee_energy_rpc', { p_player_id: pid });
     if (error) return;
@@ -578,13 +578,13 @@ export default function App() {
     if (onboardStep === 1) await advanceTutorial(2);
   });
 
-  const buyCoffee = (cafe: any) => action(async () => {
+    const buyCoffee = (cafe: any) => action(async () => {
     const { data, error } = await supabase.rpc('buy_coffee_rpc', { p_buyer_id: pid, p_cafe_id: cafe.id });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
     
-    setEnergy(data.energy);
-    showMsg(`Кофе готов! Энергия восстановлена!`); hapticFeedback('heavy');
+    setBrewEnd(data.brew_end); // <-- ВОТ ЭТА СТРОКА (ставит таймер)
+    showMsg(`Кофе готовится (15 сек)...`); hapticFeedback('heavy');
   });
 
   const collect = () => action(async () => {
