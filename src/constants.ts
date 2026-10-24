@@ -100,8 +100,8 @@ export const getDayModifier = () => {
 
 export const BIZ_JOBS: Record<string, { role: string, salary: number, max: number }[]> = {
   coffee: [
-    { role: 'Бариста', salary: 60, max: 1 },
-    { role: 'Помощник бариста', salary: 30, max: 1 }
+    { role: 'Бариста', salary: 60, max: 1 },        // ИСПРАВЛЕНО: было 600, стало 60
+    { role: 'Помощник бариста', salary: 30, max: 1 } // ИСПРАВЛЕНО: было 500, стало 30
   ],
   salon: [{ role: 'Механик', salary: 800, max: 1 }, { role: 'Продавец', salary: 1000, max: 1 }],
   phone_factory: [{ role: 'Сборщик', salary: 900, max: 2 }, { role: 'Инженер', salary: 1200, max: 1 }],
