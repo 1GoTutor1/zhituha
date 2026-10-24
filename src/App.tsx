@@ -507,9 +507,11 @@ export default function App() {
     showMsg("Стройка началась!"); hapticFeedback('heavy');
   });
 
+  // ИЗМЕНЕНО: Если есть машина (hasCar), отнимаем 10 энергии, иначе 20
   const work = () => action(async () => {
-    if (energy < 10) return showMsg("Ты слишком устал!", true);
-    const nM = money + workPay, nE = energy - 10;
+    const energyCost = hasCar ? 10 : 20;
+    if (energy < energyCost) return showMsg("Ты слишком устал!", true);
+    const nM = money + workPay, nE = energy - energyCost;
     setMoney(nM); setEnergy(nE); await sync({ money: nM, energy: nE });
     addReferralBonus(workPay); showMsg(`+${workPay} монет`); hapticFeedback('medium');
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }

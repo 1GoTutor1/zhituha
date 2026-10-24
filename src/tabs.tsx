@@ -131,6 +131,7 @@ export const HomeTab = ({ app }: { app: any }) => {
   const maxEnergy = app.hasHouse ? 150 : 100;
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
   const modifier = getDayModifier();
+  const energyCost = app.hasCar ? 10 : 20; // Динамическая стоимость энергии
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -189,9 +190,11 @@ export const HomeTab = ({ app }: { app: any }) => {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Btn variant="purple" onClick={app.work} disabled={app.proc || app.energy < 10} style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', padding: 20, fontSize: 18 }}>
-          <Users size={24} /> Вкалывать на смене (+{app.workPay})
+        {/* ИЗМЕНЕНО: Показываем стоимость энергии и правильно блокируем кнопку */}
+        <Btn variant="purple" onClick={app.work} disabled={app.proc || app.energy < energyCost} style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', padding: 20, fontSize: 18 }}>
+          <Users size={24} /> Вкалывать (-{energyCost}⚡ +{app.workPay}💰)
         </Btn>
+        
         <Btn variant="secondary" onClick={app.rest} disabled={app.proc || app.tLeft > 0 || app.energy >= maxEnergy} style={{ background: '#161324', border: '1px solid rgba(255,255,255,0.1)', color: app.tLeft > 0 ? '#8B899A' : 'white', padding: 20, fontSize: 18 }}>
           <Zap size={24} color={app.tLeft > 0 ? '#8B899A' : '#10B981'} /> {app.tLeft > 0 ? `Отдыхаем ${app.tLeft} сек...` : `Отдых (${app.restTime / 1000} сек)`}
         </Btn>
