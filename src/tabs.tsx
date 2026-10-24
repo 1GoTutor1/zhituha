@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, PHONE_PRICE, COFFEE_CUP_PRICE,
@@ -45,6 +45,23 @@ export const AppModals = ({ app }: { app: any }) => (
       <h3>Активация промокода</h3>
       <input type="text" value={app.promoInput} onChange={(e: any) => app.setPromoInput(e.target.value.toUpperCase())} placeholder="ALPHA100" style={S.input} />
       <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => app.setPromoOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn><Btn variant="primary" onClick={app.redeemPromo}>Активировать</Btn></div>
+    </Modal>
+
+    {/* НОВОЕ: Модалка баг-репорта */}
+    <Modal open={app.bugOpen} onClose={() => app.setBugOpen(false)}>
+      <Bug size={40} color="#ef4444" style={{ marginBottom: 15 }} />
+      <h3>Сообщить о баге</h3>
+      <p style={{ color: '#8B899A', fontSize: 13, marginBottom: 15 }}>Опиши проблему, и админ получит сообщение в Telegram.</p>
+      <textarea 
+        value={app.bugText} 
+        onChange={(e: any) => app.setBugText(e.target.value)} 
+        placeholder="Что случилось?" 
+        style={{ ...S.input, minHeight: '100px', resize: 'none' }} 
+      />
+      <div style={{ display: 'flex', gap: 10 }}>
+        <Btn variant="secondary" onClick={() => app.setBugOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn>
+        <Btn variant="primary" onClick={app.submitBug} disabled={app.proc}>Отправить</Btn>
+      </div>
     </Modal>
   </>
 );
@@ -122,6 +139,7 @@ export const HomeTab = ({ app }: { app: any }) => {
               <div style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'Space Grotesk, sans-serif' }}>{app.nick}</div>
               <button onClick={() => app.setRefOpen(true)} style={{ background: 'rgba(236, 72, 153, 0.15)', border: '1px solid #ec4899', color: '#ec4899', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><UserPlus size={16} /></button>
               <button onClick={() => app.setPromoOpen(true)} style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', color: '#10b981', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Gift size={16} /></button>
+              <button onClick={() => app.setBugOpen(true)} style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Bug size={16} /></button>
             </div>
             <div style={{ fontSize: 13, color: '#8B899A', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
               ID: {app.tgId.slice(0, 6)}
@@ -244,7 +262,6 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   const getPrice = (type: string) => type === 'coffee' ? COFFEE_BIZ_PRICE : type === 'salon' ? SALON_BIZ_PRICE : type === 'taxi' ? TAXI_BIZ_PRICE : type === 'phone_factory' ? PHONE_FACTORY_BIZ_PRICE : CONSTRUCTION_BIZ_PRICE;
   const getBizName = (type: string) => type === 'coffee' ? 'Кофейня' : type === 'salon' ? 'Автосалон' : type === 'taxi' ? 'Таксопарк' : type === 'phone_factory' ? 'Телефонный цех' : 'Стройтрест';
 
-  // Получаем список работников для ЭТОГО бизнеса
   const bizWorkers = app.allWorkers?.filter((w: any) => w.business_id === activeBiz?.id) || [];
 
   return (
@@ -307,7 +324,6 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
             </div>
           )}
 
-          {/* БЛОК СОТРУДНИКОВ */}
           <div style={{ marginTop: 20, paddingTop: 15, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
             <h4 style={{ margin: '0 0 10px 0', fontSize: 14, color: '#8B899A' }}>Сотрудники ({bizWorkers.length})</h4>
             {bizWorkers.length === 0 && <p style={{ fontSize: 12, color: '#f97316', margin: 0 }}>Нет сотрудников. Биржа труда ждет!</p>}
@@ -343,11 +359,7 @@ export const AdminTab = ({ app }: { app: any }) => {
   const [promoAmount, setPromoAmount] = useState('');
   const [promoLimit, setPromoLimit] = useState('100');
 
-  const handleSearch = async () => {
-    if (!searchQ) return;
-    const { data } = await app.supabase.from('players').select('*').ilike('nickname', `%${searchQ}%`).limit(5);
-    setFoundPlayers(data || []);
-  };
+  const handleSearch = async () => { if (!searchQ) return; const { data } = await app.supabase.from('players').select('*').ilike('nickname', `%${searchQ}%`).limit(5); setFoundPlayers(data || []); };
   const loadPlayerDetails = async (p: any) => { setSelectedPlayer(p); const { data } = await app.supabase.from('businesses').select('*').eq('owner_id', p.id); setPlayerBizs(data || []); };
   const handleGiveMoney = async (amount: number) => { if (!selectedPlayer) return; const newMoney = Math.max(0, selectedPlayer.money + amount); await app.supabase.from('players').update({ money: newMoney }).eq('id', selectedPlayer.id); setSelectedPlayer({ ...selectedPlayer, money: newMoney }); app.showMsg(`Выдано ${amount}`); if (app.loadData) app.loadData(true); };
   const handleBan = async () => { if (!selectedPlayer) return; const newStatus = !selectedPlayer.is_banned; await app.supabase.from('players').update({ is_banned: newStatus }).eq('id', selectedPlayer.id); setSelectedPlayer({ ...selectedPlayer, is_banned: newStatus }); app.showMsg(newStatus ? "Забанен" : "Разбанен"); if (app.loadData) app.loadData(true); };
@@ -381,7 +393,7 @@ export const JobsTab = ({ app }: { app: any }) => {
   if (app.boardOpen) {
     const availableJobs: any[] = [];
     app.allBiz.forEach((biz: any) => {
-      if (biz.owner_id === app.pid) return; // Не нанимаемся к себе
+      if (biz.owner_id === app.pid) return;
       const roles = BIZ_JOBS[biz.biz_type] || [];
       roles.forEach((roleInfo: any) => {
         const hiredCount = app.allWorkers.filter((w: any) => w.business_id === biz.id && w.role === roleInfo.role).length;

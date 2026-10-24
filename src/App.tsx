@@ -68,7 +68,6 @@ export default function App() {
   const [players, setPlayers] = useState<any[]>([]);
   const [market, setMarket] = useState<any[]>([]);
   
-  // НОВОЕ: Работники
   const [myJob, setMyJob] = useState<any>(null);
   const [allWorkers, setAllWorkers] = useState<any[]>([]);
   const [allBiz, setAllBiz] = useState<any[]>([]);
@@ -81,6 +80,10 @@ export default function App() {
   const [modifierOpen, setModifierOpen] = useState(false);
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoInput, setPromoInput] = useState('');
+  
+  const [bugOpen, setBugOpen] = useState(false);
+  const [bugText, setBugText] = useState('');
+
   const [sellOpen, setSellOpen] = useState(false);
   const [sellPrice, setSellPrice] = useState('2000');
   const [sellItemType, setSellItemType] = useState<'phone' | 'car' | 'house'>('phone');
@@ -111,6 +114,22 @@ export default function App() {
     }).catch(err => console.error('Ошибка пуша:', err));
   };
 
+  // ИСПРАВЛЕНО: Обычный fetch вместо supabase.functions.invoke
+  const submitBug = () => action(async () => {
+    if (!bugText.trim()) return showMsg("Напиши текст сообщения", true);
+    
+    const res = await fetch('/api/report-bug', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_name: nick, player_id: tgId, message: bugText })
+    });
+
+    if (!res.ok) throw new Error('Ошибка отправки на сервер');
+
+    showMsg("Баг отправлен! Спасибо."); 
+    setBugOpen(false); setBugText(''); hapticFeedback('heavy');
+  });
+
   const action = async (fn: () => Promise<void>) => {
     if (lock.current) return;
     lock.current = true; setProc(true);
@@ -138,7 +157,7 @@ export default function App() {
         supabase.from('players').select('*').eq('telegram_id', uid).maybeSingle(),
         supabase.from('players').select('nickname').eq('referred_by', uid),
         supabase.from('businesses').select('*'),
-        supabase.from('business_workers').select('*') // Загружаем всех работников
+        supabase.from('business_workers').select('*')
       ]);
 
       if (!pRes.data) { if (user?.first_name) setInNick(user.first_name); return; }
@@ -189,7 +208,7 @@ export default function App() {
       
       if (wRes.data) {
         setAllWorkers(wRes.data);
-        setMyJob(wRes.data.find((w: any) => w.player_id === d.id) || null); // Ищем свою работу
+        setMyJob(wRes.data.find((w: any) => w.player_id === d.id) || null);
       }
     } catch (e) { console.error(e); } finally { if (!silent) setLoading(false); }
   };
@@ -219,7 +238,6 @@ export default function App() {
     if (onboardStep === 4 && tab === 'market') advanceTutorial(5);
   }, [tab, onboardStep]);
 
-  // Таймеры
   useEffect(() => {
     const int = setInterval(() => {
       const now = Date.now();
@@ -666,9 +684,10 @@ export default function App() {
   });
 
   const app = useMemo(() => ({
-    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, market, myJob, allWorkers, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, shiftPay, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData
+    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, market, myJob, allWorkers, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, shiftPay, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, shift, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, handleAvatar, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData,
+    bugOpen, setBugOpen, bugText, setBugText, submitBug
   }), [
-    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, shiftPay, promoOpen, promoInput, adminTab, role
+    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, shiftPay, promoOpen, promoInput, adminTab, role, bugOpen, bugText
   ]);
 
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
