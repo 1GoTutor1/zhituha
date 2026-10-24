@@ -47,7 +47,7 @@ export const AppModals = ({ app }: { app: any }) => (
       <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => app.setPromoOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn><Btn variant="primary" onClick={app.redeemPromo}>Активировать</Btn></div>
     </Modal>
 
-    {/* НОВОЕ: Модалка баг-репорта */}
+    {/* МОДАЛКА БАГ-РЕПОРТА */}
     <Modal open={app.bugOpen} onClose={() => app.setBugOpen(false)}>
       <Bug size={40} color="#ef4444" style={{ marginBottom: 15 }} />
       <h3>Сообщить о баге</h3>
@@ -60,7 +60,10 @@ export const AppModals = ({ app }: { app: any }) => (
       />
       <div style={{ display: 'flex', gap: 10 }}>
         <Btn variant="secondary" onClick={() => app.setBugOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Отмена</Btn>
-        <Btn variant="primary" onClick={app.submitBug} disabled={app.proc}>Отправить</Btn>
+        {/* Кнопка теперь неактивна, если текст пустой или идет загрузка */}
+        <Btn variant="primary" onClick={app.submitBug} disabled={app.proc || app.bugText.trim().length === 0}>
+          {app.proc ? 'Отправка...' : 'Отправить'}
+        </Btn>
       </div>
     </Modal>
   </>

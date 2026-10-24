@@ -114,20 +114,27 @@ export default function App() {
     }).catch(err => console.error('Ошибка пуша:', err));
   };
 
-  // ИСПРАВЛЕНО: Обычный fetch вместо supabase.functions.invoke
   const submitBug = () => action(async () => {
     if (!bugText.trim()) return showMsg("Напиши текст сообщения", true);
     
-    const res = await fetch('/api/report-bug', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ player_name: nick, player_id: tgId, message: bugText })
-    });
+    try {
+      const res = await fetch('/api/report-bug', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_name: nick, player_id: tgId, message: bugText })
+      });
 
-    if (!res.ok) throw new Error('Ошибка отправки на сервер');
+      if (!res.ok) {
+        // Пытаемся прочитать точную ошибку от сервера Vercel
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || `Ошибка сервера: ${res.status}`);
+      }
 
-    showMsg("Баг отправлен! Спасибо."); 
-    setBugOpen(false); setBugText(''); hapticFeedback('heavy');
+      showMsg("Баг отправлен! Спасибо."); 
+      setBugOpen(false); setBugText(''); hapticFeedback('heavy');
+    } catch (e: any) {
+      throw new Error(e.message || "Не удалось связаться с сервером");
+    }
   });
 
   const action = async (fn: () => Promise<void>) => {
