@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { Btn } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -19,6 +19,8 @@ const RACE_CARS: any[] = [
 
 type Round = { id: string; status: 'betting' | 'spinning' | 'result'; end_time: number; roulette_result: number | null; dice_result: number | null; race_winner: string | null };
 
+const SPIN_MS = 5000;        // локальная длительность анимации спина (UI крутится сам, не залипает)
+
 export const CasinoTab = ({ app }: { app: any }) => {
   const { pid, money, setMoney, showMsg, hapticFeedback, action } = app;
   const [round, setRound] = useState<Round | null>(null);
@@ -29,13 +31,18 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const [myBets, setMyBets] = useState<any[]>([]);
   const [history, setHistory] = useState<number[]>([]); // последние числа рулетки
   const lastRoundId = useRef<string | null>(null);
+  const spinStartRef = useRef<number>(0);   // когда мы увидели spinning (для локальной анимации)
+  const loadingRef = useRef(false);         // защита от наложения запросов loadRound
+  const mountedRef = useRef(true);
 
   // тик таймера каждую секунду (отсчёт = end_time - Date.now())
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
-  const loadRound = async () => {
+  const loadRound = useCallback(async () => {
+    if (loadingRef.current) return; // не дёргаем сервер параллельно (realtime + поллинг + свои таймеры)
+    loadingRef.current = true;
     try {
-      // серверный «ленивый» цикл: доводит истёкшие раунды и гарантирует свежий betting
+      // серверный «ленивый» цикл: доводит истёкшие/зависшие раунды и гарантирует свежий betting
       let data: any = null;
       const { data: rpcData } = await supabase.rpc('get_casino_round_rpc', { p_player_id: pid || null });
       data = rpcData;
@@ -45,34 +52,40 @@ export const CasinoTab = ({ app }: { app: any }) => {
       }
       if (!data) return;
       const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, race_winner: data.race_winner };
+      if (!mountedRef.current) return;
+      // фиксируем старт локального спина при переходе betting -> spinning
+      if (r.status === 'spinning' && round?.status !== 'spinning') spinStartRef.current = Date.now();
       setRound(r);
-      // мои ставки этого раунда
-      if (pid) {
-        const { data: bets } = await supabase.from('casino_bets').select('*').eq('player_id', pid).eq('round_id', r.id).order('created_at', { ascending: false });
-        setMyBets(bets || []);
+      // мои ставки этого раунда (только когда они реально могут измениться)
+      if (pid && r.status !== 'spinning') {
+        const { data: bets } = await supabase.from('casino_bets').select('game_type,bet_choice,amount,status').eq('player_id', pid).eq('round_id', r.id).order('created_at', { ascending: false });
+        if (mountedRef.current) setMyBets(bets || []);
       }
-      // история чисел (последние 10 завершённых)
-      const { data: past } = await supabase.from('casino_rounds').select('roulette_result').eq('status', 'result').not('roulette_result', 'is', null).order('created_at', { ascending: false }).limit(10);
-      setHistory((past || []).map((p: any) => p.roulette_result).reverse());
-      // новый розыгрыш завершился — обновим баланс (выигрыши начисляет сервер)
-      if (lastRoundId.current && lastRoundId.current !== r.id && r.status === 'result') {
-        const { data: pl } = await supabase.from('players').select('money').eq('id', pid).maybeSingle();
-        if (pl) setMoney(Number(pl.money));
+      // история чисел (последние 10 завершённых) — обновляем только на новом раунде, не каждый поллинг
+      if (lastRoundId.current !== r.id) {
+        const { data: past } = await supabase.from('casino_rounds').select('roulette_result').eq('status', 'result').not('roulette_result', 'is', null).order('created_at', { ascending: false }).limit(10);
+        if (mountedRef.current) setHistory((past || []).map((p: any) => p.roulette_result).reverse());
+        // новый розыгрыш завершился — обновим баланс (выигрыши начисляет сервер)
+        if (lastRoundId.current && r.status === 'result') {
+          const { data: pl } = await supabase.from('players').select('money').eq('id', pid).maybeSingle();
+          if (pl && mountedRef.current) setMoney(Number(pl.money));
+        }
       }
       lastRoundId.current = r.id;
-    } catch {}
-  };
+    } catch {} finally { loadingRef.current = false; }
+  }, [pid]);
 
   // подписка на Realtime + страховочный поллинг раз в 5 сек
   useEffect(() => {
+    mountedRef.current = true;
     loadRound();
     const ch = (supabase as any)
       .channel('casino_rounds_channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'casino_rounds' }, () => loadRound())
       .subscribe();
     const poll = setInterval(loadRound, 5000);
-    return () => { clearInterval(poll); (supabase as any).removeChannel(ch); };
-  }, [pid]);
+    return () => { mountedRef.current = false; clearInterval(poll); (supabase as any).removeChannel(ch); };
+  }, [pid, loadRound]);
 
   // фаза result длится 10 сек — по истечении сами дёргаем сервер, тот закроет раунд и откроет новый betting
   useEffect(() => {
@@ -80,11 +93,34 @@ export const CasinoTab = ({ app }: { app: any }) => {
       const t = setTimeout(loadRound, 11000);
       return () => clearTimeout(t);
     }
-  }, [round?.id, round?.status]);
+  }, [round?.id, round?.status, loadRound]);
+
+  // страховка от ВЕЧНОГО СПИНА: если сервер завис в spinning — через пару секунд дёрнем тик,
+  // сервер (ensure_round/casino_advance) принудительно доведёт зависший раунд и откроет новый
+  useEffect(() => {
+    if (round?.status === 'spinning') {
+      const t = setTimeout(loadRound, SPIN_MS + 2000);
+      return () => clearTimeout(t);
+    }
+  }, [round?.id, round?.status, loadRound]);
 
   const phase = round?.status || 'betting';
   const msLeft = round ? Math.max(0, round.end_time - now) : 0;
   const canBet = phase === 'betting' && msLeft > 1500; // запас на сетевую задержку
+  // локальная анимация спина: крутим барабан сам максимум SPIN_MS секунд.
+  // Даже если сервер завис в 'spinning', UI никогда не залипает: анимация заканчивается,
+  // а страховочный тик выше дотянет сервер до нового раунда.
+  const spinElapsed = phase === 'spinning' ? Math.max(0, now - spinStartRef.current) : 0;
+  const isSpinning = phase === 'spinning' && spinElapsed < SPIN_MS;
+  const wheelColor = (n: number) => n === 0 ? '#2c7a3c' : RED_NUMBERS.includes(n) ? '#c0453a' : '#2f2a1d';
+
+  // число-мигалка во время локальной анимации (покажем реальное только в фазе result)
+  const [fakeNum, setFakeNum] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isSpinning) { setFakeNum(null); return; }
+    const t = setInterval(() => setFakeNum(Math.floor(Math.random() * 37)), 90);
+    return () => clearInterval(t);
+  }, [isSpinning]);
 
   const placeBet = () => action(async () => {
     if (!pid) return showMsg('Сначала зарегистрируйся', true);
@@ -108,8 +144,6 @@ export const CasinoTab = ({ app }: { app: any }) => {
         border: choice === val ? '2px solid #8a5d0a' : '2px solid rgba(90,70,40,0.25)', opacity: disabled ? 0.4 : 1, ...style }}>{label}</button>
   );
 
-  const wheelColor = (n: number) => n === 0 ? '#2c7a3c' : RED_NUMBERS.includes(n) ? '#c0453a' : '#2f2a1d';
-
   return (
     <div style={{ textAlign: 'center' }}>
       <h2 style={{ fontFamily: "'Russo One', sans-serif", textTransform: 'uppercase', letterSpacing: 1 }}>🎰 Казино «Золотое дно»</h2>
@@ -117,14 +151,17 @@ export const CasinoTab = ({ app }: { app: any }) => {
       {/* Табло фазы */}
       <div style={{ background: '#2f2a1d', color: '#ffd23f', borderRadius: 10, padding: '12px 16px', margin: '10px 0', fontFamily: "'Russo One', sans-serif", boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.08), 0 4px 0 rgba(90,70,40,0.35)' }}>
         {phase === 'betting' && <>⏳ Приём ставок: <span style={{ color: msLeft < 6000 ? '#ff9a8d' : '#ffd23f' }}>{Math.ceil(msLeft / 1000)}с</span></>}
-        {phase === 'spinning' && <>🎲 Крутим барабан…</>}
+        {isSpinning && <>🎲 Крутим барабан…</>}
+        {phase === 'spinning' && !isSpinning && <>⏸ Розыгрыш задерживается, ждём новый раунд…</>}
         {phase === 'result' && <>✅ Итоги раунда! Новый через <span style={{ color: '#ffd23f' }}>{Math.max(0, Math.ceil((round ? Number(round.end_time) - now : 0) / 1000))}с</span></>}
       </div>
 
       {/* Результаты текущего/последнего раунда */}
       {(round?.roulette_result != null || phase !== 'betting') && (
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', margin: '8px 0' }}>
-          {round?.roulette_result != null && <div style={{ width: 54, height: 54, borderRadius: '50%', background: wheelColor(round.roulette_result), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Russo One', sans-serif", fontSize: 22, border: '3px solid #f2b632' }}>{round.roulette_result}</div>}
+          {isSpinning
+            ? <div style={{ width: 54, height: 54, borderRadius: '50%', background: fakeNum != null ? wheelColor(fakeNum) : '#2f2a1d', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Russo One', sans-serif", fontSize: 22, border: '3px solid #f2b632', animation: 'casinoSpin 0.9s linear infinite' }}>{fakeNum ?? '🎡'}</div>
+            : round?.roulette_result != null && <div style={{ width: 54, height: 54, borderRadius: '50%', background: wheelColor(round.roulette_result), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Russo One', sans-serif", fontSize: 22, border: '3px solid #f2b632' }}>{round.roulette_result}</div>}
           {round?.dice_result != null && <div style={{ padding: '8px 14px', background: '#fbf4e4', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 8, fontFamily: "'Russo One', sans-serif" }}>🎲 {round.dice_result}</div>}
           {round?.race_winner && <div style={{ padding: '8px 14px', background: '#fbf4e4', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 8, fontFamily: "'Russo One', sans-serif" }}>🏁 {RACE_CARS.find(c => c.id === round.race_winner)?.name || round.race_winner}</div>}
         </div>
