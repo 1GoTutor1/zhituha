@@ -232,7 +232,7 @@ export const MarketTab = ({ app }: { app: any }) => {
         <div style={{ marginTop: 20 }}>
           {app.players.length === 0 && <p style={{ color: '#8B899A' }}>Пока никого...</p>}
           {app.players.map((p: any, i: number) => (
-            <div key={p.id} style={{ backgroundColor: '#161324', padding: '12px 15px', borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 8 }}>
+            <div key={i} style={{ backgroundColor: '#161324', padding: '12px 15px', borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#F97316' : i === 1 ? '#C084FC' : i === 2 ? '#3b82f6' : '#8B899A', minWidth: 26 }}>#{i + 1}</span>
                 <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
@@ -257,10 +257,12 @@ export const MarketTab = ({ app }: { app: any }) => {
         </button>
         <h2 style={{ margin: 0 }}>Рынок</h2>
       </div>
+      
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
         <div style={{ fontSize: 14, color: '#8B899A' }}>Твои слоты: <b style={{color: '#fff'}}>{myLots} / {maxSlots}</b></div>
         <div style={{ fontSize: 12, color: '#C084FC' }}>+1 слот за телефон</div>
       </div>
+      
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#161324', padding: 5, borderRadius: 16 }}>
         {['items', 'cars', 'realestate'].map((t: any) => (
           <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, padding: 12, border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3b82f6' : 'transparent', color: app.marketTab === t ? 'white' : '#8B899A', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
@@ -268,6 +270,7 @@ export const MarketTab = ({ app }: { app: any }) => {
           </button>
         ))}
       </div>
+
       <h3 style={{ color: '#8B899A', fontSize: 16, marginBottom: 10 }}>{app.marketTab === 'items' ? 'Лоты (Предметы)' : app.marketTab === 'cars' ? 'Лоты (Авто)' : 'Лоты (Жилье)'}</h3>
       {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).length === 0 && <p style={{ color: '#8B899A' }}>Пусто...</p>}
       {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).map((item: any) => (
