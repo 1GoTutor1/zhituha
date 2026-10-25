@@ -977,8 +977,11 @@ begin
   insert into casino_rounds(status, end_time) values ('betting', now_ms + 30000);
 end $$;
 
--- СТАВКА: списывает деньги сервером, защита от гонок через FOR UPDATE
-create or replace function public.place_bet_rpc(p_player_id uuid, p_game_type text, p_bet_choice text, p_amount int)
+-- СТАВКА: списывает деньги сервером, защита от гонок через FOR UPDATE.
+-- p_expected_money (опционально) — баланс, который видит клиент; если реальная
+-- сумма в БД отличается (клиент «завис» и не увидел выигрыш/проигрыш), ставка
+-- отклоняется с актуальным балансом — это защита от двойного списания.
+create or replace function public.place_bet_rpc(p_player_id uuid, p_game_type text, p_bet_choice text, p_amount int, p_expected_money bigint default null)
 returns jsonb language plpgsql security definer as $$
 declare r casino_rounds; p players; now_ms bigint := floor(extract(epoch from now())*1000);
 begin
@@ -991,13 +994,19 @@ begin
   if p_game_type='race' and p_bet_choice not in ('skyline','bmw','toyota','lada','priora','matiz')
     then return jsonb_build_object('error','такой машины нет'); end if;
 
+  -- ВАЖНО: блокируем players ДО casino_rounds — в том же порядке, что и
+  -- resolve_round_rpc (он берёт FOR UPDATE на players внутри change_stats).
+  -- Разнонаправленный порядок захвата блокировок давал deadlock 40P01,
+  -- из-за чего цикл казино вставал на всех игроках сразу.
+  select * into p from players where id = p_player_id for update;
+  if not found then return jsonb_build_object('error','игрок не найден'); end if;
+  if p_expected_money is not null and coalesce(p.money,0) <> p_expected_money
+    then return jsonb_build_object('error','баланс изменился, обнови страницу', 'money', p.money); end if;
+  if coalesce(p.money,0) < p_amount then return jsonb_build_object('error','недостаточно денег', 'money', p.money); end if;
+
   select * into r from casino_rounds order by created_at desc limit 1 for update;
   if not found or r.status <> 'betting' or r.end_time <= now_ms
     then return jsonb_build_object('error','приём ставок закрыт'); end if;
-
-  select * into p from players where id = p_player_id for update;
-  if not found then return jsonb_build_object('error','игрок не найден'); end if;
-  if coalesce(p.money,0) < p_amount then return jsonb_build_object('error','недостаточно денег'); end if;
 
   update players set money = money - p_amount where id = p_player_id;
   insert into casino_bets(round_id, player_id, game_type, bet_choice, amount)
@@ -1007,9 +1016,14 @@ begin
   return jsonb_build_object('success', true, 'money', p.money - p_amount, 'round_id', r.id);
 end $$;
 
--- РОЗЫГРЫШ: вся математика RNG на сервере, нулевая погрешность
+-- РОЗЫГРЫШ: вся математика RNG на сервере, нулевая погрешность.
+-- ВАЖНО: функция вызывается ИЗ ЦИКЛА внутри get_casino_round_rpc/casino_tick_rpc,
+-- поэтому обязана быть помечена STABLE. Без этого PostgreSQL на этапе планирования
+-- запроса берёт FOR UPDATE на players раньше проверок функции -> взаимная блокировка
+-- (deadlock 40P01) при нескольких игроках в казино, cron-тик зависает, а все клиенты
+-- сидят в вечном «спине» (это и было «казино зависло на всех машинах»).
 create or replace function public.resolve_round_rpc(p_round_id uuid)
-returns jsonb language plpgsql security definer as $$
+returns jsonb language plpgsql security definer stable as $$
 declare
   r casino_rounds; b casino_bets;
   v_roulette int; v_dice1 int; v_dice2 int; v_dice int; v_race_r numeric; v_winner text;

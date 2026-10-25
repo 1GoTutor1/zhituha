@@ -34,8 +34,10 @@ export const CasinoTab = ({ app }: { app: any }) => {
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
   const loadRound = async () => {
+    if (roundBusy.current) return; // не наслаивать запросы, если предыдущий ещё висит
+    roundBusy.current = true;
     try {
-      // серверный «ленивый» цикл: доводит истёкшие раунды и гарантирует свежий betting
+      // серверный «ленивый» цикл: доводит истёкшие раунды и гарантирует свежий betting.
       let data: any = null;
       const { data: rpcData } = await supabase.rpc('get_casino_round_rpc', { p_player_id: pid || null });
       data = rpcData;
@@ -60,27 +62,35 @@ export const CasinoTab = ({ app }: { app: any }) => {
         if (pl) setMoney(Number(pl.money));
       }
       lastRoundId.current = r.id;
-    } catch {}
+    } catch {} finally { roundBusy.current = false; }
   };
 
-  // подписка на Realtime + страховочный поллинг раз в 5 сек
+  // подписка на Realtime + страховочный поллинг раз в 5 сек.
+  // loadRound держим в useRef, чтобы эффект переподписывался только при смене pid,
+  // а не на каждом рендере (иначе канал realtime плодится и долбит сервер).
+  const roundBusy = useRef(false);
+  const loadRoundRef = useRef(loadRound);
+  loadRoundRef.current = loadRound;
   useEffect(() => {
-    loadRound();
+    loadRoundRef.current();
     const ch = (supabase as any)
       .channel('casino_rounds_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casino_rounds' }, () => loadRound())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'casino_rounds' }, () => loadRoundRef.current())
       .subscribe();
-    const poll = setInterval(loadRound, 5000);
+    const poll = setInterval(() => loadRoundRef.current(), 5000);
     return () => { clearInterval(poll); (supabase as any).removeChannel(ch); };
   }, [pid]);
 
-  // фаза result длится 10 сек — по истечении сами дёргаем сервер, тот закроет раунд и откроет новый betting
+  // фазы доводятся сервером (ленивый цикл + cron api/casino.js). Подстраховка:
+  // как только текущая фаза истекла — сразу дёргаем сервер (он закроет раунд
+  // и откроет новый betting) и обновляем состояние. Раньше такой пинг был только
+  // после 'result': если сервер/сеть не успевали, клиент зависал в «спине» навечно.
   useEffect(() => {
-    if (round?.status === 'result') {
-      const t = setTimeout(loadRound, 11000);
-      return () => clearTimeout(t);
-    }
-  }, [round?.id, round?.status]);
+    if (!round) return;
+    const msLeft = Math.max(0, round.end_time - Date.now());
+    const tick = setTimeout(() => { loadRoundRef.current(); setTimeout(() => loadRoundRef.current(), 4000); }, msLeft + 1500);
+    return () => clearTimeout(tick);
+  }, [round?.id, round?.status, round?.end_time]);
 
   const phase = round?.status || 'betting';
   const msLeft = round ? Math.max(0, round.end_time - now) : 0;
@@ -91,12 +101,21 @@ export const CasinoTab = ({ app }: { app: any }) => {
     if (!choice) return showMsg('Выбери ставку', true);
     if (betAmount < 100 || betAmount > 100000) return showMsg('Ставка от 100 до 100 000₽', true);
     if (money < betAmount) return showMsg('Недостаточно денег', true);
-    const { data, error } = await supabase.rpc('place_bet_rpc', { p_player_id: pid, p_game_type: game, p_bet_choice: choice, p_amount: betAmount });
+    // money передаём как p_expected_money: сервер сверит с реальной суммой в БД.
+    // Это защита от «зависшего клиента»: если баланс устарел (например, после
+    // выигрыша в другом раунде), ставка отклоняется вместо двойного списания.
+    const { data, error } = await supabase.rpc('place_bet_rpc', { p_player_id: pid, p_game_type: game, p_bet_choice: choice, p_amount: betAmount, p_expected_money: Math.round(money) });
     if (error) return showMsg(error.message, true);
-    if ((data as any)?.error) return showMsg((data as any).error, true);
+    if ((data as any)?.error) {
+      showMsg((data as any).error, true);
+      // баланс на клиенте устарел — подтянем актуальный и обновим сумму ставки
+      if ((data as any).money != null) setMoney(Number((data as any).money));
+      loadRound();
+      return;
+    }
     setMoney(Number((data as any).money));
     hapticFeedback('medium');
-    showMsg(`Ставка принята: ${(data as any).money >= 0 ? betAmount.toLocaleString('ru') : ''}₽`);
+    showMsg(`Ставка принята: ${betAmount.toLocaleString('ru')}₽`);
     setMyBets([...myBets, { game_type: game, bet_choice: choice, amount: betAmount, status: 'pending' }]);
     loadRound();
   });
