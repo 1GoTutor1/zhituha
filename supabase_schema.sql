@@ -83,7 +83,9 @@ begin
         'tip_barista_rpc','claim_tips_rpc','claim_daily_rpc','brew_start_rpc','rob_business_rpc',
         'redeem_promo_rpc','admin_give_money_rpc','admin_set_ban_rpc','admin_delete_biz_rpc','claim_daily_rpc',
         -- экономика по дизайн-доку (новая версия):
-        'pay_workers_for_batch','collect_coffee_cash_rpc_v2'
+        'pay_workers_for_batch','collect_coffee_cash_rpc_v2',
+        -- защита ролей/зарплат на сервере:
+        'validate_worker_role','role_count'
       )
   loop
     execute 'drop function if exists ' || r.sig || ' cascade';
@@ -116,6 +118,70 @@ begin
 end $$;
 
 -- =================== ЭКОНОМИКА ПО ДИЗАЙН-ДОКУ ===================
+
+-- СЕРВЕРНАЯ ВАЛИДАЦИЯ НАЁМА: роль должна соответствовать типу бизнеса,
+-- зарплата — жёстко из дизайн-дока (клиенту не доверяем), места не заняты.
+-- Возвращает null если ок, иначе текст ошибки.
+create or replace function public.validate_worker_role(
+  p_biz_id uuid, p_player_id uuid, p_role text, p_salary int)
+returns text language plpgsql security definer as $$
+declare b businesses; need int; allowed int; cnt int;
+begin
+  select biz_type into b.biz_type from businesses where id = p_biz_id;
+  if not found then return 'бизнес не найден'; end if;
+
+  -- один игрок = одна работа во всей игре
+  if exists (select 1 from business_workers where player_id = p_player_id) then
+    return 'уже работаешь'; end if;
+
+  if b.biz_type = 'coffee' then
+    if p_role = 'Бариста' then
+      if p_salary <> 60 then return 'Зарплата бариста фиксирована: 60'; end if;
+      allowed := 1;
+    elsif p_role = 'Помощник бариста' then
+      if p_salary <> 30 then return 'Зарплата помощника фиксирована: 30'; end if;
+      allowed := 1;
+    else return 'Такой роли в кофейне нет'; end if;
+  elsif b.biz_type = 'salon' then
+    if p_role = 'Механик' then
+      if p_salary <> 10000 then return 'Зарплата механика фиксирована: 10000'; end if;
+      allowed := 2;
+    elsif p_role = 'Продавец' then
+      if p_salary <> 15000 then return 'Зарплата продавца фиксирована: 15000'; end if;
+      allowed := 1;
+    else return 'Такой роли в автосалоне нет'; end if;
+  elsif b.biz_type = 'phone_factory' then
+    if p_role = 'Сборщик' then
+      if p_salary <> 10000 then return 'Зарплата сборщика фиксирована: 10000'; end if;
+      allowed := 2;
+    elsif p_role = 'Инженер' then
+      if p_salary <> 15000 then return 'Зарплата инженера фиксирована: 15000'; end if;
+      allowed := 1;
+    else return 'Такой роли в цехе нет'; end if;
+  elsif b.biz_type = 'construction' then
+    if p_role = 'Строитель' then
+      if p_salary <> 10000 then return 'Зарплата строителя фиксирована: 10000'; end if;
+      allowed := 3;
+    elsif p_role = 'Прораб' then
+      if p_salary <> 20000 then return 'Зарплата прораба фиксирована: 20000'; end if;
+      allowed := 1;
+    else return 'Такой роли в стройтресте нет'; end if;
+  elsif b.biz_type = 'taxi' then
+    if p_role = 'Водитель' then
+      if p_salary <> 10 then return 'Ставка водителя фиксирована: 10% кассы'; end if;
+      allowed := 2;
+    elsif p_role = 'Механик' then
+      if p_salary <> 5 then return 'Ставка механика фиксирована: 5% кассы'; end if;
+      allowed := 1;
+    else return 'Такой роли в таксопарке нет'; end if;
+  else return 'Неизвестный тип бизнеса'; end if;
+
+  select count(*) into cnt from business_workers
+   where business_id = p_biz_id and role = p_role;
+  if cnt >= allowed then return 'Места заняты (' || allowed || ')'; end if;
+  return null; -- всё ок
+end $$;
+
 -- Число рабочих мест роли в бизнесе (сколько реально нанято).
 create or replace function public.role_count(p_biz_id uuid, p_role text)
 returns int language sql stable as $$
@@ -457,7 +523,7 @@ begin
   if not found then return jsonb_build_object('error','кафе не найдено'); end if;
   if coalesce(p.brew_end,0) > now_ms then return jsonb_build_object('error','кофе уже варится'); end if;
 
-  -- бариста обязателен
+  -- бариста обязателен (по дизайн-доку)
   select w.* into barista from business_workers w
     where w.business_id = p_cafe_id and w.role = 'Бариста' limit 1;
   if barista.player_id is null then return jsonb_build_object('error','В кафе нет бариста'); end if;
@@ -474,11 +540,10 @@ begin
   if helper.player_id is not null then
     update players set tip_balance = coalesce(tip_balance,0) + 30 where id = helper.player_id;
   end if;
-  -- владельцу кафе капает бонус в referral_balance (собирается через collect_ref_bonus_rpc)
-  if c.owner_id is distinct from p_buyer_id then
-    update players set referral_balance = coalesce(referral_balance,0) + 25 where id = c.owner_id;
-  end if;
-  return jsonb_build_object('brew_end', now_ms + 15000, 'money', p.money - 500, 'owner_share', owner_share);
+  -- ВАЖНО: владельцу кафе идёт ТОЛЬКО owner_share в кассу (410/440).
+  -- Никаких доп. бонусов — иначе экономика чашки ломается (было +25 сверху).
+  return jsonb_build_object('brew_end', now_ms + 15000, 'money', p.money - 500,
+                            'owner_share', owner_share, 'cafe_id', p_cafe_id);
 end $$;
 
 -- =================== 6. ТАКСОПАРК ===================
@@ -575,13 +640,11 @@ end $$;
 create or replace function public.hire_worker_rpc(
   p_player_id uuid, p_player_name text, p_business_id uuid, p_role text, p_salary int)
 returns jsonb language plpgsql security definer as $$
-declare w business_workers; cnt int;
+declare vtext text;
 begin
-  -- unique(player_id) в таблице: один игрок = одна работа во всей игре
-  select count(*) into cnt from business_workers where player_id = p_player_id;
-  if cnt > 0 then return jsonb_build_object('error','уже работаешь'); end if;
-  if exists (select 1 from business_workers where player_id = p_player_id and business_id = p_business_id and role = p_role) then
-    return jsonb_build_object('error','уже здесь'); end if;
+  -- серверная проверка: роль/зарплата/места по дизайн-доку (клиенту не верим)
+  vtext := public.validate_worker_role(p_business_id, p_player_id, p_role, p_salary);
+  if vtext is not null then return jsonb_build_object('error', vtext); end if;
   insert into business_workers (business_id, player_id, player_name, role, salary)
   values (p_business_id, p_player_id, p_player_name, p_role, p_salary);
   return jsonb_build_object('workers',
@@ -760,7 +823,8 @@ begin
   perform change_stats(p_player_id, pr.amount, 0);
   perform log_action_rpc(p_player_id, 'promo', jsonb_build_object('code', pr.code), pr.amount,
                          (select money from players where id = p_player_id));
-  return jsonb_build_object('success', true, 'amount', pr.amount);
+  return jsonb_build_object('success', true, 'amount', pr.amount,
+                            'money', (select money from players where id = p_player_id));
 end $$;
 
 -- Полный сброс игры (админ-команда /resetgame) — сигнатура как в клиенте: p_admin_id.

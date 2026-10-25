@@ -8,6 +8,7 @@ import {
   DEFAULT_SELL_BUTTON, DEFAULT_SELL_SMARTPHONE, BIZ_JOBS
 } from './constants';
 import { Btn, Modal } from './components';
+import { AnimatedNumber } from './AnimatedNumber';
 
 export const AppModals = ({ app }: { app: any }) => (
   <>
@@ -149,8 +150,8 @@ export const HomeTab = ({ app }: { app: any }) => {
           </div>
         </div>
         <div style={{ textAlign: 'right', fontWeight: 'bold' }}>
-          <div style={{ color: '#F97316', marginBottom: 5, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontSize: 18, fontFamily: 'Space Grotesk, sans-serif' }}><Coins size={18} /> {app.money.toLocaleString('ru-RU')}</div>
-          <div style={{ color: '#C084FC', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontSize: 14 }}><Zap size={16} /> {app.energy}/{maxEnergy}</div>
+          <div style={{ color: '#F97316', marginBottom: 5, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontSize: 18, fontFamily: 'Space Grotesk, sans-serif' }}><Coins size={18} /> <AnimatedNumber value={app.money} /></div>
+          <div style={{ color: '#C084FC', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontSize: 14 }}><Zap size={16} /> <AnimatedNumber value={app.energy} format={(n) => `${n}/${maxEnergy}`} /></div>
         </div>
       </div>
 

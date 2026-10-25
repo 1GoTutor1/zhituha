@@ -12,6 +12,7 @@ import {
   JOB_WORK, getDayModifier
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
+import { AnimatedNumber } from './AnimatedNumber';
 import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals, CafeTab, JobsTab, ShopTab, InventoryTab } from './tabs';
 
 export default function App() {
@@ -54,7 +55,10 @@ export default function App() {
   const [onboardStep, setOnboardStep] = useState(0);
   const [tutorialWorkClicks, setTutorialWorkClicks] = useState(0);
   const [marketSlots, setMarketSlots] = useState(3);
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  // undefined = ещё не прочитали из БД; true/false — реальное значение.
+  // Раньше стартовало с false → при каждом заходе на секунду мелькал экран
+  // «Подпишись на канал», пока loadData не дочитает is_subscribed=true.
+  const [isSubscribed, setIsSubscribed] = useState<boolean | undefined>(undefined);
 
   const [money, setMoney] = useState(3500);
   const [energy, setEnergy] = useState(80);
@@ -270,6 +274,7 @@ export default function App() {
       setMarketSlots(Number(d.market_slots) || 3);
       setBrewEnd(Number(d.brew_end) || 0);
       setTipBalance(Number(d.tip_balance) || 0);
+      setIsSubscribed(d.is_subscribed !== false); // undefined -> true/false из БД, без мигания окна подписки
 
       if (!silent) {
         const timeDiff = Date.now() - (Number(d.last_claim) || 0);
@@ -328,6 +333,18 @@ export default function App() {
     setMoney(Number(data.money)); setEnergy(Number(data.energy));
     setRefBalance(Number(data.referral_balance) || 0); setTipBalance(Number(data.tip_balance) || 0);
     setBoostEnd(Number(data.boost_end) || 0); setBrewEnd(Number(data.brew_end) || 0);
+    // Имущество/слоты — чтобы после покупки/продажи телефона, машины, квартиры
+    // цифры на экране сходились с БД без полного reload.
+    setPhone(Number(data.phone_count) > 0);
+    setHasCar(!!data.has_car); setCarModel(data.car_model || 'none');
+    setHasHouse(!!data.has_house); setHouseType(data.house_type || 'none');
+    setMarketSlots(Number(data.market_slots) || 3);
+  };
+
+  // После каждого успешного действия подтягиваем актуальные цифры с сервера,
+  // чтобы интерфейс обновлялся мгновенно (деньги/энергия/таймеры/склады).
+  const afterAction = async () => {
+    try { await Promise.all([refreshProfile(), pollMyBizs()]); } catch {}
   };
 
   useEffect(() => {
@@ -455,6 +472,7 @@ export default function App() {
     const target = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
     await changeStats(0, target - energy); await advanceTutorial(3);
     showMsg("Кофе выпит! Энергия восстановлена."); hapticFeedback('heavy');
+    await afterAction();
   });
 
   const addReferralBonus = async (amount: number) => {
@@ -469,6 +487,7 @@ export default function App() {
     if (onboardStep !== 5) return;
     await changeStats(2000, 0); await advanceTutorial(6);
     showMsg("Туториал пройден! +2000 монет"); hapticFeedback('heavy');
+    await afterAction();
   });
 
   const claimDaily = () => action(async () => {
@@ -491,6 +510,7 @@ export default function App() {
       showMsg(`Награда: Кофе! Энергия восстановлена!`);
     }
     await sync(updates); hapticFeedback('heavy');
+    await afterAction();
   });
 
   const addTaxiCar = (model: 'lada' | 'toyota') => action(async () => {
@@ -519,6 +539,7 @@ export default function App() {
       setMoney(Number(data.money));
       setMyBizs(prev => prev.map(b => b.id === taxi.id ? { ...b, stock: data.stock } : b));
       showMsg(`Собрано ${data.income} монет!`);
+      await afterAction();
     }
   });
 
@@ -551,6 +572,7 @@ export default function App() {
       if (Number(data.fine) > 0) showMsg(`Нет инженера: x3 времени + ${data.fine}₽ простоя станка`, true);
     }
     showMsg(`Заказана партия: ${model === 'button' ? 'Кнопочные' : 'Смартфоны'}`); hapticFeedback('heavy');
+    await afterAction();
   });
 
   // Единый источник цены бизнеса (клиент = сервер: buy_business_rpc игнорирует цену клиента,
@@ -579,7 +601,7 @@ export default function App() {
     if (data && data.error) throw new Error(data.error);
     
     setBuyingType(null); setBizNameInput('');
-    showMsg("Бизнес открыт!"); loadData(true);
+    showMsg("Бизнес открыт!"); loadData(true); await afterAction();
   });
 
   const sellBusiness = (biz: any) => action(async () => {
@@ -587,7 +609,7 @@ export default function App() {
     const { data, error } = await supabase.rpc('sell_business_rpc', { p_owner_id: pid, p_biz_id: biz.id });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
-    showMsg(`Бизнес продан за ${data?.refund ?? 0}!`); loadData(true); loadMarket();
+    showMsg(`Бизнес продан за ${data?.refund ?? 0}!`); loadData(true); loadMarket(); await afterAction();
   });
 
   const cancelLot = (item: any) => action(async () => {
@@ -630,6 +652,7 @@ export default function App() {
       if (Number(data.fine) > 0) showMsg(`Нет продавца: x3 времени + ${data.fine}₽ таможни`, true);
     }
     showMsg(`Заказ на ${amount} ${model === 'lada' ? 'Лад' : 'Тойот'} оформлен!`); hapticFeedback('heavy');
+    await afterAction();
   });
 
   const startBuild = () => action(async () => {
@@ -649,6 +672,7 @@ export default function App() {
       if (Number(data.fine) > 0) showMsg(`Нет прораба: x3 времени + ${data.fine}₽/час простоя`, true);
     }
     showMsg("Стройка началась!"); hapticFeedback('heavy');
+    await afterAction();
   });
 
   const work = () => action(async () => {
@@ -656,6 +680,7 @@ export default function App() {
     if (energy < energyCost) return showMsg("Ты слишком устал!", true);
     await changeStats(workPay, -energyCost);
     addReferralBonus(workPay); showMsg(`+${workPay} монет`); hapticFeedback('medium');
+    await afterAction(); // мгновенное обновление цифр с сервера
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }
   });
 
@@ -672,6 +697,7 @@ export default function App() {
     setTLeft(Math.max(0, Math.ceil(((Number(data.rest_end) || Date.now() + restTime) - Date.now()) / 1000)));
     showMsg(`Энергия восстановлена!`); hapticFeedback('light');
     if (onboardStep === 1) await advanceTutorial(2);
+    await afterAction();
   });
 
   const buyCoffee = (cafe: any) => action(async () => {
@@ -682,6 +708,7 @@ export default function App() {
     setBrewEnd(data.brew_end);
     if (data.money != null) setMoney(Number(data.money)); // деньги списывает сервер — синхронизируем баланс сразу
     showMsg(`Кофе готовится (15 сек)...`); hapticFeedback('heavy');
+    await afterAction();
   });
 
   const collect = () => action(async () => {
@@ -696,6 +723,7 @@ export default function App() {
       setMyBizs(prev => prev.map(b => b.id === coffeeBiz.id ? { ...b, coffee_balance: 0 } : b));
       addReferralBonus(Number(data.collected || 0));
       showMsg(`Собрано ${data.collected}`); hapticFeedback('medium');
+      await afterAction();
     }
   });
 
@@ -704,7 +732,7 @@ export default function App() {
     const { data, error } = await supabase.rpc('hire_worker_rpc', { p_player_id: pid, p_player_name: nick, p_business_id: bizId, p_role: roleName, p_salary: salary });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
-    showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium'); loadData(true);
+    showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium'); loadData(true); await afterAction();
   });
 
   const fire = (workerId: string) => action(async () => {
@@ -713,6 +741,7 @@ export default function App() {
     if (data && data.error) throw new Error(data.error);
     setAllWorkers(data.workers || []);
     showMsg("Сотрудник уволен."); hapticFeedback('heavy');
+    await afterAction();
   });
 
   const quit = () => action(async () => {
@@ -722,6 +751,7 @@ export default function App() {
     if (data && data.error) throw new Error(data.error);
     setMyJob(null); 
     setQuitOpen(false); setBoardOpen(false); showMsg("Вы уволились."); hapticFeedback('heavy');
+    await afterAction();
   });
 
   const buyPhone = (buy: boolean) => action(async () => {
@@ -732,7 +762,9 @@ export default function App() {
     setMoney(data.money);
     setMarketSlots(data.market_slots);
     setPhone(buy);
+    await sync({ phone_count: buy ? 1 : 0 }); // синхронизируем счётчик телефонов с БД
     showMsg(buy ? "Куплено! +1 слот" : `Сдан за 1400`); hapticFeedback('heavy');
+    await afterAction();
   });
 
   const listItem = () => action(async () => {
@@ -749,6 +781,7 @@ export default function App() {
 
     setSellOpen(false); setSellSource(null); setTab('market'); loadData(true); loadMarket();
     showMsg("Выставлено!"); hapticFeedback('medium');
+    await afterAction();
   });
 
   const buyLot = (item: any) => action(async () => {
@@ -764,7 +797,7 @@ export default function App() {
 
     showMsg(`Покупка успешна!`); hapticFeedback('heavy');
     await loadData(true);
-    loadMarket();
+    loadMarket(); await afterAction();
   });
 
   const inviteFriend = () => {
@@ -782,6 +815,7 @@ export default function App() {
     setMoney(data.money);
     setRefBalance(0);
     showMsg(`Собрано ${data.collected} с рефералов!`); hapticFeedback('heavy'); setRefOpen(false);
+    await afterAction();
   });
 
   const collectTips = () => action(async () => {
@@ -792,6 +826,7 @@ export default function App() {
     setMoney(data.money);
     setTipBalance(0);
     showMsg(`Собрано ${data.collected}₽ чаевых!`); hapticFeedback('heavy');
+    await afterAction();
   });
 
   const handleAvatar = () => {
@@ -809,7 +844,10 @@ export default function App() {
     const { data, error } = await supabase.rpc('redeem_promo', { p_code: promoInput.toUpperCase(), p_player_id: pid });
     if (error) throw error;
     if (data && data.error) throw new Error(data.error);
-    setMoney(m => m + data.amount); showMsg(`+${data.amount} монет!`); setPromoOpen(false); setPromoInput('');
+    // Деньги начисляет сервер — ставим точный баланс из ответа (сервер возвращает money).
+    setMoney(Number(data.money != null ? data.money : money + data.amount));
+    showMsg(`+${data.amount} монет!`); setPromoOpen(false); setPromoInput('');
+    await afterAction();
   });
 
   const resetGame = () => action(async () => {
@@ -848,7 +886,9 @@ export default function App() {
   if (isCheckingSub) return <div style={authPageStyle}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
   if (isBanned) return <div style={authPageStyle}><ShieldAlert size={80} color="#ef4444" style={{ marginBottom: 20 }} /><h1>Вы забанены!</h1><p style={{ color: '#8B899A', maxWidth: '300px' }}>Администрация заблокировала ваш аккаунт.</p></div>;
   
-  if (user && !isSubscribed) return (
+  // Окно подписки показываем ТОЛЬКО когда точно знаем (из БД), что не подписан.
+  // isSubscribed === undefined (данные ещё грузятся) — не мигаем экраном.
+  if (user && isSubscribed === false) return (
     <div style={authPageStyle}>
       <Toast toast={toast} onClose={closeToast} /><Send size={60} color="#3b82f6" style={{ marginBottom: 20 }} /><h1>Подпишись на канал!</h1>
       <p style={{ color: '#8B899A', marginBottom: 30, maxWidth: '300px' }}>Чтобы играть в Житуху, нужно быть подписанным на наш канал.</p>
