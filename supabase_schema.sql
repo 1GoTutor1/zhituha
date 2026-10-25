@@ -85,7 +85,9 @@ begin
         -- экономика по дизайн-доку (новая версия):
         'pay_workers_for_batch','collect_coffee_cash_rpc_v2',
         -- защита ролей/зарплат на сервере:
-        'validate_worker_role','role_count'
+        'validate_worker_role','role_count',
+        -- казино (лечит 42P13 при повторном запуске):
+        'ensure_round','place_bet_rpc','resolve_round_rpc','get_casino_round_rpc','casino_tick_rpc'
       )
   loop
     execute 'drop function if exists ' || r.sig || ' cascade';
