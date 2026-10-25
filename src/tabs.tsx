@@ -383,7 +383,28 @@ export const AdminTab = ({ app }: { app: any }) => {
   };
   const handleBan = async () => { if (!selectedPlayer) return; const newStatus = !selectedPlayer.is_banned; await app.supabase.from('players').update({ is_banned: newStatus }).eq('id', selectedPlayer.id); setSelectedPlayer({ ...selectedPlayer, is_banned: newStatus }); app.showMsg(newStatus ? "Забанен" : "Разбанен"); if (app.loadData) app.loadData(true); };
   const handleDeleteBiz = async (bizId: string) => { if (!window.confirm("Удалить этот бизнес?")) return; await app.supabase.from('businesses').delete().eq('id', bizId); setPlayerBizs(prev => prev.filter(b => b.id !== bizId)); app.showMsg("Бизнес удален"); if (app.loadData) app.loadData(true); };
-  const handleCreatePromo = async () => { if (!promoCode || !promoAmount) return; const { error } = await app.supabase.from('promo_codes').insert([{ code: promoCode.toUpperCase(), amount: parseInt(promoAmount), max_uses: parseInt(promoLimit) }]); if (error) return app.showMsg(error.message, true); app.showMsg("Промокод создан!"); setPromoCode(''); setPromoAmount(''); };
+  
+  // ФИКС: создание промокода через RPC (обход RLS)
+  const handleCreatePromo = async () => { 
+    if (!promoCode || !promoAmount) return app.showMsg("Заполни все поля", true);
+    const amount = parseInt(promoAmount);
+    const limit = parseInt(promoLimit);
+    if (isNaN(amount) || amount <= 0) return app.showMsg("Неверная сумма", true);
+    if (isNaN(limit) || limit <= 0) return app.showMsg("Неверный лимит", true);
+    
+    const { data, error } = await app.supabase.rpc('create_promo_rpc', {
+      p_admin_id: app.pid,
+      p_code: promoCode.toUpperCase().trim(),
+      p_amount: amount,
+      p_max_uses: limit
+    });
+    if (error) return app.showMsg(error.message, true);
+    if (data && data.error) return app.showMsg(data.error, true);
+    
+    app.showMsg("Промокод создан!"); 
+    setPromoCode(''); 
+    setPromoAmount('');
+  };
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -446,7 +467,7 @@ export const AdminTab = ({ app }: { app: any }) => {
           <input type="text" placeholder="КОД (Англ. буквы)" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} style={S.input} />
           <input type="number" placeholder="Сумма монет" value={promoAmount} onChange={e => setPromoAmount(e.target.value)} style={S.input} />
           <input type="number" placeholder="Лимит активаций" value={promoLimit} onChange={e => setPromoLimit(e.target.value)} style={S.input} />
-          <Btn variant="primary" onClick={handleCreatePromo}>Создать</Btn>
+          <Btn variant="primary" onClick={handleCreatePromo} disabled={app.proc}>Создать</Btn>
         </div>
       )}
     </div>
