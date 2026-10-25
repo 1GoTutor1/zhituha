@@ -506,7 +506,9 @@ export const AdminTab = ({ app }: { app: any }) => {
   const handleBan = async () => { 
     if (!selectedPlayer) return; 
     const newStatus = !selectedPlayer.is_banned; 
-    await app.supabase.from('players').update({ is_banned: newStatus }).eq('id', selectedPlayer.id); 
+    // RLS запрещает прямой UPDATE — только через админ-RPC (проверка роли на сервере)
+    const { error: banErr } = await app.supabase.rpc('admin_set_ban_rpc', { p_admin_id: app.pid, p_target_player_id: selectedPlayer.id, p_val: newStatus });
+    if (banErr) return app.showMsg(banErr.message || 'Ошибка бана', true); 
     setSelectedPlayer({ ...selectedPlayer, is_banned: newStatus }); 
     await logClientEvent(newStatus ? 'admin_ban' : 'admin_unban', { target_nick: selectedPlayer.nickname, target_id: selectedPlayer.id });
     app.showMsg(newStatus ? "Забанен" : "Разбанен"); 
@@ -516,7 +518,8 @@ export const AdminTab = ({ app }: { app: any }) => {
   const handleDeleteBiz = async (bizId: string) => { 
     if (!window.confirm("Удалить этот бизнес?")) return; 
     const bizName = playerBizs.find(b => b.id === bizId)?.business_name;
-    await app.supabase.from('businesses').delete().eq('id', bizId); 
+    const { error: delErr } = await app.supabase.rpc('admin_delete_biz_rpc', { p_admin_id: app.pid, p_biz_id: bizId });
+    if (delErr) return app.showMsg(delErr.message || 'Ошибка удаления', true); 
     setPlayerBizs(prev => prev.filter(b => b.id !== bizId)); 
     await logClientEvent('admin_delete_biz', { target_nick: selectedPlayer?.nickname, target_id: selectedPlayer?.id, biz_id: bizId, biz_name: bizName });
     app.showMsg("Бизнес удален"); 

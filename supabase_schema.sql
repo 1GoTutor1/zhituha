@@ -670,3 +670,31 @@ begin
 end $$;
 
 grant execute on all functions in schema public to anon, authenticated;
+
+-- =================== 10. АДМИН-DIRECT ACTIONS (заменяют прямые UPDATE/DELETE из tabs.tsx) ==========
+create or replace function public.admin_set_ban_rpc(p_admin_id uuid, p_target_player_id uuid, p_val boolean)
+returns jsonb language plpgsql security definer as $$
+begin
+  if not public.is_admin(p_admin_id) then return jsonb_build_object('error','не админ'); end if;
+  if p_target_player_id = p_admin_id then return jsonb_build_object('error','нельзя банить себя'); end if;
+  update players set is_banned = p_val where id = p_target_player_id;
+  perform log_action_rpc(p_admin_id, case when p_val then 'admin_ban' else 'admin_unban' end,
+    jsonb_build_object('target', p_target_player_id), null, null);
+  return jsonb_build_object('success', true);
+end $$;
+
+create or replace function public.admin_delete_biz_rpc(p_admin_id uuid, p_biz_id uuid)
+returns jsonb language plpgsql security definer as $$
+declare b businesses;
+begin
+  if not public.is_admin(p_admin_id) then return jsonb_build_object('error','не админ'); end if;
+  select * into b from businesses where id = p_biz_id for update;
+  if not found then return jsonb_build_object('error','бизнес не найден'); end if;
+  delete from business_workers where business_id = p_biz_id;
+  delete from businesses where id = p_biz_id;
+  perform log_action_rpc(p_admin_id, 'admin_delete_biz',
+    jsonb_build_object('biz', p_biz_id, 'type', b.biz_type, 'owner', b.owner_id), null, null);
+  return jsonb_build_object('success', true);
+end $$;
+
+grant execute on all functions in schema public to anon, authenticated;
