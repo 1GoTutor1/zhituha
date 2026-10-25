@@ -12,7 +12,6 @@ import {
   JOB_WORK, getDayModifier
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
-import { AnimatedNumber } from './AnimatedNumber';
 import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals, CafeTab, JobsTab, ShopTab, InventoryTab } from './tabs';
 
 export default function App() {
