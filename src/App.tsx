@@ -245,7 +245,7 @@ export default function App() {
 
   const loadMarket = async () => {
     const [pRes, mRes] = await Promise.all([
-      supabase.from('players').select('id, nickname, money').order('money', { ascending: false }).limit(10),
+      supabase.from('players').select('nickname, money').order('money', { ascending: false }).limit(10),
       supabase.from('market_items').select('*').order('created_at', { ascending: false })
     ]);
     if (pRes.data) setPlayers(pRes.data);
@@ -773,7 +773,7 @@ export default function App() {
       </Modal>
 
       {tab === 'home' && <HomeTab app={app} />}
-      {tab === 'cafe' && <CafeTab app={app} />}
+      {tab === 'cafe' && <CafeTab app={app} />}А
       {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}
       {tab === 'jobs' && <JobsTab app={app} />}
       {tab === 'shop' && <ShopTab app={app} />}

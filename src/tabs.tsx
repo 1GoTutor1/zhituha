@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+
 import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
