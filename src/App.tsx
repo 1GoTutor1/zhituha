@@ -75,7 +75,7 @@ export default function App() {
   const [allBiz, setAllBiz] = useState<any[]>([]);
   const [selCafe, setSelCafe] = useState<any>(null);
   const [boardOpen, setBoardOpen] = useState(false);
-  const [adminTab, setAdminTab] = useState<'players' | 'promos'>('players');
+  const [adminTab, setAdminTab] = useState<'players' | 'promos' | 'logs'>('players');
 
   const [, setClicks] = useState(0);
   const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -365,6 +365,7 @@ export default function App() {
       setIsSubscribed(data && data.is_member);
     } catch (e) { setIsSubscribed(true); } finally { setIsCheckingSub(false); }
   };
+  
   useEffect(() => { 
     if (user) checkSubOnLoad(); 
     else setIsCheckingSub(false); 
@@ -779,7 +780,7 @@ export default function App() {
       </Modal>
 
       {tab === 'home' && <HomeTab app={app} />}
-      {tab === 'cafe' && <CafeTab app={app} />}А
+      {tab === 'cafe' && <CafeTab app={app} />}
       {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}
       {tab === 'jobs' && <JobsTab app={app} />}
       {tab === 'shop' && <ShopTab app={app} />}
