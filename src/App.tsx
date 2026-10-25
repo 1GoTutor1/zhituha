@@ -185,8 +185,8 @@ export default function App() {
   };
 
   const loadData = async (silent = false) => {
-    if (!silent) setLoading(true);
     if (lock.current) return;
+    if (!silent) setLoading(true);
     try {
       const uid = getUid(); setTgId(uid);
       if (!user?.id) return;
@@ -368,7 +368,7 @@ export default function App() {
   useEffect(() => { 
     if (user) checkSubOnLoad(); 
     else setIsCheckingSub(false); 
-  }, [user]);;
+  }, [user]);
 
   const verifySubscription = async () => {
     if (!user?.id) return;
