@@ -27,7 +27,18 @@ drop policy if exists "read all" on promo_codes;      create policy "read all" o
 
 -- Запись с клиента ЗАПРЕЩЕНА везде, кроме регистрации (insert нового игрока).
 -- Все мутации идут через security definer функции ниже.
-drop policy if exists "no update" on players;         create policy "no update" on players         for update using (false);
+-- UPDATE разрешён только на БЕЗОПАСНЫЕ поля (роль/деньги/бан менять с клиента нельзя)
+drop policy if exists "safe profile update" on players;
+create policy "safe profile update" on players for update
+  using (true) with check (
+    role is not distinct from players.role and
+    is_banned is not distinct from players.is_banned and
+    money is not distinct from players.money and
+    energy is not distinct from players.energy and
+    referral_balance is not distinct from players.referral_balance and
+    tip_balance is not distinct from players.tip_balance and
+    telegram_id is not distinct from players.telegram_id
+  );
 drop policy if exists "no delete" on players;         create policy "no delete" on players         for delete using (false);
 drop policy if exists "reg insert" on players;
 create policy "reg insert" on players for insert with check (
