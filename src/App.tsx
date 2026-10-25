@@ -9,7 +9,7 @@ import {
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, 
   CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, 
   BUTTON_BATCH_COST, BUTTON_BATCH_TIME, SMARTPHONE_BATCH_SIZE, SMARTPHONE_BATCH_COST, 
-  SMARTPHONE_BATCH_TIME, JOB_WORK, getDayModifier, TAXI_HEALTH_DROP_RATE,
+  SMARTPHONE_BATCH_TIME, JOB_WORK, getDayModifier,
   LADA_TIME, TOYOTA_TIME
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
@@ -117,11 +117,12 @@ export default function App() {
   const getUid = () => user?.id?.toString() || localStorage.getItem('zhituha_id') || (() => { const id = 'user_' + Math.random().toString(36).substring(2, 8); localStorage.setItem('zhituha_id', id); return id; })();
 
   const sendNotification = (text: string) => {
-    const uid = getUid();
-    if (!uid) return;
-    fetch('https://zhituha-ashen.vercel.app/api/notify', {
+    // Пуш отправляем только реальным пользователям Telegram (числовной id).
+    // Для localStorage-заглушки ("user_xxxx") уведомления не шлем.
+    if (!user?.id) return;
+    fetch('/api/notify', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telegram_id: uid, text })
+      body: JSON.stringify({ telegram_id: user.id.toString(), text })
     }).catch(err => console.error('Ошибка пуша:', err));
   };
 
@@ -147,9 +148,24 @@ export default function App() {
     try { await fn(); } catch (e: any) { showMsg(e.message || "Ошибка", true); } finally { lock.current = false; setProc(false); }
   };
 
+  // Обновление ТОЛЬКО безопасных полей профиля игрока.
+  // Деньги/энергия — исключительно через RPC change_stats.
+  const SYNC_ALLOWED_FIELDS = ['nickname', 'gender', 'avatar_id', 'onboarding_step', 'daily_streak', 'last_claim', 'boost_end', 'is_subscribed', 'market_slots', 'last_rest_time', 'phone_count', 'has_car', 'has_house', 'car_model', 'house_type'];
+
   const sync = async (updates: any) => {
     if (!pid) return false;
-    const { error } = await supabase.from('players').update(updates).eq('id', pid);
+    // has_car/has_house прилетают в camelCase из кода — нормализуем в колонки БД.
+    const normalized: any = { ...updates };
+    if ('has_car' in normalized && !('car_model' in normalized)) normalized.car_model = normalized.has_car;
+    if ('has_house' in normalized && !('house_type' in normalized)) normalized.house_type = normalized.has_house;
+    delete normalized.has_car;
+    delete normalized.has_house;
+    const safe: any = {};
+    for (const key of SYNC_ALLOWED_FIELDS) {
+      if (key in normalized) safe[key] = normalized[key];
+    }
+    if (Object.keys(safe).length === 0) return false;
+    const { error } = await supabase.rpc('update_profile_rpc', { p_player_id: pid, p_updates: safe });
     if (error) throw new Error("Ошибка БД: " + error.message);
     return true;
   };
@@ -216,7 +232,10 @@ export default function App() {
       if (!silent) {
         const timeDiff = Date.now() - (Number(d.last_claim) || 0);
         if (timeDiff > 86400000) { 
-           if (timeDiff > 172800000) { setDailyStreak(0); await supabase.from('players').update({ daily_streak: 0 }).eq('id', d.id); }
+           if (timeDiff > 172800000 && Number(d.daily_streak) !== 0) {
+             setDailyStreak(0);
+             await supabase.rpc('update_profile_rpc', { p_player_id: d.id, p_updates: { daily_streak: 0 } });
+           }
            setIsDailyOpen(true);
         }
       }
@@ -272,6 +291,17 @@ export default function App() {
     if (onboardStep === 4 && tab === 'market') advanceTutorial(5);
   }, [tab, onboardStep]);
 
+  const finishOrder = async (biz: any, patch: any, msg: string, notifyText: string) => {
+    // Атомарно завершаем таймер бизнеса на сервере: списываем заказ/стройку на склад.
+    // Возвращает true, если завершили впервые (защита от повторного срабатывания).
+    try {
+      const { data, error } = await supabase.rpc('finish_business_timer_rpc', { p_biz_id: biz.id, ...patch });
+      if (error || !data || !data.success) return false;
+      showMsg(msg); hapticFeedback('heavy'); loadData(true); sendNotification(notifyText);
+      return true;
+    } catch (e) { return false; }
+  };
+
   useEffect(() => {
     const int = setInterval(() => {
       const now = Date.now();
@@ -287,15 +317,11 @@ export default function App() {
         if (r === 0) {
           setCarOrderEnd(0);
           const salon = myBizs.find(b => b.biz_type === 'salon');
-          if (salon) supabase.from('businesses').select('stock').eq('id', salon.id).single().then(({ data }) => {
-            if (data) {
-              const s = getStock(data); const model = s.current_model || 'lada'; const amount = s.order_amount || 1;
-              const newStock = { ...s, [model]: (s[model] || 0) + amount, current_model: 'none', order_amount: 0 };
-              supabase.from('businesses').update({ car_order_end: 0, stock: newStock }).eq('id', salon.id).then(({ error }) => {
-                if (!error) { showMsg(`Машины приехали!`); hapticFeedback('heavy'); loadData(true); sendNotification(`🚗 В автосалон приехали ${amount} ${model === 'lada' ? 'Лада' : 'Тойота'}!`); }
-              });
-            }
-          });
+          if (salon) {
+            const s = getStock(salon); const model = s.current_model || 'lada'; const amount = s.order_amount || 1;
+            finishOrder(salon, { p_add_key: model, p_add_amount: amount, p_clear_order: true },
+              'Машины приехали!', `🚗 В автосалон приехали ${amount} ${model === 'lada' ? 'Лада' : 'Тойота'}!`);
+          }
         }
       } else { setCarTimeLeft(0); }
 
@@ -304,14 +330,10 @@ export default function App() {
         if (r === 0) {
           setBuildEnd(0);
           const constr = myBizs.find(b => b.biz_type === 'construction');
-          if (constr) supabase.from('businesses').select('stock').eq('id', constr.id).single().then(({ data }) => {
-            if (data) {
-              const s = getStock(data);
-              supabase.from('businesses').update({ build_end: 0, stock: { ...s, apartments: (s.apartments || 0) + APARTMENTS_PER_BUILD } }).eq('id', constr.id).then(({ error }) => {
-                if (!error) { showMsg(`Дом построен!`); hapticFeedback('heavy'); loadData(true); sendNotification(`🏗 Дом построен! +${APARTMENTS_PER_BUILD} квартир.`); }
-              });
-            }
-          });
+          if (constr) {
+            finishOrder(constr, { p_add_key: 'apartments', p_add_amount: APARTMENTS_PER_BUILD, p_clear_build: true },
+              'Дом построен!', `🏗 Дом построен! +${APARTMENTS_PER_BUILD} квартир.`);
+          }
         }
       } else { setBuildTimeLeft(0); }
 
@@ -320,14 +342,12 @@ export default function App() {
         if (r === 0) {
           setPhoneProdEnd(0);
           const factory = myBizs.find(b => b.biz_type === 'phone_factory');
-          if (factory) supabase.from('businesses').select('stock').eq('id', factory.id).single().then(({ data }) => {
-            if (data) {
-              const s = getStock(data); const model = s.current_phone_model || 'button'; const amount = model === 'button' ? BUTTON_BATCH_SIZE : SMARTPHONE_BATCH_SIZE;
-              supabase.from('businesses').update({ build_end: 0, stock: { ...s, [model]: (s[model] || 0) + amount, current_phone_model: 'none' } }).eq('id', factory.id).then(({ error }) => {
-                if (!error) { showMsg(`Партия готова!`); hapticFeedback('heavy'); loadData(true); sendNotification(`📱 Партия телефонов (${amount} шт.) готова!`); }
-              });
-            }
-          });
+          if (factory) {
+            const s = getStock(factory); const model = s.current_phone_model || 'button';
+            const amount = model === 'button' ? BUTTON_BATCH_SIZE : SMARTPHONE_BATCH_SIZE;
+            finishOrder(factory, { p_add_key: model, p_add_amount: amount, p_clear_build: true, p_clear_phone_model: true },
+              'Партия готова!', `📱 Партия телефонов (${amount} шт.) готова!`);
+          }
         }
       } else { setPhoneProdTimeLeft(0); }
     }, 1000);
@@ -427,11 +447,12 @@ export default function App() {
     if (!taxi) return;
     const price = model === 'lada' ? LADA_PRICE : TOYOTA_PRICE;
     if (money < price) return showMsg("Мало денег!", true);
-    
-    await changeStats(-price, 0);
-    const s = getStock(taxi); const cars = s.taxi_cars || [];
-    cars.push({ model, health: 100, last_claim: Date.now() });
-    await supabase.from('businesses').update({ stock: { ...s, taxi_cars: cars } }).eq('id', taxi.id);
+
+    // Сервер сам спишет деньги (change_stats) и добавит машину в парк — атомарно.
+    const { data, error } = await supabase.rpc('taxi_add_car_rpc', { p_biz_id: taxi.id, p_player_id: pid, p_model: model });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+    if (data) { setMoney(Number(data.money)); }
     showMsg(`Машина добавлена в таксопарк!`); loadData(true);
   });
 
@@ -440,22 +461,16 @@ export default function App() {
     if (!taxi) return;
     const s = getStock(taxi); let cars = s.taxi_cars || [];
     if (!cars.length) return;
-    
-    const now = Date.now(); let totalIncome = 0;
-    let updatedCars = cars.map((car: any) => {
-      if (car.health <= 0) return car;
-      const hours = Math.min((now - car.last_claim) / 3600000, 8); 
-      let income = Math.floor(hours * (car.model === 'lada' ? 1000 : 1500));
-      if (dayMod?.type === 'taxi') income *= 2;
-      totalIncome += income;
-      return { ...car, health: Math.max(0, car.health - Math.floor(hours * TAXI_HEALTH_DROP_RATE)), last_claim: now };
-    });
-    
-    if (totalIncome === 0) return showMsg("Еще рано собирать доход", true);
-    await changeStats(totalIncome, 0);
-    setMyBizs(prev => prev.map(b => b.id === taxi.id ? { ...b, stock: { ...s, taxi_cars: updatedCars } } : b));
-    await supabase.from('businesses').update({ stock: { ...s, taxi_cars: updatedCars } }).eq('id', taxi.id);
-    showMsg(`Собрано ${totalIncome} монет!`); 
+
+    // Доход, износ и last_claim считаются на сервере (защита от фрода времени/двойного сбора).
+    const { data, error } = await supabase.rpc('taxi_collect_rpc', { p_biz_id: taxi.id, p_player_id: pid });
+    if (error) throw new Error(error.message);
+    if (data && data.error) return showMsg(data.error, true);
+    if (data) {
+      setMoney(Number(data.money));
+      setMyBizs(prev => prev.map(b => b.id === taxi.id ? { ...b, stock: data.stock } : b));
+      showMsg(`Собрано ${data.income} монет!`);
+    }
   });
 
   const repairTaxiCar = (index: number) => action(async () => {
@@ -464,25 +479,30 @@ export default function App() {
     const s = getStock(taxi); const cars = [...(s.taxi_cars || [])]; const car = cars[index];
     const repairCost = car.model === 'lada' ? TAXI_REPAIR_LADA : TAXI_REPAIR_TOYOTA;
     if (money < repairCost) return showMsg("Мало денег на ремонт", true);
-    
-    await changeStats(-repairCost, 0);
-    cars[index] = { ...car, health: 100, last_claim: Date.now() };
-    await supabase.from('businesses').update({ stock: { ...s, taxi_cars: cars } }).eq('id', taxi.id);
+
+    const { data, error } = await supabase.rpc('taxi_repair_rpc', { p_biz_id: taxi.id, p_player_id: pid, p_car_index: index });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+    if (data) setMoney(Number(data.money));
     showMsg("Машина отремонтирована!"); loadData(true);
   });
 
   const orderPhones = (model: 'button' | 'smartphone') => action(async () => {
     const factory = myBizs.find(b => b.biz_type === 'phone_factory');
     if (!factory || phoneProdEnd > 0) return showMsg("Производство уже идет!", true);
-    
+
     const price = model === 'button' ? BUTTON_BATCH_COST : SMARTPHONE_BATCH_COST;
     if (money < price) return showMsg("Мало денег!", true);
     const time = (model === 'button' ? BUTTON_BATCH_TIME : SMARTPHONE_BATCH_TIME) / ((dayMod?.type === 'factory' || dayMod?.type === 'phone_sell') ? 1.5 : 1);
-    
-    await changeStats(-price, 0);
-    const end = Date.now() + time; setPhoneProdEnd(end);
-    const s = getStock(factory);
-    await supabase.from('businesses').update({ build_end: end, stock: { ...s, current_phone_model: model } }).eq('id', factory.id);
+
+    const { data, error } = await supabase.rpc('start_phone_order_rpc', { p_biz_id: factory.id, p_player_id: pid, p_model: model, p_duration_ms: Math.round(time) });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+    if (data) {
+      setMoney(Number(data.money));
+      setPhoneProdEnd(Number(data.build_end));
+      setMyBizs(prev => prev.map(b => b.id === factory.id ? { ...b, build_end: Number(data.build_end) } : b));
+    }
     showMsg(`Заказана партия: ${model === 'button' ? 'Кнопочные' : 'Смартфоны'}`); hapticFeedback('heavy');
   });
 
@@ -512,25 +532,24 @@ export default function App() {
 
   const cancelLot = (item: any) => action(async () => {
     if (!window.confirm("Снять лот?")) return;
-    const { data, error } = await supabase.rpc('cancel_lot_rpc', { p_player_id: pid, p_item_id: item.id });
+    // Возврат товара на склад/в инвентарь делает сервер внутри cancel_lot_rpc (после p_add_stock).
+    const { data, error } = await supabase.rpc('cancel_lot_rpc', { p_player_id: pid, p_item_id: item.id, p_add_stock: true });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
 
     if (data.item_type === 'phone' && data.item_data === 'phone') {
       setPhone(true); await sync({ phone_count: 1 });
-    } else if (data.item_type === 'phone') {
-      const fac = myBizs.find(b => b.biz_type === 'phone_factory');
-      if (fac) {
-        const s = getStock(fac); const nS = { ...s, [data.item_data]: (s[data.item_data] || 0) + 1 };
-        await supabase.from('businesses').update({ stock: nS }).eq('id', fac.id); showMsg("Телефон на складе цеха!");
-      }
-    } else if (data.item_type === 'car' || data.item_type === 'house') {
-      const biz = myBizs.find(b => b.biz_type === (data.item_type === 'car' ? 'salon' : 'construction'));
-      if (biz) {
-        const s = getStock(biz); const key = data.item_type === 'car' ? data.item_data : 'apartments';
-        const nS = { ...s, [key]: (s[key] || 0) + 1 };
-        await supabase.from('businesses').update({ stock: nS }).eq('id', biz.id); showMsg("Товар на складе!");
-      }
+    } else if (data.item_type === 'car') {
+      // Лот был снят из личного гаража — возвращаем машину владельцу.
+      setHasCar(true); setCarModel(data.item_data);
+      await sync({ car_model: data.item_data });
+      showMsg("Машина вернулась в гараж!");
+    } else if (data.item_type === 'house') {
+      setHasHouse(true); setHouseType(data.item_data);
+      await sync({ house_type: data.item_data });
+      showMsg("Квартира вернулась к тебе!");
+    } else {
+      showMsg("Товар на складе!");
     }
     loadData(true); loadMarket();
   });
@@ -541,13 +560,16 @@ export default function App() {
     const price = model === 'lada' ? LADA_PRICE : TOYOTA_PRICE;
     const totalPrice = price * amount;
     if (money < totalPrice) return showMsg("Мало денег!", true);
-    
-    await changeStats(-totalPrice, 0);
+
+    // Сервер: спишет деньги, проверит что заказ нет, поставит car_order_end и current_model/order_amount в stock.
     const time = model === 'lada' ? LADA_TIME : TOYOTA_TIME;
-    const end = Date.now() + time;
-    const nS = { ...getStock(salon), current_model: model, order_amount: amount };
-    await supabase.from('businesses').update({ car_order_end: end, stock: nS }).eq('id', salon.id);
-    setCarOrderEnd(end); setMyBizs(prev => prev.map(b => b.id === salon.id ? { ...b, car_order_end: end, stock: nS } : b));
+    const { data, error } = await supabase.rpc('start_car_order_rpc', { p_biz_id: salon.id, p_player_id: pid, p_model: model, p_amount: amount, p_duration_ms: time });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+    if (data) {
+      setMoney(Number(data.money));
+      setCarOrderEnd(Number(data.car_order_end));
+    }
     showMsg(`Заказ на ${amount} ${model === 'lada' ? 'Лад' : 'Тойот'} оформлен!`); hapticFeedback('heavy');
   });
 
@@ -555,11 +577,16 @@ export default function App() {
     const constr = myBizs.find(b => b.biz_type === 'construction');
     if (!constr || buildEnd > 0) return showMsg("Стройка уже идет!", true);
     if (money < BUILDING_PRICE) return showMsg("Мало денег!", true);
-    
-    await changeStats(-BUILDING_PRICE, 0);
-    const end = Date.now() + (BUILDING_TIME / (dayMod?.type === 'build' ? 1.5 : 1));
-    await supabase.from('businesses').update({ build_end: end }).eq('id', constr.id);
-    setBuildEnd(end); setMyBizs(prev => prev.map(b => b.id === constr.id ? { ...b, build_end: end } : b));
+
+    const duration = Math.round(BUILDING_TIME / (dayMod?.type === 'build' ? 1.5 : 1));
+    const { data, error } = await supabase.rpc('start_build_rpc', { p_biz_id: constr.id, p_player_id: pid, p_duration_ms: duration });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+    if (data) {
+      setMoney(Number(data.money));
+      setBuildEnd(Number(data.build_end));
+      setMyBizs(prev => prev.map(b => b.id === constr.id ? { ...b, build_end: Number(data.build_end) } : b));
+    }
     showMsg("Стройка началась!"); hapticFeedback('heavy');
   });
 
@@ -595,10 +622,16 @@ export default function App() {
   const collect = () => action(async () => {
     const coffeeBiz = myBizs.find(b => b.biz_type === 'coffee');
     if (!coffeeBiz?.coffee_balance) return;
-    await changeStats(coffeeBiz.coffee_balance, 0);
-    setMyBizs(prev => prev.map(b => b.id === coffeeBiz.id ? { ...b, coffee_balance: 0 } : b));
-    await supabase.from('businesses').update({ coffee_balance: 0 }).eq('id', coffeeBiz.id);
-    addReferralBonus(coffeeBiz.coffee_balance); showMsg(`Собрано ${coffeeBiz.coffee_balance}`); hapticFeedback('medium'); 
+    // Сервер атомарно: начисляет кассу игроку, обнуляет coffee_balance, возвращает сумму.
+    const { data, error } = await supabase.rpc('collect_coffee_cash_rpc', { p_biz_id: coffeeBiz.id, p_player_id: pid });
+    if (error) throw new Error(error.message);
+    if (data && data.error) throw new Error(data.error);
+    if (data) {
+      setMoney(Number(data.money));
+      setMyBizs(prev => prev.map(b => b.id === coffeeBiz.id ? { ...b, coffee_balance: 0 } : b));
+      addReferralBonus(Number(data.collected || 0));
+      showMsg(`Собрано ${data.collected}`); hapticFeedback('medium');
+    }
   });
 
   const hire = (bizId: string, roleName: string, salary: number) => action(async () => {
@@ -660,9 +693,9 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
 
-    if (item.item_type === 'phone') setPhone(true);
-    if (item.item_type === 'car') { setHasCar(true); setCarModel(item.item_data); }
-    if (item.item_type === 'house') { setHasHouse(true); setHouseType(item.item_data); }
+    if (item.item_type === 'phone') { setPhone(true); await sync({ phone_count: 1 }); }
+    if (item.item_type === 'car') { setHasCar(true); setCarModel(item.item_data); await sync({ car_model: item.item_data }); }
+    if (item.item_type === 'house') { setHasHouse(true); setHouseType(item.item_data); await sync({ house_type: item.item_data }); }
 
     showMsg(`Покупка успешна!`); hapticFeedback('heavy');
     await loadData(true);
