@@ -100,3 +100,27 @@ button { user-select: none; -webkit-tap-highlight-color: transparent; }
   50% { transform: scale(1.1); opacity: 0.7; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* ---- Казино: визуализация ---- */
+@keyframes casinoSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes neonPulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(255,210,63,0.7), inset 0 2px 0 rgba(255,255,255,0.08), 0 4px 0 rgba(90,70,40,0.35); }
+  50% { box-shadow: 0 0 18px rgba(255,210,63,0.95), inset 0 2px 0 rgba(255,255,255,0.08), 0 4px 0 rgba(90,70,40,0.35); }
+}
+@keyframes resultPop {
+  0% { transform: scale(0.4) rotate(-180deg); opacity: 0; }
+  70% { transform: scale(1.15) rotate(8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes carRun {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(100% - 34px)); }
+}
+@keyframes diceShake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-14deg); }
+  75% { transform: rotate(14deg); }
+}

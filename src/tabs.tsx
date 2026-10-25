@@ -771,7 +771,7 @@ export const JobsTab = ({ app }: { app: any }) => {
           
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => app.setBoardOpen(true)} style={{ flex: 1, fontSize: 14, padding: 12, cursor: 'pointer', backgroundColor: '#3d7ea6', color: '#f0f7fb', borderRadius: 8, fontWeight: 'bold', border: 'none' }}>Вакансии</button>
-            <Btn variant="danger" onClick={() => app.setQuitOpen(true)} disabled={app.proc} style={{ flex: 1, fontSize: 14, padding: 12, background: 'rgba(192,69,58,0.08)', border: '1px solid rgba(192,69,58,0.35)' }}>Уволиться</Btn>
+            <Btn variant="danger" onClick={() => app.setQuitOpen(true)} disabled={app.proc} style={{ flex: 1, fontSize: 14, padding: 12 }}>Уволиться</Btn>
           </div>
         </div>
       </div>
