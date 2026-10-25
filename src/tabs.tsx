@@ -10,6 +10,15 @@ import {
 import { Btn, Modal } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 
+// Карточки быстрой покупки бизнеса на главной (цены = серверные из buy_business_rpc)
+const BIZ_CARDS = [
+  { type: 'coffee', name: 'Кофейня', emoji: '☕', price: COFFEE_BIZ_PRICE },
+  { type: 'salon', name: 'Автосалон', emoji: '🚗', price: SALON_BIZ_PRICE },
+  { type: 'taxi', name: 'Таксопарк', emoji: '🚕', price: TAXI_BIZ_PRICE },
+  { type: 'phone_factory', name: 'Телефонный цех', emoji: '📱', price: PHONE_FACTORY_BIZ_PRICE },
+  { type: 'construction', name: 'Стройтрест', emoji: '🏗', price: CONSTRUCTION_BIZ_PRICE },
+];
+
 export const AppModals = ({ app }: { app: any }) => (
   <>
     <Modal open={app.refOpen} onClose={() => app.setRefOpen(false)}>
@@ -173,6 +182,27 @@ export const HomeTab = ({ app }: { app: any }) => {
         <button onClick={() => app.setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 10, backgroundColor: '#fbf4e4', border: '1px solid rgba(249, 115, 22, 0.3)', color: '#2f2a1d', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
           <Coffee size={24} color="#e08a2e" /><span style={{ fontSize: 13 }}>Пить кофе</span>
         </button>
+      </div>
+
+      {/* Быстрая покупка бизнеса прямо с главной */}
+      <div style={{ ...S.card, textAlign: 'left', marginBottom: 20, padding: 15 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <Store size={18} color="#7a5cb8" />
+          <b style={{ fontFamily: 'Russo One, Impact, sans-serif', fontSize: 15 }}>КУПИТЬ БИЗНЕС</b>
+        </div>
+        {BIZ_CARDS.map((bc) => {
+          const owned = app.myBizs?.some((b: any) => b.biz_type === bc.type);
+          const afford = (app.money ?? 0) >= bc.price;
+          return (
+            <button key={bc.type} onClick={() => app.quickBuyBiz(bc.type)} disabled={app.proc || (!owned && !afford)}
+              style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: owned ? 'rgba(63,157,85,0.12)' : afford ? '#fbf4e4' : 'rgba(90,70,40,0.05)', border: `1px solid ${owned ? 'rgba(63,157,85,0.4)' : afford ? 'rgba(122,92,184,0.4)' : 'rgba(90,70,40,0.15)'}`, borderRadius: 10, padding: '10px 12px', marginBottom: 8, cursor: owned ? 'pointer' : afford ? 'pointer' : 'not-allowed', color: '#2f2a1d', opacity: owned || afford ? 1 : 0.55 }}>
+              <span style={{ fontWeight: 'bold', fontSize: 14 }}>{bc.emoji} {bc.name}</span>
+              {owned
+                ? <span style={{ color: '#3f9d55', fontWeight: 'bold', fontSize: 12 }}>Открыть →</span>
+                : <span style={{ color: afford ? '#7a5cb8' : '#8a7d5f', fontWeight: 'bold', fontSize: 13, fontFamily: 'Russo One, Impact, sans-serif' }}>{bc.price.toLocaleString('ru-RU')}₽</span>}
+            </button>
+          );
+        })}
       </div>
 
       {myCoffee && (

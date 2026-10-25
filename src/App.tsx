@@ -878,13 +878,26 @@ export default function App() {
 
   const app = useMemo(() => ({
     user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, market, myJob, allWorkers, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, collectTips, handleAvatar, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData,
-    bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame
+    bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz
   }), [
     user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, promoOpen, promoInput, adminTab, role, bugOpen, bugText
   ]);
 
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
   const currentStock = getStock(activeBiz);
+
+  // Быстрая покупка бизнеса прямо с главной (без модалки имени — название даёт сервер: initcap типа).
+  const quickBuyBiz = (type: 'coffee' | 'salon' | 'taxi' | 'phone_factory' | 'construction') => action(async () => {
+    if (myBizs.some(b => b.biz_type === type)) { setActiveBizType(type); setTab('business'); return; }
+    const price = BIZ_PRICES[type];
+    if (!price) return showMsg("Неизвестный тип бизнеса", true);
+    if (money < price) return showMsg(`Нужно ${price.toLocaleString('ru-RU')}₽`, true);
+    const { data, error } = await supabase.rpc('buy_business_rpc', { p_owner_id: pid, p_owner_name: nick, p_biz_type: type, p_biz_name: '' });
+    if (error) throw error;
+    if (data && data.error) throw new Error(data.error);
+    showMsg("Бизнес открыт!"); setActiveBizType(type); setTab('business');
+    loadData(true); await afterAction();
+  });
 
   const pageStyle: any = { padding: 'calc(100px + env(safe-area-inset-top, 20px)) 20px calc(90px + env(safe-area-inset-bottom, 20px))', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: 'transparent', color: '#2f2a1d' };
   const authPageStyle: any = { ...pageStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' };
