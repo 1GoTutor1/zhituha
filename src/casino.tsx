@@ -19,7 +19,18 @@ const RACE_CARS: any[] = [
 
 type Round = { id: string; status: 'betting' | 'spinning' | 'result'; end_time: number; roulette_result: number | null; dice_result: number | null; race_winner: string | null };
 
-const SPIN_MS = 5000;        // локальная длительность анимации спина (UI крутится сам, не залипает)
+const SPIN_MS = 5000;        // длительность анимации спина; сервер держит spinning ровно столько же
+const BET_MS = 30000;        // приём ставок (совпадает с ensure_round на сервере)
+const RESULT_MS = 10000;     // фаза итогов (совпадает с resolve_round_rpc на сервере)
+const CAR_START_PCT = 10;    // стартовая позиция машин (слева)
+const CAR_FINISH_PCT = 88;   // финиш у 🏁 — машина доезжает ПОСЛЕДНИМ к концу спина и ждёт итоги
+
+// easeOutCubic: быстрый старт -> плавное замедление и точная остановка на финише (t=1 => 1)
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+// порядок финиша машин фиксирован по id (не зависит от порядка списка): аутсайдер финиширует первым,
+// фаворит — последним ровно в конце спина; остальные дожидаются его у финиша (анимация НЕ рестартует)
+const CAR_FINISH_ORDER: Record<string, number> = { matiz: 0.55, priora: 0.66, lada: 0.76, toyota: 0.85, bmw: 0.93, skyline: 1 };
 
 export const CasinoTab = ({ app }: { app: any }) => {
   const { pid, money, setMoney, showMsg, hapticFeedback, action } = app;
@@ -31,12 +42,17 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const [myBets, setMyBets] = useState<any[]>([]);
   const [history, setHistory] = useState<number[]>([]); // последние числа рулетки
   const lastRoundId = useRef<string | null>(null);
-  const spinStartRef = useRef<number>(0);   // когда мы увидели spinning (для локальной анимации)
   const loadingRef = useRef(false);         // защита от наложения запросов loadRound
   const mountedRef = useRef(true);
+  const spinRequestedRef = useRef(false);   // мы уже попросили сервер начать спин этого раунда
+  const serverDriftRef = useRef(0);         // поправка «серверные часы минус локальные» (для синхронной гонки)
 
-  // тик таймера каждую секунду (отсчёт = end_time - Date.now())
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  // тик: 100мс во время спина (плавная анимация), 1с в остальных фазах
+  useEffect(() => {
+    const fast = round?.status === 'spinning';
+    const t = setInterval(() => setNow(Date.now()), fast ? 100 : 1000);
+    return () => clearInterval(t);
+  }, [round?.status]);
 
   const loadRound = useCallback(async () => {
     if (loadingRef.current) return; // не дёргаем сервер параллельно (realtime + поллинг + свои таймеры)
@@ -51,10 +67,12 @@ export const CasinoTab = ({ app }: { app: any }) => {
         data = fallback;
       }
       if (!data) return;
+      // оценка расхождения часов: сервер пишет end_time по своим часам — по ней синхронизируем анимации
+      const srvNowGuess = Number(data.end_time) - (data.status === 'betting' ? BET_MS : data.status === 'spinning' ? SPIN_MS : RESULT_MS);
+      if (isFinite(srvNowGuess) && srvNowGuess > 1e12) serverDriftRef.current = srvNowGuess - Date.now();
       const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, race_winner: data.race_winner };
       if (!mountedRef.current) return;
-      // фиксируем старт локального спина при переходе betting -> spinning
-      if (r.status === 'spinning' && round?.status !== 'spinning') spinStartRef.current = Date.now();
+      if (r.status !== 'spinning') spinRequestedRef.current = false; // новый раунд — можно снова спросить спин
       setRound(r);
       // мои ставки этого раунда (только когда они реально могут измениться)
       if (pid && r.status !== 'spinning') {
@@ -87,15 +105,47 @@ export const CasinoTab = ({ app }: { app: any }) => {
     return () => { mountedRef.current = false; clearInterval(poll); (supabase as any).removeChannel(ch); };
   }, [pid, loadRound]);
 
+  // «серверное» время (локальное + измеренная поправка) — все анимации считаются ОТ него,
+  // поэтому у всех игроков барабан/кости/гонка идут синхронно и заканчиваются вместе с Phase
+  const serverNow = now + serverDriftRef.current;
+  const phase = round?.status || 'betting';
+  const msLeft = round ? Math.max(0, round.end_time - serverNow) : 0;
+  const msLeftInt = Math.ceil(msLeft / 1000);
+  const canBet = phase === 'betting' && msLeft > 1500; // запас на сетевую задержку
+
+  // прогресс спина 0..1 — считаем от end_time раунда, а НЕ от момента, когда клиент увидел статус.
+  // Анимация всегда доходит до конца и ОСТАНАВЛИВАЕТСЯ (не рестартует), даже если сервер запаздывает
+  // с переходом в 'result': после t>=1 держим финальную картинку и ждём итоги.
+  const spinT = phase === 'spinning' ? Math.min(1, Math.max(0, 1 - msLeft / SPIN_MS)) : 0;
+  const spinningVisible = phase === 'spinning';
+  const spinDoneWaitingResult = phase === 'spinning' && serverNow >= round!.end_time; // спин доиграл, ждём resolve
+  const wheelColor = (n: number) => n === 0 ? '#2c7a3c' : RED_NUMBERS.includes(n) ? '#c0453a' : '#2f2a1d';
+
+  // явный старт спина: как только время ставок вышло, просим сервер заранее разыграть итоги
+  // и открыть фазу 'spinning' на SPIN_MS. Ставки при этом ещё НЕ рассчитаны — resolve произойдёт
+  // автоматически по окончании спина, поэтому анимация гарантированно проигрывается ЦЕЛИКОМ.
+  useEffect(() => {
+    if (phase !== 'betting' || !round) return;
+    if (serverNow < round.end_time) return; // ещё есть время на ставки
+    const pastDeadline = serverNow >= round.end_time + SPIN_MS + 3000; // сервер не открыл спин — повторим запрос/закроем сами
+    if (spinRequestedRef.current && !pastDeadline) return;
+    spinRequestedRef.current = true;
+    (async () => {
+      try { await supabase.rpc('spin_round_rpc', { p_spin_ms: SPIN_MS }); } catch {}
+      loadRound();
+    })();
+  }, [phase, round?.id, Math.floor(serverNow / 500), loadRound]);
+
   // фаза result длится 10 сек — по истечении сами дёргаем сервер, тот закроет раунд и откроет новый betting
   useEffect(() => {
     if (round?.status === 'result') {
-      const t = setTimeout(loadRound, 11000);
+      const wait = Math.max(1000, round.end_time + 1500 - serverNow);
+      const t = setTimeout(loadRound, wait);
       return () => clearTimeout(t);
     }
-  }, [round?.id, round?.status, loadRound]);
+  }, [round?.id, round?.status, now]);
 
-  // страховка от ВЕЧНОГО СПИНА: если сервер завис в spinning — через пару секунд дёрнем тик,
+  // страховка от ВЕЧНОГО СПИНА: если сервер завис в spinning — через ~7 сек дёрнем тик,
   // сервер (ensure_round/casino_advance) принудительно доведёт зависший раунд и откроет новый
   useEffect(() => {
     if (round?.status === 'spinning') {
@@ -104,34 +154,13 @@ export const CasinoTab = ({ app }: { app: any }) => {
     }
   }, [round?.id, round?.status, loadRound]);
 
-  const phase = round?.status || 'betting';
-  const msLeft = round ? Math.max(0, round.end_time - now) : 0;
-  const canBet = phase === 'betting' && msLeft > 1500; // запас на сетевую задержку
-  // локальная анимация спина: крутим ONLY выбранный барабан максимум SPIN_MS секунд.
-  // Даже если сервер завис в 'spinning', UI никогда не залипает: анимация заканчивается,
-  // а страховочный тик выше дотянет сервер до нового раунда.
-  const spinElapsed = phase === 'spinning' ? Math.max(0, now - spinStartRef.current) : 0;
-  const isSpinning = phase === 'spinning' && spinElapsed < SPIN_MS;
-  const wheelColor = (n: number) => n === 0 ? '#2c7a3c' : RED_NUMBERS.includes(n) ? '#c0453a' : '#2f2a1d';
-
-  // число-мигалка во время локальной анимации (покажем реальное только в фазе result)
-  const [fakeNum, setFakeNum] = useState<number | null>(null);
-  useEffect(() => {
-    if (!isSpinning || game !== 'roulette') { setFakeNum(null); return; }
-    const t = setInterval(() => setFakeNum(Math.floor(Math.random() * 37)), 90);
-    return () => clearInterval(t);
-  }, [isSpinning, game]);
-
-  // рандомные грани кубиков во время анимации (только на вкладке Кости)
+  // рандомные грани кубиков пока идёт анимация (только на вкладке Кости); по окончании — стоп
   const [fakeDice, setFakeDice] = useState<[number, number]>([1, 1]);
   useEffect(() => {
-    if (!isSpinning || game !== 'dice') return;
+    if (phase !== 'spinning' || game !== 'dice' || spinT >= 1) return;
     const t = setInterval(() => setFakeDice([Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1]), 120);
     return () => clearInterval(t);
-  }, [isSpinning, game]);
-
-  // прогресс гонки 0..1 для анимации машин (только на вкладке Гонки)
-  const raceProgress = (game === 'race' && isSpinning) ? Math.min(1, spinElapsed / SPIN_MS) : 0;
+  }, [phase, game, spinT >= 1]);
 
   const DICE_PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
   const dieFace = (v: number, rolling: boolean, delay: string) => (
@@ -168,31 +197,119 @@ export const CasinoTab = ({ app }: { app: any }) => {
 
       {/* Табло фазы — свой текст под каждую игру */}
       <div style={{ background: '#2f2a1d', color: '#ffd23f', borderRadius: 10, padding: '12px 16px', margin: '10px 0', fontFamily: "'Russo One', sans-serif", boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.08), 0 4px 0 rgba(90,70,40,0.35)' }}>
-        {phase === 'betting' && <>⏳ Приём ставок: <span style={{ color: msLeft < 6000 ? '#ff9a8d' : '#ffd23f' }}>{Math.ceil(msLeft / 1000)}с</span></>}
-        {isSpinning && game === 'roulette' && <>🎡 Крутим барабан…</>}
-        {isSpinning && game === 'dice' && <>🎲 Кости летят по столу…</>}
-        {isSpinning && game === 'race' && <>🏁 Машины на старте, гонка пошла!</>}
-        {phase === 'spinning' && !isSpinning && <>⏸ Розыгрыш задерживается, ждём новый раунд…</>}
-        {phase === 'result' && <>✅ Итоги раунда! Новый через <span style={{ color: '#ffd23f' }}>{Math.max(0, Math.ceil((round ? Number(round.end_time) - now : 0) / 1000))}с</span></>}
+        {phase === 'betting' && <>⏳ Приём ставок: <span style={{ color: msLeft < 6000 ? '#ff9a8d' : '#ffd23f' }}>{msLeftInt}с</span></>}
+        {phase === 'spinning' && !spinDoneWaitingResult && game === 'roulette' && <>🎡 Колесо крутится…</>}
+        {phase === 'spinning' && !spinDoneWaitingResult && game === 'dice' && <>🎲 Кости летят по столу…</>}
+        {phase === 'spinning' && !spinDoneWaitingResult && game === 'race' && <>🏁 Гонка пошла! Машины набирают ход…</>}
+        {phase === 'spinning' && spinDoneWaitingResult && <>⏸ Финиш! Ждём официальные итоги…</>}
+        {phase === 'result' && <>✅ Итоги раунда! Новый через <span style={{ color: '#ffd23f' }}>{Math.max(0, msLeftInt)}с</span></>}
       </div>
 
       {/* Визуал текущей игры: крутится ТОЛЬКО активная вкладка */}
       <div style={{ margin: '8px 0' }}>
         {game === 'roulette' && (
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {isSpinning
-              ? <div key="reel" style={{ width: 54, height: 54, borderRadius: '50%', background: fakeNum != null ? wheelColor(fakeNum) : '#2f2a1d', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Russo One', sans-serif", fontSize: 22, border: '3px solid #f2b632', animation: `casinoReel ${SPIN_MS}ms cubic-bezier(0.15, 0.9, 0.25, 1) forwards` }}>{fakeNum ?? '🎡'}</div>
-              : round?.roulette_result != null && <div style={{ width: 54, height: 54, borderRadius: '50%', background: wheelColor(round.roulette_result), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Russo One', sans-serif", fontSize: 22, border: '3px solid #f2b632' }}>{round.roulette_result}</div>}
-            {!isSpinning && phase !== 'betting' && round?.roulette_result == null && <div style={{ width: 54, height: 54, borderRadius: '50%', background: '#2f2a1d', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, border: '3px solid #f2b632' }}>🎡</div>}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+            {(() => {
+              // ВНЕ фазы спина колесо стоит (в приёме ставок — эмодзи в центре), никаких «барабанов».
+              if (!spinningVisible) return (
+                <div style={{ position: 'relative', width: 160, height: 160 }}>
+                  <div style={{ position: 'absolute', top: -4, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '10px solid transparent', borderRight: '10px solid transparent', borderTop: '16px solid #f2b632', zIndex: 4 }} />
+                  <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid #f2b632', boxShadow: '0 4px 14px rgba(0,0,0,0.4), inset 0 0 0 4px #241f14', background: `conic-gradient(${Array.from({ length: 12 }).map((_, i) => `${wheelColor(Math.round(i * 3))} ${i * 30}deg ${(i + 1) * 30}deg`).join(', ')})` }} />
+                  <div style={{ position: 'absolute', left: '50%', top: '50%', width: 56, height: 56, marginLeft: -28, marginTop: -28, borderRadius: '50%', background: '#241f14', border: '3px solid #f2b632', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, zIndex: 3 }}>
+                    {round?.roulette_result != null ? round.roulette_result : '🎡'}
+                  </div>
+                </div>
+              );
+              // НАСТОЯЩЕЕ КОЛЕСО рулетки: 12 цветных секторов с числами, физический поворот от
+              // прогресса спина (быстро -> замедление -> точная остановка), золотой указатель сверху.
+              // Внутренний барабан крутится в ОБРАТНУЮ сторону и показывает меняющиеся числа/цвета.
+              // После t>=1 колесо стоит на РЕАЛЬНОМ результате сервера и ждёт фазу итогов (без рестарта).
+              const SEGMENTS = 12, segAngle = 360 / SEGMENTS;
+              const numbers: number[] = [];
+              for (let i = 0; i < SEGMENTS; i++) numbers.push(Math.round((i * 36) / (SEGMENTS - 1))); // 0..36 по кругу
+              const spinningNow = phase === 'spinning';
+              const e = easeOutCubic(spinT);                 // 0..1 прогресс спина (с замедлением)
+              const resultNum = round?.roulette_result ?? null;
+              // сектор ПОД указателем (0° сверху): сектор i занимает [i*segAngle,(i+1)*segAngle)
+              const sectorUnder = (rot: number) => {
+                const a = ((360 - (((rot % 360) + 360) % 360)) % 360 + segAngle / 2) % 360;
+                return Math.floor(a / segAngle) % SEGMENTS;
+              };
+              // ВНЕШНЕЕ колесо: непрерывный поворот без рывков. Как только сервер опубликовал
+              // итог, колесо ПЛАВНО доворачивается (за ~0.5с), чтобы РЕАЛЬНОЕ число встало ровно
+              // под золотой указатель — как в настоящей рулетке.
+              const WHEEL_SPIN_DEG = 1800;                    // 5 оборотов за спин
+              const baseRot = WHEEL_SPIN_DEG * e;             // монотонно растёт при spinT 0->1
+              const finalMod = resultNum != null ? ((360 - (numbers.indexOf(resultNum) * segAngle)) % 360 + 360) % 360 : null;
+              let wheelRot = baseRot;
+              if (finalMod != null) {
+                // цель = следующий полный оборот после фазы ставок + короткий финальный доворот (<=90°)
+                const target = 360 + finalMod;
+                const d = (((target - baseRot) % 360) + 360) % 360;
+                wheelRot = baseRot + (d > 180 ? d - 360 : d);
+              }
+              // переход включаем только когда колесо реально доворачиваем (остановка/финишная доводка)
+              const wheelTrans = spinningNow && spinT >= 1 && finalMod != null && Math.abs(wheelRot - baseRot) > 0.5
+                ? 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none';
+              // центральное число: во время вращения — сектор под указателем (чуть с опережением,
+              // чтобы финальное значение совпало с остановкой); после остановки — реальный итог
+              const centerNum = resultNum != null && (spinT >= 1 || !spinningNow)
+                ? resultNum
+                : numbers[sectorUnder(baseRot + 72 * (1 - e))];
+              // ВНУТРЕННИЙ БАРАБАН: крутится в ОБРАТНУЮ сторону и быстрее — числа и цвета реально
+              // «пролетают» как в настоящем автомате; после t>=1 останавливается (без рестарта)
+              const REEL = 10, reelStep = 360 / REEL;
+              const reelRot = -(1800 * e + 360 * 3 * e);
+              const reelOffset = Math.floor(((((-reelRot) % 360) + 360) % 360) / reelStep);
+              const reelNums = Array.from({ length: REEL }, (_, i) => (reelOffset + i) % 37);
+              return (
+                <div style={{ position: 'relative', width: 160, height: 160 }}>
+                  {/* золотой указатель (неподвижен) */}
+                  <div style={{ position: 'absolute', top: -4, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '10px solid transparent', borderRight: '10px solid transparent', borderTop: '16px solid #f2b632', zIndex: 4, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
+                  {/* внешнее вращающееся колесо с секторами */}
+                  <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid #f2b632', boxShadow: '0 4px 14px rgba(0,0,0,0.4), inset 0 0 0 4px #241f14', background: `conic-gradient(${numbers.map((n, i) => `${wheelColor(n)} ${i * segAngle}deg ${(i + 1) * segAngle}deg`).join(', ')})`, transform: `rotate(${wheelRot}deg)`, transition: wheelTrans }}>
+                    {numbers.map((n, i) => (
+                      <div key={i} style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0, transform: `rotate(${i * segAngle + segAngle / 2}deg) translateY(-63px)` }}>
+                        <span style={{ position: 'absolute', left: -9, top: -9, width: 18, height: 18, borderRadius: '50%', background: 'rgba(15,12,6,0.6)', color: '#fff8e6', fontSize: 9, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `rotate(${-(i * segAngle + segAngle / 2) - wheelRot}deg)` }}>{n}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* внутренний барабан: крутится в обратку, числа+цвет меняются как в настоящем автомате */}
+                  <div style={{ position: 'absolute', left: '50%', top: '50%', width: 84, height: 84, marginLeft: -42, marginTop: -42, borderRadius: '50%', overflow: 'hidden', border: '3px solid #f2b632', boxShadow: 'inset 0 3px 8px rgba(0,0,0,0.5)', background: '#241f14', transform: `rotate(${reelRot}deg)` }}>
+                    {reelNums.map((n, i) => (
+                      <div key={i} style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0, transform: `rotate(${i * (360 / REEL)}deg) translateY(-30px)` }}>
+                        <span style={{ position: 'absolute', left: -11, top: -11, width: 22, height: 22, borderRadius: '50%', background: wheelColor(n), color: '#fff', fontSize: 10, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `rotate(${-i * (360 / REEL) - reelRot}deg)` }}>{n}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* центральный диск: число ПОД указателем (в момент остановки — реальный результат) */}
+                  <div style={{ position: 'absolute', left: '50%', top: '50%', width: 40, height: 40, marginLeft: -20, marginTop: -20, borderRadius: '50%', background: wheelColor(centerNum), border: '2px solid #f2b632', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Russo One', sans-serif", fontSize: 15, zIndex: 3, boxShadow: '0 2px 6px rgba(0,0,0,0.5)', pointerEvents: 'none' }}>{centerNum}</div>
+                </div>
+              );
+            })()}
           </div>
         )}
         {game === 'dice' && (
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
-            {isSpinning ? (
-              <>
-                {dieFace(fakeDice[0], true, '0s')}
-                {dieFace(fakeDice[1], true, '0.15s')}
-              </>
+            {phase === 'spinning' ? (
+              spinT >= 1 && round?.dice_result != null ? (
+                // кости долетели — показываем реальные значения сразу, как анимация закончилась,
+                // и спокойно ждём фазу итогов (без рестарта кручения)
+                (() => {
+                  const d1 = Math.min(6, Math.max(1, (round.dice_result ?? 7) - 6));
+                  const d2 = (round.dice_result ?? 7) - d1;
+                  return (<>
+                    {dieFace(d1, false, '0s')}
+                    {dieFace(d2, false, '0s')}
+                    <div style={{ padding: '8px 14px', background: '#fbf4e4', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 8, fontFamily: "'Russo One', sans-serif" }}>Σ {round.dice_result}</div>
+                  </>);
+                })()
+              ) : (
+                <>
+                  {dieFace(fakeDice[0], true, '0s')}
+                  {dieFace(fakeDice[1], true, '0.15s')}
+                </>
+              )
             ) : round?.dice_result != null ? (
               (() => {
                 // покажем два кубика, дающие сумму результата (или один кубик = результат, если не разложить)
@@ -213,15 +330,26 @@ export const CasinoTab = ({ app }: { app: any }) => {
         )}
         {game === 'race' && (
           <div style={{ background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: '10px 12px', textAlign: 'left' }}>
-            {isSpinning ? (
-              RACE_CARS.map((c, idx) => (
-                <div key={c.id} style={{ position: 'relative', height: 30, marginBottom: 6, overflow: 'hidden', borderBottom: idx < RACE_CARS.length - 1 ? '1px dashed rgba(90,70,40,0.3)' : 'none' }}>
-                  <span style={{ position: 'absolute', left: 0, top: 4, fontSize: 12, fontFamily: "'Russo One', sans-serif", color: '#6b5f45', zIndex: 1 }}>{c.emoji} {c.name}</span>
-                  <span style={{ position: 'absolute', top: 2, fontSize: 20, left: `calc(12% + ${raceProgress * (78 - idx * 3)}%)`, transition: 'left 0.4s linear' }}>💨{c.emoji}</span>
-                  <span style={{ position: 'absolute', right: 0, top: 4, fontSize: 16 }}>🏁</span>
-                </div>
-              ))
-            ) : round?.race_winner ? (
+            {phase === 'spinning' ? (
+              RACE_CARS.map((c, idx) => {
+                // позиции считаются из ПРОГРЕССА СПИНА (общие серверные часы): каждая машина
+                // доезжает к своей доле дистанции и стоит там, а лидер — ровно к концу спина.
+                // Никаких CSS-циклов: анимация не рестартует и дожидается итогов.
+                const finishAt = CAR_FINISH_ORDER[c.id] ?? 1;
+                const localT = Math.min(1, spinT / finishAt);
+                const pos = CAR_START_PCT + (CAR_FINISH_PCT - CAR_START_PCT) * easeOutCubic(localT);
+                const finished = localT >= 1;
+                return (
+                  <div key={c.id} style={{ position: 'relative', height: 30, marginBottom: 6, overflow: 'hidden', borderBottom: idx < RACE_CARS.length - 1 ? '1px dashed rgba(90,70,40,0.3)' : 'none' }}>
+                    <span style={{ position: 'absolute', left: 0, top: 4, fontSize: 12, fontFamily: "'Russo One', sans-serif", color: '#6b5f45', zIndex: 1 }}>{c.emoji} {c.name}</span>
+                    <span style={{ position: 'absolute', top: 2, left: `${pos}%`, transition: 'left 0.12s linear', filter: finished ? 'none' : undefined }}>
+                      {!finished ? '💨' : ''}{c.emoji}
+                    </span>
+                    <span style={{ position: 'absolute', right: 0, top: 4, fontSize: 16 }}>🏁</span>
+                  </div>
+                );
+              })
+            ) : phase === 'result' && round?.race_winner ? (
               <div style={{ fontFamily: "'Russo One', sans-serif", textAlign: 'center' }}>🏆 Победил: {RACE_CARS.find(c => c.id === round.race_winner)?.emoji} {RACE_CARS.find(c => c.id === round.race_winner)?.name || round.race_winner}</div>
             ) : (
               <div style={{ fontFamily: "'Russo One', sans-serif", textAlign: 'center', color: '#6b5f45' }}>🏁 Трасса ждёт старта</div>
