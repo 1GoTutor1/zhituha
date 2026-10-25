@@ -248,6 +248,17 @@ export default function App() {
     try {
       const uid = getUid(); setTgId(uid);
       if (!uid) return; // в Telegram без реального user.id данные не грузим
+
+      // Ранняя проверка подписки (до основного экрана): читаем только is_subscribed,
+      // снимаем loading и НЕ даём мелькнуть окну «Подпишись на канал», если игрок
+      // уже подписан. Остальные данные дозагрузятся в основном запросе ниже.
+      if (!silent && !user?.id) {
+        const subRes = await supabase.from('players').select('is_subscribed').eq('telegram_id', uid).maybeSingle();
+        if (subRes.data) {
+          setIsSubscribed(subRes.data.is_subscribed !== false);
+          if (subRes.data.is_subscribed !== false) setLoading(false);
+        }
+      }
       
       // Экономия трафика: свои бизнесы берём целиком (нужен owner_id для маппинга),
       // чужие — только карточки кафе (id/имя/воркер) + все воркеры.
@@ -880,17 +891,17 @@ export default function App() {
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: 'calc(100px + env(safe-area-inset-top, 20px))' }}>Загрузка...</div>;
   // Gate: в Telegram без успешно проверенной сервером подписи initData игру не показываем.
   if (isTgEnv && user && !authChecked) {
-    return <div style={authPageStyle}><ShieldAlert size={50} color="#3b82f6" style={{ marginBottom: 20 }} /><h2>Проверка аккаунта…</h2><p style={{ color: '#8B899A', maxWidth: 300 }}>Telegram-безопасность: подтверждаем подпись.</p></div>;
+    return <div style={authPageStyle}><ShieldAlert size={50} color="#3b82f6" style={{ marginBottom: 20 }} /><h2>Проверка аккаунта…</h2><p style={{ color: '#8f867a', maxWidth: 300 }}>Telegram-безопасность: подтверждаем подпись.</p></div>;
   }
   if (isCheckingSub) return <div style={authPageStyle}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
-  if (isBanned) return <div style={authPageStyle}><ShieldAlert size={80} color="#ef4444" style={{ marginBottom: 20 }} /><h1>Вы забанены!</h1><p style={{ color: '#8B899A', maxWidth: '300px' }}>Администрация заблокировала ваш аккаунт.</p></div>;
+  if (isBanned) return <div style={authPageStyle}><ShieldAlert size={80} color="#ef4444" style={{ marginBottom: 20 }} /><h1>Вы забанены!</h1><p style={{ color: '#8f867a', maxWidth: '300px' }}>Администрация заблокировала ваш аккаунт.</p></div>;
   
   // Окно подписки показываем ТОЛЬКО когда точно знаем (из БД), что не подписан.
   // isSubscribed === undefined (данные ещё грузятся) — не мигаем экраном.
   if (user && isSubscribed === false) return (
     <div style={authPageStyle}>
       <Toast toast={toast} onClose={closeToast} /><Send size={60} color="#3b82f6" style={{ marginBottom: 20 }} /><h1>Подпишись на канал!</h1>
-      <p style={{ color: '#8B899A', marginBottom: 30, maxWidth: '300px' }}>Чтобы играть в Житуху, нужно быть подписанным на наш канал.</p>
+      <p style={{ color: '#8f867a', marginBottom: 30, maxWidth: '300px' }}>Чтобы играть в Житуху, нужно быть подписанным на наш канал.</p>
       <Btn variant="secondary" onClick={() => tg?.openTelegramLink(CHANNEL_LINK)} style={{ maxWidth: '280px', marginBottom: 15 }}><Send size={20} /> Подписаться</Btn>
       <Btn variant="primary" onClick={verifySubscription} style={{ maxWidth: '280px' }}>Я подписался</Btn>
     </div>
@@ -898,12 +909,12 @@ export default function App() {
 
   if (!nick || !gender) return (
     <div style={authPageStyle}>
-      <Toast toast={toast} onClose={closeToast} /><h1>Житуха</h1><p style={{ color: '#8B899A', marginBottom: '30px' }}>Создай персонажа</p>
+      <Toast toast={toast} onClose={closeToast} /><h1>Житуха</h1><p style={{ color: '#8f867a', marginBottom: '30px' }}>Создай персонажа</p>
       <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-        <button onClick={() => selectGender('male')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#161324', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Парень</button>
-        <button onClick={() => selectGender('female')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'female' ? 'rgba(59, 130, 246, 0.2)' : '#161324', border: selG === 'female' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 16, color: 'white' }}>Девушка</button>
+        <button onClick={() => selectGender('male')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'male' ? 'rgba(59, 130, 246, 0.2)' : '#211d18', border: selG === 'male' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 8, color: 'white' }}>Парень</button>
+        <button onClick={() => selectGender('female')} style={{ fontSize: 20, padding: '10px 20px', cursor: 'pointer', backgroundColor: selG === 'female' ? 'rgba(59, 130, 246, 0.2)' : '#211d18', border: selG === 'female' ? '2px solid #3b82f6' : '2px solid transparent', borderRadius: 8, color: 'white' }}>Девушка</button>
       </div>
-      {selG && <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', maxWidth: '300px', marginBottom: '20px' }}>{AVATARS.filter(a => a.gender === selG).map(a => <button key={a.id} onClick={() => { setAvatarId(a.id); hapticFeedback('light'); }} style={{ width: 60, height: 60, borderRadius: '50%', background: a.bg, fontSize: 30, cursor: 'pointer', border: avatarId === a.id ? '3px solid white' : '3px solid transparent', boxShadow: avatarId === a.id ? '0 0 15px rgba(255,255,255,0.5)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' }}>{a.emoji}</button>)}</div>}
+      {selG && <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', maxWidth: '300px', marginBottom: '20px' }}>{AVATARS.filter(a => a.gender === selG).map(a => <button key={a.id} onClick={() => { setAvatarId(a.id); hapticFeedback('light'); }} style={{ width: 60, height: 60, borderRadius: '50%', background: a.bg, fontSize: 30, cursor: 'pointer', border: avatarId === a.id ? '3px solid white' : '3px solid transparent', boxShadow: avatarId === a.id ? '0 0 15px rgba(236,229,216,0.5)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' }}>{a.emoji}</button>)}</div>}
       {user?.first_name ? <div style={{ ...S.input, maxWidth: '280px', backgroundColor: 'transparent', border: 'none', fontSize: 22, fontWeight: 'bold' }}>Ник: {user.first_name}</div> : <input type="text" value={inNick} onChange={(e: any) => setInNick(e.target.value)} placeholder="Ник..." style={{ ...S.input, maxWidth: '280px' }} />}
       <Btn variant="primary" onClick={reg} disabled={proc} style={{ maxWidth: '280px' }}>Начать жизнь</Btn>
     </div>
@@ -916,7 +927,7 @@ export default function App() {
         <div style={{ fontSize: 40, marginBottom: 10 }}>🔥</div>
         <h3 style={{ marginTop: 0, color: dayMod?.color || '#fff' }}>{dayMod?.name || 'Событие'}</h3>
         <p style={{ fontSize: 16 }}>{dayMod?.desc || 'Описание'}</p>
-        <p style={{ color: '#8B899A', fontSize: 12, marginBottom: 20 }}>Модификатор действует до полуночи по серверному времени.</p>
+        <p style={{ color: '#8f867a', fontSize: 12, marginBottom: 20 }}>Модификатор действует до полуночи по серверному времени.</p>
         <Btn variant="secondary" onClick={() => setModifierOpen(false)} style={{ background: '#333', boxShadow: 'none' }}>Понятно</Btn>
       </Modal>
 

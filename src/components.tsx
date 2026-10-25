@@ -4,7 +4,7 @@ import { S } from './constants';
 
 export const Btn = ({ variant = 'primary', onClick, disabled, children, style = {} }: any) => {
   const baseStyle = variant === 'primary' ? S.btnPrimary : variant === 'secondary' ? S.btnSecondary : variant === 'purple' ? S.btnPurple : variant === 'danger' ? S.btnDanger : S.btnYellow;
-  return <button onClick={onClick} disabled={disabled} style={{ ...baseStyle, opacity: disabled ? 0.5 : 1, ...style }}>{children}</button>;
+  return <button className="soviet-btn" onClick={onClick} disabled={disabled} style={{ ...baseStyle, opacity: disabled ? 0.45 : 1, filter: disabled ? 'saturate(0.4)' : undefined, ...style }}>{children}</button>;
 };
 
 export const Modal = ({ open, onClose, children }: any) => {
@@ -43,20 +43,23 @@ export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) =
       transform: leaving ? 'translate(-50%, 20px)' : 'translate(-50%, 0)',
       opacity: leaving ? 0 : 1,
       transition: 'all 0.3s ease-in-out', 
-      backgroundColor: toast.err ? 'rgba(239, 68, 68, 0.95)' : 'rgba(16, 185, 129, 0.95)', 
-      color: 'white', 
+      backgroundColor: toast.err ? 'rgba(178, 45, 45, 0.96)' : 'rgba(63, 168, 82, 0.96)', 
+      color: '#fff4e0', 
       padding: '12px 24px', 
-      borderRadius: '20px', 
+      borderRadius: '6px', 
       fontWeight: 'bold', 
+      fontFamily: "'Russo One', sans-serif", 
+      textTransform: 'uppercase', 
+      letterSpacing: '0.5px', 
+      fontSize: 14, 
       zIndex: 9999, 
       width: 'auto', 
       minWidth: '200px',
       maxWidth: '90vw', 
-      boxShadow: '0 10px 25px rgba(0,0,0,0.5)', 
+      boxShadow: '0 4px 0 rgba(0,0,0,0.6), 0 10px 25px rgba(0,0,0,0.6)', 
       textAlign: 'center',
       pointerEvents: 'none',
-      backdropFilter: 'blur(5px)',
-      border: `1px solid ${toast.err ? '#f87171' : '#34d399'}`,
+      border: `2px solid ${toast.err ? '#8f1f1f' : '#2c7a3c'}`,
     }}>
       {toast.msg}
     </div>
@@ -69,10 +72,10 @@ export const BottomNav = ({ app }: { app: any }) => {
     { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'shop', icon: Store, text: 'Магазин' }, { id: 'inventory', icon: Backpack, text: 'Сумка' }
   ];
   return (
-    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(20, 20, 20, 0.95)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 calc(20px + env(safe-area-inset-bottom, 20px)) 0', zIndex: 100 }}>
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(24, 21, 17, 0.96)', backdropFilter: 'blur(10px)', borderTop: '2px solid rgba(236,229,216,0.14)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 calc(20px + env(safe-area-inset-bottom, 20px)) 0', zIndex: 100 }}>
       {items.map(t => (
-        <button key={t.id} onClick={() => { app.setTab(t.id); app.hapticFeedback('light'); app.setBoardOpen(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: app.tab === t.id ? '#3b82f6' : '#a1a1aa', transition: 'color 0.2s' }}>
-          <t.icon size={22} style={{ marginBottom: 4 }} /><span style={{ fontSize: 10, fontWeight: app.tab === t.id ? 'bold' : 'normal' }}>{t.text}</span>
+        <button key={t.id} onClick={() => { app.setTab(t.id); app.hapticFeedback('light'); app.setBoardOpen(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: app.tab === t.id ? '#ffd23f' : '#8f867a', transition: 'color 0.2s', textShadow: app.tab === t.id ? '0 0 8px rgba(255,210,63,0.7)' : 'none' }}>
+          <t.icon size={22} style={{ marginBottom: 4 }} /><span style={{ fontSize: 10, fontWeight: app.tab === t.id ? 'bold' : 'normal', fontFamily: "'Russo One', sans-serif", textTransform: 'uppercase', letterSpacing: '0.3px' }}>{t.text}</span>
         </button>
       ))}
     </div>
