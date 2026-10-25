@@ -494,11 +494,12 @@ export const AdminTab = ({ app }: { app: any }) => {
   
   const handleGiveMoney = async (amount: number) => { 
     if (!selectedPlayer) return; 
-    const { data, error } = await app.supabase.rpc('change_stats', { p_player_id: selectedPlayer.id, p_money_diff: amount, p_energy_diff: 0 });
+    // выдача денег — только через админ-RPC (роль проверяется на сервере, лог пишется там же)
+    const { data, error } = await app.supabase.rpc('admin_give_money_rpc', { p_admin_id: app.pid, p_target_player_id: selectedPlayer.id, p_amount: amount });
     if (error) return app.showMsg(error.message, true);
+    if (data?.error) return app.showMsg(data.error, true);
     const newMoney = Math.max(0, Number(data?.money ?? selectedPlayer.money + amount));
     setSelectedPlayer({ ...selectedPlayer, money: newMoney });
-    await logClientEvent('admin_give_money', { target_nick: selectedPlayer.nickname, target_id: selectedPlayer.id, amount });
     app.showMsg(`Выдано ${amount}`); 
     if (app.loadData) app.loadData(true); 
   };

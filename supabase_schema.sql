@@ -109,6 +109,9 @@ end $$;
 create or replace function public.update_profile_rpc(p_player_id uuid, p_updates jsonb)
 returns void language plpgsql security definer as $$
 begin
+  if p_updates ? 'role' and p_updates->>'role' is distinct from 'player' then
+    raise exception 'role change forbidden'; -- роль не меняется с клиента НИКОГДА
+  end if;
   update players set
     nickname        = coalesce(p_updates->>'nickname', nickname),
     gender          = coalesce(p_updates->>'gender', gender),
@@ -123,9 +126,27 @@ begin
     phone_count     = coalesce((p_updates->>'phone_count')::int, phone_count),
     car_model       = coalesce(p_updates->>'car_model', car_model),
     house_type      = coalesce(p_updates->>'house_type', house_type),
-    has_car         = case when p_updates ? 'car_model' then (p_updates->>'car_model') <> 'none' else has_car end,
-    has_house       = case when p_updates ? 'house_type' then (p_updates->>'house_type') <> 'none' else has_house end
+    has_car         = coalesce((p_updates->>'has_car')::boolean, has_car),
+    has_house       = coalesce((p_updates->>'has_house')::boolean, has_house)
   where id = p_player_id;
+end $$;
+
+-- Админ: выдать/забрать деньги + лог. Только для роли admin/superadmin.
+create or replace function public.admin_give_money_rpc(
+  p_admin_id uuid, p_target_player_id uuid, p_amount bigint)
+returns jsonb language plpgsql security definer as $$
+declare a players; t players;
+begin
+  select * into a from players where id = p_admin_id;
+  if a.role is distinct from 'admin' and a.role is distinct from 'superadmin' then
+    return jsonb_build_object('error','не админ'); end if;
+  select * into t from players where id = p_target_player_id for update;
+  if not found then return jsonb_build_object('error','игрок не найден'); end if;
+  if coalesce(t.money,0) + p_amount < 0 then return jsonb_build_object('error','уход в минус'); end if;
+  update players set money = coalesce(money,0) + p_amount where id = p_target_player_id;
+  perform log_action_rpc(p_target_player_id, 'admin_give_money',
+    jsonb_build_object('from_admin', a.nickname), p_amount::int, (t.money + p_amount)::int);
+  return jsonb_build_object('success', true, 'money', t.money + p_amount);
 end $$;
 
 -- Отдых (кд от last_rest_time, макс энергия зависит от дома)
