@@ -1,4 +1,4 @@
--- ========== КАЗИНО: удалить старые функции (лечит 42P13) ==========
+-- дропаем кривые версии функций, которые ты вставил прошлым скриптом
 do $$
 declare r record;
 begin
@@ -8,7 +8,7 @@ begin
     where n.nspname = 'public' and p.proname in (
       'ensure_round','place_bet_rpc','resolve_round_rpc','get_casino_round_rpc','casino_tick_rpc')
   loop
-    execute 'drop function if exists ' || r.sig || ' cascade';
+    execute 'drop function if exists public.' || r.sig || ' cascade';
   end loop;
 end $$;
 
