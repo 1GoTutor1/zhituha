@@ -201,4 +201,13 @@ begin
   return jsonb_build_object('resolved', done, 'ok', true);
 end $$;
 
+-- Realtime: добавить таблицы казино в публикацию (для подписки клиента)
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    begin execute 'alter publication supabase_realtime add table casino_rounds'; exception when duplicate_object then null; end;
+    begin execute 'alter publication supabase_realtime add table casino_bets';   exception when duplicate_object then null; end;
+  end if;
+end $$;
+
 grant execute on all functions in schema public to anon, authenticated;
