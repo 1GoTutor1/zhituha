@@ -252,7 +252,10 @@ export default function App() {
     if (mRes.data) setMarket(mRes.data);
   };
 
-  useEffect(() => { if (user) loadData(); }, [user]);
+  useEffect(() => { 
+    if (user) loadData(); 
+    else setLoading(false); 
+  }, [user]);
 
   useEffect(() => {
     if (tab === 'market') { loadMarket(); loadData(true); }
@@ -362,7 +365,10 @@ export default function App() {
       setIsSubscribed(data && data.is_member);
     } catch (e) { setIsSubscribed(true); } finally { setIsCheckingSub(false); }
   };
-  useEffect(() => { if (user) checkSubOnLoad(); }, [user]);
+  useEffect(() => { 
+    if (user) checkSubOnLoad(); 
+    else setIsCheckingSub(false); 
+  }, [user]);;
 
   const verifySubscription = async () => {
     if (!user?.id) return;
