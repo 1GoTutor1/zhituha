@@ -35,7 +35,14 @@ export const CasinoTab = ({ app }: { app: any }) => {
 
   const loadRound = async () => {
     try {
-      const { data } = await supabase.from('casino_rounds').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+      // серверный «ленивый» цикл: доводит истёкшие раунды и гарантирует свежий betting
+      let data: any = null;
+      const { data: rpcData } = await supabase.rpc('get_casino_round_rpc', { p_player_id: pid || null });
+      data = rpcData;
+      if (!data) {
+        const { data: fallback } = await supabase.from('casino_rounds').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+        data = fallback;
+      }
       if (!data) return;
       const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, race_winner: data.race_winner };
       setRound(r);
@@ -66,6 +73,14 @@ export const CasinoTab = ({ app }: { app: any }) => {
     const poll = setInterval(loadRound, 5000);
     return () => { clearInterval(poll); (supabase as any).removeChannel(ch); };
   }, [pid]);
+
+  // фаза result длится 10 сек — по истечении сами дёргаем сервер, тот закроет раунд и откроет новый betting
+  useEffect(() => {
+    if (round?.status === 'result') {
+      const t = setTimeout(loadRound, 11000);
+      return () => clearTimeout(t);
+    }
+  }, [round?.id, round?.status]);
 
   const phase = round?.status || 'betting';
   const msLeft = round ? Math.max(0, round.end_time - now) : 0;
@@ -103,7 +118,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
       <div style={{ background: '#2f2a1d', color: '#ffd23f', borderRadius: 10, padding: '12px 16px', margin: '10px 0', fontFamily: "'Russo One', sans-serif", boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.08), 0 4px 0 rgba(90,70,40,0.35)' }}>
         {phase === 'betting' && <>⏳ Приём ставок: <span style={{ color: msLeft < 6000 ? '#ff6b5e' : '#ffd23f' }}>{Math.ceil(msLeft / 1000)}с</span></>}
         {phase === 'spinning' && <>🎲 Крутим барабан…</>}
-        {phase === 'result' && <>✅ Итоги раунда!</>}
+        {phase === 'result' && <>✅ Итоги раунда! Новый через <span style={{ color: '#ffd23f' }}>{Math.max(0, Math.ceil((round ? Number(round.end_time) - now : 0) / 1000))}с</span></>}
       </div>
 
       {/* Результаты текущего/последнего раунда */}
