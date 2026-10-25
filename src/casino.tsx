@@ -104,8 +104,8 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const betBtn = (val: string, label: string, style?: any, disabled?: boolean) => (
     <button key={val} onClick={() => { if (!disabled) { setChoice(val); hapticFeedback('light'); } }}
       style={{ padding: '10px 6px', borderRadius: 8, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: "'Russo One', sans-serif", fontSize: 12, textTransform: 'uppercase',
-        background: choice === val ? '#f2b632' : '#fbf4e4', color: choice === val ? '#2f2a1d' : '#5a4a2f',
-        border: choice === val ? '2px solid #c98a10' : '2px solid rgba(90,70,40,0.25)', opacity: disabled ? 0.4 : 1, ...style }}>{label}</button>
+        background: choice === val ? '#c98a10' : '#fbf4e4', color: choice === val ? '#fff8e6' : '#5a4a2f',
+        border: choice === val ? '2px solid #8a5d0a' : '2px solid rgba(90,70,40,0.25)', opacity: disabled ? 0.4 : 1, ...style }}>{label}</button>
   );
 
   const wheelColor = (n: number) => n === 0 ? '#2c7a3c' : RED_NUMBERS.includes(n) ? '#c0453a' : '#2f2a1d';
@@ -116,7 +116,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
 
       {/* Табло фазы */}
       <div style={{ background: '#2f2a1d', color: '#ffd23f', borderRadius: 10, padding: '12px 16px', margin: '10px 0', fontFamily: "'Russo One', sans-serif", boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.08), 0 4px 0 rgba(90,70,40,0.35)' }}>
-        {phase === 'betting' && <>⏳ Приём ставок: <span style={{ color: msLeft < 6000 ? '#ff6b5e' : '#ffd23f' }}>{Math.ceil(msLeft / 1000)}с</span></>}
+        {phase === 'betting' && <>⏳ Приём ставок: <span style={{ color: msLeft < 6000 ? '#ff9a8d' : '#ffd23f' }}>{Math.ceil(msLeft / 1000)}с</span></>}
         {phase === 'spinning' && <>🎲 Крутим барабан…</>}
         {phase === 'result' && <>✅ Итоги раунда! Новый через <span style={{ color: '#ffd23f' }}>{Math.max(0, Math.ceil((round ? Number(round.end_time) - now : 0) / 1000))}с</span></>}
       </div>
@@ -152,9 +152,9 @@ export const CasinoTab = ({ app }: { app: any }) => {
       <div style={{ background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: 14, boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.6)' }}>
         {game === 'roulette' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-            {betBtn('red', 'Красное', { background: choice === 'red' ? '#f2b632' : '#c0453a', color: '#fff' }, !canBet)}
-            {betBtn('black', 'Чёрное', { background: choice === 'black' ? '#f2b632' : '#2f2a1d', color: '#fff' }, !canBet)}
-            {betBtn('zero', 'Зеро x36', { background: choice === 'zero' ? '#f2b632' : '#2c7a3c', color: '#fff' }, !canBet)}
+            {betBtn('red', 'Красное', { background: choice === 'red' ? '#c98a10' : '#c0453a', color: '#fff8e6', ...(choice === 'red' ? { textShadow: '0 1px 0 rgba(0,0,0,0.35)' } : {}) }, !canBet)}
+            {betBtn('black', 'Чёрное', { background: choice === 'black' ? '#c98a10' : '#2f2a1d', color: '#fff8e6', ...(choice === 'black' ? { textShadow: '0 1px 0 rgba(0,0,0,0.35)' } : {}) }, !canBet)}
+            {betBtn('zero', 'Зеро x36', { background: choice === 'zero' ? '#c98a10' : '#2c7a3c', color: '#fff8e6', ...(choice === 'zero' ? { textShadow: '0 1px 0 rgba(0,0,0,0.35)' } : {}) }, !canBet)}
             {betBtn('even', 'Чёт x2', undefined, !canBet)}
             {betBtn('odd', 'Нечет x2', undefined, !canBet)}
             {betBtn('dozen1', '1-12 x3', undefined, !canBet)}
@@ -205,7 +205,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: i < myBets.length - 1 ? '1px dashed rgba(90,70,40,0.25)' : 'none' }}>
               <span>{b.game_type === 'roulette' ? '🎡' : b.game_type === 'dice' ? '🎲' : '🏁'} {b.bet_choice}</span>
               <span style={{ fontWeight: 'bold' }}>{b.amount.toLocaleString('ru')}₽</span>
-              <span style={{ color: b.status === 'won' ? '#2c7a3c' : b.status === 'lost' ? '#c0453a' : '#8a7d5f' }}>
+              <span style={{ color: b.status === 'won' ? '#2c7a3c' : b.status === 'lost' ? '#c0453a' : '#6b5f45' }}>
                 {b.status === 'won' ? 'ВЫИГРЫШ 🎉' : b.status === 'lost' ? 'проигрыш' : 'ждём…'}
               </span>
             </div>
