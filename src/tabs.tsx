@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
@@ -220,12 +220,43 @@ export const MarketItem = ({ item, app, type }: any) => (
 );
 
 export const MarketTab = ({ app }: { app: any }) => {
+  const [showTop, setShowTop] = useState(false);
   const myLots = app.market.filter((m: any) => m.seller_id === app.pid).length;
   const maxSlots = app.marketSlots;
 
+  if (showTop) {
+    return (
+      <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+        <button onClick={() => setShowTop(false)} style={{ background: 'none', border: 'none', color: '#8B899A', marginBottom: 20, marginTop: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Trophy size={22} color="#F97316"/> Топ богачей</h2>
+        <div style={{ marginTop: 20 }}>
+          {app.players.length === 0 && <p style={{ color: '#8B899A' }}>Пока никого...</p>}
+          {app.players.map((p: any, i: number) => (
+            <div key={p.id} style={{ backgroundColor: '#161324', padding: '12px 15px', borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#F97316' : i === 1 ? '#C084FC' : i === 2 ? '#3b82f6' : '#8B899A', minWidth: 26 }}>#{i + 1}</span>
+                <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
+              </div>
+              <span style={{ color: '#10B981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{p.money.toLocaleString('ru-RU')} <Coins size={14} /></span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-      <h2>Рынок</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
+        <button 
+          onClick={() => setShowTop(true)} 
+          title="Топ богачей"
+          style={{ background: 'rgba(249, 115, 22, 0.15)', border: '1px solid #F97316', color: '#F97316', borderRadius: 8, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        >
+          <Trophy size={16} />
+        </button>
+        <h2 style={{ margin: 0 }}>Рынок</h2>
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
         <div style={{ fontSize: 14, color: '#8B899A' }}>Твои слоты: <b style={{color: '#fff'}}>{myLots} / {maxSlots}</b></div>
         <div style={{ fontSize: 12, color: '#C084FC' }}>+1 слот за телефон</div>
@@ -235,15 +266,6 @@ export const MarketTab = ({ app }: { app: any }) => {
           <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, padding: 12, border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3b82f6' : 'transparent', color: app.marketTab === t ? 'white' : '#8B899A', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
             {t === 'items' ? '📱 Предметы' : t === 'cars' ? '🚗 Авто' : '🏠 Жильё'}
           </button>
-        ))}
-      </div>
-      <div style={{ marginBottom: 30 }}>
-        <h3 style={{ color: '#8B899A', fontSize: 16, marginBottom: 10 }}>Топ богачей</h3>
-        {app.players.map((p: any, i: number) => (
-          <div key={p.id} style={{ backgroundColor: '#161324', padding: '12px 15px', borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#F97316' : i === 1 ? '#C084FC' : i === 2 ? '#3b82f6' : '#8B899A' }}>#{i + 1}</span><span style={{ fontWeight: 'bold' }}>{p.nickname}</span></div>
-            <span style={{ color: '#10B981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{p.money.toLocaleString('ru-RU')} <Coins size={14} /></span>
-          </div>
         ))}
       </div>
       <h3 style={{ color: '#8B899A', fontSize: 16, marginBottom: 10 }}>{app.marketTab === 'items' ? 'Лоты (Предметы)' : app.marketTab === 'cars' ? 'Лоты (Авто)' : 'Лоты (Жилье)'}</h3>
@@ -423,7 +445,6 @@ export const AdminTab = ({ app }: { app: any }) => {
   const [promoAmount, setPromoAmount] = useState('');
   const [promoLimit, setPromoLimit] = useState('100');
   
-  // Logs
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsFilter, setLogsFilter] = useState<string>('all');
