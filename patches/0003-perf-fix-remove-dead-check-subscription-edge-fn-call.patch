@@ -1,7 +1,7 @@
 From 25ce15f60c0b815f9783add835a4a89883bc919c Mon Sep 17 00:00:00 2001
 From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
 Date: Sun, 25 Oct 2026 10:20:19 +0000
-Subject: [PATCH 3/3] perf+fix: remove dead check-subscription edge fn call,
+Subject: [PATCH 3/4] perf+fix: remove dead check-subscription edge fn call,
  server-authoritative prices/cooldowns, lighter polling
  (refreshProfile/pollMyBizs), optimistic-state fixes
 

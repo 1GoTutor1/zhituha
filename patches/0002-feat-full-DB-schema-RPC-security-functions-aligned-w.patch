@@ -1,7 +1,7 @@
 From 1990b81140f180d6c2f89f6f4141dba42cc12a9e Mon Sep 17 00:00:00 2001
 From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
 Date: Sun, 25 Oct 2026 09:51:48 +0000
-Subject: [PATCH 2/3] feat: full DB schema + RPC security functions aligned
+Subject: [PATCH 2/4] feat: full DB schema + RPC security functions aligned
  with real Supabase tables
 
 ---
