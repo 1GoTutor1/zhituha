@@ -100,7 +100,32 @@ button { user-select: none; -webkit-tap-highlight-color: transparent; }
   50% { transform: scale(1.1); opacity: 0.7; }
   100% { transform: scale(1); opacity: 1; }
 }
-@keyframes casinoSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* Барабан рулетки: быстрый старт -> долгое замедление и остановка (по-тихой) */
+@keyframes casinoReel {
+  0%   { transform: rotate(0deg); }
+  15%  { transform: rotate(720deg); }
+  45%  { transform: rotate(1300deg); }
+  75%  { transform: rotate(1620deg); }
+  92%  { transform: rotate(1780deg); }
+  100% { transform: rotate(1800deg); }
+}
+/* Кости: подпрыгивают и крутятся */
+@keyframes casinoDiceRoll {
+  0%   { transform: rotate(0deg) translateY(0); }
+  20%  { transform: rotate(140deg) translateY(-10px); }
+  40%  { transform: rotate(280deg) translateY(0); }
+  60%  { transform: rotate(400deg) translateY(-6px); }
+  80%  { transform: rotate(510deg) translateY(0); }
+  100% { transform: rotate(540deg) translateY(0); }
+}
+/* Гонки: машины едут по полосе с лёгкой тряской, старт -> финиш */
+@keyframes casinoRaceDrive {
+  0%   { transform: translateX(-10%) rotate(-1deg); }
+  10%  { transform: translateX(2%) rotate(1deg); }
+  25%  { transform: translateX(18%) rotate(-1deg); }
+  40%  { transform: translateX(32%) rotate(1deg); }
+  55%  { transform: translateX(48%) rotate(-1deg); }
+  70%  { transform: translateX(62%) rotate(1deg); }
+  85%  { transform: translateX(78%) rotate(0deg); }
+  100% { transform: translateX(92%) rotate(0deg); }
 }
