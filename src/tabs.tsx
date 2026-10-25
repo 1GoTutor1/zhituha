@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug, AlertTriangle, TrendingUp, Wallet } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
@@ -361,6 +361,59 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   );
 };
 
+// ============================================================
+// АДМИНКА (с вкладкой Логи)
+// ============================================================
+const formatLogTime = (iso: string) => {
+  try {
+    const d = new Date(iso);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  } catch { return iso; }
+};
+
+const LogEntry = ({ log }: { log: any }) => {
+  const [open, setOpen] = useState(false);
+  const isMoney = log.action_type === 'money_change';
+  const delta = log.money_delta || 0;
+  const details = log.details || {};
+  
+  let summary = '';
+  if (isMoney) {
+    summary = `💰 ${delta > 0 ? '+' : ''}${delta} → ${log.money_after ?? '?'}`;
+  } else {
+    summary = log.action_type.replace(/_/g, ' ');
+    if (details.code) summary += ` · ${details.code}`;
+    if (details.amount) summary += ` · ${details.amount}`;
+    if (details.reason) summary += ` · ${details.reason}`;
+  }
+
+  return (
+    <div 
+      onClick={() => setOpen(o => !o)} 
+      style={{ 
+        backgroundColor: '#161324', padding: 10, borderRadius: 12, marginBottom: 6, 
+        border: `1px solid ${isMoney ? (delta > 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') : 'rgba(255,255,255,0.05)'}`,
+        cursor: 'pointer', textAlign: 'left'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontSize: 11, color: '#8B899A', minWidth: 90 }}>{formatLogTime(log.created_at)}</div>
+        <div style={{ flex: 1, fontSize: 12 }}>
+          <b style={{ color: isMoney ? (delta > 0 ? '#10b981' : '#ef4444') : '#60a5fa' }}>{summary}</b>
+          {log.nickname && <span style={{ color: '#8B899A' }}> · {log.nickname}</span>}
+        </div>
+      </div>
+      {open && (
+        <pre style={{ 
+          marginTop: 8, padding: 8, background: '#0B0914', borderRadius: 8, 
+          fontSize: 10, color: '#8B899A', overflow: 'auto', maxHeight: 200, whiteSpace: 'pre-wrap', wordBreak: 'break-all'
+        }}>{JSON.stringify({ player_id: log.player_id, telegram_id: log.telegram_id, ...details }, null, 2)}</pre>
+      )}
+    </div>
+  );
+};
+
 export const AdminTab = ({ app }: { app: any }) => {
   const [searchQ, setSearchQ] = useState('');
   const [foundPlayers, setFoundPlayers] = useState<any[]>([]);
@@ -369,22 +422,86 @@ export const AdminTab = ({ app }: { app: any }) => {
   const [promoCode, setPromoCode] = useState('');
   const [promoAmount, setPromoAmount] = useState('');
   const [promoLimit, setPromoLimit] = useState('100');
+  
+  // Logs
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsFilter, setLogsFilter] = useState<string>('all');
 
-  const handleSearch = async () => { if (!searchQ) return; const { data } = await app.supabase.from('players').select('*').ilike('nickname', `%${searchQ}%`).limit(5); setFoundPlayers(data || []); };
-  const loadPlayerDetails = async (p: any) => { setSelectedPlayer(p); const { data } = await app.supabase.from('businesses').select('*').eq('owner_id', p.id); setPlayerBizs(data || []); };
+  const logClientEvent = async (actionType: string, details: any = {}) => {
+    try { await app.supabase.rpc('log_action_rpc', { p_player_id: app.pid, p_action_type: actionType, p_details: details }); }
+    catch (e) { /* ignore */ }
+  };
+
+  const loadLogs = async () => {
+    setLogsLoading(true);
+    const { data, error } = await app.supabase.rpc('get_logs_rpc', {
+      p_admin_id: app.pid,
+      p_limit: 200,
+      p_action_type: logsFilter === 'all' ? null : logsFilter
+    });
+    setLogsLoading(false);
+    if (error) return app.showMsg(error.message, true);
+    if (data?.error) return app.showMsg(data.error, true);
+    setLogs(data?.logs || []);
+  };
+
+  const cleanupLogs = async () => {
+    if (!window.confirm('Удалить логи старше 30 дней?')) return;
+    const { data, error } = await app.supabase.rpc('cleanup_logs_rpc', { p_admin_id: app.pid, p_keep_days: 30 });
+    if (error) return app.showMsg(error.message, true);
+    if (data?.error) return app.showMsg(data.error, true);
+    app.showMsg(`Удалено ${data?.deleted || 0} записей`);
+    loadLogs();
+  };
+
+  useEffect(() => {
+    if (app.adminTab === 'logs') loadLogs();
+  }, [app.adminTab, logsFilter]);
+
+  const handleSearch = async () => { 
+    if (!searchQ) return; 
+    const { data } = await app.supabase.from('players').select('*').ilike('nickname', `%${searchQ}%`).limit(5); 
+    setFoundPlayers(data || []); 
+  };
+  
+  const loadPlayerDetails = async (p: any) => { 
+    setSelectedPlayer(p); 
+    const { data } = await app.supabase.from('businesses').select('*').eq('owner_id', p.id); 
+    setPlayerBizs(data || []); 
+  };
+  
   const handleGiveMoney = async (amount: number) => { 
     if (!selectedPlayer) return; 
     const { data, error } = await app.supabase.rpc('change_stats', { p_player_id: selectedPlayer.id, p_money_diff: amount, p_energy_diff: 0 });
     if (error) return app.showMsg(error.message, true);
     const newMoney = Math.max(0, Number(data?.money ?? selectedPlayer.money + amount));
     setSelectedPlayer({ ...selectedPlayer, money: newMoney });
+    await logClientEvent('admin_give_money', { target_nick: selectedPlayer.nickname, target_id: selectedPlayer.id, amount });
     app.showMsg(`Выдано ${amount}`); 
     if (app.loadData) app.loadData(true); 
   };
-  const handleBan = async () => { if (!selectedPlayer) return; const newStatus = !selectedPlayer.is_banned; await app.supabase.from('players').update({ is_banned: newStatus }).eq('id', selectedPlayer.id); setSelectedPlayer({ ...selectedPlayer, is_banned: newStatus }); app.showMsg(newStatus ? "Забанен" : "Разбанен"); if (app.loadData) app.loadData(true); };
-  const handleDeleteBiz = async (bizId: string) => { if (!window.confirm("Удалить этот бизнес?")) return; await app.supabase.from('businesses').delete().eq('id', bizId); setPlayerBizs(prev => prev.filter(b => b.id !== bizId)); app.showMsg("Бизнес удален"); if (app.loadData) app.loadData(true); };
   
-  // ФИКС: создание промокода через RPC (обход RLS)
+  const handleBan = async () => { 
+    if (!selectedPlayer) return; 
+    const newStatus = !selectedPlayer.is_banned; 
+    await app.supabase.from('players').update({ is_banned: newStatus }).eq('id', selectedPlayer.id); 
+    setSelectedPlayer({ ...selectedPlayer, is_banned: newStatus }); 
+    await logClientEvent(newStatus ? 'admin_ban' : 'admin_unban', { target_nick: selectedPlayer.nickname, target_id: selectedPlayer.id });
+    app.showMsg(newStatus ? "Забанен" : "Разбанен"); 
+    if (app.loadData) app.loadData(true); 
+  };
+  
+  const handleDeleteBiz = async (bizId: string) => { 
+    if (!window.confirm("Удалить этот бизнес?")) return; 
+    const bizName = playerBizs.find(b => b.id === bizId)?.business_name;
+    await app.supabase.from('businesses').delete().eq('id', bizId); 
+    setPlayerBizs(prev => prev.filter(b => b.id !== bizId)); 
+    await logClientEvent('admin_delete_biz', { target_nick: selectedPlayer?.nickname, target_id: selectedPlayer?.id, biz_id: bizId, biz_name: bizName });
+    app.showMsg("Бизнес удален"); 
+    if (app.loadData) app.loadData(true); 
+  };
+  
   const handleCreatePromo = async () => { 
     if (!promoCode || !promoAmount) return app.showMsg("Заполни все поля", true);
     const amount = parseInt(promoAmount);
@@ -401,15 +518,27 @@ export const AdminTab = ({ app }: { app: any }) => {
     if (error) return app.showMsg(error.message, true);
     if (data && data.error) return app.showMsg(data.error, true);
     
+    await logClientEvent('admin_create_promo', { code: promoCode.toUpperCase().trim(), amount, max_uses: limit });
     app.showMsg("Промокод создан!"); 
     setPromoCode(''); 
     setPromoAmount('');
   };
 
+  const logFilters = ['all', 'money_change', 'admin_give_money', 'admin_ban', 'admin_unban', 'admin_delete_biz', 'admin_create_promo', 'promo_used'];
+
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, marginTop: 10 }}><button onClick={() => app.setTab('home')} style={{ background: 'none', border: 'none', color: '#8B899A', cursor: 'pointer' }}><ArrowLeft size={20} /></button><h2 style={{ margin: 0, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 5 }}><ShieldAlert size={20}/> Админка</h2></div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}><Btn variant={app.adminTab === 'players' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('players')} style={{ padding: 10, background: app.adminTab === 'players' ? '#ef4444' : '#161324' }}>Игроки</Btn><Btn variant={app.adminTab === 'promos' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('promos')} style={{ padding: 10, background: app.adminTab === 'promos' ? '#ef4444' : '#161324' }}>Промокоды</Btn></div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, marginTop: 10 }}>
+        <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 'none', color: '#8B899A', cursor: 'pointer' }}><ArrowLeft size={20} /></button>
+        <h2 style={{ margin: 0, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 5 }}><ShieldAlert size={20}/> Админка</h2>
+      </div>
+      
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+        <Btn variant={app.adminTab === 'players' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('players')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'players' ? '#ef4444' : '#161324' }}>Игроки</Btn>
+        <Btn variant={app.adminTab === 'promos' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('promos')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'promos' ? '#ef4444' : '#161324' }}>Промо</Btn>
+        <Btn variant={app.adminTab === 'logs' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('logs')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'logs' ? '#ef4444' : '#161324' }}>Логи</Btn>
+      </div>
+
       {app.adminTab === 'players' && (
         <div>
           {!selectedPlayer ? (
@@ -468,6 +597,42 @@ export const AdminTab = ({ app }: { app: any }) => {
           <input type="number" placeholder="Сумма монет" value={promoAmount} onChange={e => setPromoAmount(e.target.value)} style={S.input} />
           <input type="number" placeholder="Лимит активаций" value={promoLimit} onChange={e => setPromoLimit(e.target.value)} style={S.input} />
           <Btn variant="primary" onClick={handleCreatePromo} disabled={app.proc}>Создать</Btn>
+        </div>
+      )}
+
+      {app.adminTab === 'logs' && (
+        <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <Btn variant="secondary" onClick={loadLogs} disabled={logsLoading} style={{ padding: 10, fontSize: 12, flex: 1 }}>
+              <RefreshCw size={14} style={{ marginRight: 4 }}/> {logsLoading ? 'Загрузка...' : 'Обновить'}
+            </Btn>
+            <Btn variant="danger" onClick={cleanupLogs} disabled={app.proc} style={{ padding: 10, fontSize: 12, flex: 1, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444' }}>
+              <Trash2 size={14} style={{ marginRight: 4 }}/> Очистить 30д+
+            </Btn>
+          </div>
+          
+          <div style={{ display: 'flex', gap: 4, marginBottom: 12, overflowX: 'auto', paddingBottom: 4 }}>
+            {logFilters.map(f => (
+              <button 
+                key={f} 
+                onClick={() => setLogsFilter(f)} 
+                style={{ 
+                  padding: '6px 10px', fontSize: 10, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
+                  background: logsFilter === f ? '#3b82f6' : '#161324', 
+                  color: logsFilter === f ? 'white' : '#8B899A',
+                  border: 'none'
+                }}
+              >{f === 'all' ? 'Все' : f.replace(/_/g, ' ')}</button>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 11, color: '#8B899A', marginBottom: 8 }}>
+            <ScrollText size={12} style={{ display: 'inline', marginRight: 4 }}/> {logs.length} записей
+          </div>
+          
+          {logsLoading && <p style={{ color: '#8B899A', textAlign: 'center' }}>Загрузка...</p>}
+          {!logsLoading && logs.length === 0 && <p style={{ color: '#8B899A', textAlign: 'center' }}>Пусто</p>}
+          {!logsLoading && logs.map(log => <LogEntry key={log.id} log={log} />)}
         </div>
       )}
     </div>
