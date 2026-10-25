@@ -20,8 +20,8 @@ export function useTelegram() {
       telegram.expand(); 
       
       try {
-        telegram.setHeaderColor('#121212');
-        telegram.setBackgroundColor('#121212');
+        telegram.setHeaderColor('#efe3c8');
+        telegram.setBackgroundColor('#efe3c8');
         if (telegram.requestFullscreen) telegram.requestFullscreen();
       } catch (e) {}
 

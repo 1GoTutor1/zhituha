@@ -72,9 +72,9 @@ export const BottomNav = ({ app }: { app: any }) => {
     { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'shop', icon: Store, text: 'Магазин' }, { id: 'inventory', icon: Backpack, text: 'Сумка' }
   ];
   return (
-    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(24, 21, 17, 0.96)', backdropFilter: 'blur(10px)', borderTop: '2px solid rgba(236,229,216,0.14)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 calc(20px + env(safe-area-inset-bottom, 20px)) 0', zIndex: 100 }}>
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(251, 244, 228, 0.96)', backdropFilter: 'blur(10px)', borderTop: '2px solid rgba(90,70,40,0.25)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 calc(20px + env(safe-area-inset-bottom, 20px)) 0', zIndex: 100 }}>
       {items.map(t => (
-        <button key={t.id} onClick={() => { app.setTab(t.id); app.hapticFeedback('light'); app.setBoardOpen(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', color: app.tab === t.id ? '#ffd23f' : '#8f867a', transition: 'color 0.2s', textShadow: app.tab === t.id ? '0 0 8px rgba(255,210,63,0.7)' : 'none' }}>
+        <button key={t.id} onClick={() => { app.setTab(t.id); app.hapticFeedback('light'); app.setBoardOpen(false); }} style={{ backgroundColor: app.tab === t.id ? 'rgba(242,182,50,0.22)' : 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', borderRadius: 10, padding: '4px 0', color: app.tab === t.id ? '#c98a10' : '#8a7d5f', transition: 'all 0.2s' }}>
           <t.icon size={22} style={{ marginBottom: 4 }} /><span style={{ fontSize: 10, fontWeight: app.tab === t.id ? 'bold' : 'normal', fontFamily: "'Russo One', sans-serif", textTransform: 'uppercase', letterSpacing: '0.3px' }}>{t.text}</span>
         </button>
       ))}
