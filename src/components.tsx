@@ -65,7 +65,7 @@ export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) =
 
 export const BottomNav = ({ app }: { app: any }) => {
   const items = [
-    { id: 'home', icon: Home, text: 'Главная' }, { id: 'jobs', icon: Briefcase, text: 'Работа' }, 
+    { id: 'home', icon: Home, text: 'Главная' }, { id: 'jobs', icon: Briefcase, text: 'Работа' },
     { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'shop', icon: Store, text: 'Магазин' }, { id: 'inventory', icon: Backpack, text: 'Сумка' }
   ];
   return (
