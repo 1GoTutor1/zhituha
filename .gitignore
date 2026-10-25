@@ -26,3 +26,5 @@ dist-ssr
 # patches/bundles (не тащить в репозиторий)
 *.patch
 *.bundle
+
+patches/
