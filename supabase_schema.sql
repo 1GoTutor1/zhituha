@@ -81,7 +81,7 @@ begin
         -- старые имена из прошлых версий скрипта:
         'register_player_rpc','set_subscribed_rpc','set_banned_rpc','get_player_by_tg','log_action',
         'tip_barista_rpc','claim_tips_rpc','claim_daily_rpc','brew_start_rpc','rob_business_rpc',
-        'redeem_promo_rpc','admin_give_money_rpc'
+        'redeem_promo_rpc','admin_give_money_rpc','admin_set_ban_rpc','admin_delete_biz_rpc','claim_daily_rpc'
       )
   loop
     execute 'drop function if exists ' || r.sig || ' cascade';

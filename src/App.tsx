@@ -17,8 +17,25 @@ import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals,
 
 export default function App() {
   const { user, hapticFeedback, tg, startParam } = useTelegram();
+
+  // Ждём ответа /api/auth (серверная проверка подписи initData), но не дольше 5 сек.
+  const [authChecked, setAuthChecked] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    if (user.verified) { setAuthChecked(true); return; }
+    const int = setInterval(async () => {
+      try {
+        const telegram = (window as any).Telegram?.WebApp;
+        const r = await fetch('/api/auth', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ init_data: telegram?.initData || '' }) });
+        const d = await r.json();
+        if (d?.ok && d?.user?.id) setAuthChecked(true);
+      } catch {}
+    }, 400);
+    const to = setTimeout(() => setAuthChecked(true), 5000); // сервер недоступен — не блокируем игру навсегда
+    return () => { clearInterval(int); clearTimeout(to); };
+  }, [user]);
   
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!(window as any).Telegram?.WebApp?.initDataUnsafe?.user);
   // Подписку больше НЕ проверяем на клиенте (раньше вызывался несуществующий
   // supabase edge-функция 'check-subscription' — всегда была ошибка).
   // Проверка подписки сделана на стороне бота: /start без подписки не даёт аккаунт.
@@ -117,7 +134,18 @@ export default function App() {
 
   const showMsg = (msg: string, err = false) => { setToast({ msg, err, id: Date.now() }); };
   const closeToast = () => setToast(null);
-  const getUid = () => user?.id?.toString() || localStorage.getItem('zhituha_id') || (() => { const id = 'user_' + Math.random().toString(36).substring(2, 8); localStorage.setItem('zhituha_id', id); return id; })();
+  // Идентификатор игрока = Telegram id. В браузере вне Telegram (dev-режим) разрешаем
+  // локальную заглушку, но в самом Telegram — только реальный id из initDataUnsafe.
+  const isTgEnv = typeof window !== 'undefined' && !!(window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+  const getUid = () => {
+    if (user?.id) return user.id.toString();
+    if (isTgEnv) return ''; // без настоящего TG-id работать нельзя (см. gate ниже)
+    const saved = localStorage.getItem('zhituha_id');
+    if (saved) return saved;
+    const id = 'user_' + Math.random().toString(36).substring(2, 8);
+    localStorage.setItem('zhituha_id', id);
+    return id;
+  };
 
   const sendNotification = (text: string) => {
     // Пуш отправляем только реальным пользователям Telegram (числовной id).
@@ -217,7 +245,7 @@ export default function App() {
     if (!silent) setLoading(true);
     try {
       const uid = getUid(); setTgId(uid);
-      if (!user?.id) return;
+      if (!uid) return; // в Telegram без реального user.id данные не грузим
       
       // Экономия трафика: свои бизнесы берём целиком (нужен owner_id для маппинга),
       // чужие — только карточки кафе (id/имя/воркер) + все воркеры.
@@ -803,6 +831,10 @@ export default function App() {
   const authPageStyle: any = { ...pageStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' };
 
   if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: 'calc(100px + env(safe-area-inset-top, 20px))' }}>Загрузка...</div>;
+  // Gate: в Telegram без успешно проверенной сервером подписи initData игру не показываем.
+  if (isTgEnv && user && !authChecked) {
+    return <div style={authPageStyle}><ShieldAlert size={50} color="#3b82f6" style={{ marginBottom: 20 }} /><h2>Проверка аккаунта…</h2><p style={{ color: '#8B899A', maxWidth: 300 }}>Telegram-безопасность: подтверждаем подпись.</p></div>;
+  }
   if (isCheckingSub) return <div style={authPageStyle}><Send size={50} color="#3b82f6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
   if (isBanned) return <div style={authPageStyle}><ShieldAlert size={80} color="#ef4444" style={{ marginBottom: 20 }} /><h1>Вы забанены!</h1><p style={{ color: '#8B899A', maxWidth: '300px' }}>Администрация заблокировала ваш аккаунт.</p></div>;
   
