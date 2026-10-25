@@ -451,16 +451,16 @@ const LogEntry = ({ log }: { log: any }) => {
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <div style={{ fontSize: 11, color: '#6b5f45', minWidth: 90 }}>{formatLogTime(log.created_at)}</div>
+        <div style={{ fontSize: 11, color: '#574c33', minWidth: 90 }}>{formatLogTime(log.created_at)}</div>
         <div style={{ flex: 1, fontSize: 12 }}>
-          <b style={{ color: isMoney ? (delta > 0 ? '#3f9d55' : '#c0453a') : '#2f6a94' }}>{summary}</b>
-          {log.nickname && <span style={{ color: '#6b5f45' }}> · {log.nickname}</span>}
+          <b style={{ color: isMoney ? (delta > 0 ? '#256b33' : '#a52a1f') : '#1f5a7d' }}>{summary}</b>
+          {log.nickname && <span style={{ color: '#574c33' }}> · {log.nickname}</span>}
         </div>
       </div>
       {open && (
         <pre style={{ 
-          marginTop: 8, padding: 8, background: '#e7d9b8', borderRadius: 8, 
-          fontSize: 10, color: '#6b5f45', overflow: 'auto', maxHeight: 200, whiteSpace: 'pre-wrap', wordBreak: 'break-all'
+          marginTop: 8, padding: 8, background: '#efe3c8', borderRadius: 8, 
+          fontSize: 10, color: '#3d3524', overflow: 'auto', maxHeight: 200, whiteSpace: 'pre-wrap', wordBreak: 'break-all'
         }}>{JSON.stringify({ player_id: log.player_id, telegram_id: log.telegram_id, ...details }, null, 2)}</pre>
       )}
     </div>
@@ -581,18 +581,22 @@ export const AdminTab = ({ app }: { app: any }) => {
   };
 
   const logFilters = ['all', 'money_change', 'admin_give_money', 'admin_ban', 'admin_unban', 'admin_delete_biz', 'admin_create_promo', 'promo_used'];
+  const filterLabel: Record<string, string> = {
+    all: 'Все', money_change: 'Деньги', admin_give_money: 'Выдача', admin_ban: 'Бан',
+    admin_unban: 'Разбан', admin_delete_biz: 'Удаление бизнеса', admin_create_promo: 'Промо создан', promo_used: 'Промо активирован',
+  };
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, marginTop: 10 }}>
-        <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 'none', color: '#6b5f45', cursor: 'pointer' }}><ArrowLeft size={20} /></button>
+        <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 'none', color: '#2f2a1d', cursor: 'pointer' }}><ArrowLeft size={20} /></button>
         <h2 style={{ margin: 0, color: '#c0453a', display: 'flex', alignItems: 'center', gap: 5 }}><ShieldAlert size={20}/> Админка</h2>
       </div>
       
       <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-        <Btn variant={app.adminTab === 'players' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('players')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'players' ? '#c0453a' : '#fbf4e4' }}>Игроки</Btn>
-        <Btn variant={app.adminTab === 'promos' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('promos')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'promos' ? '#c0453a' : '#fbf4e4' }}>Промо</Btn>
-        <Btn variant={app.adminTab === 'logs' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('logs')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'logs' ? '#c0453a' : '#fbf4e4' }}>Логи</Btn>
+        <Btn variant={app.adminTab === 'players' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('players')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'players' ? '#c0453a' : '#fbf4e4', color: app.adminTab === 'players' ? '#fff8e6' : '#2f2a1d' }}>Игроки</Btn>
+        <Btn variant={app.adminTab === 'promos' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('promos')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'promos' ? '#c0453a' : '#fbf4e4', color: app.adminTab === 'promos' ? '#fff8e6' : '#2f2a1d' }}>Промо</Btn>
+        <Btn variant={app.adminTab === 'logs' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('logs')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'logs' ? '#c0453a' : '#fbf4e4', color: app.adminTab === 'logs' ? '#fff8e6' : '#2f2a1d' }}>Логи</Btn>
       </div>
 
       {app.adminTab === 'players' && (
@@ -605,26 +609,26 @@ export const AdminTab = ({ app }: { app: any }) => {
               </div>
               {foundPlayers.map(p => (
                 <div key={p.id} onClick={() => loadPlayerDetails(p)} style={{ background: '#fbf4e4', padding: 15, borderRadius: 8, marginBottom: 10, cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
-                  <span style={{ color: '#2c7a3c' }}>{p.money} <Coins size={12}/></span>
+                  <span style={{ fontWeight: 'bold', color: '#2f2a1d' }}>{p.nickname}</span>
+                  <span style={{ color: '#256b33', fontWeight: 'bold' }}>{p.money} <Coins size={12}/></span>
                 </div>
               ))}
               
               <div style={{ marginTop: 40, padding: 20, border: '1px solid #c0453a', borderRadius: 8, background: 'rgba(192,69,58,0.08)' }}>
                 <h3 style={{ color: '#c0453a', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: 5 }}><AlertTriangle size={20}/> Опасная зона</h3>
-                <p style={{ fontSize: 13, color: '#6b5f45', marginBottom: 15, textAlign: 'left' }}>Это действие удалит все бизнесы, лоты, уволит рабочих и обнулит деньги ВСЕХ игроков. Отменить это будет невозможно!</p>
+                <p style={{ fontSize: 13, color: '#3d3524', marginBottom: 15, textAlign: 'left' }}>Это действие удалит все бизнесы, лоты, уволит рабочих и обнулит деньги ВСЕХ игроков. Отменить это будет невозможно!</p>
                 <Btn variant="danger" onClick={app.resetGame} disabled={app.proc}>ПОЛНЫЙ СБРОС ИГРЫ</Btn>
               </div>
             </>
           ) : (
             <div style={S.card}>
-              <button onClick={() => setSelectedPlayer(null)} style={{ background: 'none', border: 'none', color: '#6b5f45', marginBottom: 10, cursor: 'pointer' }}>← К поиску</button>
+              <button onClick={() => setSelectedPlayer(null)} style={{ background: 'none', border: 'none', color: '#2f2a1d', marginBottom: 10, cursor: 'pointer', textDecoration: 'underline' }}>← К поиску</button>
               <h3 style={{ margin: '0 0 5px 0' }}>{selectedPlayer.nickname}</h3>
-              <p style={{ color: '#6b5f45', fontSize: 12, margin: '0 0 15px 0' }}>ID: {selectedPlayer.telegram_id}</p>
+              <p style={{ color: '#574c33', fontSize: 12, margin: '0 0 15px 0' }}>ID: {selectedPlayer.telegram_id}</p>
               
               <div style={{ background: '#e7d9b8', padding: 10, borderRadius: 12, marginBottom: 15 }}>
-                <p style={{ margin: '0 0 5px 0' }}>Баланс: <b style={{ color: '#2c7a3c' }}>{selectedPlayer.money}</b></p>
-                <p style={{ margin: 0 }}>Статус: <b style={{ color: selectedPlayer.is_banned ? '#c0453a' : '#2c7a3c' }}>{selectedPlayer.is_banned ? 'ЗАБАНЕН' : 'Активен'}</b></p>
+                <p style={{ margin: '0 0 5px 0', color: '#2f2a1d' }}>Баланс: <b style={{ color: '#256b33' }}>{selectedPlayer.money}</b></p>
+                <p style={{ margin: 0, color: '#2f2a1d' }}>Статус: <b style={{ color: selectedPlayer.is_banned ? '#a52a1f' : '#256b33' }}>{selectedPlayer.is_banned ? 'ЗАБАНЕН' : 'Активен'}</b></p>
               </div>
 
               <div style={{ display: 'flex', gap: 10, marginBottom: 15 }}>
@@ -636,11 +640,11 @@ export const AdminTab = ({ app }: { app: any }) => {
               <h4 style={{ margin: '15px 0 10px 0', borderTop: '1px solid rgba(90,70,40,0.3)', paddingTop: 15 }}>Бизнесы ({playerBizs.length})</h4>
               {playerBizs.map(b => (
                 <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(90,70,40,0.08)', padding: 10, borderRadius: 12, marginBottom: 8 }}>
-                  <span style={{ fontSize: 13 }}>{b.business_name} ({b.biz_type})</span>
+                  <span style={{ fontSize: 13, color: '#2f2a1d' }}>{b.business_name} ({b.biz_type})</span>
                   <button onClick={() => handleDeleteBiz(b.id)} style={{ background: 'none', border: 'none', color: '#c0453a', cursor: 'pointer' }}><Trash2 size={16}/></button>
                 </div>
               ))}
-              {playerBizs.length === 0 && <p style={{ color: '#6b5f45', fontSize: 12 }}>Нет бизнесов.</p>}
+              {playerBizs.length === 0 && <p style={{ color: '#574c33', fontSize: 12 }}>Нет бизнесов.</p>}
             </div>
           )}
         </div>
@@ -675,19 +679,19 @@ export const AdminTab = ({ app }: { app: any }) => {
                 style={{ 
                   padding: '6px 10px', fontSize: 10, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
                   background: logsFilter === f ? '#3d7ea6' : '#fbf4e4', 
-                  color: logsFilter === f ? '#f0f7fb' : '#6b5f45',
+                  color: logsFilter === f ? '#ffffff' : '#2f2a1d',
                   border: 'none'
                 }}
-              >{f === 'all' ? 'Все' : f.replace(/_/g, ' ')}</button>
+              >{filterLabel[f] || f.replace(/_/g, ' ')}</button>
             ))}
           </div>
 
-          <div style={{ fontSize: 11, color: '#6b5f45', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: '#574c33', marginBottom: 8 }}>
             <ScrollText size={12} style={{ display: 'inline', marginRight: 4 }}/> {logs.length} записей
           </div>
           
-          {logsLoading && <p style={{ color: '#6b5f45', textAlign: 'center' }}>Загрузка...</p>}
-          {!logsLoading && logs.length === 0 && <p style={{ color: '#6b5f45', textAlign: 'center' }}>Пусто</p>}
+          {logsLoading && <p style={{ color: '#574c33', textAlign: 'center' }}>Загрузка...</p>}
+          {!logsLoading && logs.length === 0 && <p style={{ color: '#574c33', textAlign: 'center' }}>Пусто</p>}
           {!logsLoading && logs.map(log => <LogEntry key={log.id} log={log} />)}
         </div>
       )}
