@@ -107,7 +107,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const phase = round?.status || 'betting';
   const msLeft = round ? Math.max(0, round.end_time - now) : 0;
   const canBet = phase === 'betting' && msLeft > 1500; // запас на сетевую задержку
-  // локальная анимация спина: крутим барабан сам максимум SPIN_MS секунд.
+  // локальная анимация спина: крутим ONLY выбранный барабан максимум SPIN_MS секунд.
   // Даже если сервер завис в 'spinning', UI никогда не залипает: анимация заканчивается,
   // а страховочный тик выше дотянет сервер до нового раунда.
   const spinElapsed = phase === 'spinning' ? Math.max(0, now - spinStartRef.current) : 0;
@@ -117,10 +117,28 @@ export const CasinoTab = ({ app }: { app: any }) => {
   // число-мигалка во время локальной анимации (покажем реальное только в фазе result)
   const [fakeNum, setFakeNum] = useState<number | null>(null);
   useEffect(() => {
-    if (!isSpinning) { setFakeNum(null); return; }
+    if (!isSpinning || game !== 'roulette') { setFakeNum(null); return; }
     const t = setInterval(() => setFakeNum(Math.floor(Math.random() * 37)), 90);
     return () => clearInterval(t);
-  }, [isSpinning]);
+  }, [isSpinning, game]);
+
+  // рандомные грани кубиков во время анимации (только на вкладке Кости)
+  const [fakeDice, setFakeDice] = useState<[number, number]>([1, 1]);
+  useEffect(() => {
+    if (!isSpinning || game !== 'dice') return;
+    const t = setInterval(() => setFakeDice([Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1]), 120);
+    return () => clearInterval(t);
+  }, [isSpinning, game]);
+
+  // прогресс гонки 0..1 для анимации машин (только на вкладке Гонки)
+  const raceProgress = (game === 'race' && isSpinning) ? Math.min(1, spinElapsed / SPIN_MS) : 0;
+
+  const DICE_PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  const dieFace = (v: number, rolling: boolean, delay: string) => (
+    <div key={rolling ? `${v}-${delay}` : `st-${v}`} style={{ width: 54, height: 54, background: '#fbf4e4', border: '3px solid #5a4a2f', borderRadius: 10, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)', padding: 6, gap: 2, animation: rolling ? `casinoDiceRoll 0.6s ease-in-out infinite` : 'none', animationDelay: delay }}>
+      {Array.from({ length: 9 }).map((_, i) => <span key={i} style={{ width: '100%', height: '100%', borderRadius: '50%', background: DICE_PIPS[v]?.includes(i) ? '#2f2a1d' : 'transparent', alignSelf: 'center', justifySelf: 'center' }} />)}
+    </div>
+  );
 
   const placeBet = () => action(async () => {
     if (!pid) return showMsg('Сначала зарегистрируйся', true);
@@ -148,24 +166,69 @@ export const CasinoTab = ({ app }: { app: any }) => {
     <div style={{ textAlign: 'center' }}>
       <h2 style={{ fontFamily: "'Russo One', sans-serif", textTransform: 'uppercase', letterSpacing: 1 }}>🎰 Казино «Золотое дно»</h2>
 
-      {/* Табло фазы */}
+      {/* Табло фазы — свой текст под каждую игру */}
       <div style={{ background: '#2f2a1d', color: '#ffd23f', borderRadius: 10, padding: '12px 16px', margin: '10px 0', fontFamily: "'Russo One', sans-serif", boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.08), 0 4px 0 rgba(90,70,40,0.35)' }}>
         {phase === 'betting' && <>⏳ Приём ставок: <span style={{ color: msLeft < 6000 ? '#ff9a8d' : '#ffd23f' }}>{Math.ceil(msLeft / 1000)}с</span></>}
-        {isSpinning && <>🎲 Крутим барабан…</>}
+        {isSpinning && game === 'roulette' && <>🎡 Крутим барабан…</>}
+        {isSpinning && game === 'dice' && <>🎲 Кости летят по столу…</>}
+        {isSpinning && game === 'race' && <>🏁 Машины на старте, гонка пошла!</>}
         {phase === 'spinning' && !isSpinning && <>⏸ Розыгрыш задерживается, ждём новый раунд…</>}
         {phase === 'result' && <>✅ Итоги раунда! Новый через <span style={{ color: '#ffd23f' }}>{Math.max(0, Math.ceil((round ? Number(round.end_time) - now : 0) / 1000))}с</span></>}
       </div>
 
-      {/* Результаты текущего/последнего раунда */}
-      {(round?.roulette_result != null || phase !== 'betting') && (
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', margin: '8px 0' }}>
-          {isSpinning
-            ? <div style={{ width: 54, height: 54, borderRadius: '50%', background: fakeNum != null ? wheelColor(fakeNum) : '#2f2a1d', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Russo One', sans-serif", fontSize: 22, border: '3px solid #f2b632', animation: 'casinoSpin 0.9s linear infinite' }}>{fakeNum ?? '🎡'}</div>
-            : round?.roulette_result != null && <div style={{ width: 54, height: 54, borderRadius: '50%', background: wheelColor(round.roulette_result), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Russo One', sans-serif", fontSize: 22, border: '3px solid #f2b632' }}>{round.roulette_result}</div>}
-          {round?.dice_result != null && <div style={{ padding: '8px 14px', background: '#fbf4e4', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 8, fontFamily: "'Russo One', sans-serif" }}>🎲 {round.dice_result}</div>}
-          {round?.race_winner && <div style={{ padding: '8px 14px', background: '#fbf4e4', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 8, fontFamily: "'Russo One', sans-serif" }}>🏁 {RACE_CARS.find(c => c.id === round.race_winner)?.name || round.race_winner}</div>}
-        </div>
-      )}
+      {/* Визуал текущей игры: крутится ТОЛЬКО активная вкладка */}
+      <div style={{ margin: '8px 0' }}>
+        {game === 'roulette' && (
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {isSpinning
+              ? <div key="reel" style={{ width: 54, height: 54, borderRadius: '50%', background: fakeNum != null ? wheelColor(fakeNum) : '#2f2a1d', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Russo One', sans-serif", fontSize: 22, border: '3px solid #f2b632', animation: `casinoReel ${SPIN_MS}ms cubic-bezier(0.15, 0.9, 0.25, 1) forwards` }}>{fakeNum ?? '🎡'}</div>
+              : round?.roulette_result != null && <div style={{ width: 54, height: 54, borderRadius: '50%', background: wheelColor(round.roulette_result), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Russo One', sans-serif", fontSize: 22, border: '3px solid #f2b632' }}>{round.roulette_result}</div>}
+            {!isSpinning && phase !== 'betting' && round?.roulette_result == null && <div style={{ width: 54, height: 54, borderRadius: '50%', background: '#2f2a1d', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, border: '3px solid #f2b632' }}>🎡</div>}
+          </div>
+        )}
+        {game === 'dice' && (
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+            {isSpinning ? (
+              <>
+                {dieFace(fakeDice[0], true, '0s')}
+                {dieFace(fakeDice[1], true, '0.15s')}
+              </>
+            ) : round?.dice_result != null ? (
+              (() => {
+                // покажем два кубика, дающие сумму результата (или один кубик = результат, если не разложить)
+                const d1 = Math.min(6, Math.max(1, (round.dice_result ?? 7) - 6));
+                const d2 = (round.dice_result ?? 7) - d1;
+                return (
+                  <>
+                    {dieFace(d1, false, '0s')}
+                    {dieFace(d2, false, '0s')}
+                    <div style={{ padding: '8px 14px', background: '#fbf4e4', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 8, fontFamily: "'Russo One', sans-serif" }}>Σ {round.dice_result}</div>
+                  </>
+                );
+              })()
+            ) : (
+              <div style={{ padding: '8px 14px', background: '#fbf4e4', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 8, fontFamily: "'Russo One', sans-serif" }}>🎲 Ждём розыгрыш</div>
+            )}
+          </div>
+        )}
+        {game === 'race' && (
+          <div style={{ background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: '10px 12px', textAlign: 'left' }}>
+            {isSpinning ? (
+              RACE_CARS.map((c, idx) => (
+                <div key={c.id} style={{ position: 'relative', height: 30, marginBottom: 6, overflow: 'hidden', borderBottom: idx < RACE_CARS.length - 1 ? '1px dashed rgba(90,70,40,0.3)' : 'none' }}>
+                  <span style={{ position: 'absolute', left: 0, top: 4, fontSize: 12, fontFamily: "'Russo One', sans-serif", color: '#6b5f45', zIndex: 1 }}>{c.emoji} {c.name}</span>
+                  <span style={{ position: 'absolute', top: 2, fontSize: 20, left: `calc(12% + ${raceProgress * (78 - idx * 3)}%)`, transition: 'left 0.4s linear' }}>💨{c.emoji}</span>
+                  <span style={{ position: 'absolute', right: 0, top: 4, fontSize: 16 }}>🏁</span>
+                </div>
+              ))
+            ) : round?.race_winner ? (
+              <div style={{ fontFamily: "'Russo One', sans-serif", textAlign: 'center' }}>🏆 Победил: {RACE_CARS.find(c => c.id === round.race_winner)?.emoji} {RACE_CARS.find(c => c.id === round.race_winner)?.name || round.race_winner}</div>
+            ) : (
+              <div style={{ fontFamily: "'Russo One', sans-serif", textAlign: 'center', color: '#6b5f45' }}>🏁 Трасса ждёт старта</div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* История рулетки */}
       {history.length > 0 && (
