@@ -81,7 +81,9 @@ begin
         -- старые имена из прошлых версий скрипта:
         'register_player_rpc','set_subscribed_rpc','set_banned_rpc','get_player_by_tg','log_action',
         'tip_barista_rpc','claim_tips_rpc','claim_daily_rpc','brew_start_rpc','rob_business_rpc',
-        'redeem_promo_rpc','admin_give_money_rpc','admin_set_ban_rpc','admin_delete_biz_rpc','claim_daily_rpc'
+        'redeem_promo_rpc','admin_give_money_rpc','admin_set_ban_rpc','admin_delete_biz_rpc','claim_daily_rpc',
+        -- экономика по дизайн-доку (новая версия):
+        'pay_workers_for_batch','collect_coffee_cash_rpc_v2'
       )
   loop
     execute 'drop function if exists ' || r.sig || ' cascade';
@@ -111,6 +113,40 @@ begin
   select * into b from businesses where id = p_biz_id and owner_id = p_player_id for update;
   if not found then raise exception 'not owner'; end if;
   return b;
+end $$;
+
+-- =================== ЭКОНОМИКА ПО ДИЗАЙН-ДОКУ ===================
+-- Число рабочих мест роли в бизнесе (сколько реально нанято).
+create or replace function public.role_count(p_biz_id uuid, p_role text)
+returns int language sql stable as $$
+  select count(*)::int from business_workers where business_id = p_biz_id and role = p_role;
+$$;
+
+-- Выплата ЗП работягам за завершённую партию (салон/цех/стройка).
+-- Строитель/Механик(салон)/Сборщик: 10000 за место. Прораб/Продавец/Инженер: доплата сверху.
+create or replace function public.pay_workers_for_batch(p_biz_id uuid, p_worker_role text, p_boss_role text)
+returns jsonb language plpgsql security definer as $$
+declare worker_pay int; boss_pay int; n int; per_head bigint;
+begin
+  -- ЗП работяги (одинакова во всех трёх бизнесах), но НЕ больше лимита партии:
+  -- стройка: 3 места x 10к = 30к из лимита 50к (Прораб забирает 20к);
+  -- салон/цех: 2 x 10к + 15к начальника = 35к — ровно лимит.
+  worker_pay := 10000;
+  boss_pay   := case p_boss_role when 'Прораб' then 20000 when 'Продавец' then 15000 when 'Инженер' then 15000 else 0 end;
+  n := public.role_count(p_biz_id, p_worker_role);
+
+  if n > 0 then
+    per_head := least(worker_pay::bigint, floor(50000 / n)); -- потолок суммарной ЗП за партию
+    update players set money = coalesce(money,0) + per_head
+    where id in (select player_id from business_workers where business_id = p_biz_id and role = p_worker_role);
+    worker_pay := per_head::int;
+  end if;
+  if boss_pay > 0 and public.role_count(p_biz_id, p_boss_role) > 0 then
+    update players set money = coalesce(money,0) + boss_pay
+    where id in (select player_id from business_workers where business_id = p_biz_id and role = p_boss_role);
+  end if;
+  return jsonb_build_object('worker_pay', worker_pay * n,
+                            'boss_pay',   case when public.role_count(p_biz_id, p_boss_role) > 0 then boss_pay else 0 end);
 end $$;
 
 -- =================== 4. ПРОФИЛЬ / РЕГИСТРАЦИЯ ===================
@@ -241,7 +277,7 @@ create or replace function public.finish_business_timer_rpc(
   p_clear_order boolean default false, p_clear_build boolean default false,
   p_clear_phone_model boolean default false)
 returns jsonb language plpgsql security definer as $$
-declare b businesses; s jsonb; now_ms bigint := floor(extract(epoch from now())*1000); deadline bigint;
+declare b businesses; s jsonb; now_ms bigint := floor(extract(epoch from now())*1000); deadline bigint; pay jsonb;
 begin
   select * into b from businesses where id = p_biz_id for update;
   if not found then return jsonb_build_object('success', false); end if;
@@ -268,62 +304,115 @@ begin
     car_order_end = case when p_clear_order then 0 else car_order_end end,
     build_end     = case when p_clear_build  then 0 else build_end end
   where id = p_biz_id;
-  return jsonb_build_object('success', true);
+
+  -- ЗП за завершённую партию (дизайн-док): работягам + начальнику, если наняты.
+  pay := '{}'::jsonb;
+  if b.biz_type = 'salon' then
+    pay := public.pay_workers_for_batch(p_biz_id, 'Механик', 'Продавец');
+  elsif b.biz_type = 'phone_factory' then
+    pay := public.pay_workers_for_batch(p_biz_id, 'Сборщик', 'Инженер');
+  elsif b.biz_type = 'construction' then
+    pay := public.pay_workers_for_batch(p_biz_id, 'Строитель', 'Прораб');
+  end if;
+
+  return jsonb_build_object('success', true, 'pay', pay);
 end $$;
 
--- Автосалон: старт заказа машин
+-- Автосалон: старт заказа машин.
+-- Сервер сам считает цену партии, длительность (база 15/45 мин) и ШТРАФЫ по дизайн-доку:
+--   без Механика (работяга, макс 2) — заказ не запускается;
+--   без Продавца (начальник) — время x3 + 10% от стоимости партии ("таможня").
 create or replace function public.start_car_order_rpc(
-  p_biz_id uuid, p_player_id uuid, p_model text, p_amount int, p_duration_ms bigint)
+  p_biz_id uuid, p_player_id uuid, p_model text, p_amount int)
 returns jsonb language plpgsql security definer as $$
-declare b businesses; price bigint; end_ms bigint; now_ms bigint := floor(extract(epoch from now())*1000);
+declare b businesses; price bigint; base_ms bigint; end_ms bigint; fine bigint := 0;
+  now_ms bigint := floor(extract(epoch from now())*1000); mech int; seller int;
 begin
   if p_model not in ('lada','toyota') then return jsonb_build_object('error','bad model'); end if;
   if p_amount < 1 or p_amount > 10 then return jsonb_build_object('error','amount 1-10'); end if;
   price := (case p_model when 'lada' then 20000 else 50000 end) * p_amount;
+  base_ms := case p_model when 'lada' then 900000 else 2700000 end; -- 15 / 45 мин
   b := assert_owner(p_biz_id, p_player_id);
+  if b.biz_type <> 'salon' then return jsonb_build_object('error','не автосалон'); end if;
   if coalesce(b.car_order_end,0) > now_ms then return jsonb_build_object('error','уже едут'); end if;
-  end_ms := now_ms + p_duration_ms;
+  if public.money_of(p_player_id) < price then return jsonb_build_object('error','мало денег на партию'); end if;
+  mech   := public.role_count(p_biz_id, 'Механик');
+  seller := public.role_count(p_biz_id, 'Продавец');
+  if mech = 0 then return jsonb_build_object('error','Нет механика — заказ не оформить'); end if;
+  if seller = 0 then base_ms := base_ms * 3; fine := floor(price * 0.10); end if;
+  end_ms := now_ms + base_ms;
   update businesses set car_order_end = end_ms,
-    stock = jsonb_set(jsonb_set(coalesce(stock,'{}'), '{current_model}', to_jsonb(p_model)), '{order_amount}', to_jsonb(p_amount))
+    stock = jsonb_set(jsonb_set(jsonb_set(coalesce(stock,'{}'), '{current_model}', to_jsonb(p_model)),
+      '{order_amount}', to_jsonb(p_amount)), '{order_fine}', to_jsonb(fine))
   where id = p_biz_id;
-  perform change_stats(p_player_id, -price, 0);
-  return jsonb_build_object('money', (select money from players where id = p_player_id), 'car_order_end', end_ms);
+  perform change_stats(p_player_id, -(price + fine), 0);
+  return jsonb_build_object('money', (select money from players where id = p_player_id),
+                            'car_order_end', end_ms, 'fine', fine);
 exception when others then return jsonb_build_object('error','бизнес не твой');
 end $$;
 
--- Стройка: старт строительства дома
-create or replace function public.start_build_rpc(p_biz_id uuid, p_player_id uuid, p_duration_ms bigint)
+-- Заметка для функций ниже: money_of — быстрый читатель баланса (для проверок "мало денег").
+create or replace function public.money_of(p_player_id uuid)
+returns bigint language sql stable security definer as $$
+  select coalesce(money,0)::bigint from players where id = p_player_id;
+$$;
+
+-- Стройка: старт строительства дома.
+-- По дизайн-доку: себестоимость 350 000₽, база 1 час. Без Строителя (макс 3, обязателен) —
+-- стройка не запускается. Без Прораба — время x3 + 5 000₽/час штрафа из кассы (списывается при старте).
+create or replace function public.start_build_rpc(p_biz_id uuid, p_player_id uuid)
 returns jsonb language plpgsql security definer as $$
-declare b businesses; end_ms bigint; now_ms bigint := floor(extract(epoch from now())*1000);
+declare b businesses; end_ms bigint; base_ms bigint := 3600000; fine bigint := 0;
+  now_ms bigint := floor(extract(epoch from now())*1000); builders int; foreman int;
 begin
   b := assert_owner(p_biz_id, p_player_id);
+  if b.biz_type <> 'construction' then return jsonb_build_object('error','не стройтрест'); end if;
   if coalesce(b.build_end,0) > now_ms then return jsonb_build_object('error','стройка идет'); end if;
-  end_ms := now_ms + p_duration_ms;
-  update businesses set build_end = end_ms where id = p_biz_id;
-  perform change_stats(p_player_id, -350000, 0);
-  return jsonb_build_object('money',(select money from players where id=p_player_id),'build_end',end_ms);
+  builders := public.role_count(p_biz_id, 'Строитель');
+  foreman  := public.role_count(p_biz_id, 'Прораб');
+  if builders = 0 then return jsonb_build_object('error','Нет строителей — стройка не начнется'); end if;
+  if foreman = 0 then base_ms := base_ms * 3; fine := 5000; end if; -- 5000₽/час простоя
+  end_ms := now_ms + base_ms;
+  update businesses set build_end = end_ms,
+    stock = jsonb_set(coalesce(stock,'{}'), '{build_fine}', to_jsonb(fine))
+  where id = p_biz_id;
+  perform change_stats(p_player_id, -(350000 + fine), 0);
+  return jsonb_build_object('money',(select money from players where id=p_player_id),'build_end',end_ms,'fine',fine);
 exception when others then return jsonb_build_object('error','бизнес не твой');
 end $$;
 
--- Цех: старт партии телефонов
-create or replace function public.start_phone_order_rpc(p_biz_id uuid, p_player_id uuid, p_model text, p_duration_ms bigint)
+-- Цех: старт партии телефонов.
+-- Кнопочные: 7 000₽ / партия 10 шт / 10 мин. Смартфоны: 25 000₽ / партия 5 шт / 30 мин.
+-- Без Сборщика (макс 2, обязателен) — производство не запускается.
+-- Без Инженера — время x3 + 3 000₽ за простой станка.
+create or replace function public.start_phone_order_rpc(p_biz_id uuid, p_player_id uuid, p_model text)
 returns jsonb language plpgsql security definer as $$
-declare b businesses; price int; end_ms bigint; now_ms bigint := floor(extract(epoch from now())*1000);
+declare b businesses; price int; base_ms bigint; end_ms bigint; fine bigint := 0;
+  now_ms bigint := floor(extract(epoch from now())*1000); asm_ int; eng int;
 begin
   if p_model not in ('button','smartphone') then return jsonb_build_object('error','bad model'); end if;
-  price := case p_model when 'button' then 7000 else 25000 end;
+  price   := case p_model when 'button' then 7000 else 25000 end;
+  base_ms := case p_model when 'button' then 600000 else 1800000 end; -- 10 / 30 мин
   b := assert_owner(p_biz_id, p_player_id);
+  if b.biz_type <> 'phone_factory' then return jsonb_build_object('error','не цех'); end if;
   if coalesce(b.build_end,0) > now_ms then return jsonb_build_object('error','идет производство'); end if;
-  end_ms := now_ms + p_duration_ms;
+  asm_ := public.role_count(p_biz_id, 'Сборщик');
+  eng  := public.role_count(p_biz_id, 'Инженер');
+  if asm_ = 0 then return jsonb_build_object('error','Нет сборщиков — станок стоит'); end if;
+  if eng = 0 then base_ms := base_ms * 3; fine := 3000; end if;
+  end_ms := now_ms + base_ms;
   update businesses set build_end = end_ms,
-    stock = jsonb_set(coalesce(stock,'{}'), '{current_phone_model}', to_jsonb(p_model))
+    stock = jsonb_set(jsonb_set(coalesce(stock,'{}'), '{current_phone_model}', to_jsonb(p_model)),
+      '{prod_fine}', to_jsonb(fine))
   where id = p_biz_id;
-  perform change_stats(p_player_id, -price, 0);
-  return jsonb_build_object('money',(select money from players where id=p_player_id),'build_end',end_ms);
+  perform change_stats(p_player_id, -(price + fine), 0);
+  return jsonb_build_object('money',(select money from players where id=p_player_id),'build_end',end_ms,'fine',fine);
 exception when others then return jsonb_build_object('error','бизнес не твой');
 end $$;
 
--- Кофейня: сбор кассы в карман
+-- Кофейня: сбор кассы в карман.
+-- По дизайн-доку касса уже содержит долю владельца (410 с чашки, без помощника — 440):
+-- распределение чаевых/ЗП происходит при продаже кофе (buy_coffee_rpc).
 create or replace function public.collect_coffee_cash_rpc(p_biz_id uuid, p_player_id uuid)
 returns jsonb language plpgsql security definer as $$
 declare b businesses; amt bigint;
@@ -351,10 +440,15 @@ begin
   return jsonb_build_object('success', true, 'energy', greatest(coalesce(p.energy,0), case when p.has_house then 150 else 100 end));
 end $$;
 
--- Кофейня: покупатель варит кофе у конкретного кафе (касса растёт, brew_end на покупателе).
+-- Кофейня: покупатель варит кофе у конкретного кафе.
+-- Экономика чашки 500₽ по дизайн-доку (всё считает сервер):
+--   Бариста (обязателен, без него кнопка не работает) -> +60 чаевых;
+--   Помощник бариста (опционален) -> +30 чаевых, иначе эти 30 забирает владелец;
+--   Владелец -> 410 в кассу (+30 если помощника нет = 440).
 create or replace function public.buy_coffee_rpc(p_buyer_id uuid, p_cafe_id uuid)
 returns jsonb language plpgsql security definer as $$
 declare p players; c businesses; now_ms bigint := floor(extract(epoch from now())*1000);
+  barista record; helper record; owner_share int;
 begin
   select * into p from players where id = p_buyer_id for update;
   if not found then return jsonb_build_object('error','нет игрока'); end if;
@@ -362,13 +456,29 @@ begin
   select * into c from businesses where id = p_cafe_id and biz_type = 'coffee' for update;
   if not found then return jsonb_build_object('error','кафе не найдено'); end if;
   if coalesce(p.brew_end,0) > now_ms then return jsonb_build_object('error','кофе уже варится'); end if;
+
+  -- бариста обязателен
+  select w.* into barista from business_workers w
+    where w.business_id = p_cafe_id and w.role = 'Бариста' limit 1;
+  if barista.player_id is null then return jsonb_build_object('error','В кафе нет бариста'); end if;
+  -- помощник опционален
+  select w.* into helper from business_workers w
+    where w.business_id = p_cafe_id and w.role = 'Помощник бариста' limit 1;
+
+  owner_share := case when helper.player_id is null then 440 else 410 end;
+
   update players set money = money - 500, brew_end = now_ms + 15000 where id = p_buyer_id;
-  update businesses set coffee_balance = coalesce(coffee_balance,0) + 500 where id = p_cafe_id;
+  update businesses set coffee_balance = coalesce(coffee_balance,0) + owner_share where id = p_cafe_id;
+  -- ЗП работягам капает сразу в чаевые (tip_balance), забираются collect_tips_rpc
+  update players set tip_balance = coalesce(tip_balance,0) + 60 where id = barista.player_id;
+  if helper.player_id is not null then
+    update players set tip_balance = coalesce(tip_balance,0) + 30 where id = helper.player_id;
+  end if;
   -- владельцу кафе капает бонус в referral_balance (собирается через collect_ref_bonus_rpc)
   if c.owner_id is distinct from p_buyer_id then
     update players set referral_balance = coalesce(referral_balance,0) + 25 where id = c.owner_id;
   end if;
-  return jsonb_build_object('brew_end', now_ms + 15000, 'money', p.money - 500);
+  return jsonb_build_object('brew_end', now_ms + 15000, 'money', p.money - 500, 'owner_share', owner_share);
 end $$;
 
 -- =================== 6. ТАКСОПАРК ===================
@@ -390,28 +500,54 @@ begin
 exception when others then return jsonb_build_object('error','бизнес не твой');
 end $$;
 
+-- Таксопарк: сбор дохода. По дизайн-доку:
+--   доход Лада 1000/час, Тойота 1500/час, копится до 8 часов;
+--   без Водителя (макс 2, обязателен) — машины стоят, доход 0;
+--   Водитель забирает 10% от кассы (делит поровну между нанятыми), Механик — 5%;
+--   без Механика износ 50%/час, с ним — обычный 8%/час.
 create or replace function public.taxi_collect_rpc(p_biz_id uuid, p_player_id uuid)
 returns jsonb language plpgsql security definer as $$
-declare b businesses; cars jsonb; car jsonb;
+declare b businesses; cars jsonb; car jsonb; drv record; mech record;
   now_ms bigint := floor(extract(epoch from now())*1000);
-  total bigint := 0; hours numeric; inc int; out jsonb := '[]'::jsonb;
+  total bigint := 0; gross bigint := 0; hours numeric; inc int; wear int;
+  drivers int; out jsonb := '[]'::jsonb; drv_share int; mech_share int;
 begin
   b := assert_owner(p_biz_id, p_player_id);
   if b.biz_type <> 'taxi' then return jsonb_build_object('error','не таксопарк'); end if;
+
+  drivers := public.role_count(p_biz_id, 'Водитель');
+  if drivers = 0 then return jsonb_build_object('error','Нет водителей — машины стоят'); end if;
+  select w.* into mech from business_workers w where w.business_id = p_biz_id and w.role = 'Механик' limit 1;
+  wear := case when mech.player_id is null then 50 else 8 end; -- % износа в час
+
   cars := coalesce(b.stock->'taxi_cars','[]'::jsonb);
   for car in select * from jsonb_array_elements(cars) loop
     if (car->>'health')::int <= 0 then out := out || car; continue; end if;
     hours := least(((now_ms - (car->>'last_claim')::bigint) / 3600000.0)::numeric, 8);
     inc := floor(hours * (case car->>'model' when 'lada' then 1000 else 1500 end))::int;
-    total := total + inc;
+    gross := gross + inc;
     out := out || jsonb_set(
-      jsonb_set(car, '{health}', to_jsonb(greatest(0, (car->>'health')::int - floor(hours*8)::int))),
+      jsonb_set(car, '{health}', to_jsonb(greatest(0, (car->>'health')::int - floor(hours * wear)::int))),
       '{last_claim}', to_jsonb(now_ms));
   end loop;
-  if total = 0 then return jsonb_build_object('error','Еще рано собирать доход'); end if;
+  if gross = 0 then return jsonb_build_object('error','Еще рано собирать доход'); end if;
+
+  -- распределение по дизайн-доку: водители 10%, механик 5%, владельцу 85%
+  drv_share  := floor(gross * 0.10)::int;
+  mech_share := case when mech.player_id is null then 0 else floor(gross * 0.05)::int end;
+  total := gross - drv_share - mech_share;
+
+  if drv_share > 0 then
+    update players set tip_balance = coalesce(tip_balance,0) + floor(drv_share / drivers)
+    where id in (select player_id from business_workers where business_id = p_biz_id and role = 'Водитель');
+  end if;
+  if mech_share > 0 then
+    update players set tip_balance = coalesce(tip_balance,0) + mech_share where id = mech.player_id;
+  end if;
+
   update businesses set stock = jsonb_set(coalesce(stock,'{}'), '{taxi_cars}', out) where id = p_biz_id;
   perform change_stats(p_player_id, total, 0);
-  return jsonb_build_object('income', total,
+  return jsonb_build_object('income', total, 'gross', gross,
     'money', (select money from players where id = p_player_id),
     'stock', jsonb_set(coalesce(b.stock,'{}'), '{taxi_cars}', out));
 exception when others then return jsonb_build_object('error','бизнес не твой');

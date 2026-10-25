@@ -345,7 +345,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
                   </div>
                 ))}
               </div>
-              <Btn variant="primary" onClick={app.collectTaxi} disabled={app.proc || !currentStock.taxi_cars?.length} style={{ marginBottom: 10 }}>Собрать доход</Btn>
+              <Btn variant="primary" onClick={app.collectTaxi} disabled={app.proc || !currentStock.taxi_cars?.length || !app.allWorkers?.some((w: any) => w.business_id === app.myBizs.find((b: any) => b.biz_type === 'taxi')?.id && w.role === 'Водитель')} style={{ marginBottom: 10 }}>{!currentStock.taxi_cars?.length ? 'Нет машин' : !app.allWorkers?.some((w: any) => w.role === 'Водитель' && w.business_id === app.myBizs.find((b: any) => b.biz_type === 'taxi')?.id) ? 'Нужен водитель' : 'Собрать доход'}</Btn>
               <p style={{ fontSize: 12, color: '#8B899A', marginBottom: 5 }}>Добавить машину в парк:</p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <Btn variant="secondary" onClick={() => app.addTaxiCar('lada')} disabled={app.proc} style={{ padding: 10, fontSize: 12 }}>+ Лада</Btn>

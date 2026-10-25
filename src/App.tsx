@@ -5,12 +5,11 @@ import { Send, ShieldAlert } from 'lucide-react';
 import { 
   BOT_USERNAME, CHANNEL_LINK, POLL, 
   BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, TOYOTA_REST_TIME, AVATARS, 
-  getStock, S, BUILDING_TIME, APARTMENTS_PER_BUILD, TAXI_BIZ_PRICE, 
+  getStock, S, APARTMENTS_PER_BUILD, TAXI_BIZ_PRICE, 
   COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, 
   CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, DAILY_REWARDS, 
-  BUTTON_BATCH_TIME, SMARTPHONE_BATCH_SIZE, 
-  SMARTPHONE_BATCH_TIME, JOB_WORK, getDayModifier,
-  LADA_TIME, TOYOTA_TIME
+  SMARTPHONE_BATCH_SIZE, 
+  JOB_WORK, getDayModifier
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
 import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals, CafeTab, JobsTab, ShopTab, InventoryTab } from './tabs';
@@ -538,17 +537,18 @@ export default function App() {
   const orderPhones = (model: 'button' | 'smartphone') => action(async () => {
     const factory = myBizs.find(b => b.biz_type === 'phone_factory');
     if (!factory || phoneProdEnd > 0) return showMsg("Производство уже идет!", true);
+    // По дизайн-доку без Сборщика станок стоит (сервер тоже проверяет).
+    if (!roleCount(factory.id, 'Сборщик')) return showMsg("Нужен хотя бы один сборщик!", true);
 
-    const time = (model === 'button' ? BUTTON_BATCH_TIME : SMARTPHONE_BATCH_TIME) / ((dayMod?.type === 'factory' || dayMod?.type === 'phone_sell') ? 1.5 : 1);
-
-    // Деньги списывает сервер (start_phone_order_rpc), цену клиент не передаёт.
-    const { data, error } = await supabase.rpc('start_phone_order_rpc', { p_biz_id: factory.id, p_player_id: pid, p_model: model, p_duration_ms: Math.round(time) });
+    // Цену партии, длительность и штрафы (Инженер) считает сервер (start_phone_order_rpc).
+    const { data, error } = await supabase.rpc('start_phone_order_rpc', { p_biz_id: factory.id, p_player_id: pid, p_model: model });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
     if (data) {
       setMoney(Number(data.money));
       setPhoneProdEnd(Number(data.build_end));
       setMyBizs(prev => prev.map(b => b.id === factory.id ? { ...b, build_end: Number(data.build_end) } : b));
+      if (Number(data.fine) > 0) showMsg(`Нет инженера: x3 времени + ${data.fine}₽ простоя станка`, true);
     }
     showMsg(`Заказана партия: ${model === 'button' ? 'Кнопочные' : 'Смартфоны'}`); hapticFeedback('heavy');
   });
@@ -559,6 +559,11 @@ export default function App() {
     coffee: COFFEE_BIZ_PRICE, salon: SALON_BIZ_PRICE, construction: CONSTRUCTION_BIZ_PRICE,
     taxi: TAXI_BIZ_PRICE, phone_factory: PHONE_FACTORY_BIZ_PRICE,
   };
+
+  // Сколько мест роли уже нанято в бизнесе (для проверки обязательных ролей на клиенте;
+  // сервер всё равно перепроверяет в start_*_rpc).
+  const roleCount = (bizId: string | undefined, role: string) =>
+    allWorkers.filter(w => w.business_id === bizId && w.role === role).length;
 
   const submitBizName = () => action(async () => {
     if (!buyingType) return;
@@ -612,15 +617,17 @@ export default function App() {
   const orderCar = (model: 'lada' | 'toyota', amount: number) => action(async () => {
     const salon = myBizs.find(b => b.biz_type === 'salon');
     if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едут машины!", true);
+    // По дизайн-доку без Механика заказ не оформить (сервер тоже проверяет).
+    if (!roleCount(salon.id, 'Механик')) return showMsg("Нужен хотя бы один механик!", true);
 
-    // Цену считает и списывает сервер (start_car_order_rpc).
-    const time = model === 'lada' ? LADA_TIME : TOYOTA_TIME;
-    const { data, error } = await supabase.rpc('start_car_order_rpc', { p_biz_id: salon.id, p_player_id: pid, p_model: model, p_amount: amount, p_duration_ms: time });
+    // Цену партии, время (15/45 мин) и штрафы (Продавец) считает сервер (start_car_order_rpc).
+    const { data, error } = await supabase.rpc('start_car_order_rpc', { p_biz_id: salon.id, p_player_id: pid, p_model: model, p_amount: amount });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
     if (data) {
       setMoney(Number(data.money));
       setCarOrderEnd(Number(data.car_order_end));
+      if (Number(data.fine) > 0) showMsg(`Нет продавца: x3 времени + ${data.fine}₽ таможни`, true);
     }
     showMsg(`Заказ на ${amount} ${model === 'lada' ? 'Лад' : 'Тойот'} оформлен!`); hapticFeedback('heavy');
   });
@@ -628,16 +635,18 @@ export default function App() {
   const startBuild = () => action(async () => {
     const constr = myBizs.find(b => b.biz_type === 'construction');
     if (!constr || buildEnd > 0) return showMsg("Стройка уже идет!", true);
+    // По дизайн-доку без Строителя стройка не запускается (сервер тоже проверяет).
+    if (!roleCount(constr.id, 'Строитель')) return showMsg("Нужен хотя бы один строитель!", true);
 
-    // Стоимость стройки списывает сервер (start_build_rpc).
-    const duration = Math.round(BUILDING_TIME / (dayMod?.type === 'build' ? 1.5 : 1));
-    const { data, error } = await supabase.rpc('start_build_rpc', { p_biz_id: constr.id, p_player_id: pid, p_duration_ms: duration });
+    // Стоимость (350к), время (база 1 час) и штраф без Прораба считает сервер (start_build_rpc).
+    const { data, error } = await supabase.rpc('start_build_rpc', { p_biz_id: constr.id, p_player_id: pid });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
     if (data) {
       setMoney(Number(data.money));
       setBuildEnd(Number(data.build_end));
       setMyBizs(prev => prev.map(b => b.id === constr.id ? { ...b, build_end: Number(data.build_end) } : b));
+      if (Number(data.fine) > 0) showMsg(`Нет прораба: x3 времени + ${data.fine}₽/час простоя`, true);
     }
     showMsg("Стройка началась!"); hapticFeedback('heavy');
   });
@@ -671,6 +680,7 @@ export default function App() {
     if (data && data.error) throw new Error(data.error);
     
     setBrewEnd(data.brew_end);
+    if (data.money != null) setMoney(Number(data.money)); // деньги списывает сервер — синхронизируем баланс сразу
     showMsg(`Кофе готовится (15 сек)...`); hapticFeedback('heavy');
   });
 

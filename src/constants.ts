@@ -98,16 +98,33 @@ export const getDayModifier = () => {
   }
 };
 
+// Экономика по дизайн-доку (сервер считает ЗП/штрафы, клиент только показывает):
+// COFFEE: чашка 500₽ -> Бариста 60 + Помощник 30 (если нет — 30 забирает владелец), владельцу 410.
+// SALON: партия — Механик 10000/место (макс 2, обязателен), Продавец 15000 (макс 1).
+//        Без продавца: время x3 + 10% от стоимости партии.
+// PHONE: партия — Сборщик 10000/место (макс 2, обязателен), Инженер 15000 (макс 1).
+//        Без инженера: время x3 + 3000₽ простоя станка.
+// CONSTRUCTION: дом — Строитель 10000/место (макс 3, обязателен), Прораб 20000 (макс 1).
+//        Без прораба: время x3 + 5000₽/час из кассы.
+// TAXI: Водитель 10% от кассы (макс 2, без них доход 0), Механик 5% (макс 1;
+//        без него износ 50%/час вместо 8%/час).
 export const BIZ_JOBS: Record<string, { role: string, salary: number, max: number }[]> = {
   coffee: [
-    { role: 'Бариста', salary: 60, max: 1 },        // ИСПРАВЛЕНО: было 600, стало 60
-    { role: 'Помощник бариста', salary: 30, max: 1 } // ИСПРАВЛЕНО: было 500, стало 30
+    { role: 'Бариста', salary: 60, max: 1 },
+    { role: 'Помощник бариста', salary: 30, max: 1 }
   ],
-  salon: [{ role: 'Механик', salary: 800, max: 1 }, { role: 'Продавец', salary: 1000, max: 1 }],
-  phone_factory: [{ role: 'Сборщик', salary: 900, max: 2 }, { role: 'Инженер', salary: 1200, max: 1 }],
-  taxi: [{ role: 'Водитель', salary: 1000, max: 2 }, { role: 'Механик', salary: 1200, max: 1 }],
-  construction: [{ role: 'Строитель', salary: 1200, max: 3 }, { role: 'Прораб', salary: 1500, max: 1 }]
+  salon: [{ role: 'Механик', salary: 10000, max: 2 }, { role: 'Продавец', salary: 15000, max: 1 }],
+  phone_factory: [{ role: 'Сборщик', salary: 10000, max: 2 }, { role: 'Инженер', salary: 15000, max: 1 }],
+  taxi: [{ role: 'Водитель', salary: 10, max: 2 }, { role: 'Механик', salary: 5, max: 1 }], // % от кассы
+  construction: [{ role: 'Строитель', salary: 10000, max: 3 }, { role: 'Прораб', salary: 20000, max: 1 }]
 };
+
+// Время в пути машин на таможне при заказе партии (без штрафа за отсутствие ролей)
+export const SALON_LADA_BASE_TIME = 900000;   // 15 мин
+export const SALON_TOYOTA_BASE_TIME = 2700000; // 45 мин
+export const FACTORY_BUTTON_BASE_TIME = 600000;   // 10 мин
+export const FACTORY_SMARTPHONE_BASE_TIME = 1800000; // 30 мин
+export const BUILD_BASE_TIME = 3600000; // 1 час
 
 export const S = {
   card: { backgroundColor: '#161324', color: 'white', padding: 20, borderRadius: 24, margin: '0 auto 20px auto', maxWidth: '350px', fontSize: 16, textAlign: 'left' as const, border: '1px solid rgba(255,255,255,0.05)' },
