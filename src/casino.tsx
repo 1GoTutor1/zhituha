@@ -17,25 +17,34 @@ const RACE_CARS: any[] = [
   { id: 'matiz',   name: 'Matiz',       emoji: '🛞', coef: 'x25', ch: '1%' },
 ];
 
-type Round = { id: string; status: 'betting' | 'spinning' | 'result'; end_time: number; roulette_result: number | null; dice_result: number | null; race_winner: string | null };
+type Round = { id: string; status: 'betting' | 'spinning' | 'result'; end_time: number; spin_started_at: number | null; roulette_result: number | null; dice_result: number | null; race_winner: string | null };
+
+const PHASE_TOTALS = { betting: 30000, spinning: 5000, result: 10000 } as const;
 
 export const CasinoTab = ({ app }: { app: any }) => {
   const { pid, money, setMoney, showMsg, hapticFeedback, action } = app;
   const [round, setRound] = useState<Round | null>(null);
-  const [now, setNow] = useState(Date.now());
+  // серверное время: serverNow() = серверный now + разница, измеренная при каждом ответе RPC.
+  // Это убирает рассинхрон таймера из-за часов устройства и сон-режима.
+  const timeRef = useRef<{ offset: number }>({ offset: 0 });
+  const serverNow = () => Date.now() + timeRef.current.offset;
+  const [, setTick] = useState(0); // тик раз в ~250мс для плавного кольца/полоски
   const [game, setGame] = useState<'roulette' | 'dice' | 'race'>('roulette');
   const [choice, setChoice] = useState<string | null>(null);
   const [betAmount, setBetAmount] = useState(1000);
   const [myBets, setMyBets] = useState<any[]>([]);
   const [history, setHistory] = useState<number[]>([]); // последние числа рулетки
   const lastRoundId = useRef<string | null>(null);
+  const loadInFlight = useRef(false);
 
-  // тик таймера каждую секунду (отсчёт = end_time - Date.now())
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  // тик каждые 250мс (requestAnimationFrame пререживается браузером в фоне сам)
+  useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 250); return () => clearInterval(t); }, []);
 
   const loadRound = async () => {
+    if (loadInFlight.current) return; // без наложения запросов
+    loadInFlight.current = true;
     try {
-      // серверный «ленивый» цикл: доводит истёкшие раунды и гарантирует свежий betting
+      const t0 = Date.now();
       let data: any = null;
       const { data: rpcData } = await supabase.rpc('get_casino_round_rpc', { p_player_id: pid || null });
       data = rpcData;
@@ -44,7 +53,12 @@ export const CasinoTab = ({ app }: { app: any }) => {
         data = fallback;
       }
       if (!data) return;
-      const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, race_winner: data.race_winner };
+      // синхронизация часов: compensating delay (как NTP) — берём середину round-trip
+      const rtt = Math.max(0, Date.now() - t0);
+      if (typeof data.server_now === 'number') {
+        timeRef.current.offset = data.server_now - (Date.now() - rtt / 2);
+      }
+      const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), spin_started_at: data.spin_started_at != null ? Number(data.spin_started_at) : null, roulette_result: data.roulette_result, dice_result: data.dice_result, race_winner: data.race_winner };
       setRound(r);
       // мои ставки этого раунда
       if (pid) {
@@ -60,31 +74,36 @@ export const CasinoTab = ({ app }: { app: any }) => {
         if (pl) setMoney(Number(pl.money));
       }
       lastRoundId.current = r.id;
-    } catch {}
+    } catch {} finally { loadInFlight.current = false; }
   };
 
-  // подписка на Realtime + страховочный поллинг раз в 5 сек
+  // подписка на Realtime + страховочный поллинг раз в 4 сек
   useEffect(() => {
     loadRound();
     const ch = (supabase as any)
       .channel('casino_rounds_channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'casino_rounds' }, () => loadRound())
       .subscribe();
-    const poll = setInterval(loadRound, 5000);
+    const poll = setInterval(loadRound, 4000);
     return () => { clearInterval(poll); (supabase as any).removeChannel(ch); };
   }, [pid]);
 
-  // фаза result длится 10 сек — по истечении сами дёргаем сервер, тот закроет раунд и откроет новый betting
-  useEffect(() => {
-    if (round?.status === 'result') {
-      const t = setTimeout(loadRound, 11000);
-      return () => clearTimeout(t);
-    }
-  }, [round?.id, round?.status]);
-
   const phase = round?.status || 'betting';
-  const msLeft = round ? Math.max(0, round.end_time - now) : 0;
+  const msLeft = round ? Math.max(0, round.end_time - serverNow()) : 0;
   const canBet = phase === 'betting' && msLeft > 1500; // запас на сетевую задержку
+
+  // ГЛАВНЫЙ ФИКС ЗАВИСАНИЙ: фазы двигает сервер (ensure_round), но чтобы не ждать поллинга,
+  // в момент реального истечения end_time сами дёргаем сервер ровно ОДИН раз на раунд+фазу.
+  const nudgeKey = useRef<string>('');
+  useEffect(() => {
+    if (!round) return;
+    if (msLeft > 0) return;
+    const key = `${round.id}:${round.status}`;
+    if (nudgeKey.current === key) return;
+    nudgeKey.current = key;
+    const t = setTimeout(loadRound, 600); // небольшой дебаунс, чтобы успел прилететь realtime
+    return () => clearTimeout(t);
+  }, [round?.id, round?.status, msLeft]);
 
   const placeBet = () => action(async () => {
     if (!pid) return showMsg('Сначала зарегистрируйся', true);
@@ -110,19 +129,30 @@ export const CasinoTab = ({ app }: { app: any }) => {
 
   const wheelColor = (n: number) => n === 0 ? '#2c7a3c' : RED_NUMBERS.includes(n) ? '#c0453a' : '#2f2a1d';
 
-  // прогресс текущей фазы для кольца-таймера и полоски
-  const PHASE_TOTAL = phase === 'betting' ? 30000 : phase === 'spinning' ? 5000 : 10000;
+  // прогресс текущей фазы для кольца-таймера и полоски (от конца фазы до её начала)
+  const PHASE_TOTAL = PHASE_TOTALS[phase as keyof typeof PHASE_TOTALS];
   const progress = round ? Math.min(1, Math.max(0, 1 - msLeft / PHASE_TOTAL)) : 0;
   const R = 26, CIRC = 2 * Math.PI * R;
   const ringColor = phase === 'betting' ? (msLeft < 6000 ? '#ff9a8d' : '#ffd23f') : phase === 'spinning' ? '#f2b632' : '#63bd76';
 
-  // локальная «прокрутка» барабана во время spinning — чисто визуальный перебор чисел
+  // локальная «прокрутка» барабана во время spinning — детерминированная по серверному времени:
+  // все игроки видят одинаковые числа в одинаковые моменты (общий синхрон казино).
   const [spinNum, setSpinNum] = useState<number | null>(null);
   useEffect(() => {
     if (phase !== 'spinning') { setSpinNum(null); return; }
-    const t = setInterval(() => setSpinNum(Math.floor(Math.random() * 37)), 120);
+    const start = round?.spin_started_at ?? (round ? round.end_time - PHASE_TOTALS.spinning : serverNow());
+    const calc = () => {
+      const idx = Math.floor((serverNow() - start) / 120); // смена числа каждые 120мс
+      // простой хеш от id раунда + индекса -> число 0..36
+      let h = idx >>> 0;
+      const rid = round?.id || '';
+      for (let i = 0; i < rid.length; i++) h = (Math.imul(h, 31) + rid.charCodeAt(i)) >>> 0;
+      setSpinNum(h % 37);
+    };
+    calc();
+    const t = setInterval(calc, 120);
     return () => clearInterval(t);
-  }, [phase, round?.id]);
+  }, [phase, round?.id, round?.spin_started_at]);
 
   const shownRoulette = phase === 'spinning' ? spinNum : round?.roulette_result ?? null;
 
@@ -138,17 +168,22 @@ export const CasinoTab = ({ app }: { app: any }) => {
     </div>
   );
 
-  // анимация гонки: все машины едут, победитель дальше всех
+  // анимация гонки: все машины едут, победитель дальше всех.
+  // Отсечка = конец фазы spinning минус dur (в CSS-анимации отрицательная задержка = «уже бежит»),
+  // поэтому у всех игроков машины стартуют синхронно по серверному времени и не дёргаются при ререндере.
+  const spinEnd = round?.status === 'spinning' ? round.end_time : (round ? round.end_time - 10000 + 5000 : 0);
   const raceLane = (c: any, idx: number) => {
     const isWinner = round?.race_winner === c.id;
     const dur = isWinner ? 2.2 : 2.2 + idx * 0.35 + (idx % 2) * 0.2;
     const finish = isWinner ? 1 : Math.max(0.35, 1 - (idx * 0.12 + (idx % 3) * 0.07));
+    const elapsed = phase === 'spinning' && round ? (serverNow() - (round.spin_started_at ?? spinEnd - 5000)) / 1000 : 0;
+    const delay = Math.min(0, elapsed - dur); // carRun заканчивается ровно в конце спина
     return (
       <div key={c.id} style={{ position: 'relative', height: 26, marginBottom: 4, background: 'rgba(255,255,255,0.5)', borderRadius: 6, overflow: 'hidden', border: '1px dashed rgba(90,70,40,0.3)' }}>
         <div style={{ position: 'absolute', right: 4, top: 0, bottom: 0, width: 8, backgroundImage: 'repeating-linear-gradient(45deg, #2f2a1d 0 4px, #fff 4px 8px)', opacity: 0.6 }} />
         <div style={{
           position: 'absolute', left: 2, top: 1, fontSize: 20, lineHeight: '24px', width: 30,
-          animation: phase === 'spinning' ? `carRun ${dur}s cubic-bezier(.12,.8,.3,1) forwards` : 'none',
+          animation: phase === 'spinning' ? `carRun ${dur}s cubic-bezier(.12,.8,.3,1) ${delay.toFixed(2)}s forwards` : 'none',
           transform: phase === 'result' ? `translateX(calc(${Math.round(finish * 100)}% - 34px))` : undefined,
           filter: phase === 'result' && !isWinner ? 'grayscale(0.6)' : 'none',
         }}>{c.emoji}</div>
@@ -166,7 +201,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
           <circle cx="32" cy="32" r={R} fill="none" stroke="rgba(255,210,63,0.18)" strokeWidth="6" />
           <circle cx="32" cy="32" r={R} fill="none" stroke={ringColor} strokeWidth="6" strokeLinecap="round"
             strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - progress)}
-            transform="rotate(-90 32 32)" style={{ transition: 'stroke-dashoffset 1s linear' }} />
+            transform="rotate(-90 32 32)" style={{ transition: 'stroke-dashoffset 0.25s linear' }} />
           <text x="32" y="38" textAnchor="middle" fill={ringColor} fontSize="16" fontFamily="'Russo One', sans-serif">{Math.ceil(msLeft / 1000)}</text>
         </svg>
         <div style={{ textAlign: 'left', fontSize: 13 }}>
@@ -178,7 +213,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
 
       {/* Полоска прогресса фазы */}
       <div style={{ height: 6, borderRadius: 3, background: 'rgba(90,70,40,0.2)', overflow: 'hidden', margin: '0 0 10px' }}>
-        <div style={{ height: '100%', width: `${progress * 100}%`, background: ringColor, transition: 'width 1s linear', borderRadius: 3 }} />
+        <div style={{ height: '100%', width: `${progress * 100}%`, background: ringColor, transition: 'width 0.25s linear', borderRadius: 3 }} />
       </div>
 
       {/* Визуализация игры */}

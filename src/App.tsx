@@ -267,7 +267,7 @@ export default function App() {
         supabase.from('players').select('*').eq('telegram_id', uid).maybeSingle(),
         supabase.from('players').select('nickname').eq('referred_by', uid),
         supabase.from('businesses').select('*').eq('owner_id', pid ?? '00000000-0000-0000-0000-000000000000'),
-        supabase.from('businesses').select('id, owner_id, biz_type, business_name, worker_id, worker_name, coffee_balance, last_collected'),
+        supabase.from('businesses').select('id, owner_id, owner_name, biz_type, business_name, worker_id, worker_name, coffee_balance, last_collected'),
         supabase.from('business_workers').select('*')
       ]);
 

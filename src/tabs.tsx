@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy } from 'lucide-react';
 import { 
-  getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
+  getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, // COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE, — скрыты заглушкой «Скоро...»
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
   BUTTON_BATCH_COST, SMARTPHONE_BATCH_COST, BUTTON_BATCH_SIZE, SMARTPHONE_BATCH_SIZE,
   DEFAULT_SELL_LADA, DEFAULT_SELL_TOYOTA, DEFAULT_SELL_APARTMENT, DEFAULT_SELL_PHONE,
@@ -10,14 +10,14 @@ import {
 import { Btn, Modal } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 
-// Карточки быстрой покупки бизнеса на главной (цены = серверные из buy_business_rpc)
-const BIZ_CARDS = [
-  { type: 'coffee', name: 'Кофейня', emoji: '☕', price: COFFEE_BIZ_PRICE },
-  { type: 'salon', name: 'Автосалон', emoji: '🚗', price: SALON_BIZ_PRICE },
-  { type: 'taxi', name: 'Таксопарк', emoji: '🚕', price: TAXI_BIZ_PRICE },
-  { type: 'phone_factory', name: 'Телефонный цех', emoji: '📱', price: PHONE_FACTORY_BIZ_PRICE },
-  { type: 'construction', name: 'Стройтрест', emoji: '🏗', price: CONSTRUCTION_BIZ_PRICE },
-];
+// Карточки быстрой покупки бизнеса на главной (скрыты заглушкой «Скоро...», цены = серверные из buy_business_rpc)
+// const BIZ_CARDS = [
+//   { type: 'coffee', name: 'Кофейня', emoji: '☕', price: COFFEE_BIZ_PRICE },
+//   { type: 'salon', name: 'Автосалон', emoji: '🚗', price: SALON_BIZ_PRICE },
+//   { type: 'taxi', name: 'Таксопарк', emoji: '🚕', price: TAXI_BIZ_PRICE },
+//   { type: 'phone_factory', name: 'Телефонный цех', emoji: '📱', price: PHONE_FACTORY_BIZ_PRICE },
+//   { type: 'construction', name: 'Стройтрест', emoji: '🏗', price: CONSTRUCTION_BIZ_PRICE },
+// ];
 
 export const AppModals = ({ app }: { app: any }) => (
   <>
@@ -184,25 +184,13 @@ export const HomeTab = ({ app }: { app: any }) => {
         </button>
       </div>
 
-      {/* Быстрая покупка бизнеса прямо с главной */}
+      {/* Быстрая покупка бизнеса прямо с главной — временно заглушка */}
       <div style={{ ...S.card, textAlign: 'left', marginBottom: 20, padding: 15 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <Store size={18} color="#5f43a0" />
           <b style={{ fontFamily: 'Russo One, Impact, sans-serif', fontSize: 15 }}>КУПИТЬ БИЗНЕС</b>
         </div>
-        {BIZ_CARDS.map((bc) => {
-          const owned = app.myBizs?.some((b: any) => b.biz_type === bc.type);
-          const afford = (app.money ?? 0) >= bc.price;
-          return (
-            <button key={bc.type} onClick={() => app.quickBuyBiz(bc.type)} disabled={app.proc || (!owned && !afford)}
-              style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: owned ? 'rgba(63,157,85,0.12)' : afford ? '#fbf4e4' : 'rgba(90,70,40,0.05)', border: `1px solid ${owned ? 'rgba(63,157,85,0.4)' : afford ? 'rgba(122,92,184,0.4)' : 'rgba(90,70,40,0.15)'}`, borderRadius: 10, padding: '10px 12px', marginBottom: 8, cursor: owned ? 'pointer' : afford ? 'pointer' : 'not-allowed', color: '#2f2a1d', opacity: owned || afford ? 1 : 0.55 }}>
-              <span style={{ fontWeight: 'bold', fontSize: 14 }}>{bc.emoji} {bc.name}</span>
-              {owned
-                ? <span style={{ color: '#3f9d55', fontWeight: 'bold', fontSize: 12 }}>Открыть →</span>
-                : <span style={{ color: afford ? '#5f43a0' : '#6b5f45', fontWeight: 'bold', fontSize: 13, fontFamily: 'Russo One, Impact, sans-serif' }}>{bc.price.toLocaleString('ru-RU')}₽</span>}
-            </button>
-          );
-        })}
+        <div style={{ width: '100%', padding: '12px 16px', borderRadius: 10, background: 'rgba(90,70,40,0.10)', border: '1px dashed rgba(90,70,40,0.35)', color: '#6b5f45', fontSize: 15, fontWeight: 600, textAlign: 'center', boxSizing: 'border-box' }}>🚧 Скоро...</div>
       </div>
 
       {myCoffee && (
@@ -317,7 +305,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   const prevType = bizTypes[(currentIndex - 1 + 5) % 5];
   const nextType = bizTypes[(currentIndex + 1) % 5];
 
-  const getPrice = (type: string) => type === 'coffee' ? COFFEE_BIZ_PRICE : type === 'salon' ? SALON_BIZ_PRICE : type === 'taxi' ? TAXI_BIZ_PRICE : type === 'phone_factory' ? PHONE_FACTORY_BIZ_PRICE : CONSTRUCTION_BIZ_PRICE;
+  // const getPrice = (type: string) => type === 'coffee' ? COFFEE_BIZ_PRICE : type === 'salon' ? SALON_BIZ_PRICE : type === 'taxi' ? TAXI_BIZ_PRICE : type === 'phone_factory' ? PHONE_FACTORY_BIZ_PRICE : CONSTRUCTION_BIZ_PRICE;
   const getBizName = (type: string) => type === 'coffee' ? 'Кофейня' : type === 'salon' ? 'Автосалон' : type === 'taxi' ? 'Таксопарк' : type === 'phone_factory' ? 'Телефонный цех' : 'Стройтрест';
 
   const bizWorkers = app.allWorkers?.filter((w: any) => w.business_id === activeBiz?.id) || [];
@@ -410,7 +398,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
         <div style={{ ...S.card, textAlign: 'center' }}>
           <Store size={48} color="#5f43a0" style={{ marginBottom: 15 }} />
           <h3>Купить {getBizName(app.activeBizType)}</h3>
-          <Btn variant="purple" onClick={() => app.setBuyingType(app.activeBizType)} disabled={app.proc || app.money < getPrice(app.activeBizType)} style={{ background: app.money < getPrice(app.activeBizType) ? '#e7d9b8' : 'linear-gradient(135deg, #7a5cb8 0%, #7a5cb8 100%)', color: '#f6f2fc' }}>{app.proc ? 'Обработка...' : `Купить за ${getPrice(app.activeBizType).toLocaleString('ru-RU')}`}</Btn>
+          <div style={{ width: '100%', padding: '12px 16px', borderRadius: 14, background: 'rgba(90,70,40,0.10)', border: '1px dashed rgba(90,70,40,0.35)', color: '#6b5f45', fontSize: 15, fontWeight: 600, textAlign: 'center', boxSizing: 'border-box' }}>🚧 Скоро...</div>
         </div>
       )}
     </div>
@@ -697,13 +685,21 @@ export const AdminTab = ({ app }: { app: any }) => {
 
 export const CafeTab = ({ app }: { app: any }) => {
   const hasBarista = app.allWorkers?.some((w: any) => w.business_id === app.selCafe?.id && w.role === 'Бариста');
+  // Фолбэк владельца: owner_name из БД -> имя баристы -> "Народный бизнес" (для старых записей без поля)
+  const getOwnerName = (b: any) => {
+    if (!b) return 'Неизвестно';
+    if (b.owner_name) return b.owner_name;
+    const barista = app.allWorkers?.find((w: any) => w.business_id === b.id && w.role === 'Бариста');
+    if (barista?.player_name) return `${barista.player_name} (бариста)`;
+    return 'Народный бизнес';
+  };
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <button onClick={() => { app.setTab('home'); app.setSelCafe(null); }} style={{ background: 'none', border: 'none', color: '#6b5f45', marginBottom: 20, marginTop: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Кафе</h2>
       {app.bLeft > 0 ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#b06a15" style={{ marginBottom: 15 }} /><h3>Готовим...</h3><p style={{ fontSize: 24, fontWeight: 'bold', color: '#b06a15', fontFamily: 'Russo One' }}>{app.bLeft} сек.</p></div>
-      : app.selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#b06a15" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>{app.selCafe.business_name}</h3><p style={{ color: '#6b5f45', fontSize: 14, marginBottom: 20 }}>Владелец: {app.selCafe.owner_name}</p><Btn variant="yellow" onClick={() => app.buyCoffee(app.selCafe)} disabled={app.proc || app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !hasBarista} style={{ background: (app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !hasBarista) ? '#e7d9b8' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !hasBarista) ? '#6b5f45' : '#3a2c08', marginBottom: 10 }}>{!hasBarista ? 'Нет бариста' : app.energy >= app.maxEnergy ? 'Полная энергия' : app.money < COFFEE_CUP_PRICE ? 'Мало денег' : `Купить кофе за ${COFFEE_CUP_PRICE}`}</Btn><Btn variant="secondary" onClick={() => app.setSelCafe(null)} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Назад</Btn></div>
-      : <div>{app.allBiz.filter((b: any) => b.biz_type === 'coffee').map((b: any) => { const barista = app.allWorkers?.find((w: any) => w.business_id === b.id && w.role === 'Бариста'); return (<div key={b.id} onClick={() => app.setSelCafe(b)} style={{ backgroundColor: '#fbf4e4', padding: 15, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', cursor: 'pointer', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#6b5f45', marginTop: 4 }}>Владелец: {b.owner_name}</div>{!barista && <div style={{ fontSize: 11, color: '#c0453a', marginTop: 2 }}>Нет бариста</div>}</div><span style={{ color: '#b06a15', fontWeight: 'bold' }}>→</span></div>); })}{app.allBiz.filter((b: any) => b.biz_type === 'coffee').length === 0 && <p style={{ color: '#6b5f45' }}>Нет открытых кафе.</p>}</div>}
+      : app.selCafe ? <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={48} color="#b06a15" style={{ marginBottom: 15 }} /><h3 style={{ marginBottom: 5 }}>{app.selCafe.business_name}</h3><p style={{ color: '#6b5f45', fontSize: 14, marginBottom: 20 }}>Владелец: {getOwnerName(app.selCafe)}</p><Btn variant="yellow" onClick={() => app.buyCoffee(app.selCafe)} disabled={app.proc || app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !hasBarista} style={{ background: (app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !hasBarista) ? '#e7d9b8' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: (app.money < COFFEE_CUP_PRICE || app.energy >= app.maxEnergy || !hasBarista) ? '#6b5f45' : '#3a2c08', marginBottom: 10 }}>{!hasBarista ? 'Нет бариста' : app.energy >= app.maxEnergy ? 'Полная энергия' : app.money < COFFEE_CUP_PRICE ? 'Мало денег' : `Купить кофе за ${COFFEE_CUP_PRICE}`}</Btn><Btn variant="secondary" onClick={() => app.setSelCafe(null)} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Назад</Btn></div>
+      : <div>{app.allBiz.filter((b: any) => b.biz_type === 'coffee').map((b: any) => { const barista = app.allWorkers?.find((w: any) => w.business_id === b.id && w.role === 'Бариста'); return (<div key={b.id} onClick={() => app.setSelCafe(b)} style={{ backgroundColor: '#fbf4e4', padding: 15, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', cursor: 'pointer', marginBottom: 10 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}><Coffee size={16} /> {b.business_name}</div><div style={{ fontSize: 12, color: '#6b5f45', marginTop: 4 }}>Владелец: {getOwnerName(b)}</div>{!barista && <div style={{ fontSize: 11, color: '#c0453a', marginTop: 2 }}>Нет бариста</div>}</div><span style={{ color: '#b06a15', fontWeight: 'bold' }}>→</span></div>); })}{app.allBiz.filter((b: any) => b.biz_type === 'coffee').length === 0 && <p style={{ color: '#6b5f45' }}>Нет открытых кафе.</p>}</div>}
     </div>
   );
 };
