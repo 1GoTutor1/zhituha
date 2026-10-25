@@ -5,10 +5,10 @@ import { Send, ShieldAlert } from 'lucide-react';
 import { 
   BOT_USERNAME, CHANNEL_LINK, POLL, 
   BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, TOYOTA_REST_TIME, AVATARS, 
-  getStock, S, BUILDING_PRICE, BUILDING_TIME, APARTMENTS_PER_BUILD, TAXI_BIZ_PRICE, 
-  TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, 
-  CONSTRUCTION_BIZ_PRICE, LADA_PRICE, TOYOTA_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, 
-  BUTTON_BATCH_COST, BUTTON_BATCH_TIME, SMARTPHONE_BATCH_SIZE, SMARTPHONE_BATCH_COST, 
+  getStock, S, BUILDING_TIME, APARTMENTS_PER_BUILD, TAXI_BIZ_PRICE, 
+  COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, 
+  CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, DAILY_REWARDS, 
+  BUTTON_BATCH_TIME, SMARTPHONE_BATCH_SIZE, 
   SMARTPHONE_BATCH_TIME, JOB_WORK, getDayModifier,
   LADA_TIME, TOYOTA_TIME
 } from './constants';
@@ -19,7 +19,10 @@ export default function App() {
   const { user, hapticFeedback, tg, startParam } = useTelegram();
   
   const [loading, setLoading] = useState(true);
-  const [isCheckingSub, setIsCheckingSub] = useState(true);
+  // Подписку больше НЕ проверяем на клиенте (раньше вызывался несуществующий
+  // supabase edge-функция 'check-subscription' — всегда была ошибка).
+  // Проверка подписки сделана на стороне бота: /start без подписки не даёт аккаунт.
+  const [isCheckingSub, setIsCheckingSub] = useState(false);
   const [proc, setProc] = useState(false);
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
@@ -200,6 +203,15 @@ export default function App() {
     }
   };
 
+  // Лёгкий поллинг своих бизнесов (без worker_id/name, без чужих складов).
+  const pollMyBizs = async () => {
+    if (!pid) return;
+    const { data } = await supabase.from('businesses')
+      .select('id, owner_id, biz_type, business_name, stock, coffee_balance, build_end, car_order_end, last_collected, created_at')
+      .eq('owner_id', pid);
+    if (data) setMyBizs(data);
+  };
+
   const loadData = async (silent = false) => {
     if (lock.current) return;
     if (!silent) setLoading(true);
@@ -207,10 +219,13 @@ export default function App() {
       const uid = getUid(); setTgId(uid);
       if (!user?.id) return;
       
-      const [pRes, rRes, bRes, wRes] = await Promise.all([
+      // Экономия трафика: свои бизнесы берём целиком (нужен owner_id для маппинга),
+      // чужие — только карточки кафе (id/имя/воркер) + все воркеры.
+      const [pRes, rRes, myBRes, allBizRes, wRes] = await Promise.all([
         supabase.from('players').select('*').eq('telegram_id', uid).maybeSingle(),
         supabase.from('players').select('nickname').eq('referred_by', uid),
-        supabase.from('businesses').select('*'),
+        supabase.from('businesses').select('*').eq('owner_id', pid ?? '00000000-0000-0000-0000-000000000000'),
+        supabase.from('businesses').select('id, owner_id, biz_type, business_name, worker_id, worker_name, coffee_balance, last_collected'),
         supabase.from('business_workers').select('*')
       ]);
 
@@ -247,13 +262,13 @@ export default function App() {
 
       if (rRes.data) setMyRefs(rRes.data);
       
-      if (bRes.data) {
-        const myBs = bRes.data.filter((x: any) => x.owner_id === d.id);
-        setAllBiz(bRes.data); setMyBizs(myBs);
-        setCarOrderEnd(Number(myBs.find((x: any) => x.biz_type === 'salon')?.car_order_end) || 0);
-        setBuildEnd(Number(myBs.find((x: any) => x.biz_type === 'construction')?.build_end) || 0);
-        setPhoneProdEnd(Number(myBs.find((x: any) => x.biz_type === 'phone_factory')?.build_end) || 0);
+      if (myBRes.data) {
+        setMyBizs(myBRes.data);
+        setCarOrderEnd(Number(myBRes.data.find((x: any) => x.biz_type === 'salon')?.car_order_end) || 0);
+        setBuildEnd(Number(myBRes.data.find((x: any) => x.biz_type === 'construction')?.build_end) || 0);
+        setPhoneProdEnd(Number(myBRes.data.find((x: any) => x.biz_type === 'phone_factory')?.build_end) || 0);
       }
+      if (allBizRes.data) setAllBiz(allBizRes.data);
       
       if (wRes.data) {
         setAllWorkers(wRes.data);
@@ -276,15 +291,27 @@ export default function App() {
     else setLoading(false); 
   }, [user]);
 
+  // Обновление профиля игрока (деньги/энергия/таймеры) — отдельный лёгкий запрос,
+  // чтобы не тянуть ради этого все бизнесы.
+  const refreshProfile = async () => {
+    if (!user?.id || !pid) return;
+    const { data } = await supabase.from('players').select('*').eq('telegram_id', getUid()).maybeSingle();
+    if (!data) return;
+    if (data.is_banned) { setIsBanned(true); return; }
+    setMoney(Number(data.money)); setEnergy(Number(data.energy));
+    setRefBalance(Number(data.referral_balance) || 0); setTipBalance(Number(data.tip_balance) || 0);
+    setBoostEnd(Number(data.boost_end) || 0); setBrewEnd(Number(data.brew_end) || 0);
+  };
+
   useEffect(() => {
-    if (tab === 'market') { loadMarket(); loadData(true); }
-    if (tab === 'shop' || tab === 'inventory') loadData(true);
+    if (tab === 'market') { loadMarket(); refreshProfile(); pollMyBizs(); }
+    if (tab === 'shop' || tab === 'inventory') { refreshProfile(); pollMyBizs(); }
     if (['business', 'jobs', 'cafe'].includes(tab)) {
-      loadData(true);
-      const int = setInterval(() => loadData(true), POLL);
+      refreshProfile(); pollMyBizs();
+      const int = setInterval(() => { refreshProfile(); pollMyBizs(); }, POLL);
       return () => clearInterval(int);
     }
-  }, [tab]);
+  }, [tab, pid]);
 
   useEffect(() => {
     if (onboardStep === 3 && tab === 'business') advanceTutorial(4);
@@ -377,31 +404,24 @@ export default function App() {
     if (refBy) showMsg("Бонус +1000 монет за приглашение!");
   });
 
-  const checkSubOnLoad = async () => {
-    if (!user?.id) { setIsCheckingSub(false); return; }
-    try {
-      const { data, error } = await supabase.functions.invoke('check-subscription', { body: { telegram_id: user.id.toString() } });
-      if (error) throw error;
-      setIsSubscribed(data && data.is_member);
-    } catch (e) { setIsSubscribed(true); } finally { setIsCheckingSub(false); }
-  };
-  
+  // Подписка: берём из БД (столбец is_subscribed пишет бот при /start).
+  // Раньше здесь дергалась несуществующая edge-функция 'check-subscription'.
+  const checkSubOnLoad = async () => { setIsCheckingSub(false); };
+
   useEffect(() => { 
     if (user) checkSubOnLoad(); 
     else setIsCheckingSub(false); 
   }, [user]);
 
   const verifySubscription = async () => {
+    // Кнопка «Я подписался»: отмечаем подписку в БД и пускаем в игру.
+    // Реальную проверку членства в канале делает бот (/start → getChatMember).
     if (!user?.id) return;
     setIsCheckingSub(true); hapticFeedback('medium');
     try {
-      const { data, error } = await supabase.functions.invoke('check-subscription', { body: { telegram_id: user.id.toString() } });
-      if (error) throw error;
-      if (data && data.is_member) {
-        setIsSubscribed(true); if (pid) await sync({ is_subscribed: true });
-        showMsg("Спасибо за подписку! Добро пожаловать!");
-      } else showMsg("Ты еще не подписался на канал!", true);
-    } catch (e) { showMsg("Ошибка проверки. Попробуй позже.", true); } finally { setIsCheckingSub(false); }
+      setIsSubscribed(true); if (pid) await sync({ is_subscribed: true });
+      showMsg("Спасибо за подписку! Добро пожаловать!");
+    } catch (e) { showMsg("Ошибка. Попробуй позже.", true); } finally { setIsCheckingSub(false); }
   };
 
   const drinkTutorialCoffee = () => action(async () => {
@@ -427,17 +447,21 @@ export default function App() {
   const claimDaily = () => action(async () => {
     if (dailyStreak >= 7) return showMsg("Приходи завтра!", true);
     const rw = DAILY_REWARDS[dailyStreak]; const now = Date.now(); const newStreak = dailyStreak + 1;
-    setDailyStreak(newStreak); setIsDailyOpen(false);
+    setIsDailyOpen(false);
     let updates: any = { daily_streak: newStreak, last_claim: now };
     
     if (rw.type === 'money') {
       const finalAmount = boostEnd > now ? Math.floor(rw.amount * 1.1) : rw.amount;
+      // changeStats кидает исключение при ошибке БД/нехватке денег — стейджем только после успеха
       await changeStats(finalAmount, 0);
+      setDailyStreak(newStreak);
       if (rw.boost) { const nb = now + 86400000; setBoostEnd(nb); updates.boost_end = nb; showMsg(`Награда: +${finalAmount} монет и БУСТ x1.1!`); }
       else showMsg(`Награда: +${finalAmount} монет!`);
     } else if (rw.type === 'coffee') {
       const target = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
-      await changeStats(0, target - energy); showMsg(`Награда: Кофе! Энергия восстановлена!`);
+      await changeStats(0, target - energy);
+      setDailyStreak(newStreak);
+      showMsg(`Награда: Кофе! Энергия восстановлена!`);
     }
     await sync(updates); hapticFeedback('heavy');
   });
@@ -445,10 +469,8 @@ export default function App() {
   const addTaxiCar = (model: 'lada' | 'toyota') => action(async () => {
     const taxi = myBizs.find(b => b.biz_type === 'taxi');
     if (!taxi) return;
-    const price = model === 'lada' ? LADA_PRICE : TOYOTA_PRICE;
-    if (money < price) return showMsg("Мало денег!", true);
 
-    // Сервер сам спишет деньги (change_stats) и добавит машину в парк — атомарно.
+    // Цену и списание денег считает сервер (taxi_add_car_rpc).
     const { data, error } = await supabase.rpc('taxi_add_car_rpc', { p_biz_id: taxi.id, p_player_id: pid, p_model: model });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
@@ -459,7 +481,7 @@ export default function App() {
   const collectTaxi = () => action(async () => {
     const taxi = myBizs.find(b => b.biz_type === 'taxi');
     if (!taxi) return;
-    const s = getStock(taxi); let cars = s.taxi_cars || [];
+    const s = getStock(taxi); const cars = s.taxi_cars || [];
     if (!cars.length) return;
 
     // Доход, износ и last_claim считаются на сервере (защита от фрода времени/двойного сбора).
@@ -476,10 +498,8 @@ export default function App() {
   const repairTaxiCar = (index: number) => action(async () => {
     const taxi = myBizs.find(b => b.biz_type === 'taxi');
     if (!taxi) return;
-    const s = getStock(taxi); const cars = [...(s.taxi_cars || [])]; const car = cars[index];
-    const repairCost = car.model === 'lada' ? TAXI_REPAIR_LADA : TAXI_REPAIR_TOYOTA;
-    if (money < repairCost) return showMsg("Мало денег на ремонт", true);
 
+    // Стоимость ремонта и списание — на сервере (taxi_repair_rpc).
     const { data, error } = await supabase.rpc('taxi_repair_rpc', { p_biz_id: taxi.id, p_player_id: pid, p_car_index: index });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
@@ -491,10 +511,9 @@ export default function App() {
     const factory = myBizs.find(b => b.biz_type === 'phone_factory');
     if (!factory || phoneProdEnd > 0) return showMsg("Производство уже идет!", true);
 
-    const price = model === 'button' ? BUTTON_BATCH_COST : SMARTPHONE_BATCH_COST;
-    if (money < price) return showMsg("Мало денег!", true);
     const time = (model === 'button' ? BUTTON_BATCH_TIME : SMARTPHONE_BATCH_TIME) / ((dayMod?.type === 'factory' || dayMod?.type === 'phone_sell') ? 1.5 : 1);
 
+    // Деньги списывает сервер (start_phone_order_rpc), цену клиент не передаёт.
     const { data, error } = await supabase.rpc('start_phone_order_rpc', { p_biz_id: factory.id, p_player_id: pid, p_model: model, p_duration_ms: Math.round(time) });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
@@ -506,15 +525,23 @@ export default function App() {
     showMsg(`Заказана партия: ${model === 'button' ? 'Кнопочные' : 'Смартфоны'}`); hapticFeedback('heavy');
   });
 
+  // Единый источник цены бизнеса (клиент = сервер: buy_business_rpc игнорирует цену клиента,
+  // цена зашита в SQL). Числа должны совпадать с константами в supabase_schema.sql.
+  const BIZ_PRICES: Record<string, number> = {
+    coffee: COFFEE_BIZ_PRICE, salon: SALON_BIZ_PRICE, construction: CONSTRUCTION_BIZ_PRICE,
+    taxi: TAXI_BIZ_PRICE, phone_factory: PHONE_FACTORY_BIZ_PRICE,
+  };
+
   const submitBizName = () => action(async () => {
     if (!buyingType) return;
     const name = bizNameInput.trim();
     if (!/^[A-Za-z0-9 ]{3,20}$/.test(name)) return showMsg("Только англ. буквы и цифры (3-20)", true);
     
-    const price = buyingType === 'coffee' ? COFFEE_BIZ_PRICE : buyingType === 'salon' ? SALON_BIZ_PRICE : buyingType === 'construction' ? CONSTRUCTION_BIZ_PRICE : buyingType === 'taxi' ? TAXI_BIZ_PRICE : PHONE_FACTORY_BIZ_PRICE;
+    const price = BIZ_PRICES[buyingType];
+    if (!price) return showMsg("Неизвестный тип бизнеса", true);
     if (money < price) return showMsg("Не хватает денег", true);
     
-    const { data, error } = await supabase.rpc('buy_business_rpc', { p_owner_id: pid, p_owner_name: nick, p_biz_type: buyingType, p_biz_name: name, p_price: price });
+    const { data, error } = await supabase.rpc('buy_business_rpc', { p_owner_id: pid, p_owner_name: nick, p_biz_type: buyingType, p_biz_name: name });
     if (error) throw error;
     if (data && data.error) throw new Error(data.error);
     
@@ -557,11 +584,8 @@ export default function App() {
   const orderCar = (model: 'lada' | 'toyota', amount: number) => action(async () => {
     const salon = myBizs.find(b => b.biz_type === 'salon');
     if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едут машины!", true);
-    const price = model === 'lada' ? LADA_PRICE : TOYOTA_PRICE;
-    const totalPrice = price * amount;
-    if (money < totalPrice) return showMsg("Мало денег!", true);
 
-    // Сервер: спишет деньги, проверит что заказ нет, поставит car_order_end и current_model/order_amount в stock.
+    // Цену считает и списывает сервер (start_car_order_rpc).
     const time = model === 'lada' ? LADA_TIME : TOYOTA_TIME;
     const { data, error } = await supabase.rpc('start_car_order_rpc', { p_biz_id: salon.id, p_player_id: pid, p_model: model, p_amount: amount, p_duration_ms: time });
     if (error) throw new Error(error.message);
@@ -576,8 +600,8 @@ export default function App() {
   const startBuild = () => action(async () => {
     const constr = myBizs.find(b => b.biz_type === 'construction');
     if (!constr || buildEnd > 0) return showMsg("Стройка уже идет!", true);
-    if (money < BUILDING_PRICE) return showMsg("Мало денег!", true);
 
+    // Стоимость стройки списывает сервер (start_build_rpc).
     const duration = Math.round(BUILDING_TIME / (dayMod?.type === 'build' ? 1.5 : 1));
     const { data, error } = await supabase.rpc('start_build_rpc', { p_biz_id: constr.id, p_player_id: pid, p_duration_ms: duration });
     if (error) throw new Error(error.message);
@@ -605,7 +629,10 @@ export default function App() {
     if (data && data.error) throw new Error(data.error);
     
     setEnergy(maxEnergy);
-    setRestEnd(Date.now() + restTime);
+    // Кулдаун отдыха считает СЕРВЕР (rest_end = now + реальный CD). Клиент просто
+    // показывает таймер до этой метки — раньше тут был рассинхрон (клиент 70с / сервер 90с).
+    setRestEnd(Number(data.rest_end) || (Date.now() + restTime));
+    setTLeft(Math.max(0, Math.ceil(((Number(data.rest_end) || Date.now() + restTime) - Date.now()) / 1000)));
     showMsg(`Энергия восстановлена!`); hapticFeedback('light');
     if (onboardStep === 1) await advanceTutorial(2);
   });

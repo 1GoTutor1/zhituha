@@ -5,111 +5,78 @@
 -- ============================================================
 
 -- =================== 1. ТАБЛИЦЫ ===================
--- (если таблицы уже есть и данные нужны — пропусти этот блок,
---  но сверь колонки с SELECT'ами клиента)
-
-create table if not exists public.players (
-  id uuid primary key default gen_random_uuid(),
-  telegram_id text unique not null,
-  nickname text not null,
-  gender text check (gender in ('male','female')),
-  avatar_id int default 1,
-  role text default 'player',                -- 'player' | 'admin'
-  money bigint default 3500,
-  energy int default 80,
-  phone_count int default 0,
-  has_car boolean default false,
-  car_model text default 'none',             -- 'none'|'lada'|'toyota'
-  has_house boolean default false,
-  house_type text default 'none',            -- 'none'|'apartment'
-  last_rest_time bigint default 0,
-  brew_end bigint default 0,                 -- конец варки кофе (tutorial-кофейня)
-  coffee_balance bigint default 0,           -- касса кофейни игрока
-  referral_balance bigint default 0,
-  tip_balance bigint default 0,
-  daily_streak int default 0,
-  last_claim bigint default 0,
-  boost_end bigint default 0,
-  is_subscribed boolean default true,
-  is_banned boolean default false,
-  onboarding_step int default 0,
-  market_slots int default 3,
-  referred_by text,                          -- telegram_id пригласившего
-  created_at timestamptz default now()
-);
-
-create table if not exists public.businesses (
-  id uuid primary key default gen_random_uuid(),
-  owner_id uuid references public.players(id) on delete cascade,
-  owner_name text,
-  biz_type text not null check (biz_type in ('coffee','salon','construction','taxi','phone_factory')),
-  business_name text,
-  stock jsonb default '{}'::jsonb,           -- {lada:n, toyota:n, apartments:n, button:n, smartphone:n, taxi_cars:[...], current_model, order_amount, current_phone_model}
-  car_order_end bigint default 0,            -- автосалон: когда приедет заказ
-  build_end bigint default 0,                -- стройка/цех: конец производства
-  coffee_balance bigint default 0,           -- касса кофейни
-  created_at timestamptz default now()
-);
-
-create table if not exists public.business_workers (
-  id uuid not null default gen_random_uuid (),
-  business_id uuid null,
-  player_id uuid null,
-  player_name text null,
-  role text not null,
-  salary integer not null,
-  created_at timestamp with time zone null default now(),
-  constraint business_workers_pkey primary key (id),
-  -- ВНИМАНИЕ: в твоей реальной таблице стоит unique (player_id) — один игрок = одна
-  -- работа во всей игре. Клиент это допускает, но RPC ниже проверяет только бизнес.
-  -- Если ограничение не нужно — удали его: alter table public.business_workers drop constraint business_workers_player_id_key;
-  constraint business_workers_player_id_key unique (player_id),
-  constraint business_workers_business_id_fkey foreign KEY (business_id) references businesses (id) on delete CASCADE,
-  constraint business_workers_player_id_fkey foreign KEY (player_id) references players (id) on delete CASCADE
-);
-
--- Твоя реальная схема: item_data text default 'none', нет source/status.
--- source/status в RPC ниже не используются — лот либо есть, либо удалён (снятие = delete).
-create table if not exists public.market_items (
-  id uuid not null default gen_random_uuid (),
-  seller_id uuid null,
-  seller_name text null,
-  item_type text null,
-  price integer null,
-  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
-  item_data text null default 'none'::text,
-  constraint market_items_pkey primary key (id),
-  constraint market_items_seller_id_fkey foreign KEY (seller_id) references players (id) on delete CASCADE
-);
+-- Таблицы players / businesses / business_workers / market_items / promo_codes /
+-- promo_uses / action_logs УЖЕ СУЩЕСТВУЮТ в базе (сверено по твоим CREATE TABLE).
+-- Скрипт их НЕ трогает и НЕ пересоздаёт — только функции и RLS ниже.
 
 -- =================== 2. RLS ===================
-alter table players        enable row level security;
-alter table businesses     enable row level security;
+alter table players          enable row level security;
+alter table businesses       enable row level security;
 alter table business_workers enable row level security;
-alter table market_items   enable row level security;
+alter table market_items     enable row level security;
+alter table promo_codes      enable row level security;
+alter table promo_uses       enable row level security;
+alter table action_logs      enable row level security;
 
 -- Чтение всем (анон-ключ): лидерборд, рынок, витрины салонов и т.д.
-drop policy if exists "read all" on players;        create policy "read all" on players        for select using (true);
-drop policy if exists "read all" on businesses;     create policy "read all" on businesses     for select using (true);
+drop policy if exists "read all" on players;          create policy "read all" on players          for select using (true);
+drop policy if exists "read all" on businesses;       create policy "read all" on businesses       for select using (true);
 drop policy if exists "read all" on business_workers; create policy "read all" on business_workers for select using (true);
-drop policy if exists "read all" on market_items;   create policy "read all" on market_items   for select using (true);
+drop policy if exists "read all" on market_items;     create policy "read all" on market_items     for select using (true);
+drop policy if exists "read all" on promo_codes;      create policy "read all" on promo_codes      for select using (true);
 
 -- Запись с клиента ЗАПРЕЩЕНА везде, кроме регистрации (insert нового игрока).
 -- Все мутации идут через security definer функции ниже.
-drop policy if exists "no update" on players;       create policy "no update" on players       for update using (false);
-drop policy if exists "no delete" on players;       create policy "no delete" on players       for delete using (false);
+drop policy if exists "no update" on players;         create policy "no update" on players         for update using (false);
+drop policy if exists "no delete" on players;         create policy "no delete" on players         for delete using (false);
 drop policy if exists "reg insert" on players;
 create policy "reg insert" on players for insert with check (
   not exists (select 1 from players p2 where p2.telegram_id = players.telegram_id) -- один аккаунт на TG id
-  and coalesce(players.money, 0) <= 5000                                          -- стартовый капитал не накрутишь
+  and coalesce(players.money, 0) <= 5000                                           -- стартовый капитал не накрутишь
 );
-drop policy if exists "no write" on businesses;     create policy "no write" on businesses     for all using (false) with check (false);
+drop policy if exists "no write" on businesses;       create policy "no write" on businesses       for all using (false) with check (false);
 drop policy if exists "no write" on business_workers; create policy "no write" on business_workers for all using (false) with check (false);
-drop policy if exists "no write" on market_items;   create policy "no write" on market_items   for all using (false) with check (false);
+drop policy if exists "no write" on market_items;     create policy "no write" on market_items     for all using (false) with check (false);
+drop policy if exists "no write" on promo_codes;      create policy "no write" on promo_codes      for all using (false) with check (false);
+drop policy if exists "no write" on promo_uses;       create policy "no write" on promo_uses       for all using (false) with check (false);
+drop policy if exists "no direct write logs" on action_logs;
+create policy "no direct write logs" on action_logs for all using (false) with check (false);
 
 -- =================== 3. ХЕЛПЕРЫ ===================
 
 -- Единая точка изменения денег/энергии (используется и bot.js).
+-- ===========================================================================
+-- 0. ГАРАНТИРОВАННОЕ УДАЛЕНИЕ СТАРЫХ ВЕРСИЙ ВСЕХ ФУНКЦИЙ (по всем возможным
+--    сигнатурам). PostgreSQL не даёт менять через CREATE OR REPLACE типы
+--    параметров или возвращаемый тип, поэтому функции сначала удаляются.
+--    Данные таблиц при этом НЕ удаляются!
+-- ===========================================================================
+do $$
+declare r record;
+begin
+  for r in
+    select p.oid::regprocedure::text AS sig
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in (
+        'change_stats','assert_owner','update_profile_rpc','rest_rpc','buy_phone_rpc',
+        'buy_business_rpc','sell_business_rpc','finish_business_timer_rpc','start_car_order_rpc',
+        'start_build_rpc','start_phone_order_rpc','collect_coffee_cash_rpc','collect_coffee_energy_rpc',
+        'buy_coffee_rpc','taxi_add_car_rpc','taxi_collect_rpc','taxi_repair_rpc','hire_worker_rpc',
+        'fire_worker_rpc','quit_job_rpc','list_item_rpc','buy_market_item','cancel_lot_rpc',
+        'add_referral_balance','collect_ref_bonus_rpc','collect_tips_rpc','redeem_promo','reset_game_rpc',
+        'is_admin','log_action_rpc','get_logs_rpc','cleanup_logs_rpc','create_promo_rpc',
+        -- старые имена из прошлых версий скрипта:
+        'register_player_rpc','set_subscribed_rpc','set_banned_rpc','get_player_by_tg','log_action',
+        'tip_barista_rpc','claim_tips_rpc','claim_daily_rpc','brew_start_rpc','rob_business_rpc',
+        'redeem_promo_rpc','admin_give_money_rpc'
+      )
+  loop
+    execute 'drop function if exists ' || r.sig || ' cascade';
+  end loop;
+end $$;
+
 create or replace function public.change_stats(p_player_id uuid, p_money_diff bigint default 0, p_energy_diff int default 0)
 returns jsonb language plpgsql security definer as $$
 declare p players;
@@ -137,10 +104,11 @@ end $$;
 
 -- =================== 4. ПРОФИЛЬ / РЕГИСТРАЦИЯ ===================
 
+-- ВАРИАНТ А (упрощённая авторизация): проверка на клиентской стороне через pid.
+-- Полноценная сверка по Telegram initData будет добавлена позже (вариант Б).
 create or replace function public.update_profile_rpc(p_player_id uuid, p_updates jsonb)
 returns void language plpgsql security definer as $$
 begin
-  if auth.uid() is null then raise exception 'forbidden'; end if; -- TODO: полноценная сверка identity
   update players set
     nickname        = coalesce(p_updates->>'nickname', nickname),
     gender          = coalesce(p_updates->>'gender', gender),
@@ -198,7 +166,9 @@ end $$;
 
 -- =================== 5. БИЗНЕСЫ ===================
 
-create or replace function public.buy_business_rpc(p_player_id uuid, p_biz_type text, p_name text)
+-- Сигнатура = фактический вызов из клиента (App.tsx): p_owner_id/p_owner_name/p_biz_type/p_biz_name/p_price.
+-- Цена берётся с сервера по типу бизнеса (клиентскую p_price игнорируем — защита от читов).
+create or replace function public.buy_business_rpc(p_owner_id uuid, p_owner_name text, p_biz_type text, p_biz_name text, p_price bigint default 0)
 returns jsonb language plpgsql security definer as $$
 declare p players; price int; mine int;
 begin
@@ -206,15 +176,16 @@ begin
     when 'coffee' then 15000 when 'salon' then 150000 when 'taxi' then 300000
     when 'phone_factory' then 300000 when 'construction' then 500000 end;
   if price is null then return jsonb_build_object('error','bad type'); end if;
-  select * into p from players where id = p_player_id for update;
+  select * into p from players where id = p_owner_id for update;
   if not found then return jsonb_build_object('error','player not found'); end if;
-  select count(*) into mine from businesses where owner_id = p_player_id and biz_type = p_biz_type;
+  select count(*) into mine from businesses where owner_id = p_owner_id and biz_type = p_biz_type;
   if mine > 0 then return jsonb_build_object('error','уже есть такой бизнес'); end if;
   if p.money < price then return jsonb_build_object('error','мало денег'); end if;
-  update players set money = money - price where id = p_player_id;
+  update players set money = money - price where id = p_owner_id;
   insert into businesses (owner_id, owner_name, biz_type, business_name)
-  values (p_player_id, p.nickname, p_biz_type, coalesce(nullif(p_name,''), initcap(p_biz_type)));
-  return jsonb_build_object('money', p.money - price);
+  values (p_owner_id, p_owner_name, p_biz_type, coalesce(nullif(p_biz_name,''), initcap(p_biz_type)));
+  perform log_action_rpc(p_owner_id, 'buy_business', jsonb_build_object('type',p_biz_type), -price, p.money - price);
+  return jsonb_build_object('success', true, 'money', p.money - price);
 end $$;
 
 create or replace function public.sell_business_rpc(p_owner_id uuid, p_biz_id uuid)
@@ -575,9 +546,9 @@ end $$;
 
 -- =================== 9. РЕФЕРРЫ / ТИПЫ / ПРОМО ===================
 
-create or replace function public.add_referral_balance(p_player_id uuid, p_amount bigint)
+create or replace function public.add_referral_balance(p_telegram_id text, p_amount bigint)
 returns void language sql security definer as $$
-  update players set referral_balance = coalesce(referral_balance,0) + p_amount where id = p_player_id;
+  update players set referral_balance = coalesce(referral_balance,0) + p_amount where telegram_id = p_telegram_id;
 $$;
 
 create or replace function public.collect_ref_bonus_rpc(p_player_id uuid)
@@ -604,63 +575,49 @@ begin
   return jsonb_build_object('collected', amt, 'money', (select money from players where id = p_player_id));
 end $$;
 
--- Таблица промокодов (если её ещё нет)
-create table if not exists public.promos (
-  code text primary key,
-  reward_type text default 'money',          -- 'money' | 'energy'
-  amount bigint default 0,
-  max_uses int default 100,
-  used int default 0,
-  active boolean default true
-);
-alter table promos enable row level security;
-drop policy if exists "no write" on promos; create policy "no write" on promos for all using (false) with check (false);
+-- Промокоды живут в РЕАЛЬНЫХ таблицах promo_codes + promo_uses (см. CREATE TABLE пользователя).
 
 create or replace function public.redeem_promo(p_code text, p_player_id uuid)
 returns jsonb language plpgsql security definer as $$
-declare pr promos;
+declare pr promo_codes; already boolean;
 begin
-  select * into pr from promos where upper(code) = upper(p_code) and active for update;
+  if p_player_id is null then return jsonb_build_object('error','нет игрока'); end if;
+  select * into pr from promo_codes where upper(code) = upper(trim(p_code)) for update;
   if not found then return jsonb_build_object('error','промокод не найден'); end if;
-  if pr.used >= pr.max_uses then return jsonb_build_object('error','лимит активаций'); end if;
-  update promos set used = used + 1 where code = pr.code;
-  if pr.reward_type = 'money' then perform change_stats(p_player_id, pr.amount, 0);
-  else perform change_stats(p_player_id, 0, pr.amount::int); end if;
-  return jsonb_build_object('success', true, 'amount', pr.amount, 'type', pr.reward_type);
+  if coalesce(pr.used_count,0) >= coalesce(pr.max_uses,100) then return jsonb_build_object('error','лимит активаций'); end if;
+  select exists(select 1 from promo_uses where promo_id = pr.id and player_id = p_player_id) into already;
+  if already then return jsonb_build_object('error','ты уже использовал этот промокод'); end if;
+  insert into promo_uses(promo_id, player_id) values (pr.id, p_player_id);
+  update promo_codes set used_count = coalesce(used_count,0) + 1 where id = pr.id;
+  perform change_stats(p_player_id, pr.amount, 0);
+  perform log_action_rpc(p_player_id, 'promo', jsonb_build_object('code', pr.code), pr.amount,
+                         (select money from players where id = p_player_id));
+  return jsonb_build_object('success', true, 'amount', pr.amount);
 end $$;
 
--- Полный сброс игры (админ-команда /resetgame)
-create or replace function public.reset_game_rpc(p_player_id uuid)
+-- Полный сброс игры (админ-команда /resetgame) — сигнатура как в клиенте: p_admin_id.
+create or replace function public.reset_game_rpc(p_admin_id uuid)
 returns jsonb language plpgsql security definer as $$
 begin
-  delete from businesses where owner_id = p_player_id;
-  delete from business_workers where player_id = p_player_id;
-  update market_items set status = 'cancelled' where seller_id = p_player_id and status = 'active';
+  if not public.is_admin(p_admin_id) then return jsonb_build_object('error','не админ'); end if;
+  delete from businesses where owner_id = p_admin_id;
+  delete from business_workers where player_id = p_admin_id;
+  delete from market_items where seller_id = p_admin_id;
   update players set money = 3500, energy = 80, phone_count = 0, has_car = false, car_model = 'none',
     has_house = false, house_type = 'none', referral_balance = 0, tip_balance = 0,
-    daily_streak = 0, boost_end = 0, brew_end = 0, coffee_balance = 0, market_slots = 3, onboarding_step = 0
-  where id = p_player_id;
+    daily_streak = 0, boost_end = 0, brew_end = 0, market_slots = 3, onboarding_step = 0,
+    last_claim = 0, last_rest_time = 0
+  where id = p_admin_id;
+  perform log_action_rpc(p_admin_id, 'reset_game', '{}'::jsonb, null, null);
   return jsonb_build_object('success', true);
 end $$;
 
 -- =================== 10. АДМИН: ЖУРНАЛЫ И ПРОМОКОДЫ ===================
 
--- Совпадает с реальной схемой Supabase (uuid id + money_delta/money_after)
-create table if not exists public.action_logs (
-  id uuid not null default gen_random_uuid(),
-  created_at timestamp with time zone not null default now(),
-  player_id uuid null references public.players(id) on delete set null,
-  action_type text not null,
-  details jsonb null default '{}'::jsonb,
-  money_delta integer null,
-  money_after integer null
-);
+-- Таблица action_logs уже существует (совпадает с реальной схемой Supabase).
 create index if not exists idx_action_logs_created on public.action_logs using btree (created_at desc);
 create index if not exists idx_action_logs_player on public.action_logs using btree (player_id, created_at desc);
 create index if not exists idx_action_logs_type on public.action_logs using btree (action_type, created_at desc);
-alter table action_logs enable row level security;
-drop policy if exists "no direct write logs" on action_logs;
-create policy "no direct write logs" on action_logs for all using (false) with check (false);
 
 -- Проверка админа по роли в БД (не по клиентскому параметру!)
 create or replace function public.is_admin(p_player_id uuid)
@@ -707,8 +664,8 @@ begin
   if not public.is_admin(p_admin_id) then return jsonb_build_object('error','не админ'); end if;
   if p_code !~ '^[A-Z0-9]{3,20}$' then return jsonb_build_object('error','код: A-Z 0-9, 3-20 символов'); end if;
   if p_amount <= 0 or p_amount > 10000000 then return jsonb_build_object('error','сумма?'); end if;
-  insert into promos (code, amount, max_uses) values (p_code, p_amount, p_max_uses)
-  on conflict (code) do update set amount = excluded.amount, max_uses = excluded.max_uses, used = 0, active = true;
+  insert into promo_codes (code, amount, max_uses, used_count) values (p_code, p_amount, coalesce(p_max_uses,100), 0)
+  on conflict (code) do update set amount = excluded.amount, max_uses = excluded.max_uses, used_count = 0;
   return jsonb_build_object('success', true);
 end $$;
 
