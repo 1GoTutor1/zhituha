@@ -1,7 +1,1 @@
-*.gz
-*.tar.gz
-*.b64
-*.diff
-chunk_*
-part_*
-FULL_FILES_DUMP.txt
+dist/
