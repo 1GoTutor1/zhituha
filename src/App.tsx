@@ -261,7 +261,7 @@ export default function App() {
       if (!d) { if (user?.first_name) setInNick(user.first_name); return; }
       const [myBRes, allBizRes, wRes] = await Promise.all([
         supabase.from('businesses').select('*').eq('owner_id', d.id),
-        supabase.from('businesses').select('id, owner_id, biz_type, business_name, worker_id, worker_name, coffee_balance, last_collected'),
+        supabase.from('businesses').select('id, owner_id, owner_name, biz_type, business_name, worker_id, worker_name, coffee_balance, last_collected'),
         supabase.from('business_workers').select('*')
       ]);
 
