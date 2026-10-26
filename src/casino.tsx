@@ -71,33 +71,25 @@ export const CasinoTab = ({ app }: { app: any }) => {
         const requestMidpoint = (requestStartedAt + Date.now()) / 2;
         serverDriftRef.current = Number(data.server_now) - requestMidpoint;
       }
-      if (!data) {
-        const { data: fallback } = await supabase.from('casino_rounds').select('*').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(1).maybeSingle();
-        data = fallback;
-      }
       if (!data) return;
       const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, dice_first: data.dice_first ?? null, dice_second: data.dice_second ?? null, race_winner: data.race_winner };
       if (!mountedRef.current) return;
       if (r.status !== 'spinning') spinRequestedRef.current = false; // новый раунд — можно снова спросить спин
       setRound(r);
       // мои ставки этого раунда (только когда они реально могут измениться)
-      if (pid && r.status !== 'spinning') {
-        const { data: bets } = await supabase.from('casino_bets').select('game_type,bet_choice,amount,status').eq('player_id', pid).eq('round_id', r.id).order('created_at', { ascending: false });
-        if (mountedRef.current) setMyBets(bets || []);
-      }
+      if (pid && r.status !== 'spinning' && mountedRef.current) setMyBets(data.my_bets || []);
       // история чисел (последние 10 завершённых) — обновляем только на новом раунде, не каждый поллинг
       if (lastRoundId.current !== r.id) {
-        const { data: past } = await supabase.from('casino_rounds').select('roulette_result,dice_result,race_winner').eq('status', 'result').order('created_at', { ascending: false }).limit(10);
+        const past = data.history || [];
         if (mountedRef.current) {
-          const rounds = (past || []).reverse();
+          const rounds = [...past].reverse();
           setRouletteHistory(rounds.map((p: any) => p.roulette_result).filter((n: number | null) => n != null));
           setDiceHistory(rounds.map((p: any) => p.dice_result).filter((n: number | null) => n != null));
           setRaceHistory(rounds.map((p: any) => p.race_winner).filter((winner: string | null) => winner != null));
         }
         // новый розыгрыш завершился — обновим баланс (выигрыши начисляет сервер)
         if (lastRoundId.current && r.status === 'result') {
-          const { data: pl } = await supabase.from('players').select('money').eq('id', pid).maybeSingle();
-          if (pl && mountedRef.current) setMoney(Number(pl.money));
+          if (typeof data.player_money === 'number' && mountedRef.current) setMoney(Number(data.player_money));
         }
       }
       lastRoundId.current = r.id;
@@ -114,12 +106,8 @@ export const CasinoTab = ({ app }: { app: any }) => {
   useEffect(() => {
     mountedRef.current = true;
     loadRound();
-    const ch = (supabase as any)
-      .channel('casino_rounds_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casino_rounds' }, () => loadRound())
-      .subscribe();
     const poll = setInterval(loadRound, 5000);
-    return () => { mountedRef.current = false; clearInterval(poll); (supabase as any).removeChannel(ch); };
+    return () => { mountedRef.current = false; clearInterval(poll); };
   }, [pid, loadRound]);
 
   // «серверное» время (локальное + измеренная поправка) — все анимации считаются ОТ него,

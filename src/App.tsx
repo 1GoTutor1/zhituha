@@ -7,12 +7,22 @@ import {
   BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, TOYOTA_REST_TIME, AVATARS, 
   getStock, S, APARTMENTS_PER_BUILD, TAXI_BIZ_PRICE, 
   COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, 
-  CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE, DAILY_REWARDS, 
+  CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE,
   SMARTPHONE_BATCH_SIZE, 
   JOB_WORK, getDayModifier
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
-import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals, CafeTab, JobsTab, ShopTab, InventoryTab } from './tabs';
+const loadTabs = () => import('./tabs');
+const HomeTab = lazy(() => loadTabs().then((module) => ({ default: module.HomeTab })));
+const MarketTab = lazy(() => loadTabs().then((module) => ({ default: module.MarketTab })));
+const BusinessTab = lazy(() => loadTabs().then((module) => ({ default: module.BusinessTab })));
+const DailyRewardModal = lazy(() => loadTabs().then((module) => ({ default: module.DailyRewardModal })));
+const AdminTab = lazy(() => loadTabs().then((module) => ({ default: module.AdminTab })));
+const AppModals = lazy(() => loadTabs().then((module) => ({ default: module.AppModals })));
+const CafeTab = lazy(() => loadTabs().then((module) => ({ default: module.CafeTab })));
+const JobsTab = lazy(() => loadTabs().then((module) => ({ default: module.JobsTab })));
+const ShopTab = lazy(() => loadTabs().then((module) => ({ default: module.ShopTab })));
+const InventoryTab = lazy(() => loadTabs().then((module) => ({ default: module.InventoryTab })));
 const CasinoTab = lazy(() => import('./casino').then((module) => ({ default: module.CasinoTab })));
 
 export default function App() {
@@ -184,7 +194,7 @@ export default function App() {
 
   // Обновление ТОЛЬКО безопасных полей профиля игрока.
   // Деньги/энергия — исключительно через RPC change_stats.
-  const SYNC_ALLOWED_FIELDS = ['nickname', 'gender', 'avatar_id', 'onboarding_step', 'daily_streak', 'last_claim', 'boost_end', 'is_subscribed', 'market_slots', 'last_rest_time', 'phone_count', 'has_car', 'has_house', 'car_model', 'house_type'];
+  const SYNC_ALLOWED_FIELDS = ['nickname', 'gender', 'avatar_id', 'onboarding_step'];
 
   const sync = async (updates: any) => {
     if (!pid) return false;
@@ -201,17 +211,6 @@ export default function App() {
     if (Object.keys(safe).length === 0) return false;
     const { error } = await supabase.rpc('update_profile_rpc', { p_player_id: pid, p_updates: safe });
     if (error) throw new Error("Ошибка БД: " + error.message);
-    return true;
-  };
-
-  const changeStats = async (moneyDiff: number, energyDiff: number) => {
-    if (!pid) return false;
-    const { data, error } = await supabase.rpc('change_stats', { p_player_id: pid, p_money_diff: moneyDiff, p_energy_diff: energyDiff });
-    if (error) throw new Error("Ошибка баланса: " + error.message);
-    if (data) {
-      setMoney(data.money);
-      setEnergy(data.energy);
-    }
     return true;
   };
 
@@ -254,26 +253,25 @@ export default function App() {
       // снимаем loading и НЕ даём мелькнуть окну «Подпишись на канал», если игрок
       // уже подписан. Остальные данные дозагрузятся в основном запросе ниже.
       if (!silent && !user?.id) {
-        const subRes = await supabase.from('players').select('is_subscribed').eq('telegram_id', uid).maybeSingle();
-        if (subRes.data) {
-          setIsSubscribed(subRes.data.is_subscribed !== false);
-          if (subRes.data.is_subscribed !== false) setLoading(false);
-        }
+        setLoading(false);
       }
       
       // Экономия трафика: свои бизнесы берём целиком (нужен owner_id для маппинга),
       // чужие — только карточки кафе (id/имя/воркер) + все воркеры.
-      const [pRes, rRes, myBRes, allBizRes, wRes] = await Promise.all([
-        supabase.from('players').select('*').eq('telegram_id', uid).maybeSingle(),
-        supabase.from('players').select('nickname').eq('referred_by', uid),
-        supabase.from('businesses').select('*').eq('owner_id', pid ?? '00000000-0000-0000-0000-000000000000'),
+      const profileResponse = await fetch('/api/players', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'me', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+      });
+      const profileResult = await profileResponse.json();
+      if (!profileResponse.ok) throw new Error(profileResult.error || 'Profile request failed');
+      const d = profileResult.player;
+      if (!d) { if (user?.first_name) setInNick(user.first_name); return; }
+      const [myBRes, allBizRes, wRes] = await Promise.all([
+        supabase.from('businesses').select('*').eq('owner_id', d.id),
         supabase.from('businesses').select('id, owner_id, biz_type, business_name, worker_id, worker_name, coffee_balance, last_collected'),
         supabase.from('business_workers').select('*')
       ]);
 
-      if (!pRes.data) { if (user?.first_name) setInNick(user.first_name); return; }
-      
-      const d = pRes.data;
       if (d.is_banned) { setIsBanned(true); setLoading(false); return; }
       
       setPid(d.id); setNick(d.nickname); setGender(d.gender); setAvatarId(d.avatar_id || 1);
@@ -292,7 +290,6 @@ export default function App() {
         if (timeDiff > 86400000) { 
            if (timeDiff > 172800000 && Number(d.daily_streak) !== 0) {
              setDailyStreak(0);
-             await supabase.rpc('update_profile_rpc', { p_player_id: d.id, p_updates: { daily_streak: 0 } });
            }
            setIsDailyOpen(true);
         }
@@ -303,7 +300,7 @@ export default function App() {
       const end = last + cRestTime > Date.now() ? last + cRestTime : 0;
       setRestEnd(end); if (end > 0) setTLeft(Math.max(0, Math.ceil((end - Date.now()) / 1000)));
 
-      if (rRes.data) setMyRefs(rRes.data);
+      if (profileResult.referrals) setMyRefs(profileResult.referrals);
       
       if (myBRes.data) {
         setMyBizs(myBRes.data);
@@ -321,11 +318,12 @@ export default function App() {
   };
 
   const loadMarket = async () => {
-    const [pRes, mRes] = await Promise.all([
-      supabase.from('players').select('nickname, money').order('money', { ascending: false }).limit(10),
+    const [leaderboardResponse, mRes] = await Promise.all([
+      fetch('/api/players', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'leaderboard', init_data: (window as any).Telegram?.WebApp?.initData || '' }) }),
       supabase.from('market_items').select('*').order('created_at', { ascending: false })
     ]);
-    if (pRes.data) setPlayers(pRes.data);
+    const leaderboard = await leaderboardResponse.json();
+    if (leaderboardResponse.ok) setPlayers(leaderboard.players || []);
     if (mRes.data) setMarket(mRes.data);
   };
 
@@ -338,7 +336,9 @@ export default function App() {
   // чтобы не тянуть ради этого все бизнесы.
   const refreshProfile = async () => {
     if (!user?.id || !pid) return;
-    const { data } = await supabase.from('players').select('*').eq('telegram_id', getUid()).maybeSingle();
+    const response = await fetch('/api/players', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'me', init_data: (window as any).Telegram?.WebApp?.initData || '' }) });
+    const result = await response.json();
+    const data = response.ok ? result.player : null;
     if (!data) return;
     if (data.is_banned) { setIsBanned(true); return; }
     setMoney(Number(data.money)); setEnergy(Number(data.energy));
@@ -483,50 +483,38 @@ export default function App() {
   };
 
   const drinkTutorialCoffee = () => action(async () => {
-    const target = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
-    await changeStats(0, target - energy); await advanceTutorial(3);
+    const { data, error } = await supabase.rpc('drink_tutorial_coffee_rpc', { p_player_id: pid });
+    if (error) throw error;
+    if (data?.error) return showMsg(data.error, true);
+    setEnergy(Number(data.energy)); setOnboardStep(3);
     showMsg("Кофе выпит! Энергия восстановлена."); hapticFeedback('heavy');
     await afterAction();
   });
 
-  const addReferralBonus = async (amount: number) => {
-    const { data: me } = await supabase.from('players').select('referred_by').eq('id', pid).single();
-    if (!me?.referred_by) return;
-    let bonus = Math.floor(amount * 0.05);
-    if (dayMod?.type === 'ref') bonus *= 2; 
-    if (bonus > 0) await supabase.rpc('add_referral_balance', { p_telegram_id: me.referred_by, p_amount: bonus });
-  };
-
   const claimTutorialReward = () => action(async () => {
     if (onboardStep !== 5) return;
-    await changeStats(2000, 0); await advanceTutorial(6);
+    const { data, error } = await supabase.rpc('claim_tutorial_reward_rpc', { p_player_id: pid });
+    if (error) throw error;
+    if (data?.error) return showMsg(data.error, true);
+    setMoney(Number(data.money)); setOnboardStep(6);
     showMsg("Туториал пройден! +2000 монет"); hapticFeedback('heavy');
     await afterAction();
   });
 
   const claimDaily = () => action(async () => {
-    if (dailyStreak >= 7) return showMsg("Приходи завтра!", true);
-    const rw = DAILY_REWARDS[dailyStreak]; const now = Date.now(); const newStreak = dailyStreak + 1;
+    const { data, error } = await supabase.rpc('claim_daily_reward_rpc', { p_player_id: pid });
+    if (error) throw error;
+    if (data?.error) return showMsg(data.error, true);
+    setDailyStreak(Number(data.daily_streak) || 0);
     setIsDailyOpen(false);
-    let updates: any = { daily_streak: newStreak, last_claim: now };
-    
-    if (rw.type === 'money') {
-      const finalAmount = boostEnd > now ? Math.floor(rw.amount * 1.1) : rw.amount;
-      // changeStats кидает исключение при ошибке БД/нехватке денег — стейджем только после успеха
-      await changeStats(finalAmount, 0);
-      setDailyStreak(newStreak);
-      if (rw.boost) { const nb = now + 86400000; setBoostEnd(nb); updates.boost_end = nb; showMsg(`Награда: +${finalAmount} монет и БУСТ x1.1!`); }
-      else showMsg(`Награда: +${finalAmount} монет!`);
-    } else if (rw.type === 'coffee') {
-      const target = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
-      await changeStats(0, target - energy);
-      setDailyStreak(newStreak);
-      showMsg(`Награда: Кофе! Энергия восстановлена!`);
-    }
-    await sync(updates); hapticFeedback('heavy');
+    if (typeof data.money === 'number') setMoney(data.money);
+    if (typeof data.energy === 'number') setEnergy(data.energy);
+    if (typeof data.boost_end === 'number') setBoostEnd(data.boost_end);
+    if (data.reward_type === 'money') showMsg(data.boost_awarded ? `Награда: +${data.reward_amount} монет и БУСТ x1.1!` : `Награда: +${data.reward_amount} монет!`);
+    else showMsg('Награда: кофе! Энергия восстановлена!');
+    hapticFeedback('heavy');
     await afterAction();
   });
-
   const addTaxiCar = (model: 'lada' | 'toyota') => action(async () => {
     const taxi = myBizs.find(b => b.biz_type === 'taxi');
     if (!taxi) return;
@@ -692,15 +680,18 @@ export default function App() {
   const work = () => action(async () => {
     const energyCost = hasCar ? 10 : 20;
     if (energy < energyCost) return showMsg("Ты слишком устал!", true);
-    await changeStats(workPay, -energyCost);
-    addReferralBonus(workPay); showMsg(`+${workPay} монет`); hapticFeedback('medium');
+    const { data, error } = await supabase.rpc('work_rpc', { p_player_id: pid });
+    if (error) throw error;
+    if (data?.error) return showMsg(data.error, true);
+    setMoney(Number(data.money)); setEnergy(Number(data.energy));
+    showMsg(`+${data.work_pay} монет`); hapticFeedback('medium');
     await afterAction(); // мгновенное обновление цифр с сервера
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }
   });
 
   const rest = () => action(async () => {
     if (tLeft > 0 || energy >= maxEnergy) return;
-    const { data, error } = await supabase.rpc('rest_rpc', { p_player_id: pid, p_target_energy: maxEnergy });
+    const { data, error } = await supabase.rpc('rest_rpc', { p_player_id: pid });
     if (error) throw error;
     if (data && data.error) throw new Error(data.error);
     
@@ -735,7 +726,6 @@ export default function App() {
     if (data) {
       setMoney(Number(data.money));
       setMyBizs(prev => prev.map(b => b.id === coffeeBiz.id ? { ...b, coffee_balance: 0 } : b));
-      addReferralBonus(Number(data.collected || 0));
       showMsg(`Собрано ${data.collected}`); hapticFeedback('medium');
       await afterAction();
     }
@@ -938,7 +928,8 @@ export default function App() {
 
   return (
     <div style={pageStyle}>
-      <Toast toast={toast} onClose={closeToast} /><DailyRewardModal app={app} /><AppModals app={app} />
+      <Toast toast={toast} onClose={closeToast} />
+      <Suspense fallback={null}><DailyRewardModal app={app} /><AppModals app={app} /></Suspense>
       <Modal open={modifierOpen} onClose={() => setModifierOpen(false)}>
         <div style={{ fontSize: 40, marginBottom: 10 }}>🔥</div>
         <h3 style={{ marginTop: 0, color: dayMod?.color || '#2f2a1d' }}>{dayMod?.name || 'Событие'}</h3>
@@ -947,15 +938,17 @@ export default function App() {
         <Btn variant="secondary" onClick={() => setModifierOpen(false)} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Понятно</Btn>
       </Modal>
 
-      {tab === 'home' && <HomeTab app={app} />}
-      {tab === 'cafe' && <CafeTab app={app} />}
-      {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}
-      {tab === 'jobs' && <JobsTab app={app} />}
-      {tab === 'shop' && <ShopTab app={app} />}
-      {tab === 'market' && <MarketTab app={app} />}
-      {tab === 'inventory' && <InventoryTab app={app} />}
-      {tab === 'casino' && <Suspense fallback={<div className="loading">Загрузка казино…</div>}><CasinoTab app={app} /></Suspense>}
-      {tab === 'admin' && <AdminTab app={app} />}
+      <Suspense fallback={<div className="loading">Загрузка…</div>}>
+        {tab === 'home' && <HomeTab app={app} />}
+        {tab === 'cafe' && <CafeTab app={app} />}
+        {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}
+        {tab === 'jobs' && <JobsTab app={app} />}
+        {tab === 'shop' && <ShopTab app={app} />}
+        {tab === 'market' && <MarketTab app={app} />}
+        {tab === 'inventory' && <InventoryTab app={app} />}
+        {tab === 'casino' && <CasinoTab app={app} />}
+        {tab === 'admin' && <AdminTab app={app} />}
+      </Suspense>
       {tab !== 'admin' && <BottomNav app={app} />}
     </div>
   );

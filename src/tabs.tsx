@@ -513,8 +513,13 @@ export const AdminTab = ({ app }: { app: any }) => {
 
   const handleSearch = async () => { 
     if (!searchQ) return; 
-    const { data } = await app.supabase.from('players').select('*').ilike('nickname', `%${searchQ}%`).limit(5); 
-    setFoundPlayers(data || []); 
+    const response = await fetch('/api/players', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'admin_search', query: searchQ, init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+    });
+    const result = await response.json();
+    if (!response.ok) return app.showMsg(result.error || 'Ошибка поиска', true);
+    setFoundPlayers(result.players || []);
   };
   
   const loadPlayerDetails = async (p: any) => { 

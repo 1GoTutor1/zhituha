@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
 
 const CLIENT_RPCS = new Set([
-  'update_profile_rpc', 'change_stats', 'collect_coffee_energy_rpc', 'finish_business_timer_rpc',
+  'update_profile_rpc', 'work_rpc', 'drink_tutorial_coffee_rpc', 'claim_tutorial_reward_rpc', 'collect_coffee_energy_rpc', 'finish_business_timer_rpc',
   'taxi_add_car_rpc', 'taxi_collect_rpc', 'taxi_repair_rpc', 'start_phone_order_rpc', 'buy_business_rpc',
   'sell_business_rpc', 'cancel_lot_rpc', 'start_car_order_rpc', 'start_build_rpc', 'rest_rpc',
   'buy_coffee_rpc', 'collect_coffee_cash_rpc', 'hire_worker_rpc', 'fire_worker_rpc', 'quit_job_rpc',
@@ -42,19 +42,7 @@ export default async function handler(req, res) {
       for (const key of Object.keys(safeArgs)) {
         if (/^p_(player|owner|buyer|admin)_id$/.test(key)) safeArgs[key] = player.id;
       }
-    }
-    if (name === 'change_stats') {
-      if (!Number.isSafeInteger(safeArgs.p_money_diff) || !Number.isSafeInteger(safeArgs.p_energy_diff ?? 0)) {
-        return res.status(400).json({ error: 'Invalid balance change' });
-      }
-      const { data: budget, error: budgetError } = await sb.rpc('check_player_economy_budget', {
-        p_player_id: player.id,
-        p_money_diff: safeArgs.p_money_diff,
-        p_energy_diff: safeArgs.p_energy_diff ?? 0,
-      });
-      if (budgetError) throw budgetError;
-      if (!budget?.ok) return res.status(429).json({ error: budget?.error || 'Economy limit reached' });
-    }
+    } else if (name === 'get_casino_round_rpc') safeArgs.p_player_id = null;
     if (name === 'add_referral_balance') return res.status(400).json({ error: 'Unsupported RPC' });
     if (name === 'fire_worker_rpc') safeArgs.p_player_id = player.id;
 

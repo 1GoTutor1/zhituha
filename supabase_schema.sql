@@ -19,11 +19,12 @@ alter table promo_uses       enable row level security;
 alter table action_logs      enable row level security;
 
 -- Чтение всем (анон-ключ): лидерборд, рынок, витрины салонов и т.д.
-drop policy if exists "read all" on players;          create policy "read all" on players          for select using (true);
+drop policy if exists "read all" on players;
 drop policy if exists "read all" on businesses;       create policy "read all" on businesses       for select using (true);
 drop policy if exists "read all" on business_workers; create policy "read all" on business_workers for select using (true);
 drop policy if exists "read all" on market_items;     create policy "read all" on market_items     for select using (true);
-drop policy if exists "read all" on promo_codes;      create policy "read all" on promo_codes      for select using (true);
+drop policy if exists "read all" on promo_codes;
+revoke select on promo_codes from public, anon, authenticated;
 
 -- Запись с клиента ЗАПРЕЩЕНА везде, кроме регистрации (insert нового игрока).
 -- Все мутации идут через security definer функции ниже.
@@ -42,6 +43,9 @@ create policy "safe profile update" on players for update
 drop policy if exists "no delete" on players;         create policy "no delete" on players         for delete using (false);
 drop policy if exists "reg insert" on players;
 create policy "reg insert" on players for insert with check (false);
+revoke insert, update, delete on players from public, anon, authenticated;
+revoke select on players from public, anon, authenticated;
+grant select, insert, update, delete on players to service_role;
 drop policy if exists "no write" on businesses;       create policy "no write" on businesses       for all using (false) with check (false);
 drop policy if exists "no write" on business_workers; create policy "no write" on business_workers for all using (false) with check (false);
 drop policy if exists "no write" on market_items;     create policy "no write" on market_items     for all using (false) with check (false);
@@ -69,7 +73,7 @@ begin
     where n.nspname = 'public'
       and p.proname in (
         'change_stats','assert_owner','update_profile_rpc','rest_rpc','buy_phone_rpc',
-        'buy_business_rpc','sell_business_rpc','finish_business_timer_rpc','start_car_order_rpc',
+        'buy_business_rpc','sell_business_rpc','finish_business_timer_rpc','claim_daily_reward_rpc','work_rpc','drink_tutorial_coffee_rpc','claim_tutorial_reward_rpc','start_car_order_rpc',
         'start_build_rpc','start_phone_order_rpc','collect_coffee_cash_rpc','collect_coffee_energy_rpc',
         'buy_coffee_rpc','taxi_add_car_rpc','taxi_collect_rpc','taxi_repair_rpc','hire_worker_rpc',
         'fire_worker_rpc','quit_job_rpc','list_item_rpc','buy_market_item','cancel_lot_rpc',
@@ -158,7 +162,8 @@ create or replace function public.validate_worker_role(
 returns text language plpgsql security definer as $$
 declare b businesses; need int; allowed int; cnt int;
 begin
-  select biz_type into b.biz_type from businesses where id = p_biz_id;
+  if p_role is null or p_salary is null then return 'Некорректная роль'; end if;
+  select biz_type into b.biz_type from businesses where id = p_biz_id and owner_id = p_player_id;
   if not found then return 'бизнес не найден'; end if;
 
   -- один игрок = одна работа во всей игре
@@ -260,19 +265,109 @@ begin
     nickname        = coalesce(p_updates->>'nickname', nickname),
     gender          = coalesce(p_updates->>'gender', gender),
     avatar_id       = coalesce((p_updates->>'avatar_id')::int, avatar_id),
-    onboarding_step = coalesce((p_updates->>'onboarding_step')::int, onboarding_step),
-    daily_streak    = coalesce((p_updates->>'daily_streak')::int, daily_streak),
-    last_claim      = coalesce((p_updates->>'last_claim')::bigint, last_claim),
-    boost_end       = coalesce((p_updates->>'boost_end')::bigint, boost_end),
-    is_subscribed   = coalesce((p_updates->>'is_subscribed')::boolean, is_subscribed),
-    market_slots    = coalesce((p_updates->>'market_slots')::int, market_slots),
-    last_rest_time  = coalesce((p_updates->>'last_rest_time')::bigint, last_rest_time),
-    phone_count     = coalesce((p_updates->>'phone_count')::int, phone_count),
-    car_model       = coalesce(p_updates->>'car_model', car_model),
-    house_type      = coalesce(p_updates->>'house_type', house_type),
-    has_car         = coalesce((p_updates->>'has_car')::boolean, has_car),
-    has_house       = coalesce((p_updates->>'has_house')::boolean, has_house)
+    onboarding_step = greatest(coalesce(onboarding_step, 0), least(6, greatest(0, coalesce((p_updates->>'onboarding_step')::int, onboarding_step))))
   where id = p_player_id;
+end $$;
+
+create or replace function public.claim_daily_reward_rpc(p_player_id uuid)
+returns jsonb language plpgsql security definer as $$
+declare p players; now_ms bigint := floor(extract(epoch from clock_timestamp()) * 1000);
+  elapsed bigint; next_streak int; reward_type text; reward_amount int := 0; next_boost bigint;
+begin
+  select * into p from players where id = p_player_id for update;
+  if not found then return jsonb_build_object('error', 'Игрок не найден'); end if;
+  elapsed := now_ms - coalesce(p.last_claim, 0);
+  if coalesce(p.last_claim, 0) > 0 and elapsed < 86400000 then
+    return jsonb_build_object('error', 'Награда ещё не готова');
+  end if;
+  if coalesce(p.last_claim, 0) > 0 and elapsed <= 172800000 and coalesce(p.daily_streak, 0) >= 7 then
+    return jsonb_build_object('error', 'Приходи завтра');
+  end if;
+  if coalesce(p.last_claim, 0) = 0 or elapsed > 172800000 then next_streak := 1;
+  else next_streak := least(coalesce(p.daily_streak, 0) + 1, 7); end if;
+
+  if next_streak in (1, 3, 5, 7) then
+    reward_type := 'money';
+    reward_amount := case next_streak when 1 then 500 when 3 then 1000 when 5 then 1500 else 3500 end;
+    if coalesce(p.boost_end, 0) > now_ms then reward_amount := floor(reward_amount * 1.1); end if;
+  else
+    reward_type := 'coffee';
+  end if;
+  next_boost := case when next_streak = 7 then now_ms + 86400000 else coalesce(p.boost_end, 0) end;
+
+  update players set
+    daily_streak = next_streak,
+    last_claim = now_ms,
+    boost_end = next_boost,
+    money = coalesce(money, 0) + reward_amount,
+    energy = case when reward_type = 'coffee'
+      then greatest(coalesce(energy, 0), case when has_house then 150 else 100 end)
+      else energy end
+  where id = p_player_id
+  returning * into p;
+  return jsonb_build_object('daily_streak', next_streak, 'reward_type', reward_type,
+    'reward_amount', reward_amount, 'money', p.money, 'energy', p.energy,
+    'boost_end', p.boost_end, 'boost_awarded', next_streak = 7);
+end $$;
+
+create or replace function public.drink_tutorial_coffee_rpc(p_player_id uuid)
+returns jsonb language plpgsql security definer as $$
+declare p players; target_energy int;
+begin
+  select * into p from players where id = p_player_id for update;
+  if not found or coalesce(p.onboarding_step, 0) <> 2 then
+    return jsonb_build_object('error', 'Кофе доступен только на этом шаге обучения');
+  end if;
+  target_energy := case when p.has_house then 150 else 100 end;
+  update players set energy = greatest(coalesce(energy,0), target_energy), onboarding_step = 3
+    where id = p_player_id returning * into p;
+  return jsonb_build_object('energy', p.energy, 'onboarding_step', p.onboarding_step);
+end $$;
+
+create or replace function public.claim_tutorial_reward_rpc(p_player_id uuid)
+returns jsonb language plpgsql security definer as $$
+declare p players;
+begin
+  select * into p from players where id = p_player_id for update;
+  if not found or coalesce(p.onboarding_step, 0) <> 5 then
+    return jsonb_build_object('error', 'Награда доступна только после обучения');
+  end if;
+  update players set money = coalesce(money,0) + 2000, onboarding_step = 6
+    where id = p_player_id returning * into p;
+  return jsonb_build_object('money', p.money, 'onboarding_step', p.onboarding_step);
+end $$;
+
+create or replace function public.work_rpc(p_player_id uuid)
+returns jsonb language plpgsql security definer as $$
+declare p players; business_bonus int; energy_cost int; work_pay int;
+  today text; hash_value bigint := 0; day_index int; i int;
+begin
+  select * into p from players where id = p_player_id for update;
+  if not found then return jsonb_build_object('error', 'Игрок не найден'); end if;
+  energy_cost := case when p.has_car then 10 else 20 end;
+  if coalesce(p.energy,0) < energy_cost then return jsonb_build_object('error', 'Недостаточно энергии'); end if;
+
+  select coalesce(sum(case biz_type when 'coffee' then 5 when 'salon' then 10 when 'taxi' then 15
+    when 'phone_factory' then 20 when 'construction' then 25 else 0 end), 0)::int
+    into business_bonus from businesses where owner_id = p_player_id;
+
+  today := to_char(now() at time zone 'UTC', 'YYYY-MM-DD');
+  for i in 1..length(today) loop
+    hash_value := mod(hash_value * 31 + ascii(substr(today, i, 1)), 4294967296);
+    if hash_value < 0 then hash_value := hash_value + 4294967296; end if;
+    if hash_value >= 2147483648 then hash_value := hash_value - 4294967296; end if;
+  end loop;
+  day_index := mod(abs(hash_value), 10)::int;
+  work_pay := floor((case when day_index = 8 then 225 else 150 end) * (1 + business_bonus / 100.0));
+
+  update players set money = coalesce(money,0) + work_pay, energy = coalesce(energy,0) - energy_cost
+    where id = p_player_id returning * into p;
+  if p.referred_by is not null then
+    update players set referral_balance = coalesce(referral_balance,0) +
+      floor(work_pay * 0.05 * case when day_index = 6 then 2 else 1 end)
+      where telegram_id = p.referred_by;
+  end if;
+  return jsonb_build_object('money', p.money, 'energy', p.energy, 'work_pay', work_pay);
 end $$;
 
 -- Админ: выдать/забрать деньги + лог. Только для роли admin/superadmin.
@@ -294,18 +389,19 @@ begin
 end $$;
 
 -- Отдых (кд от last_rest_time, макс энергия зависит от дома)
-create or replace function public.rest_rpc(p_player_id uuid, p_target_energy int)
+create or replace function public.rest_rpc(p_player_id uuid)
 returns jsonb language plpgsql security definer as $$
-declare p players; now_ms bigint := floor(extract(epoch from now())*1000);
+declare p players; now_ms bigint := floor(extract(epoch from clock_timestamp())*1000); target_energy int;
 begin
   select * into p from players where id = p_player_id for update;
   if not found then return jsonb_build_object('error','player not found'); end if;
   if p.last_rest_time > 0 and now_ms - p.last_rest_time < 90000 then
     return jsonb_build_object('error','Рано отдыхать');
   end if;
-  update players set energy = least(p_target_energy, greatest(coalesce(energy,0), coalesce(p_target_energy,100))),
+  target_energy := case when p.has_house then 150 else 100 end;
+  update players set energy = greatest(coalesce(energy,0), target_energy),
                      last_rest_time = now_ms where id = p_player_id;
-  return jsonb_build_object('energy', least(p_target_energy, 200), 'rest_end', now_ms + 90000);
+  return jsonb_build_object('energy', greatest(coalesce(p.energy,0), target_energy), 'rest_end', now_ms + 90000);
 end $$;
 
 -- Телефон: покупка/сдача (влияет на market_slots)
@@ -521,13 +617,18 @@ end $$;
 -- распределение чаевых/ЗП происходит при продаже кофе (buy_coffee_rpc).
 create or replace function public.collect_coffee_cash_rpc(p_biz_id uuid, p_player_id uuid)
 returns jsonb language plpgsql security definer as $$
-declare b businesses; amt bigint;
+declare b businesses; amt bigint; referrer_tg text;
 begin
   b := assert_owner(p_biz_id, p_player_id);
   amt := coalesce(b.coffee_balance, 0);
   if amt <= 0 then return jsonb_build_object('error','касса пуста'); end if;
   update businesses set coffee_balance = 0 where id = p_biz_id;
   perform change_stats(p_player_id, amt, 0);
+  select referred_by into referrer_tg from players where id = p_player_id;
+  if referrer_tg is not null then
+    update players set referral_balance = coalesce(referral_balance,0) + floor(amt * 0.05)
+      where telegram_id = referrer_tg;
+  end if;
   return jsonb_build_object('collected', amt, 'money', (select money from players where id = p_player_id));
 exception when others then return jsonb_build_object('error','бизнес не твой');
 end $$;
@@ -724,8 +825,15 @@ create or replace function public.list_item_rpc(
 returns jsonb language plpgsql security definer as $$
 declare p players; b businesses; used int; cap int;
 begin
-  if p_price <= 0 or p_price > 100000000 then return jsonb_build_object('error','цена?'); end if;
+  if p_price is null or p_price <= 0 or p_price > 100000000 then return jsonb_build_object('error','цена?'); end if;
   if p_source not in ('personal','stock') then return jsonb_build_object('error','source?'); end if;
+  if p_bonus_slots < 0 or p_bonus_slots > 2 then return jsonb_build_object('error','bonus slots?'); end if;
+  if p_item_type is null or p_item_data is null or not ((p_item_type = 'phone' and
+       ((p_source = 'stock' and p_item_data in ('button','smartphone')) or (p_source = 'personal' and p_item_data = 'phone')))
+       or (p_item_type = 'car' and p_item_data in ('lada','toyota'))
+       or (p_item_type = 'house' and p_item_data = 'apartment')) then
+    return jsonb_build_object('error','invalid item');
+  end if;
   select * into p from players where id = p_seller_id for update;
   if not found then return jsonb_build_object('error','нет игрока'); end if;
   select count(*) into used from market_items where seller_id = p_seller_id;
@@ -766,10 +874,11 @@ end $$;
 
 -- Покупка лота: деньги buyer→seller минус комиссия, лот удаляется (DELETE).
 -- item_data хранится как 'personal:<тип>' / 'stock:<тип>'.
-create or replace function public.buy_market_item(p_buyer_id uuid, p_item_id uuid, p_commission_percent int default 10)
+create or replace function public.buy_market_item(p_buyer_id uuid, p_item_id uuid, p_commission_percent int default 5)
 returns jsonb language plpgsql security definer as $$
-declare m market_items; buyer players; payout bigint; real_data text;
+declare m market_items; buyer players; payout bigint; real_data text; item_source text;
 begin
+  if p_commission_percent is null or p_commission_percent not in (0, 5) then return jsonb_build_object('error','invalid commission'); end if;
   select * into m from market_items where id = p_item_id for update;
   if not found then return jsonb_build_object('error','лот не найден'); end if;
   if m.seller_id = p_buyer_id then return jsonb_build_object('error','себе не продашь'); end if;
@@ -778,9 +887,28 @@ begin
   if buyer.money < m.price then return jsonb_build_object('error','мало денег'); end if;
 
   real_data := split_part(m.item_data, ':', 2);   -- 'personal:lada' -> 'lada'
+  item_source := split_part(m.item_data, ':', 1);
+  if m.item_type is null or real_data is null or not ((m.item_type = 'phone' and
+       ((item_source = 'stock' and real_data in ('button','smartphone')) or (item_source = 'personal' and real_data = 'phone')))
+       or (m.item_type = 'car' and real_data in ('lada','toyota'))
+       or (m.item_type = 'house' and real_data = 'apartment')) then
+    return jsonb_build_object('error','invalid item');
+  end if;
+  if (m.item_type = 'phone' and coalesce(buyer.phone_count,0) > 0)
+     or (m.item_type = 'car' and coalesce(buyer.has_car,false))
+     or (m.item_type = 'house' and coalesce(buyer.has_house,false)) then
+    return jsonb_build_object('error','item already owned');
+  end if;
   delete from market_items where id = p_item_id;
   perform change_stats(p_buyer_id, -m.price, 0);
-  payout := m.price - floor(m.price * coalesce(p_commission_percent,10) / 100.0);
+  update players set
+    phone_count = case when m.item_type = 'phone' then coalesce(phone_count,0) + 1 else phone_count end,
+    has_car = case when m.item_type = 'car' then true else has_car end,
+    car_model = case when m.item_type = 'car' then real_data else car_model end,
+    has_house = case when m.item_type = 'house' then true else has_house end,
+    house_type = case when m.item_type = 'house' then real_data else house_type end
+  where id = p_buyer_id;
+  payout := m.price - floor(m.price * p_commission_percent / 100.0);
   perform change_stats(m.seller_id, payout, 0);
   return jsonb_build_object('success', true, 'item_type', m.item_type, 'item_data', real_data,
                             'money', buyer.money - m.price);
@@ -1009,8 +1137,9 @@ create index if not exists idx_casino_bets_player on casino_bets (player_id, cre
 
 alter table casino_rounds enable row level security;
 alter table casino_bets   enable row level security;
-drop policy if exists "read all" on casino_rounds; create policy "read all" on casino_rounds for select using (true);
-drop policy if exists "read all" on casino_bets;   create policy "read all" on casino_bets   for select using (true);
+drop policy if exists "read all" on casino_rounds;
+drop policy if exists "read all" on casino_bets;
+revoke select on casino_rounds, casino_bets from public, anon, authenticated;
 drop policy if exists "no write" on casino_rounds; create policy "no write" on casino_rounds for all using (false) with check (false);
 drop policy if exists "no write" on casino_bets;   create policy "no write" on casino_bets   for all using (false) with check (false);
 
@@ -1270,6 +1399,14 @@ begin
     'id', r.id, 'status', r.status, 'end_time', r.end_time,
     'roulette_result', r.roulette_result, 'dice_result', r.dice_result,
     'dice_first', r.dice_first, 'dice_second', r.dice_second, 'race_winner', r.race_winner,
+    'my_bets', coalesce((select jsonb_agg(jsonb_build_object(
+      'game_type', game_type, 'bet_choice', bet_choice, 'amount', amount, 'status', status
+    ) order by created_at desc) from casino_bets where round_id = r.id and player_id = p_player_id), '[]'::jsonb),
+    'history', coalesce((select jsonb_agg(jsonb_build_object(
+      'roulette_result', h.roulette_result, 'dice_result', h.dice_result, 'race_winner', h.race_winner
+    )) from (select roulette_result, dice_result, race_winner from casino_rounds
+            where status = 'result' order by created_at desc limit 10) h), '[]'::jsonb),
+    'player_money', (select money from players where id = p_player_id),
     'server_now', floor(extract(epoch from clock_timestamp())*1000));
 end $$;
 
