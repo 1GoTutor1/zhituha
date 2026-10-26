@@ -444,19 +444,22 @@ export default function App() {
     let refBy = startParam ? (startParam.startsWith('ref_') ? startParam.split('_')[1] : startParam) : null;
     if (refBy === getUid()) refBy = null;
     
-    const { data, error } = await supabase.from('players').insert([{ 
-      telegram_id: getUid(), nickname: final, gender: selG, avatar_id: avatarId, 
-      money: refBy ? 4500 : 3500, energy: 80, phone_count: 0, has_car: false, has_house: false, 
-      last_rest_time: 0, referred_by: refBy, is_subscribed: true, role: 'player', onboarding_step: 0, market_slots: 3 
-    }]).select().single();
-    
-    if (error) throw error;
-    if (refBy && data) {
-      const { data: rUser } = await supabase.from('players').select('id').eq('telegram_id', refBy).single();
-      if (rUser) await supabase.rpc('change_stats', { p_player_id: rUser.id, p_money_diff: 500, p_energy_diff: 0 });
-    }
+    const response = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        init_data: (window as any).Telegram?.WebApp?.initData || '',
+        nickname: final,
+        gender: selG,
+        avatar_id: avatarId,
+        referrer_id: refBy,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.player) throw new Error(result.error || 'Не удалось создать аккаунт');
+    const data = result.player;
     setPid(data.id); setNick(final); setGender(selG);
-    if (refBy) showMsg("Бонус +1000 монет за приглашение!");
+    if (result.referred) showMsg("Бонус +1000 монет за приглашение!");
   });
 
   // Подписка: берём из БД (столбец is_subscribed пишет бот при /start).

@@ -41,10 +41,7 @@ create policy "safe profile update" on players for update
   );
 drop policy if exists "no delete" on players;         create policy "no delete" on players         for delete using (false);
 drop policy if exists "reg insert" on players;
-create policy "reg insert" on players for insert with check (
-  not exists (select 1 from players p2 where p2.telegram_id = players.telegram_id) -- один аккаунт на TG id
-  and coalesce(players.money, 0) <= 5000                                           -- стартовый капитал не накрутишь
-);
+create policy "reg insert" on players for insert with check (false);
 drop policy if exists "no write" on businesses;       create policy "no write" on businesses       for all using (false) with check (false);
 drop policy if exists "no write" on business_workers; create policy "no write" on business_workers for all using (false) with check (false);
 drop policy if exists "no write" on market_items;     create policy "no write" on market_items     for all using (false) with check (false);
