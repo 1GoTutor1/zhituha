@@ -25,10 +25,17 @@ const CAR_FINISH_PCT = 88;   // финиш у 🏁 — машина доезжа
 
 // easeOutCubic: быстрый старт -> плавное замедление и точная остановка на финише (t=1 => 1)
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+// Гонка разгоняется плавно и финиширует в пределах общего серверного spin-интервала.
+const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-// порядок финиша машин фиксирован по id (не зависит от порядка списка): аутсайдер финиширует первым,
-// фаворит — последним ровно в конце спина; остальные дожидаются его у финиша (анимация НЕ рестартует)
-const CAR_FINISH_ORDER: Record<string, number> = { matiz: 0.55, priora: 0.66, lada: 0.76, toyota: 0.85, bmw: 0.93, skyline: 1 };
+// Порядок остальных машин задаёт визуальный заезд, но победитель всегда берётся из результата сервера.
+const RACE_FINISH_SEQUENCE = ['matiz', 'priora', 'lada', 'toyota', 'bmw', 'skyline'];
+const RACE_LOSER_FINISH_AT = [0.84, 0.88, 0.92, 0.96, 0.985];
+const raceFinishAt = (carId: string, winnerId: string | null) => {
+  if (carId === winnerId) return 1;
+  const losers = RACE_FINISH_SEQUENCE.filter(id => id !== winnerId);
+  return RACE_LOSER_FINISH_AT[losers.indexOf(carId)] ?? 0.96;
+};
 
 export const CasinoTab = ({ app }: { app: any }) => {
   const { pid, money, setMoney, showMsg, hapticFeedback, action } = app;
@@ -369,12 +376,11 @@ export const CasinoTab = ({ app }: { app: any }) => {
           <div style={{ background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: '10px 12px', textAlign: 'left' }}>
             {phase === 'spinning' ? (
               RACE_CARS.map((c, idx) => {
-                // позиции считаются из ПРОГРЕССА СПИНА (общие серверные часы): каждая машина
-                // доезжает к своей доле дистанции и стоит там, а лидер — ровно к концу спина.
-                // Никаких CSS-циклов: анимация не рестартует и дожидается итогов.
-                const finishAt = CAR_FINISH_ORDER[c.id] ?? 1;
+                // Позиции привязаны к серверному результату и общему времени раунда:
+                // победитель финиширует последним ровно к концу spin, остальные — перед ним.
+                const finishAt = raceFinishAt(c.id, round?.race_winner ?? null);
                 const localT = Math.min(1, spinT / finishAt);
-                const pos = CAR_START_PCT + (CAR_FINISH_PCT - CAR_START_PCT) * easeOutCubic(localT);
+                const pos = CAR_START_PCT + (CAR_FINISH_PCT - CAR_START_PCT) * easeInOutCubic(localT);
                 const finished = localT >= 1;
                 return (
                   <div key={c.id} style={{ position: 'relative', height: 30, marginBottom: 6, overflow: 'hidden', borderBottom: idx < RACE_CARS.length - 1 ? '1px dashed rgba(90,70,40,0.3)' : 'none' }}>
