@@ -33,16 +33,8 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     if (user.verified) { setAuthChecked(true); return; }
-    const int = setInterval(async () => {
-      try {
-        const telegram = (window as any).Telegram?.WebApp;
-        const r = await fetch('/api/auth', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ init_data: telegram?.initData || '' }) });
-        const d = await r.json();
-        if (d?.ok && d?.user?.id) setAuthChecked(true);
-      } catch {}
-    }, 400);
-    const to = setTimeout(() => setAuthChecked(true), 5000); // сервер недоступен — не блокируем игру навсегда
-    return () => { clearInterval(int); clearTimeout(to); };
+    const to = setTimeout(() => setAuthChecked(true), 5000);
+    return () => clearTimeout(to);
   }, [user]);
   
   const [loading, setLoading] = useState(!!(window as any).Telegram?.WebApp?.initDataUnsafe?.user);
