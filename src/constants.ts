@@ -9,8 +9,11 @@ export const HOUSE_MAX_ENERGY = 150;
 
 export const REST_CD = 90000; 
 export const BASE_REST_TIME = REST_CD; 
-export const LADA_REST_TIME = 80000; 
-export const TOYOTA_REST_TIME = 70000; 
+// ВСЕ варианты отдыха = ровно REST_CD (90 сек). Раньше с машиной кулдаун был
+// 80/70с на клиенте, а сервер всё равно держал 90с — таймер расходился. Плюс
+// дневной модификатор «Автошоу» умножал 90 на 0.8 => 72 сек. Убираем оба drift.
+export const LADA_REST_TIME = REST_CD;
+export const TOYOTA_REST_TIME = REST_CD;
 
 export const LADA_PRICE = 20000, LADA_TIME = 900000; // 15 минут
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 2700000; // 45 минут

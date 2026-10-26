@@ -6,7 +6,7 @@ begin
     select p.oid::regprocedure::text AS sig
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname in (
-      'ensure_round','place_bet_rpc','resolve_round_rpc','spin_round_rpc','get_casino_round_rpc','casino_tick_rpc','casino_advance')
+      'ensure_round','place_bet_rpc','resolve_round_rpc','spin_round_rpc','get_casino_round_rpc','casino_tick_rpc','casino_advance','casino_force_restart')
   loop
     execute 'drop function if exists public.' || r.sig || ' cascade';
   end loop;
@@ -268,6 +268,31 @@ end $$;
 
 -- клиентский вход в цикл: при заходе на вкладку казино доводит ленивый цикл
 -- (завершает истёкшие/зависшие раунды и гарантирует свежий betting-раунд). Возвращает текущий раунд.
+-- Анти-висняк: принудительный рестарт цикла казино (если фаза result зависла).
+create table if not exists public.casino_rounds (
+  id uuid primary key default gen_random_uuid(),
+  status text not null default 'betting',
+  end_time bigint not null,
+  roulette_result int,
+  dice_result int,
+  race_winner text,
+  created_at timestamptz not null default timezone('utc', now())
+);
+alter table public.casino_rounds add column if not exists roulette_result int;
+alter table public.casino_rounds add column if not exists dice_result int;
+alter table public.casino_rounds add column if not exists race_winner text;
+create or replace function public.casino_force_restart()
+returns jsonb language plpgsql security definer as $$
+declare now_ms bigint := floor(extract(epoch from now())*1000);
+begin
+  perform pg_advisory_xact_lock(hashtext('casino_cycle'));
+  update casino_rounds set status='result', end_time = least(coalesce(end_time,0), now_ms)
+   where status <> 'result';
+  perform ensure_round();
+  return jsonb_build_object('ok', true);
+end $$;
+grant execute on function public.casino_force_restart() to anon, authenticated;
+
 create or replace function public.get_casino_round_rpc(p_player_id uuid default null)
 returns jsonb language plpgsql security definer as $$
 declare r casino_rounds;
@@ -276,6 +301,10 @@ begin
   perform ensure_round();
   select * into r from casino_rounds order by created_at desc limit 1;
   if not found then return null; end if;
+  if r.status = 'result' and coalesce(r.end_time,0) + 20000 < floor(extract(epoch from now())*1000) then
+    perform casino_force_restart();
+    select * into r from casino_rounds order by created_at desc limit 1;
+  end if;
   return jsonb_build_object(
     'id', r.id, 'status', r.status, 'end_time', r.end_time,
     'roulette_result', r.roulette_result, 'dice_result', r.dice_result, 'race_winner', r.race_winner);

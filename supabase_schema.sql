@@ -166,7 +166,7 @@ begin
         -- защита ролей/зарплат на сервере:
         'validate_worker_role','role_count',
         -- казино (лечит 42P13 при повторном запуске):
-        'ensure_round','place_bet_rpc','resolve_round_rpc','spin_round_rpc','get_casino_round_rpc','casino_tick_rpc','casino_advance'
+        'ensure_round','place_bet_rpc','resolve_round_rpc','spin_round_rpc','get_casino_round_rpc','casino_tick_rpc','casino_advance','casino_force_restart'
       )
   loop
     execute 'drop function if exists ' || r.sig || ' cascade';
@@ -346,16 +346,18 @@ end $$;
 -- Отдых (кд от last_rest_time, макс энергия зависит от дома)
 create or replace function public.rest_rpc(p_player_id uuid, p_target_energy int)
 returns jsonb language plpgsql security definer as $$
-declare p players; now_ms bigint := floor(extract(epoch from now())*1000);
+declare p players; v_cd bigint := 90000; -- ОТДЫХ ВСЕГДА 90 секунд (REST_CD), без скидок
+        now_ms bigint := floor(extract(epoch from now())*1000);
 begin
   select * into p from players where id = p_player_id for update;
   if not found then return jsonb_build_object('error','player not found'); end if;
-  if p.last_rest_time > 0 and now_ms - p.last_rest_time < 90000 then
-    return jsonb_build_object('error','Рано отдыхать');
+  if p.last_rest_time > 0 and now_ms - p.last_rest_time < v_cd then
+    -- возвращаем точное время окончания кулдауна, чтобы клиент показал честный таймер
+    return jsonb_build_object('error','Рано отдыхать', 'rest_end', p.last_rest_time + v_cd);
   end if;
   update players set energy = least(p_target_energy, greatest(coalesce(energy,0), coalesce(p_target_energy,100))),
                      last_rest_time = now_ms where id = p_player_id;
-  return jsonb_build_object('energy', least(p_target_energy, 200), 'rest_end', now_ms + 90000);
+  return jsonb_build_object('energy', least(p_target_energy, 200), 'rest_end', now_ms + v_cd, 'cooldown_ms', v_cd);
 end $$;
 
 -- Телефон: покупка/сдача (влияет на market_slots)
@@ -1061,6 +1063,54 @@ drop policy if exists "no write" on casino_bets;   create policy "no write" on c
 --     (он корректно рассчитывает ставки и пишет результат ровно один раз).
 --   * Новый 'betting' создаётся ТОЛЬКО когда последний раунд в статусе 'result' и фаза
 --     результатов истекла — ровно один вставку, идемпотентно под FOR UPDATE.
+-- =================== КАЗИНО: САМОЧУВСТВИЕ ЦИКЛА (anti-hang) ===================
+-- Гарантирует таблицы казино и чинит ЗАВИСШУЮ фазу result: если строка раунда
+-- битая/устаревшей структуры или цикл остановился — цикл перезапускается сам,
+-- вкладка больше не может «висеть мёртвой».
+create table if not exists public.casino_rounds (
+  id uuid primary key default gen_random_uuid(),
+  status text not null default 'betting',
+  end_time bigint not null,
+  roulette_result int,
+  dice_result int,
+  race_winner text,
+  created_at timestamptz not null default timezone('utc', now())
+);
+create table if not exists public.casino_bets (
+  id uuid primary key default gen_random_uuid(),
+  round_id uuid references casino_rounds(id) on delete cascade,
+  player_id uuid references players(id) on delete cascade,
+  game_type text not null,
+  bet_choice text not null,
+  amount int not null check (amount > 0),
+  status text not null default 'pending',
+  created_at timestamptz not null default timezone('utc', now())
+);
+alter table public.casino_rounds add column if not exists roulette_result int;
+alter table public.casino_rounds add column if not exists dice_result int;
+alter table public.casino_rounds add column if not exists race_winner text;
+alter table public.casino_rounds enable row level security;
+alter table public.casino_bets    enable row level security;
+drop policy if exists "read all" on casino_rounds; create policy "read all" on casino_rounds for select using (true);
+drop policy if exists "no write" on casino_rounds; create policy "no write" on casino_rounds for all using (false) with check (false);
+drop policy if exists "read own bets" on casino_bets; create policy "read own bets" on casino_bets for select using (true);
+drop policy if exists "no write" on casino_bets; create policy "no write" on casino_bets for all using (false) with check (false);
+
+-- принудительный рестарт цикла: все старые раунды в result с истёкшим сроком,
+-- новый betting-раунд создаётся автоматически. Безопасно: pending-ставки уже
+-- рассчитаны resolve'ом (won/lost) либо будут помечены при доводе раунда.
+create or replace function public.casino_force_restart()
+returns jsonb language plpgsql security definer as $$
+declare now_ms bigint := floor(extract(epoch from now())*1000);
+begin
+  perform pg_advisory_xact_lock(hashtext('casino_cycle'));
+  update casino_rounds set status='result', end_time = least(coalesce(end_time,0), now_ms)
+   where status <> 'result';
+  perform ensure_round();
+  return jsonb_build_object('ok', true);
+end $$;
+grant execute on function public.casino_force_restart() to anon, authenticated;
+
 create or replace function public.ensure_round()
 returns void language plpgsql security definer as $$
 declare r casino_rounds; now_ms bigint := floor(extract(epoch from now())*1000);
@@ -1274,12 +1324,18 @@ grant execute on function public.spin_round_rpc(int) to anon, authenticated;
 -- (завершает истёкшие/зависшие раунды и гарантирует свежий betting-раунд). Возвращает текущий раунд.
 create or replace function public.get_casino_round_rpc(p_player_id uuid default null)
 returns jsonb language plpgsql security definer as $$
-declare r casino_rounds;
+declare r casino_rounds; now_ms bigint := floor(extract(epoch from now())*1000);
 begin
   perform casino_advance();
   perform ensure_round();
   select * into r from casino_rounds order by created_at desc limit 1;
   if not found then return null; end if;
+  -- САМОЧУВСТВИЕ: цикл стоит (result протух, а нового betting нет) — перезапускаем сами,
+  -- иначе вкладка казино «висит мёртвой» навсегда.
+  if r.status = 'result' and coalesce(r.end_time,0) + 20000 < now_ms then
+    perform casino_force_restart();
+    select * into r from casino_rounds order by created_at desc limit 1;
+  end if;
   return jsonb_build_object(
     'id', r.id, 'status', r.status, 'end_time', r.end_time,
     'roulette_result', r.roulette_result, 'dice_result', r.dice_result, 'race_winner', r.race_winner);

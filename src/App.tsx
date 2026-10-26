@@ -121,7 +121,9 @@ export default function App() {
   const maxEnergy = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
   const dayMod = getDayModifier();
   const baseRestTime = carModel === 'toyota' ? TOYOTA_REST_TIME : carModel === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
-  const restTime = dayMod?.type === 'car_sell' ? Math.floor(baseRestTime * 0.8) : baseRestTime;
+  // Отдых ВСЕГДА 90 сек (REST_CD): раньше «Автошоу» умножало на 0.8 => 72 сек,
+// а сервер держал кулдаун 90 сек — кнопка врала и казалось, что таймер «неправильный».
+const restTime = baseRestTime;
   
   let bizBonusPercent = 0;
   myBizs.forEach(b => {
@@ -299,8 +301,10 @@ export default function App() {
       }
       
       const last = Number(d.last_rest_time) || 0;
-      const cRestTime = d.car_model === 'toyota' ? TOYOTA_REST_TIME : d.car_model === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
-      const end = last + cRestTime > Date.now() ? last + cRestTime : 0;
+      // Серверный кулдаун отдыха жёстко 90с — не показываем больше 90с, даже если в БД
+      // лежит rest_end от старой версии функции с другим CD.
+      const rawEnd = last + Math.min(90000, d.car_model === 'toyota' ? TOYOTA_REST_TIME : d.car_model === 'lada' ? LADA_REST_TIME : BASE_REST_TIME);
+      const end = rawEnd > Date.now() ? rawEnd : 0;
       setRestEnd(end); if (end > 0) setTLeft(Math.max(0, Math.ceil((end - Date.now()) / 1000)));
 
       if (rRes.data) setMyRefs(rRes.data);
@@ -699,13 +703,22 @@ export default function App() {
     if (tLeft > 0 || energy >= maxEnergy) return;
     const { data, error } = await supabase.rpc('rest_rpc', { p_player_id: pid, p_target_energy: maxEnergy });
     if (error) throw error;
-    if (data && data.error) throw new Error(data.error);
-    
+    // Отдых ВСЕГДА 90 секунд — серверная истина. Если сервер ответил «Рано отдыхать»
+    // и прислал rest_end, честно дорисовываем клиентский таймер до его метки.
+    const REST_CD_MS = 90000;
+    if (data && data.error) {
+      const srvEnd = Number((data as any).rest_end) || 0;
+      if (srvEnd > Date.now()) { setRestEnd(srvEnd); setTLeft(Math.ceil((srvEnd - Date.now()) / 1000)); }
+      throw new Error(data.error);
+    }
+
     setEnergy(maxEnergy);
-    // Кулдаун отдыха считает СЕРВЕР (rest_end = now + реальный CD). Клиент просто
-    // показывает таймер до этой метки — раньше тут был рассинхрон (клиент 70с / сервер 90с).
-    setRestEnd(Number(data.rest_end) || (Date.now() + restTime));
-    setTLeft(Math.max(0, Math.ceil(((Number(data.rest_end) || Date.now() + restTime) - Date.now()) / 1000)));
+    // Кулдаун отдыха считает СЕРВЕР (rest_end = now + 90с). Клиент показывает таймер
+    // до этой метки, но НЕ БОЛЕЕ 90 секунд (защита от старых/битых rest_end в БД).
+    const serverEnd = Number(data?.rest_end) || 0;
+    const endTs = Math.min(serverEnd > Date.now() ? serverEnd : Date.now() + REST_CD_MS, Date.now() + REST_CD_MS);
+    setRestEnd(endTs);
+    setTLeft(Math.max(0, Math.ceil((endTs - Date.now()) / 1000)));
     showMsg(`Энергия восстановлена!`); hapticFeedback('light');
     if (onboardStep === 1) await advanceTutorial(2);
     await afterAction();
