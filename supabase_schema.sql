@@ -1049,24 +1049,34 @@ declare
 begin
   select * into r from casino_rounds where id = p_round_id for update;
   if not found then return jsonb_build_object('error','раунд не найден'); end if;
-  if r.status <> 'betting' then return jsonb_build_object('skipped', true, 'status', r.status); end if;
+  if r.status not in ('betting', 'spinning') then
+    return jsonb_build_object('skipped', true, 'status', r.status);
+  end if;
 
-  v_roulette := floor(random() * 37)::int;
-  v_dice1 := floor(random() * 6)::int + 1;
-  v_dice2 := floor(random() * 6)::int + 1;
-  v_dice := v_dice1 + v_dice2;
-  v_race_r := random() * 100;
-  v_winner := case
-    when v_race_r <= 40   then 'skyline'
-    when v_race_r <= 70   then 'bmw'
-    when v_race_r <= 85   then 'toyota'
-    when v_race_r <= 95   then 'lada'
-    when v_race_r <= 99   then 'priora'
-    else 'matiz' end;
+  -- Для betting выбираем результат и открываем анимацию. Для spinning
+  -- результат уже выбран spin_round_rpc, поэтому повторно RNG не вызываем.
+  if r.status = 'betting' then
+    v_roulette := floor(random() * 37)::int;
+    v_dice1 := floor(random() * 6)::int + 1;
+    v_dice2 := floor(random() * 6)::int + 1;
+    v_dice := v_dice1 + v_dice2;
+    v_race_r := random() * 100;
+    v_winner := case
+      when v_race_r <= 40   then 'skyline'
+      when v_race_r <= 70   then 'bmw'
+      when v_race_r <= 85   then 'toyota'
+      when v_race_r <= 95   then 'lada'
+      when v_race_r <= 99   then 'priora'
+      else 'matiz' end;
 
-  update casino_rounds set status='spinning',
-    roulette_result=v_roulette, dice_result=v_dice, race_winner=v_winner
-  where id = p_round_id;
+    update casino_rounds set status='spinning',
+      roulette_result=v_roulette, dice_result=v_dice, race_winner=v_winner
+    where id = p_round_id;
+  else
+    v_roulette := r.roulette_result;
+    v_dice := r.dice_result;
+    v_winner := r.race_winner;
+  end if;
 
   for b in select * from casino_bets where round_id = p_round_id and status = 'pending' loop
     mult := 0;
@@ -1128,8 +1138,10 @@ declare r record; n int := 0; now_ms bigint := floor(extract(epoch from now())*1
 begin
   -- зависшие spinning (>8 сек) закрываем в result напрямую — ставки уже рассчитаны внутри resolve
   for r in select id from casino_rounds
-            where status='spinning' and coalesce(end_time,0) < now_ms - 8000 loop
-    update casino_rounds set status='result', end_time = now_ms + 5000 where id = r.id;
+            where status='spinning' and coalesce(end_time,0) < now_ms loop
+    -- spin_round_rpc уже выбрал результат; здесь нужно провести выплаты,
+    -- а не просто закрыть раунд.
+    perform resolve_round_rpc(r.id);
     n := n + 1;
   end loop;
   for r in select id from casino_rounds
