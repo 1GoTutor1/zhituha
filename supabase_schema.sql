@@ -370,37 +370,44 @@ end $$;
 
 -- Завершение таймера бизнеса (салон/стройка/цех). Идемпотентно: повторный вызов вернёт success=false.
 create or replace function public.finish_business_timer_rpc(
-  p_biz_id uuid, p_add_key text, p_add_amount int,
-  p_clear_order boolean default false, p_clear_build boolean default false,
-  p_clear_phone_model boolean default false)
+  p_biz_id uuid, p_player_id uuid)
 returns jsonb language plpgsql security definer as $$
-declare b businesses; s jsonb; now_ms bigint := floor(extract(epoch from now())*1000); deadline bigint; pay jsonb;
+declare b businesses; s jsonb; now_ms bigint := floor(extract(epoch from clock_timestamp())*1000);
+  deadline bigint; reward_key text; reward_amount int; pay jsonb;
 begin
-  select * into b from businesses where id = p_biz_id for update;
-  if not found then return jsonb_build_object('success', false); end if;
+  b := public.assert_owner(p_biz_id, p_player_id);
   s := coalesce(b.stock, '{}'::jsonb);
 
-  -- проверка истечения таймера по типу бизнеса
   if b.biz_type = 'salon' then
     deadline := coalesce(b.car_order_end, 0);
     if deadline = 0 or now_ms < deadline then return jsonb_build_object('success', false); end if;
+    reward_key := s->>'current_model';
+    reward_amount := coalesce((s->>'order_amount')::int, 0);
+    if reward_key is null or reward_key not in ('lada', 'toyota') or reward_amount < 1 or reward_amount > 10 then
+      return jsonb_build_object('success', false, 'error', 'invalid order');
+    end if;
+    s := jsonb_set(s, array[reward_key], to_jsonb(coalesce((s->>reward_key)::int, 0) + reward_amount));
+    s := jsonb_set(jsonb_set(s, '{current_model}', '"none"'), '{order_amount}', '0');
+    update businesses set stock = s, car_order_end = 0 where id = p_biz_id;
   elsif b.biz_type in ('construction','phone_factory') then
     deadline := coalesce(b.build_end, 0);
     if deadline = 0 or now_ms < deadline then return jsonb_build_object('success', false); end if;
+    if b.biz_type = 'construction' then
+      reward_key := 'apartments';
+      reward_amount := 10;
+    else
+      reward_key := s->>'current_phone_model';
+      if reward_key = 'button' then reward_amount := 10;
+      elsif reward_key = 'smartphone' then reward_amount := 5;
+      else return jsonb_build_object('success', false, 'error', 'invalid production');
+      end if;
+    end if;
+    s := jsonb_set(s, array[reward_key], to_jsonb(coalesce((s->>reward_key)::int, 0) + reward_amount));
+    if b.biz_type = 'phone_factory' then s := jsonb_set(s, '{current_phone_model}', '"none"'); end if;
+    update businesses set stock = s, build_end = 0 where id = p_biz_id;
   else
     return jsonb_build_object('success', false);
   end if;
-
-  s := jsonb_set(s, array[p_add_key], to_jsonb(coalesce((s->>p_add_key)::int, 0) + p_add_amount));
-  if p_clear_order then
-    s := jsonb_set(jsonb_set(s, '{current_model}', '"none"'), '{order_amount}', '0');
-  end if;
-  if p_clear_phone_model then s := jsonb_set(s, '{current_phone_model}', '"none"'); end if;
-
-  update businesses set stock = s,
-    car_order_end = case when p_clear_order then 0 else car_order_end end,
-    build_end     = case when p_clear_build  then 0 else build_end end
-  where id = p_biz_id;
 
   -- ЗП за завершённую партию (дизайн-док): работягам + начальнику, если наняты.
   pay := '{}'::jsonb;
@@ -413,6 +420,8 @@ begin
   end if;
 
   return jsonb_build_object('success', true, 'pay', pay);
+exception when others then
+  return jsonb_build_object('success', false, 'error', 'business not owned');
 end $$;
 
 -- Автосалон: старт заказа машин.

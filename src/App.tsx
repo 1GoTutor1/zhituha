@@ -373,11 +373,11 @@ export default function App() {
     if (onboardStep === 4 && tab === 'market') advanceTutorial(5);
   }, [tab, onboardStep]);
 
-  const finishOrder = async (biz: any, patch: any, msg: string, notifyText: string) => {
+  const finishOrder = async (biz: any, msg: string, notifyText: string) => {
     // Атомарно завершаем таймер бизнеса на сервере: списываем заказ/стройку на склад.
     // Возвращает true, если завершили впервые (защита от повторного срабатывания).
     try {
-      const { data, error } = await supabase.rpc('finish_business_timer_rpc', { p_biz_id: biz.id, ...patch });
+      const { data, error } = await supabase.rpc('finish_business_timer_rpc', { p_biz_id: biz.id, p_player_id: pid });
       if (error || !data || !data.success) return false;
       showMsg(msg); hapticFeedback('heavy'); loadData(true); sendNotification(notifyText);
       return true;
@@ -401,7 +401,7 @@ export default function App() {
           const salon = myBizs.find(b => b.biz_type === 'salon');
           if (salon) {
             const s = getStock(salon); const model = s.current_model || 'lada'; const amount = s.order_amount || 1;
-            finishOrder(salon, { p_add_key: model, p_add_amount: amount, p_clear_order: true },
+            finishOrder(salon,
               'Машины приехали!', `🚗 В автосалон приехали ${amount} ${model === 'lada' ? 'Лада' : 'Тойота'}!`);
           }
         }
@@ -413,7 +413,7 @@ export default function App() {
           setBuildEnd(0);
           const constr = myBizs.find(b => b.biz_type === 'construction');
           if (constr) {
-            finishOrder(constr, { p_add_key: 'apartments', p_add_amount: APARTMENTS_PER_BUILD, p_clear_build: true },
+            finishOrder(constr,
               'Дом построен!', `🏗 Дом построен! +${APARTMENTS_PER_BUILD} квартир.`);
           }
         }
@@ -427,7 +427,7 @@ export default function App() {
           if (factory) {
             const s = getStock(factory); const model = s.current_phone_model || 'button';
             const amount = model === 'button' ? BUTTON_BATCH_SIZE : SMARTPHONE_BATCH_SIZE;
-            finishOrder(factory, { p_add_key: model, p_add_amount: amount, p_clear_build: true, p_clear_phone_model: true },
+            finishOrder(factory,
               'Партия готова!', `📱 Партия телефонов (${amount} шт.) готова!`);
           }
         }
