@@ -35,6 +35,8 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const [round, setRound] = useState<Round | null>(null);
   const [now, setNow] = useState(Date.now());
   const [realtimeReady, setRealtimeReady] = useState(false);
+  const [lastServerSyncAt, setLastServerSyncAt] = useState(0);
+  const [syncIssue, setSyncIssue] = useState(false);
   const [game, setGame] = useState<'roulette' | 'dice' | 'race'>('roulette');
   const [choice, setChoice] = useState<string | null>(null);
   const [betAmount, setBetAmount] = useState(1000);
@@ -64,15 +66,26 @@ export const CasinoTab = ({ app }: { app: any }) => {
       // серверный «ленивый» цикл: доводит истёкшие/зависшие раунды и гарантирует свежий betting
       let data: any = null;
       const requestStartedAt = Date.now();
-      const { data: rpcData } = await supabase.rpc('get_casino_round_rpc', { p_player_id: pid || null });
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_casino_round_rpc', { p_player_id: pid || null });
+      if (rpcError) {
+        if (mountedRef.current) setSyncIssue(true);
+        return;
+      }
       data = rpcData;
+      if (mountedRef.current) {
+        setLastServerSyncAt(Date.now());
+        setSyncIssue(false);
+      }
       if (Number.isFinite(Number(data?.server_now))) {
         // Используем серверное время ответа, а не начало фазы: иначе каждый polling
         // прибавлял уже прошедшие секунды обратно к таймеру.
         const requestMidpoint = (requestStartedAt + Date.now()) / 2;
         serverDriftRef.current = Number(data.server_now) - requestMidpoint;
       }
-      if (!data) return;
+      if (!data) {
+        if (mountedRef.current) setRound(null);
+        return;
+      }
       const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, dice_first: data.dice_first ?? null, dice_second: data.dice_second ?? null, race_winner: data.race_winner, bet_count: Number(data.bet_count) || 0, bet_total: Number(data.bet_total) || 0 };
       if (!mountedRef.current) return;
       setRound(r);
@@ -94,7 +107,9 @@ export const CasinoTab = ({ app }: { app: any }) => {
         }
       }
       lastRoundId.current = r.id;
-    } catch {} finally {
+    } catch {
+      if (mountedRef.current) setSyncIssue(true);
+    } finally {
       loadingRef.current = false;
       if (pendingLoadRef.current) {
         pendingLoadRef.current = false;
@@ -135,7 +150,19 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const phase = round?.status || 'betting';
   const msLeft = round ? Math.max(0, round.end_time - serverNow) : 0;
   const msLeftInt = Math.ceil(msLeft / 1000);
+  const phaseOverdueSeconds = round ? Math.max(0, Math.ceil((serverNow - round.end_time) / 1000)) : 0;
   const canBet = phase === 'betting' && msLeft > 1500; // запас на сетевую задержку
+  const syncAgeSeconds = lastServerSyncAt ? Math.max(0, Math.floor((now - lastServerSyncAt) / 1000)) : null;
+  const syncStatus = syncAgeSeconds === null
+    ? 'Подключение к серверу…'
+    : syncIssue
+      ? `Ошибка синхронизации · ответ ${syncAgeSeconds}с назад`
+      : syncAgeSeconds > 30
+        ? `Казино не отвечает · ${syncAgeSeconds}с без ответа`
+        : realtimeReady
+          ? 'LIVE · сервер отвечает'
+          : 'Сервер отвечает · резервный опрос';
+  const syncColor = syncAgeSeconds !== null && (syncIssue || syncAgeSeconds > 30) ? '#bb3434' : syncAgeSeconds !== null ? '#2c7a3c' : '#9b6a18';
 
   // прогресс спина 0..1 — считаем от end_time раунда, а НЕ от момента, когда клиент увидел статус.
   // Анимация всегда доходит до конца и ОСТАНАВЛИВАЕТСЯ (не рестартует), даже если сервер запаздывает
@@ -202,16 +229,16 @@ export const CasinoTab = ({ app }: { app: any }) => {
 
       {/* Табло фазы — свой текст под каждую игру */}
       <div style={{ background: '#2f2a1d', color: '#ffd23f', borderRadius: 10, padding: '12px 16px', margin: '10px 0', fontFamily: "'Russo One', sans-serif", boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.08), 0 4px 0 rgba(90,70,40,0.35)' }}>
-        {phase === 'betting' && <>⏳ Приём ставок: <span style={{ color: msLeft < 6000 ? '#ff9a8d' : '#ffd23f' }}>{msLeftInt}с</span></>}
-        {phase === 'spinning' && !spinDoneWaitingResult && game === 'roulette' && <>🎡 Колесо крутится…</>}
-        {phase === 'spinning' && !spinDoneWaitingResult && game === 'dice' && <>🎲 Кости летят по столу…</>}
-        {phase === 'spinning' && !spinDoneWaitingResult && game === 'race' && <>🏁 Гонка пошла! Машины набирают ход…</>}
-        {phase === 'spinning' && spinDoneWaitingResult && <>⏸ Финиш! Ждём официальные итоги…</>}
-        {phase === 'result' && <>✅ Итоги раунда! Новый через <span style={{ color: '#ffd23f' }}>{Math.max(0, msLeftInt)}с</span></>}
+        {!round && <>{'\u23F3'} {syncIssue ? '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0440\u0430\u0443\u043d\u0434 \u00b7 \u0436\u0434\u0451\u043c \u043e\u0442\u0432\u0435\u0442\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0430' : syncAgeSeconds !== null ? '\u0420\u0430\u0443\u043d\u0434 \u0435\u0449\u0451 \u043d\u0435 \u0441\u043e\u0437\u0434\u0430\u043d \u00b7 \u0441\u0435\u0440\u0432\u0435\u0440 \u043e\u0442\u0432\u0435\u0447\u0430\u0435\u0442' : '\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0435\u043c\u0441\u044f \u043a \u0440\u0430\u0443\u043d\u0434\u0443\u2026'}</>}
+        {round && phase === 'betting' && msLeft > 0 && <>{'\u23f1'} {'\u041f\u0440\u0438\u0451\u043c \u0441\u0442\u0430\u0432\u043e\u043a \u00b7 \u0434\u043e \u0441\u043f\u0438\u043d\u0430'} <span style={{ color: msLeft < 6000 ? '#ff9a8d' : '#ffd23f' }}>{msLeftInt}{'\u0441'}</span></>}
+        {round && phase === 'betting' && msLeft <= 0 && <>{'\u23f3'} {'\u0421\u0442\u0430\u0432\u043a\u0438 \u0437\u0430\u043a\u0440\u044b\u0442\u044b \u00b7 \u0437\u0430\u043f\u0443\u0441\u043a \u0441\u043f\u0438\u043d\u0430 \u0437\u0430\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044f'} {phaseOverdueSeconds}{'\u0441'}</>}
+        {round && phase === 'spinning' && !spinDoneWaitingResult && <>{game === 'roulette' ? '\u{1F3A1} \u041a\u043e\u043b\u0435\u0441\u043e \u043a\u0440\u0443\u0442\u0438\u0442\u0441\u044f' : game === 'dice' ? '\u{1F3B2} \u041a\u043e\u0441\u0442\u0438 \u0431\u0440\u043e\u0441\u0430\u044e\u0442\u0441\u044f' : '\u{1F3C1} \u0418\u0434\u0451\u0442 \u0433\u043e\u043d\u043a\u0430'} {'\u00b7 \u0434\u043e \u0438\u0442\u043e\u0433\u0430'} <span style={{ color: '#ffd23f' }}>{msLeftInt}{'\u0441'}</span></>}
+        {round && phase === 'spinning' && spinDoneWaitingResult && <>{'\u23f3'} {'\u0421\u043f\u0438\u043d \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d \u00b7 \u0436\u0434\u0451\u043c \u0440\u0430\u0441\u0447\u0451\u0442 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430'} {phaseOverdueSeconds}{'\u0441'}</>}
+        {round && phase === 'result' && <>{'\u2705'} {'\u0418\u0442\u043e\u0433\u0438 \u0440\u0430\u0443\u043d\u0434\u0430 \u00b7 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0447\u0435\u0440\u0435\u0437'} <span style={{ color: '#ffd23f' }}>{msLeftInt}{'\u0441'}</span></>}
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', margin: '-3px 0 10px', color: '#6b5f45', fontSize: 12 }}>
         <span>👥 Ставок в раунде: <b>{round?.bet_count || 0}</b> · сумма: <b>{(round?.bet_total || 0).toLocaleString('ru-RU')}₽</b></span>
-        <span style={{ color: realtimeReady ? '#2c7a3c' : '#9b6a18' }}>● {realtimeReady ? 'LIVE синхронизация' : 'переподключение · резервный опрос'}</span>
+        <span style={{ color: syncColor }}>{'\u25CF'} {syncStatus}</span>
       </div>
 
       {/* Визуал текущей игры: крутится ТОЛЬКО активная вкладка */}
