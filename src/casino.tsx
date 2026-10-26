@@ -17,7 +17,7 @@ const RACE_CARS: any[] = [
   { id: 'matiz',   name: 'Matiz',       emoji: '🛞', coef: 'x25', ch: '1%' },
 ];
 
-type Round = { id: string; status: 'betting' | 'spinning' | 'result'; end_time: number; roulette_result: number | null; dice_result: number | null; race_winner: string | null };
+type Round = { id: string; status: 'betting' | 'spinning' | 'result'; end_time: number; roulette_result: number | null; dice_result: number | null; dice_first: number | null; dice_second: number | null; race_winner: string | null };
 
 const SPIN_MS = 5000;        // длительность анимации спина; сервер держит spinning ровно столько же
 const BET_MS = 30000;        // приём ставок (совпадает с ensure_round на сервере)
@@ -40,7 +40,9 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const [choice, setChoice] = useState<string | null>(null);
   const [betAmount, setBetAmount] = useState(1000);
   const [myBets, setMyBets] = useState<any[]>([]);
-  const [history, setHistory] = useState<number[]>([]); // последние числа рулетки
+  const [rouletteHistory, setRouletteHistory] = useState<number[]>([]);
+  const [diceHistory, setDiceHistory] = useState<number[]>([]);
+  const [raceHistory, setRaceHistory] = useState<string[]>([]);
   const lastRoundId = useRef<string | null>(null);
   const loadingRef = useRef(false);         // защита от наложения запросов loadRound
   const mountedRef = useRef(true);
@@ -70,7 +72,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
       // оценка расхождения часов: сервер пишет end_time по своим часам — по ней синхронизируем анимации
       const srvNowGuess = Number(data.end_time) - (data.status === 'betting' ? BET_MS : data.status === 'spinning' ? SPIN_MS : RESULT_MS);
       if (isFinite(srvNowGuess) && srvNowGuess > 1e12) serverDriftRef.current = srvNowGuess - Date.now();
-      const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, race_winner: data.race_winner };
+      const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, dice_first: data.dice_first ?? null, dice_second: data.dice_second ?? null, race_winner: data.race_winner };
       if (!mountedRef.current) return;
       if (r.status !== 'spinning') spinRequestedRef.current = false; // новый раунд — можно снова спросить спин
       setRound(r);
@@ -81,8 +83,13 @@ export const CasinoTab = ({ app }: { app: any }) => {
       }
       // история чисел (последние 10 завершённых) — обновляем только на новом раунде, не каждый поллинг
       if (lastRoundId.current !== r.id) {
-        const { data: past } = await supabase.from('casino_rounds').select('roulette_result').eq('status', 'result').not('roulette_result', 'is', null).order('created_at', { ascending: false }).limit(10);
-        if (mountedRef.current) setHistory((past || []).map((p: any) => p.roulette_result).reverse());
+        const { data: past } = await supabase.from('casino_rounds').select('roulette_result,dice_result,race_winner').eq('status', 'result').order('created_at', { ascending: false }).limit(10);
+        if (mountedRef.current) {
+          const rounds = (past || []).reverse();
+          setRouletteHistory(rounds.map((p: any) => p.roulette_result).filter((n: number | null) => n != null));
+          setDiceHistory(rounds.map((p: any) => p.dice_result).filter((n: number | null) => n != null));
+          setRaceHistory(rounds.map((p: any) => p.race_winner).filter((winner: string | null) => winner != null));
+        }
         // новый розыгрыш завершился — обновим баланс (выигрыши начисляет сервер)
         if (lastRoundId.current && r.status === 'result') {
           const { data: pl } = await supabase.from('players').select('money').eq('id', pid).maybeSingle();
@@ -163,9 +170,20 @@ export const CasinoTab = ({ app }: { app: any }) => {
   }, [phase, game, spinT >= 1]);
 
   const DICE_PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  const DICE_ROTATION: Record<number, string> = { 1: 'rotateX(0deg) rotateY(0deg)', 2: 'rotateX(0deg) rotateY(-90deg)', 3: 'rotateX(-90deg) rotateY(0deg)', 4: 'rotateX(90deg) rotateY(0deg)', 5: 'rotateX(0deg) rotateY(90deg)', 6: 'rotateX(0deg) rotateY(180deg)' };
   const dieFace = (v: number, rolling: boolean, delay: string) => (
-    <div key={rolling ? `${v}-${delay}` : `st-${v}`} style={{ width: 54, height: 54, background: '#fbf4e4', border: '3px solid #5a4a2f', borderRadius: 10, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)', padding: 6, gap: 2, animation: rolling ? `casinoDiceRoll 0.6s ease-in-out infinite` : 'none', animationDelay: delay }}>
-      {Array.from({ length: 9 }).map((_, i) => <span key={i} style={{ width: '100%', height: '100%', borderRadius: '50%', background: DICE_PIPS[v]?.includes(i) ? '#2f2a1d' : 'transparent', alignSelf: 'center', justifySelf: 'center' }} />)}
+    <div key={`die-${delay}`} style={{ width: 58, height: 58, perspective: 420, margin: 8 }}>
+      <div style={{ position: 'relative', width: 48, height: 48, margin: 5, transformStyle: 'preserve-3d', transform: DICE_ROTATION[v], transition: `transform ${rolling ? '110ms' : '420ms'} cubic-bezier(.2,.75,.25,1)`, filter: 'drop-shadow(0 5px 3px rgba(45,32,12,.3))' }}>
+        {([
+          ['front', 'translateZ(24px)', 1], ['back', 'rotateY(180deg) translateZ(24px)', 6],
+          ['right', 'rotateY(90deg) translateZ(24px)', 2], ['left', 'rotateY(-90deg) translateZ(24px)', 5],
+          ['top', 'rotateX(90deg) translateZ(24px)', 3], ['bottom', 'rotateX(-90deg) translateZ(24px)', 4],
+        ] as const).map(([side, transform, value]) => (
+          <div key={side} style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)', padding: 5, gap: 2, borderRadius: 8, background: 'linear-gradient(145deg,#fffdf5,#e8d8b5)', border: '2px solid #6d5734', boxSizing: 'border-box', transform, backfaceVisibility: 'hidden' }}>
+            {Array.from({ length: 9 }).map((_, i) => <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: DICE_PIPS[value]?.includes(i) ? '#2f2a1d' : 'transparent', alignSelf: 'center', justifySelf: 'center' }} />)}
+          </div>
+        ))}
+      </div>
     </div>
   );
 
@@ -296,8 +314,8 @@ export const CasinoTab = ({ app }: { app: any }) => {
                 // кости долетели — показываем реальные значения сразу, как анимация закончилась,
                 // и спокойно ждём фазу итогов (без рестарта кручения)
                 (() => {
-                  const d1 = Math.min(6, Math.max(1, (round.dice_result ?? 7) - 6));
-                  const d2 = (round.dice_result ?? 7) - d1;
+                  const d1 = round.dice_first ?? Math.min(6, Math.max(1, (round.dice_result ?? 7) - 6));
+                  const d2 = round.dice_second ?? ((round.dice_result ?? 7) - d1);
                   return (<>
                     {dieFace(d1, false, '0s')}
                     {dieFace(d2, false, '0s')}
@@ -313,8 +331,8 @@ export const CasinoTab = ({ app }: { app: any }) => {
             ) : round?.dice_result != null ? (
               (() => {
                 // покажем два кубика, дающие сумму результата (или один кубик = результат, если не разложить)
-                const d1 = Math.min(6, Math.max(1, (round.dice_result ?? 7) - 6));
-                const d2 = (round.dice_result ?? 7) - d1;
+                const d1 = round.dice_first ?? Math.min(6, Math.max(1, (round.dice_result ?? 7) - 6));
+                const d2 = round.dice_second ?? ((round.dice_result ?? 7) - d1);
                 return (
                   <>
                     {dieFace(d1, false, '0s')}
@@ -358,10 +376,20 @@ export const CasinoTab = ({ app }: { app: any }) => {
         )}
       </div>
 
-      {/* История рулетки */}
-      {history.length > 0 && (
+      {/* История выбранной игры */}
+      {game === 'roulette' && rouletteHistory.length > 0 && (
         <div style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-          {history.map((n, i) => <span key={i} style={{ width: 22, height: 22, borderRadius: '50%', background: wheelColor(n), color: '#fff', fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{n}</span>)}
+          {rouletteHistory.map((n, i) => <span key={i} style={{ width: 22, height: 22, borderRadius: '50%', background: wheelColor(n), color: '#fff', fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{n}</span>)}
+        </div>
+      )}
+      {game === 'dice' && diceHistory.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+          {diceHistory.map((sum, i) => <span key={i} style={{ padding: '4px 8px', borderRadius: 7, background: '#fbf4e4', color: '#5a4a2f', border: '1px solid rgba(90,70,40,.25)', fontSize: 12, fontWeight: 'bold' }}>🎲 {sum}</span>)}
+        </div>
+      )}
+      {game === 'race' && raceHistory.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+          {raceHistory.map((winner, i) => { const car = RACE_CARS.find(c => c.id === winner); return <span key={i} title={car?.name || winner} style={{ padding: '4px 8px', borderRadius: 7, background: '#fbf4e4', color: '#5a4a2f', border: '1px solid rgba(90,70,40,.25)', fontSize: 12, fontWeight: 'bold' }}>{car?.emoji || '🏁'} {car?.name || winner}</span>; })}
         </div>
       )}
 
@@ -426,11 +454,11 @@ export const CasinoTab = ({ app }: { app: any }) => {
       </div>
 
       {/* Мои ставки этого раунда */}
-      {myBets.length > 0 && (
+      {myBets.filter(b => b.game_type === game).length > 0 && (
         <div style={{ marginTop: 12, background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: 10 }}>
           <div style={{ fontFamily: "'Russo One', sans-serif", fontSize: 12, textTransform: 'uppercase', marginBottom: 6 }}>Мои ставки</div>
-          {myBets.map((b, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: i < myBets.length - 1 ? '1px dashed rgba(90,70,40,0.25)' : 'none' }}>
+          {myBets.filter(b => b.game_type === game).map((b, i, visibleBets) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: i < visibleBets.length - 1 ? '1px dashed rgba(90,70,40,0.25)' : 'none' }}>
               <span>{b.game_type === 'roulette' ? '🎡' : b.game_type === 'dice' ? '🎲' : '🏁'} {b.bet_choice}</span>
               <span style={{ fontWeight: 'bold' }}>{b.amount.toLocaleString('ru')}₽</span>
               <span style={{ color: b.status === 'won' ? '#2c7a3c' : b.status === 'lost' ? '#c0453a' : '#6b5f45' }}>

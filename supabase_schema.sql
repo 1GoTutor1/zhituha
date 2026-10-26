@@ -941,8 +941,14 @@ create table if not exists public.casino_rounds (
   roulette_result int,                      -- 0..36
   dice_result int,                          -- 2..12
   race_winner text,                         -- id машины
+  dice_first int,                           -- первая грань кубика
+  dice_second int,                          -- вторая грань кубика
   created_at timestamptz not null default timezone('utc', now())
 );
+
+-- Добавляем грани и в уже созданные проекты, сохраняя совместимость со старой схемой.
+alter table public.casino_rounds add column if not exists dice_first int;
+alter table public.casino_rounds add column if not exists dice_second int;
 create index if not exists idx_casino_rounds_created on casino_rounds (created_at desc);
 
 create table if not exists public.casino_bets (
@@ -1070,12 +1076,15 @@ begin
       else 'matiz' end;
 
     update casino_rounds set status='spinning',
-      roulette_result=v_roulette, dice_result=v_dice, race_winner=v_winner
+      roulette_result=v_roulette, dice_result=v_dice, race_winner=v_winner,
+      dice_first=v_dice1, dice_second=v_dice2
     where id = p_round_id;
   else
     v_roulette := r.roulette_result;
     v_dice := r.dice_result;
     v_winner := r.race_winner;
+    v_dice1 := coalesce(r.dice_first, greatest(1, least(6, r.dice_result - 6)));
+    v_dice2 := coalesce(r.dice_second, r.dice_result - v_dice1);
   end if;
 
   for b in select * from casino_bets where round_id = p_round_id and status = 'pending' loop
@@ -1190,7 +1199,8 @@ begin
   p_spin_ms := greatest(1000, least(15000, coalesce(p_spin_ms, 5000)));
   update casino_rounds
      set status = 'spinning', end_time = now_ms + p_spin_ms,
-         roulette_result = v_roulette, dice_result = v_dice, race_winner = v_winner
+         roulette_result = v_roulette, dice_result = v_dice, race_winner = v_winner,
+         dice_first = v_dice1, dice_second = v_dice2
    where id = r.id;
   return jsonb_build_object('ok', true, 'until', now_ms + p_spin_ms);
 end $$;
@@ -1209,7 +1219,8 @@ begin
   if not found then return null; end if;
   return jsonb_build_object(
     'id', r.id, 'status', r.status, 'end_time', r.end_time,
-    'roulette_result', r.roulette_result, 'dice_result', r.dice_result, 'race_winner', r.race_winner);
+    'roulette_result', r.roulette_result, 'dice_result', r.dice_result,
+    'dice_first', r.dice_first, 'dice_second', r.dice_second, 'race_winner', r.race_winner);
 end $$;
 
 -- вызывается из cron (api/casino.js): завершает истёкшие + создаёт новый раунд
