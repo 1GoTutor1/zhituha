@@ -306,7 +306,10 @@ export default function App() {
         setAllWorkers(wRes.data);
         setMyJob(wRes.data.find((w: any) => w.player_id === d.id) || null);
       }
-    } catch (e) { console.error(e); } finally { if (!silent) setLoading(false); }
+    } catch (e) {
+      console.error(e);
+      if (!silent) showMsg(e instanceof Error ? e.message : 'Не удалось загрузить профиль. Проверьте настройки Vercel.', true);
+    } finally { if (!silent) setLoading(false); }
   };
 
   const loadMarket = async () => {
@@ -450,7 +453,9 @@ export default function App() {
     const result = await response.json();
     if (!response.ok || !result.player) throw new Error(result.error || 'Не удалось создать аккаунт');
     const data = result.player;
-    setPid(data.id); setNick(final); setGender(selG);
+    setPid(data.id); setNick(data.nickname || final); setGender(data.gender || selG); setAvatarId(data.avatar_id || avatarId);
+    setMoney(Number(data.money) || 0); setEnergy(Number(data.energy) || 0);
+    window.setTimeout(() => { void loadData(true); }, 0);
     if (result.referred) showMsg("Бонус +1000 монет за приглашение!");
   });
 

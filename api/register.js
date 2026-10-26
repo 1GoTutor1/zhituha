@@ -5,7 +5,10 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
   const { BOT_TOKEN, VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
-  if (!BOT_TOKEN || !VITE_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return res.status(500).json({ error: 'Registration service is not configured' });
+  if (!BOT_TOKEN || !VITE_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    const missing = !SUPABASE_SERVICE_ROLE_KEY ? 'SUPABASE_SERVICE_ROLE_KEY' : !BOT_TOKEN ? 'BOT_TOKEN' : 'VITE_SUPABASE_URL';
+    return res.status(500).json({ error: `Vercel server setting is missing: ${missing}` });
+  }
 
   const user = verifyTelegramInitData(req.body?.init_data, BOT_TOKEN);
   if (!user) return res.status(403).json({ error: 'Telegram authentication required' });
@@ -19,9 +22,21 @@ export default async function handler(req, res) {
   const sb = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   try {
     const telegramId = String(user.id);
-    const { data: existing, error: lookupError } = await sb.from('players').select('id').eq('telegram_id', telegramId).maybeSingle();
+    const { data: existing, error: lookupError } = await sb.from('players').select('*').eq('telegram_id', telegramId).maybeSingle();
     if (lookupError) throw lookupError;
-    if (existing) return res.status(409).json({ error: 'Player already registered' });
+    if (existing) {
+      const repair = {};
+      if (!existing.nickname) repair.nickname = nickname;
+      if (!existing.gender) repair.gender = gender;
+      if (!existing.avatar_id) repair.avatar_id = avatarId;
+      let player = existing;
+      if (Object.keys(repair).length) {
+        const { data, error } = await sb.from('players').update(repair).eq('id', existing.id).select('*').single();
+        if (error) throw error;
+        player = data;
+      }
+      return res.status(200).json({ player, referred: false, recovered: true });
+    }
 
     let referrerId = null;
     const rawReferrer = typeof req.body?.referrer_id === 'string' ? req.body.referrer_id : '';
@@ -60,6 +75,6 @@ export default async function handler(req, res) {
     return res.status(201).json({ player, referred: !!referrerId });
   } catch (error) {
     console.error('Registration failed:', error?.message || error);
-    return res.status(500).json({ error: 'Registration failed' });
+    return res.status(500).json({ error: 'Registration failed', code: error?.code || undefined });
   }
 }
