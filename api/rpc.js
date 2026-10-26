@@ -43,6 +43,18 @@ export default async function handler(req, res) {
         if (/^p_(player|owner|buyer|admin)_id$/.test(key)) safeArgs[key] = player.id;
       }
     }
+    if (name === 'change_stats') {
+      if (!Number.isSafeInteger(safeArgs.p_money_diff) || !Number.isSafeInteger(safeArgs.p_energy_diff ?? 0)) {
+        return res.status(400).json({ error: 'Invalid balance change' });
+      }
+      const { data: budget, error: budgetError } = await sb.rpc('check_player_economy_budget', {
+        p_player_id: player.id,
+        p_money_diff: safeArgs.p_money_diff,
+        p_energy_diff: safeArgs.p_energy_diff ?? 0,
+      });
+      if (budgetError) throw budgetError;
+      if (!budget?.ok) return res.status(429).json({ error: budget?.error || 'Economy limit reached' });
+    }
     if (name === 'add_referral_balance') return res.status(400).json({ error: 'Unsupported RPC' });
     if (name === 'fire_worker_rpc') safeArgs.p_player_id = player.id;
 

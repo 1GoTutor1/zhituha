@@ -80,7 +80,7 @@ begin
         'tip_barista_rpc','claim_tips_rpc','claim_daily_rpc','brew_start_rpc','rob_business_rpc',
         'redeem_promo_rpc','admin_give_money_rpc','admin_set_ban_rpc','admin_delete_biz_rpc','claim_daily_rpc',
         -- экономика по дизайн-доку (новая версия):
-        'pay_workers_for_batch','collect_coffee_cash_rpc_v2',
+        'pay_workers_for_batch','collect_coffee_cash_rpc_v2','check_player_economy_budget',
         -- защита ролей/зарплат на сервере:
         'validate_worker_role','role_count',
         -- казино (лечит 42P13 при повторном запуске):
@@ -104,6 +104,38 @@ begin
   where id = p_player_id;
   return jsonb_build_object('money', greatest(0, p.money + p_money_diff),
                             'energy', greatest(0, least(200, p.energy + p_energy_diff)));
+end $$;
+
+-- Защита от ручного вызова change_stats через серверный шлюз с произвольной суммой.
+create table if not exists public.rpc_economy_limits (
+  player_id uuid primary key references public.players(id) on delete cascade,
+  window_started_at timestamptz not null default now(),
+  money_earned bigint not null default 0
+);
+alter table public.rpc_economy_limits enable row level security;
+revoke all on public.rpc_economy_limits from public, anon, authenticated;
+grant all on public.rpc_economy_limits to service_role;
+
+create or replace function public.check_player_economy_budget(
+  p_player_id uuid, p_money_diff bigint, p_energy_diff int default 0
+) returns jsonb language plpgsql security definer as $$
+declare quota rpc_economy_limits;
+begin
+  if abs(p_money_diff) > 5000 or abs(p_energy_diff) > 200 then
+    return jsonb_build_object('ok', false, 'error', 'Изменение превышает лимит за одну операцию');
+  end if;
+  insert into rpc_economy_limits (player_id) values (p_player_id) on conflict (player_id) do nothing;
+  select * into quota from rpc_economy_limits where player_id = p_player_id for update;
+  if quota.window_started_at <= now() - interval '24 hours' then
+    update rpc_economy_limits set window_started_at = now(), money_earned = 0
+      where player_id = p_player_id returning * into quota;
+  end if;
+  if greatest(p_money_diff, 0) + quota.money_earned > 20000 then
+    return jsonb_build_object('ok', false, 'error', 'Достигнут лимит начисления за 24 часа');
+  end if;
+  update rpc_economy_limits set money_earned = money_earned + greatest(p_money_diff, 0)
+    where player_id = p_player_id;
+  return jsonb_build_object('ok', true);
 end $$;
 
 -- Проверка, что бизнес принадлежит игроку (для всех biz-RPC).
