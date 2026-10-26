@@ -1,5 +1,65 @@
--- Только блок казино, если не хочешь гонять весь supabase_schema.sql повторно.
+-- дропаем кривые версии функций, которые ты вставил прошлым скриптом
+do $$
+declare r record;
+begin
+  for r in
+    select p.oid::regprocedure::text AS sig
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname in (
+      'ensure_round','place_bet_rpc','resolve_round_rpc','spin_round_rpc','get_casino_round_rpc','casino_tick_rpc','casino_advance','casino_force_restart')
+  loop
+    execute 'drop function if exists public.' || r.sig || ' cascade';
+  end loop;
+end $$;
+
 -- =================== 10. КАЗИНО (глобальный цикл раундов 45 сек) ============
+
+-- ВАЖНО: функции ниже вызывают log_action_rpc(...). Если в базе лежит СТАРАЯ
+-- таблица action_logs (player_id bigint/telegram_id без ссылки на players),
+-- вставка в логи падает ошибкой FK и рушит ВСЕ игровые кнопки. Чиним структуру
+-- таблицы заранее — это безопасно для игроков (логи — не игровые данные).
+do $$
+declare v_typ text; v_fk int;
+begin
+  if to_regclass('public.action_logs') is null then
+    create table public.action_logs (
+      id uuid not null default gen_random_uuid(),
+      created_at timestamp with time zone not null default now(),
+      player_id uuid null references public.players(id) on delete set null,
+      action_type text not null,
+      details jsonb null default '{}'::jsonb,
+      money_delta bigint null,
+      money_after bigint null
+    );
+  else
+    select format_type(a.atttypid, a.atttypmod) into v_typ
+      from pg_attribute a
+      join pg_class c on c.oid = a.attrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = 'action_logs' and a.attname = 'player_id';
+    select count(*) into v_fk
+      from pg_constraint
+      where conrelid = 'public.action_logs'::regclass
+        and contype = 'f'
+        and confrelid = 'public.players'::regclass;
+    if v_typ is distinct from 'uuid' or v_fk = 0 then
+      drop table public.action_logs;
+      create table public.action_logs (
+        id uuid not null default gen_random_uuid(),
+        created_at timestamp with time zone not null default now(),
+        player_id uuid null references public.players(id) on delete set null,
+        action_type text not null,
+        details jsonb null default '{}'::jsonb,
+        money_delta bigint null,
+        money_after bigint null
+      );
+    end if;
+  end if;
+  alter table public.action_logs add column if not exists details     jsonb null default '{}'::jsonb;
+  alter table public.action_logs add column if not exists money_delta bigint null;
+  alter table public.action_logs add column if not exists money_after bigint null;
+end $$;
+
 create table if not exists public.casino_rounds (
   id uuid primary key default gen_random_uuid(),
   status text not null default 'betting',   -- betting | spinning | result
@@ -31,16 +91,46 @@ drop policy if exists "read all" on casino_bets;   create policy "read all" on c
 drop policy if exists "no write" on casino_rounds; create policy "no write" on casino_rounds for all using (false) with check (false);
 drop policy if exists "no write" on casino_bets;   create policy "no write" on casino_bets   for all using (false) with check (false);
 
--- гарантированно создаёт новый betting-раунд, если текущего нет (идемпотентно)
+-- Фикс «вечной игры»: раньше просроченный betting сам закрывался здесь же (insert нового
+-- betting), из-за чего два параллельных вызова могли породить ДВА новых цикла — счётчики
+-- раундов рассинхронизировались и игра «зацикливалась». Теперь ensure_round НИКОГДА не
+-- создаёт новый раунд, пока текущий не довёден до 'result' (ставкой на сам результат):
+--   * 'spinning' — переходное состояние внутри resolve_round_rpc (одна транзакция).
+--     Если раунд залип в нём дольше SPIN_GRACE_MS (сбой/старая версия функции) — доводим
+--     его до 'result' той же ставкой на roulette_result, что уже записана в строке.
+--   * 'betting' просрочен — НЕ трогаем: его закроет casino_advance() через resolve_round_rpc
+--     (он корректно рассчитывает ставки и пишет результат ровно один раз).
+--   * Новый 'betting' создаётся ТОЛЬКО когда последний раунд в статусе 'result' и фаза
+--     результатов истекла — ровно один вставку, идемпотентно под FOR UPDATE.
 create or replace function public.ensure_round()
 returns void language plpgsql security definer as $$
 declare r casino_rounds; now_ms bigint := floor(extract(epoch from now())*1000);
 begin
   select * into r from casino_rounds order by created_at desc limit 1 for update;
-  if found and r.status = 'betting' and r.end_time > now_ms then return; end if;
-  if found and r.status = 'betting' and r.end_time <= now_ms then
-    update casino_rounds set status='spinning' where id = r.id;
+
+  -- залипший spinning: результат уже разыгран и лежит в строке — просто доводим статус,
+  -- повторного розыгрыша нет (ставки уже рассчитаны внутри resolve)
+  if found and r.status = 'spinning' then
+    if coalesce(r.end_time, 0) < now_ms - 8000 then
+      update casino_rounds set status = 'result', end_time = now_ms + 10000 where id = r.id;
+      return;
+    end if;
+    return; -- spinning идёт штатно, ждём
   end if;
+
+  -- betting (в т.ч. просроченный) не трогаем — его закроет casino_advance()/resolve_round_rpc
+  if found and r.status = 'betting' then
+    return;
+  end if;
+
+  -- result: держим фазу итогов 10 секунд, потом открываем ОДИН новый betting
+  if found and r.status = 'result' then
+    if coalesce(r.end_time, 0) + 10000 > now_ms then return; end if;
+    insert into casino_rounds(status, end_time) values ('betting', now_ms + 30000);
+    return;
+  end if;
+
+  -- раундов вообще нет (первый запуск) — создаём
   insert into casino_rounds(status, end_time) values ('betting', now_ms + 30000);
 end $$;
 
@@ -147,7 +237,8 @@ begin
     end if;
   end loop;
 
-  update casino_rounds set status='result' where id = p_round_id;
+  update casino_rounds set status='result', end_time = floor(extract(epoch from now())*1000) + 10000
+  where id = p_round_id;
   perform log_action_rpc(null, 'casino_resolve',
     jsonb_build_object('round', p_round_id, 'roulette', v_roulette, 'dice', v_dice,
                        'race', v_winner, 'wins', win_cnt, 'losses', lose_cnt, 'payout', payout_total),
@@ -156,19 +247,131 @@ begin
                             'race', v_winner, 'wins', win_cnt, 'payout', payout_total);
 end $$;
 
+-- внутренний тик: доводит все просроченные betting-раунды и зависшие spinning
+create or replace function public.casino_advance()
+returns int language plpgsql security definer as $$
+declare r record; n int := 0; now_ms bigint := floor(extract(epoch from now())*1000);
+begin
+  -- зависшие spinning (>8 сек) закрываем в result напрямую — ставки уже рассчитаны внутри resolve
+  for r in select id from casino_rounds
+            where status='spinning' and coalesce(end_time,0) < now_ms - 8000 loop
+    update casino_rounds set status='result', end_time = now_ms + 5000 where id = r.id;
+    n := n + 1;
+  end loop;
+  for r in select id from casino_rounds
+            where status='betting' and end_time <= now_ms loop
+    perform resolve_round_rpc(r.id);
+    n := n + 1;
+  end loop;
+  return n;
+end $$;
+
+-- клиентский вход в цикл: при заходе на вкладку казино доводит ленивый цикл
+-- (завершает истёкшие/зависшие раунды и гарантирует свежий betting-раунд). Возвращает текущий раунд.
+-- Анти-висняк: принудительный рестарт цикла казино (если фаза result зависла).
+create table if not exists public.casino_rounds (
+  id uuid primary key default gen_random_uuid(),
+  status text not null default 'betting',
+  end_time bigint not null,
+  roulette_result int,
+  dice_result int,
+  race_winner text,
+  created_at timestamptz not null default timezone('utc', now())
+);
+alter table public.casino_rounds add column if not exists roulette_result int;
+alter table public.casino_rounds add column if not exists dice_result int;
+alter table public.casino_rounds add column if not exists race_winner text;
+create or replace function public.casino_force_restart()
+returns jsonb language plpgsql security definer as $$
+declare now_ms bigint := floor(extract(epoch from now())*1000);
+begin
+  perform pg_advisory_xact_lock(hashtext('casino_cycle'));
+  update casino_rounds set status='result', end_time = least(coalesce(end_time,0), now_ms)
+   where status <> 'result';
+  perform ensure_round();
+  return jsonb_build_object('ok', true);
+end $$;
+grant execute on function public.casino_force_restart() to anon, authenticated;
+
+create or replace function public.get_casino_round_rpc(p_player_id uuid default null)
+returns jsonb language plpgsql security definer as $$
+declare r casino_rounds;
+begin
+  perform casino_advance();
+  perform ensure_round();
+  select * into r from casino_rounds order by created_at desc limit 1;
+  if not found then return null; end if;
+  if r.status = 'result' and coalesce(r.end_time,0) + 20000 < floor(extract(epoch from now())*1000) then
+    perform casino_force_restart();
+    select * into r from casino_rounds order by created_at desc limit 1;
+  end if;
+  return jsonb_build_object(
+    'id', r.id, 'status', r.status, 'end_time', r.end_time,
+    'roulette_result', r.roulette_result, 'dice_result', r.dice_result, 'race_winner', r.race_winner);
+end $$;
+
 -- вызывается из cron (api/casino.js): завершает истёкшие + создаёт новый раунд
 create or replace function public.casino_tick_rpc()
 returns jsonb language plpgsql security definer as $$
-declare r record; done jsonb := '[]'::jsonb;
+declare n int;
 begin
-  for r in select id from casino_rounds
-            where (status='betting' and end_time <= floor(extract(epoch from now())*1000))
-               or status='spinning' loop
-    perform resolve_round_rpc(r.id);
-    done := done || to_jsonb(r.id);
-  end loop;
+  n := casino_advance();
   perform ensure_round();
-  return jsonb_build_object('resolved', done, 'ok', true);
+  return jsonb_build_object('resolved', n, 'ok', true);
+end $$;
+
+-- ЯВНЫЙ СТарт анимации: клиент вызывает эту функцию сразу после принятия последней ставки
+-- (или когда понял, что время ставок истекло). Она вычисляет ИТОГИ заранее, оставляет раунд
+-- в 'spinning' на p_spin_ms миллисекунд и возвращает результат. Ставки при этом НЕ
+-- рассчитываются — это делает resolve_round_rpc ровно один раз, когда спин закончится.
+-- Так анимация гарантированно проигрывается целиком (машины доезжают, барабан останавливается),
+-- а фаза 'result' стартует только после неё. Идемпотентна для одного раунда.
+create or replace function public.spin_round_rpc(p_spin_ms int default 5000)
+returns jsonb language plpgsql security definer as $$
+declare r casino_rounds; v_roulette int; v_dice1 int; v_dice2 int; v_dice int;
+        v_race_r numeric; v_winner text; now_ms bigint := floor(extract(epoch from now())*1000);
+begin
+  select * into r from casino_rounds order by created_at desc limit 1 for update;
+  if not found then return jsonb_build_object('error','раунда нет'); end if;
+  if r.status = 'spinning' then
+    return jsonb_build_object('ok', true, 'already_spinning', true, 'until', r.end_time);
+  end if;
+  if r.status <> 'betting' then return jsonb_build_object('skipped', true, 'status', r.status); end if;
+  if r.end_time > now_ms then
+    -- до конца приёма ставок ещё есть время: спин начнётся автоматически по расписанию
+    return jsonb_build_object('waiting', true, 'until', r.end_time);
+  end if;
+
+  v_roulette := floor(random() * 37)::int;
+  v_dice1 := floor(random() * 6)::int + 1;
+  v_dice2 := floor(random() * 6)::int + 1;
+  v_dice := v_dice1 + v_dice2;
+  v_race_r := random() * 100;
+  v_winner := case
+    when v_race_r <= 40   then 'skyline'
+    when v_race_r <= 70   then 'bmw'
+    when v_race_r <= 85   then 'toyota'
+    when v_race_r <= 95   then 'lada'
+    when v_race_r <= 99   then 'priora'
+    else 'matiz' end;
+
+  p_spin_ms := greatest(1000, least(15000, coalesce(p_spin_ms, 5000)));
+  update casino_rounds
+     set status = 'spinning', end_time = now_ms + p_spin_ms,
+         roulette_result = v_roulette, dice_result = v_dice, race_winner = v_winner
+   where id = r.id;
+  return jsonb_build_object('ok', true, 'until', now_ms + p_spin_ms);
+end $$;
+
+grant execute on function public.spin_round_rpc(int) to anon, authenticated;
+
+-- Realtime: добавить таблицы казино в публикацию (для подписки клиента)
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    begin execute 'alter publication supabase_realtime add table casino_rounds'; exception when duplicate_object then null; end;
+    begin execute 'alter publication supabase_realtime add table casino_bets';   exception when duplicate_object then null; end;
+  end if;
 end $$;
 
 grant execute on all functions in schema public to anon, authenticated;

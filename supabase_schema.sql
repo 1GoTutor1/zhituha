@@ -6,8 +6,87 @@
 
 -- =================== 1. ТАБЛИЦЫ ===================
 -- Таблицы players / businesses / business_workers / market_items / promo_codes /
--- promo_uses / action_logs УЖЕ СУЩЕСТВУЮТ в базе (сверено по твоим CREATE TABLE).
--- Скрипт их НЕ трогает и НЕ пересоздаёт — только функции и RLS ниже.
+-- promo_uses / action_logs — если в базе их нет или они старой структуры,
+-- скрипт пересоздаст их сам (см. блок 1.5 ниже). players/businesses/
+-- business_workers/market_items/promo_codes скрипт НЕ трогает.
+
+-- =================== 1.5 САМОЧИСТКА + ГАРАНТИЯ ТАБЛИЦ ==============
+-- Старые версии этого скрипта могли оставить в БД кривую таблицу action_logs
+-- (player_id bigint/telegram_id без ссылки на players) и осиротевшие функции,
+-- вызов которых валит ВСЕ игровые кнопки ошибкой FK "action_logs_player_id_fkey".
+do $$
+declare r record; v_typ text; v_fk int;
+begin
+  -- 1) action_logs: создаём, если её нет; пересоздаём, если player_id не uuid
+  --    или отсутствует ссылка на players(id). Логи — не игровые данные,
+  --    старые записи можно потерять; игроки и деньги НЕ трогаются.
+  if to_regclass('public.action_logs') is null then
+    create table public.action_logs (
+      id uuid not null default gen_random_uuid(),
+      created_at timestamp with time zone not null default now(),
+      player_id uuid null references public.players(id) on delete set null,
+      action_type text not null,
+      details jsonb null default '{}'::jsonb,
+      money_delta bigint null,
+      money_after bigint null
+    );
+  else
+    select format_type(a.atttypid, a.atttypmod) into v_typ
+      from pg_attribute a
+      join pg_class c on c.oid = a.attrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = 'action_logs' and a.attname = 'player_id';
+    select count(*) into v_fk
+      from pg_constraint
+      where conrelid = 'public.action_logs'::regclass
+        and contype = 'f'
+        and confrelid = 'public.players'::regclass;
+    if v_typ is distinct from 'uuid' or v_fk = 0 then
+      drop table public.action_logs;
+      create table public.action_logs (
+        id uuid not null default gen_random_uuid(),
+        created_at timestamp with time zone not null default now(),
+        player_id uuid null references public.players(id) on delete set null,
+        action_type text not null,
+        details jsonb null default '{}'::jsonb,
+        money_delta bigint null,
+        money_after bigint null
+      );
+    end if;
+  end if;
+
+  -- Добиваем недостающие колонки, если таблица устарела частично.
+  alter table public.action_logs add column if not exists details     jsonb null default '{}'::jsonb;
+  alter table public.action_logs add column if not exists money_delta bigint null;
+  alter table public.action_logs add column if not exists money_after bigint null;
+
+  -- 2) promo_uses: создаём, если её нет (redeem_promo на неё пишет).
+  if to_regclass('public.promo_uses') is null then
+    create table public.promo_uses (
+      id uuid not null default gen_random_uuid() primary key,
+      promo_id uuid not null references public.promo_codes(id) on delete cascade,
+      player_id uuid not null references public.players(id) on delete cascade,
+      created_at timestamp with time zone not null default now(),
+      unique (promo_id, player_id)
+    );
+  end if;
+
+  -- 3) битые/осиротевшие функции из старых версий скрипта — удаляем,
+  --    чтобы они не мешали повторному запуску (все нужные функции
+  --    пересоздаются ниже).
+  for r in
+    select p.oid::regprocedure::text AS sig
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in ('log_action','register_player_rpc','set_subscribed_rpc','set_banned_rpc',
+                        'get_player_by_tg','tip_barista_rpc','claim_tips_rpc','claim_daily_rpc',
+                        'brew_start_rpc','rob_business_rpc','redeem_promo_rpc',
+                        'admin_give_money','admin_set_ban','admin_delete_biz','casino_tick_rpc','spin_round_rpc')
+  loop
+    begin execute 'drop function if exists ' || r.sig || ' cascade'; exception when others then null; end;
+  end loop;
+end $$;
 
 -- =================== 2. RLS ===================
 alter table players          enable row level security;
@@ -87,7 +166,7 @@ begin
         -- защита ролей/зарплат на сервере:
         'validate_worker_role','role_count',
         -- казино (лечит 42P13 при повторном запуске):
-        'ensure_round','place_bet_rpc','resolve_round_rpc','spin_round_rpc','get_casino_round_rpc','casino_tick_rpc','casino_advance'
+        'ensure_round','place_bet_rpc','resolve_round_rpc','spin_round_rpc','get_casino_round_rpc','casino_tick_rpc','casino_advance','casino_force_restart'
       )
   loop
     execute 'drop function if exists ' || r.sig || ' cascade';
@@ -267,16 +346,18 @@ end $$;
 -- Отдых (кд от last_rest_time, макс энергия зависит от дома)
 create or replace function public.rest_rpc(p_player_id uuid, p_target_energy int)
 returns jsonb language plpgsql security definer as $$
-declare p players; now_ms bigint := floor(extract(epoch from now())*1000);
+declare p players; v_cd bigint := 90000; -- ОТДЫХ ВСЕГДА 90 секунд (REST_CD), без скидок
+        now_ms bigint := floor(extract(epoch from now())*1000);
 begin
   select * into p from players where id = p_player_id for update;
   if not found then return jsonb_build_object('error','player not found'); end if;
-  if p.last_rest_time > 0 and now_ms - p.last_rest_time < 90000 then
-    return jsonb_build_object('error','Рано отдыхать');
+  if p.last_rest_time > 0 and now_ms - p.last_rest_time < v_cd then
+    -- возвращаем точное время окончания кулдауна, чтобы клиент показал честный таймер
+    return jsonb_build_object('error','Рано отдыхать', 'rest_end', p.last_rest_time + v_cd);
   end if;
   update players set energy = least(p_target_energy, greatest(coalesce(energy,0), coalesce(p_target_energy,100))),
                      last_rest_time = now_ms where id = p_player_id;
-  return jsonb_build_object('energy', least(p_target_energy, 200), 'rest_end', now_ms + 90000);
+  return jsonb_build_object('energy', least(p_target_energy, 200), 'rest_end', now_ms + v_cd, 'cooldown_ms', v_cd);
 end $$;
 
 -- Телефон: покупка/сдача (влияет на market_slots)
@@ -848,7 +929,7 @@ end $$;
 
 -- =================== 10. АДМИН: ЖУРНАЛЫ И ПРОМОКОДЫ ===================
 
--- Таблица action_logs уже существует (совпадает с реальной схемой Supabase).
+-- Таблица action_logs гарантированно создана с правильной структурой в блоке 1.5.
 create index if not exists idx_action_logs_created on public.action_logs using btree (created_at desc);
 create index if not exists idx_action_logs_player on public.action_logs using btree (player_id, created_at desc);
 create index if not exists idx_action_logs_type on public.action_logs using btree (action_type, created_at desc);
@@ -861,12 +942,18 @@ $$;
 
 create or replace function public.log_action_rpc(
   p_player_id uuid, p_action_type text, p_details jsonb default '{}'::jsonb,
-  p_money_delta integer default null, p_money_after integer default null)
+  p_money_delta bigint default null, p_money_after bigint default null)
 returns void language plpgsql security definer as $$
 begin
   insert into action_logs (player_id, action_type, details, money_delta, money_after)
   values (p_player_id, left(coalesce(p_action_type,'unknown'), 64), coalesce(p_details,'{}'),
           p_money_delta, p_money_after);
+exception when foreign_key_violation or undefined_table or invalid_text_representation or datatype_mismatch then
+  -- В базе лежит СТАРАЯ/битая таблица action_logs (например, player_id bigint
+  -- без ссылки на players). Логи — не игровые данные: молча пропускаем запись,
+  -- чтобы ошибка журналов НЕ вешала все игровые кнопки (работа/отдых/кофе...).
+  -- Починить таблицу можно повторным запуском supabase_schema.sql (блок 1.5).
+  null;
 end $$;
 
 create or replace function public.get_logs_rpc(p_admin_id uuid, p_limit int default 200, p_action_type text default null)
@@ -976,6 +1063,54 @@ drop policy if exists "no write" on casino_bets;   create policy "no write" on c
 --     (он корректно рассчитывает ставки и пишет результат ровно один раз).
 --   * Новый 'betting' создаётся ТОЛЬКО когда последний раунд в статусе 'result' и фаза
 --     результатов истекла — ровно один вставку, идемпотентно под FOR UPDATE.
+-- =================== КАЗИНО: САМОЧУВСТВИЕ ЦИКЛА (anti-hang) ===================
+-- Гарантирует таблицы казино и чинит ЗАВИСШУЮ фазу result: если строка раунда
+-- битая/устаревшей структуры или цикл остановился — цикл перезапускается сам,
+-- вкладка больше не может «висеть мёртвой».
+create table if not exists public.casino_rounds (
+  id uuid primary key default gen_random_uuid(),
+  status text not null default 'betting',
+  end_time bigint not null,
+  roulette_result int,
+  dice_result int,
+  race_winner text,
+  created_at timestamptz not null default timezone('utc', now())
+);
+create table if not exists public.casino_bets (
+  id uuid primary key default gen_random_uuid(),
+  round_id uuid references casino_rounds(id) on delete cascade,
+  player_id uuid references players(id) on delete cascade,
+  game_type text not null,
+  bet_choice text not null,
+  amount int not null check (amount > 0),
+  status text not null default 'pending',
+  created_at timestamptz not null default timezone('utc', now())
+);
+alter table public.casino_rounds add column if not exists roulette_result int;
+alter table public.casino_rounds add column if not exists dice_result int;
+alter table public.casino_rounds add column if not exists race_winner text;
+alter table public.casino_rounds enable row level security;
+alter table public.casino_bets    enable row level security;
+drop policy if exists "read all" on casino_rounds; create policy "read all" on casino_rounds for select using (true);
+drop policy if exists "no write" on casino_rounds; create policy "no write" on casino_rounds for all using (false) with check (false);
+drop policy if exists "read own bets" on casino_bets; create policy "read own bets" on casino_bets for select using (true);
+drop policy if exists "no write" on casino_bets; create policy "no write" on casino_bets for all using (false) with check (false);
+
+-- принудительный рестарт цикла: все старые раунды в result с истёкшим сроком,
+-- новый betting-раунд создаётся автоматически. Безопасно: pending-ставки уже
+-- рассчитаны resolve'ом (won/lost) либо будут помечены при доводе раунда.
+create or replace function public.casino_force_restart()
+returns jsonb language plpgsql security definer as $$
+declare now_ms bigint := floor(extract(epoch from now())*1000);
+begin
+  perform pg_advisory_xact_lock(hashtext('casino_cycle'));
+  update casino_rounds set status='result', end_time = least(coalesce(end_time,0), now_ms)
+   where status <> 'result';
+  perform ensure_round();
+  return jsonb_build_object('ok', true);
+end $$;
+grant execute on function public.casino_force_restart() to anon, authenticated;
+
 create or replace function public.ensure_round()
 returns void language plpgsql security definer as $$
 declare r casino_rounds; now_ms bigint := floor(extract(epoch from now())*1000);
@@ -1189,12 +1324,18 @@ grant execute on function public.spin_round_rpc(int) to anon, authenticated;
 -- (завершает истёкшие/зависшие раунды и гарантирует свежий betting-раунд). Возвращает текущий раунд.
 create or replace function public.get_casino_round_rpc(p_player_id uuid default null)
 returns jsonb language plpgsql security definer as $$
-declare r casino_rounds;
+declare r casino_rounds; now_ms bigint := floor(extract(epoch from now())*1000);
 begin
   perform casino_advance();
   perform ensure_round();
   select * into r from casino_rounds order by created_at desc limit 1;
   if not found then return null; end if;
+  -- САМОЧУВСТВИЕ: цикл стоит (result протух, а нового betting нет) — перезапускаем сами,
+  -- иначе вкладка казино «висит мёртвой» навсегда.
+  if r.status = 'result' and coalesce(r.end_time,0) + 20000 < now_ms then
+    perform casino_force_restart();
+    select * into r from casino_rounds order by created_at desc limit 1;
+  end if;
   return jsonb_build_object(
     'id', r.id, 'status', r.status, 'end_time', r.end_time,
     'roulette_result', r.roulette_result, 'dice_result', r.dice_result, 'race_winner', r.race_winner);

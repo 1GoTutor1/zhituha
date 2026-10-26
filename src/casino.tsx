@@ -60,9 +60,11 @@ export const CasinoTab = ({ app }: { app: any }) => {
     try {
       // серверный «ленивый» цикл: доводит истёкшие/зависшие раунды и гарантирует свежий betting
       let data: any = null;
-      const { data: rpcData } = await supabase.rpc('get_casino_round_rpc', { p_player_id: pid || null });
+      let { data: rpcData, error: rpcErr } = await supabase.rpc('get_casino_round_rpc', { p_player_id: pid || null });
       data = rpcData;
-      if (!data) {
+      if (rpcErr || !data) {
+        // Серверная функция недоступна/упала — чиним цикл напрямую: рестарт + чтение таблицы.
+        try { await supabase.rpc('casino_force_restart'); } catch {}
         const { data: fallback } = await supabase.from('casino_rounds').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
         data = fallback;
       }
@@ -145,11 +147,30 @@ export const CasinoTab = ({ app }: { app: any }) => {
     }
   }, [round?.id, round?.status, now]);
 
+  // АНТИ-ВИСНЯК: если фаза result тянется дольше 25 сек — цикл где-то заклинил.
+  // Принудительно перезапускаем его на сервере (казино больше не может «висеть мёртвым»).
+  useEffect(() => {
+    if (round?.status !== 'result') return;
+    const stuckFor = serverNow - (round.end_time - RESULT_MS);
+    if (stuckFor > RESULT_MS + 15000) {
+      (async () => {
+        try { await supabase.rpc('casino_force_restart'); } catch {}
+        loadRound();
+      })();
+    }
+  }, [round?.id, round?.status, Math.floor(serverNow / 5000), loadRound]);
+
   // страховка от ВЕЧНОГО СПИНА: если сервер завис в spinning — через ~7 сек дёрнем тик,
   // сервер (ensure_round/casino_advance) принудительно доведёт зависший раунд и откроет новый
   useEffect(() => {
     if (round?.status === 'spinning') {
-      const t = setTimeout(loadRound, SPIN_MS + 2000);
+      const t = setTimeout(async () => {
+        // спин затянулся сильно сверх грейса сервера — доводим принудительным рестартом цикла
+        if (round && Date.now() + serverDriftRef.current > round.end_time + 15000) {
+          try { await supabase.rpc('casino_force_restart'); } catch {}
+        }
+        loadRound();
+      }, SPIN_MS + 2000);
       return () => clearTimeout(t);
     }
   }, [round?.id, round?.status, loadRound]);
