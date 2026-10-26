@@ -13,6 +13,53 @@ begin
 end $$;
 
 -- =================== 10. КАЗИНО (глобальный цикл раундов 45 сек) ============
+
+-- ВАЖНО: функции ниже вызывают log_action_rpc(...). Если в базе лежит СТАРАЯ
+-- таблица action_logs (player_id bigint/telegram_id без ссылки на players),
+-- вставка в логи падает ошибкой FK и рушит ВСЕ игровые кнопки. Чиним структуру
+-- таблицы заранее — это безопасно для игроков (логи — не игровые данные).
+do $$
+declare v_typ text; v_fk int;
+begin
+  if to_regclass('public.action_logs') is null then
+    create table public.action_logs (
+      id uuid not null default gen_random_uuid(),
+      created_at timestamp with time zone not null default now(),
+      player_id uuid null references public.players(id) on delete set null,
+      action_type text not null,
+      details jsonb null default '{}'::jsonb,
+      money_delta bigint null,
+      money_after bigint null
+    );
+  else
+    select format_type(a.atttypid, a.atttypmod) into v_typ
+      from pg_attribute a
+      join pg_class c on c.oid = a.attrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = 'action_logs' and a.attname = 'player_id';
+    select count(*) into v_fk
+      from pg_constraint
+      where conrelid = 'public.action_logs'::regclass
+        and contype = 'f'
+        and confrelid = 'public.players'::regclass;
+    if v_typ is distinct from 'uuid' or v_fk = 0 then
+      drop table public.action_logs;
+      create table public.action_logs (
+        id uuid not null default gen_random_uuid(),
+        created_at timestamp with time zone not null default now(),
+        player_id uuid null references public.players(id) on delete set null,
+        action_type text not null,
+        details jsonb null default '{}'::jsonb,
+        money_delta bigint null,
+        money_after bigint null
+      );
+    end if;
+  end if;
+  alter table public.action_logs add column if not exists details     jsonb null default '{}'::jsonb;
+  alter table public.action_logs add column if not exists money_delta bigint null;
+  alter table public.action_logs add column if not exists money_after bigint null;
+end $$;
+
 create table if not exists public.casino_rounds (
   id uuid primary key default gen_random_uuid(),
   status text not null default 'betting',   -- betting | spinning | result

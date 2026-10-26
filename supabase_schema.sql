@@ -6,8 +6,87 @@
 
 -- =================== 1. ТАБЛИЦЫ ===================
 -- Таблицы players / businesses / business_workers / market_items / promo_codes /
--- promo_uses / action_logs УЖЕ СУЩЕСТВУЮТ в базе (сверено по твоим CREATE TABLE).
--- Скрипт их НЕ трогает и НЕ пересоздаёт — только функции и RLS ниже.
+-- promo_uses / action_logs — если в базе их нет или они старой структуры,
+-- скрипт пересоздаст их сам (см. блок 1.5 ниже). players/businesses/
+-- business_workers/market_items/promo_codes скрипт НЕ трогает.
+
+-- =================== 1.5 САМОЧИСТКА + ГАРАНТИЯ ТАБЛИЦ ==============
+-- Старые версии этого скрипта могли оставить в БД кривую таблицу action_logs
+-- (player_id bigint/telegram_id без ссылки на players) и осиротевшие функции,
+-- вызов которых валит ВСЕ игровые кнопки ошибкой FK "action_logs_player_id_fkey".
+do $$
+declare r record; v_typ text; v_fk int;
+begin
+  -- 1) action_logs: создаём, если её нет; пересоздаём, если player_id не uuid
+  --    или отсутствует ссылка на players(id). Логи — не игровые данные,
+  --    старые записи можно потерять; игроки и деньги НЕ трогаются.
+  if to_regclass('public.action_logs') is null then
+    create table public.action_logs (
+      id uuid not null default gen_random_uuid(),
+      created_at timestamp with time zone not null default now(),
+      player_id uuid null references public.players(id) on delete set null,
+      action_type text not null,
+      details jsonb null default '{}'::jsonb,
+      money_delta bigint null,
+      money_after bigint null
+    );
+  else
+    select format_type(a.atttypid, a.atttypmod) into v_typ
+      from pg_attribute a
+      join pg_class c on c.oid = a.attrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = 'action_logs' and a.attname = 'player_id';
+    select count(*) into v_fk
+      from pg_constraint
+      where conrelid = 'public.action_logs'::regclass
+        and contype = 'f'
+        and confrelid = 'public.players'::regclass;
+    if v_typ is distinct from 'uuid' or v_fk = 0 then
+      drop table public.action_logs;
+      create table public.action_logs (
+        id uuid not null default gen_random_uuid(),
+        created_at timestamp with time zone not null default now(),
+        player_id uuid null references public.players(id) on delete set null,
+        action_type text not null,
+        details jsonb null default '{}'::jsonb,
+        money_delta bigint null,
+        money_after bigint null
+      );
+    end if;
+  end if;
+
+  -- Добиваем недостающие колонки, если таблица устарела частично.
+  alter table public.action_logs add column if not exists details     jsonb null default '{}'::jsonb;
+  alter table public.action_logs add column if not exists money_delta bigint null;
+  alter table public.action_logs add column if not exists money_after bigint null;
+
+  -- 2) promo_uses: создаём, если её нет (redeem_promo на неё пишет).
+  if to_regclass('public.promo_uses') is null then
+    create table public.promo_uses (
+      id uuid not null default gen_random_uuid() primary key,
+      promo_id uuid not null references public.promo_codes(id) on delete cascade,
+      player_id uuid not null references public.players(id) on delete cascade,
+      created_at timestamp with time zone not null default now(),
+      unique (promo_id, player_id)
+    );
+  end if;
+
+  -- 3) битые/осиротевшие функции из старых версий скрипта — удаляем,
+  --    чтобы они не мешали повторному запуску (все нужные функции
+  --    пересоздаются ниже).
+  for r in
+    select p.oid::regprocedure::text AS sig
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in ('log_action','register_player_rpc','set_subscribed_rpc','set_banned_rpc',
+                        'get_player_by_tg','tip_barista_rpc','claim_tips_rpc','claim_daily_rpc',
+                        'brew_start_rpc','rob_business_rpc','redeem_promo_rpc',
+                        'admin_give_money','admin_set_ban','admin_delete_biz','casino_tick_rpc','spin_round_rpc')
+  loop
+    begin execute 'drop function if exists ' || r.sig || ' cascade'; exception when others then null; end;
+  end loop;
+end $$;
 
 -- =================== 2. RLS ===================
 alter table players          enable row level security;
@@ -848,7 +927,7 @@ end $$;
 
 -- =================== 10. АДМИН: ЖУРНАЛЫ И ПРОМОКОДЫ ===================
 
--- Таблица action_logs уже существует (совпадает с реальной схемой Supabase).
+-- Таблица action_logs гарантированно создана с правильной структурой в блоке 1.5.
 create index if not exists idx_action_logs_created on public.action_logs using btree (created_at desc);
 create index if not exists idx_action_logs_player on public.action_logs using btree (player_id, created_at desc);
 create index if not exists idx_action_logs_type on public.action_logs using btree (action_type, created_at desc);
@@ -861,12 +940,18 @@ $$;
 
 create or replace function public.log_action_rpc(
   p_player_id uuid, p_action_type text, p_details jsonb default '{}'::jsonb,
-  p_money_delta integer default null, p_money_after integer default null)
+  p_money_delta bigint default null, p_money_after bigint default null)
 returns void language plpgsql security definer as $$
 begin
   insert into action_logs (player_id, action_type, details, money_delta, money_after)
   values (p_player_id, left(coalesce(p_action_type,'unknown'), 64), coalesce(p_details,'{}'),
           p_money_delta, p_money_after);
+exception when foreign_key_violation or undefined_table or invalid_text_representation or datatype_mismatch then
+  -- В базе лежит СТАРАЯ/битая таблица action_logs (например, player_id bigint
+  -- без ссылки на players). Логи — не игровые данные: молча пропускаем запись,
+  -- чтобы ошибка журналов НЕ вешала все игровые кнопки (работа/отдых/кофе...).
+  -- Починить таблицу можно повторным запуском supabase_schema.sql (блок 1.5).
+  null;
 end $$;
 
 create or replace function public.get_logs_rpc(p_admin_id uuid, p_limit int default 200, p_action_type text default null)
