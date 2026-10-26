@@ -391,17 +391,42 @@ end $$;
 -- Отдых (кд от last_rest_time, макс энергия зависит от дома)
 create or replace function public.rest_rpc(p_player_id uuid)
 returns jsonb language plpgsql security definer as $$
-declare p players; now_ms bigint := floor(extract(epoch from clock_timestamp())*1000); target_energy int;
+declare
+  p players;
+  now_ms bigint := floor(extract(epoch from clock_timestamp())*1000);
+  target_energy int;
+  cooldown_ms int;
+  today text;
+  hash_value bigint := 0;
+  day_index int;
+  i int;
 begin
   select * into p from players where id = p_player_id for update;
   if not found then return jsonb_build_object('error','player not found'); end if;
-  if p.last_rest_time > 0 and now_ms - p.last_rest_time < 90000 then
+  cooldown_ms := case
+    when coalesce(p.has_car, false) and p.car_model = 'toyota' then 70000
+    when coalesce(p.has_car, false) and p.car_model = 'lada' then 80000
+    else 90000
+  end;
+
+  -- Скидка дня "Автошоу" действует только у игроков с машиной.
+  today := to_char(now() at time zone 'UTC', 'YYYY-MM-DD');
+  for i in 1..length(today) loop
+    hash_value := mod(hash_value * 31 + ascii(substr(today, i, 1)), 4294967296);
+    if hash_value >= 2147483648 then hash_value := hash_value - 4294967296; end if;
+  end loop;
+  day_index := mod(abs(hash_value), 10)::int;
+  if coalesce(p.has_car, false) and day_index = 3 then
+    cooldown_ms := floor(cooldown_ms * 0.8)::int;
+  end if;
+
+  if p.last_rest_time > 0 and now_ms - p.last_rest_time < cooldown_ms then
     return jsonb_build_object('error','Рано отдыхать');
   end if;
   target_energy := case when p.has_house then 150 else 100 end;
   update players set energy = greatest(coalesce(energy,0), target_energy),
                      last_rest_time = now_ms where id = p_player_id;
-  return jsonb_build_object('energy', greatest(coalesce(p.energy,0), target_energy), 'rest_end', now_ms + 90000);
+  return jsonb_build_object('energy', greatest(coalesce(p.energy,0), target_energy), 'rest_end', now_ms + cooldown_ms, 'rest_time', cooldown_ms);
 end $$;
 
 -- Телефон: покупка/сдача (влияет на market_slots)

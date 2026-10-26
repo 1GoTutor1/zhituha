@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 import { Send, ShieldAlert } from 'lucide-react';
 import { 
   BOT_USERNAME, CHANNEL_LINK, POLL, 
-  BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, BASE_REST_TIME, LADA_REST_TIME, TOYOTA_REST_TIME, AVATARS, 
+  BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, getRestTime, AVATARS,
   getStock, S, APARTMENTS_PER_BUILD, TAXI_BIZ_PRICE, 
   COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, 
   CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE,
@@ -122,8 +122,7 @@ export default function App() {
 
   const maxEnergy = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
   const dayMod = getDayModifier();
-  const baseRestTime = carModel === 'toyota' ? TOYOTA_REST_TIME : carModel === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
-  const restTime = dayMod?.type === 'car_sell' ? Math.floor(baseRestTime * 0.8) : baseRestTime;
+  const restTime = getRestTime(hasCar, carModel, dayMod);
   
   let bizBonusPercent = 0;
   myBizs.forEach(b => {
@@ -288,7 +287,7 @@ export default function App() {
       }
       
       const last = Number(d.last_rest_time) || 0;
-      const cRestTime = d.car_model === 'toyota' ? TOYOTA_REST_TIME : d.car_model === 'lada' ? LADA_REST_TIME : BASE_REST_TIME;
+      const cRestTime = getRestTime(Boolean(d.has_car), d.car_model || 'none');
       const end = last + cRestTime > Date.now() ? last + cRestTime : 0;
       setRestEnd(end); if (end > 0) setTLeft(Math.max(0, Math.ceil((end - Date.now()) / 1000)));
 

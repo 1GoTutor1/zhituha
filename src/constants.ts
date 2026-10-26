@@ -98,6 +98,13 @@ export const getDayModifier = () => {
   }
 };
 
+export const getRestTime = (hasCar: boolean, carModel: string, modifier = getDayModifier()) => {
+  const baseTime = hasCar
+    ? carModel === 'toyota' ? TOYOTA_REST_TIME : carModel === 'lada' ? LADA_REST_TIME : BASE_REST_TIME
+    : BASE_REST_TIME;
+  return hasCar && modifier?.type === 'car_sell' ? Math.floor(baseTime * 0.8) : baseTime;
+};
+
 // Экономика по дизайн-доку (сервер считает ЗП/штрафы, клиент только показывает):
 // COFFEE: чашка 500₽ -> Бариста 60 + Помощник 30 (если нет — 30 забирает владелец), владельцу 410.
 // SALON: партия — Механик 10000/место (макс 2, обязателен), Продавец 15000 (макс 1).
