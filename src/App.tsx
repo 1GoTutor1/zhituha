@@ -228,7 +228,7 @@ export default function App() {
   const pollMyBizs = async () => {
     if (!pid) return;
     const { data } = await supabase.from('businesses')
-      .select('id, owner_id, biz_type, business_name, stock, coffee_balance, build_end, car_order_end, last_collected, created_at')
+      .select('id, owner_id, biz_type, business_name, stock, coffee_balance, build_end, car_order_end, last_collected, created_at, passive_level, passive_balance, passive_updated_at')
       .eq('owner_id', pid);
     if (data) setMyBizs(data);
   };
@@ -727,6 +727,26 @@ export default function App() {
     }
   });
 
+  const upgradeBusinessPassive = (bizId: string) => action(async () => {
+    const { data, error } = await supabase.rpc('upgrade_business_passive_rpc', { p_biz_id: bizId, p_player_id: pid });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setMoney(Number(data.money));
+    setMyBizs(prev => prev.map(b => b.id === bizId ? { ...b, passive_level: Number(data.level), passive_balance: Number(data.passive_balance), passive_updated_at: data.passive_updated_at } : b));
+    showMsg(`Пассивный доход улучшен до уровня ${data.level}!`);
+    await afterAction();
+  });
+
+  const collectBusinessPassive = (bizId: string) => action(async () => {
+    const { data, error } = await supabase.rpc('collect_business_passive_rpc', { p_biz_id: bizId, p_player_id: pid });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setMoney(Number(data.money));
+    setMyBizs(prev => prev.map(b => b.id === bizId ? { ...b, passive_balance: 0, passive_updated_at: data.passive_updated_at } : b));
+    showMsg(`Пассивный доход собран: ${Number(data.collected).toLocaleString('ru-RU')} ₽`);
+    await afterAction();
+  });
+
   const hire = (bizId: string, roleName: string, salary: number) => action(async () => {
     if (myJob) return showMsg("Вы уже работаете", true);
     const { data, error } = await supabase.rpc('hire_worker_rpc', { p_player_id: pid, p_player_name: nick, p_business_id: bizId, p_role: roleName, p_salary: salary });
@@ -875,9 +895,9 @@ export default function App() {
 
   const app = useMemo(() => ({
     user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, market, myJob, allWorkers, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, collectTips, handleAvatar, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData,
-    bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz
+    bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive
   }), [
-    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, promoOpen, promoInput, adminTab, role, bugOpen, bugText
+    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg
   ]);
 
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);

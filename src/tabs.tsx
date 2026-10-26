@@ -5,7 +5,7 @@ import {
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
   BUTTON_BATCH_COST, SMARTPHONE_BATCH_COST, BUTTON_BATCH_SIZE, SMARTPHONE_BATCH_SIZE,
   DEFAULT_SELL_LADA, DEFAULT_SELL_TOYOTA, DEFAULT_SELL_APARTMENT, DEFAULT_SELL_PHONE,
-  DEFAULT_SELL_BUTTON, DEFAULT_SELL_SMARTPHONE, BIZ_JOBS
+  DEFAULT_SELL_BUTTON, DEFAULT_SELL_SMARTPHONE, BIZ_JOBS, BUSINESS_PASSIVE_TIERS, getStock
 } from './constants';
 import { Btn, Modal } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -286,6 +286,12 @@ export const MarketTab = ({ app }: { app: any }) => {
 };
 
 export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
+  const [passiveNow, setPassiveNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setPassiveNow(Date.now()), 10000);
+    return () => clearInterval(timer);
+  }, []);
+
   const bizTypes = ['coffee', 'salon', 'taxi', 'phone_factory', 'construction'];
   const currentIndex = bizTypes.indexOf(app.activeBizType);
   const prevType = bizTypes[(currentIndex - 1 + 5) % 5];
@@ -295,6 +301,17 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   const getBizName = (type: string) => type === 'coffee' ? 'Кофейня' : type === 'salon' ? 'Автосалон' : type === 'taxi' ? 'Таксопарк' : type === 'phone_factory' ? 'Телефонный цех' : 'Стройтрест';
 
   const bizWorkers = app.allWorkers?.filter((w: any) => w.business_id === activeBiz?.id) || [];
+  const passiveTiers = activeBiz ? BUSINESS_PASSIVE_TIERS[activeBiz.biz_type as keyof typeof BUSINESS_PASSIVE_TIERS] : null;
+  const passiveLevel = Math.max(-1, Math.min(3, Number(activeBiz?.passive_level ?? -1)));
+  const nextPassiveTier = passiveTiers?.[passiveLevel + 1];
+  const passiveCarCount = activeBiz?.biz_type === 'taxi' ? (getStock(activeBiz).taxi_cars?.length || 0) : 1;
+  const passiveHasStaff = activeBiz?.biz_type !== 'taxi' || bizWorkers.length > 0;
+  const passiveRate = passiveLevel >= 0 && passiveTiers ? passiveTiers[passiveLevel].incomePerMinute : 0;
+  const passiveUpdatedAt = Date.parse(activeBiz?.passive_updated_at || '');
+  const passiveElapsedMinutes = passiveLevel >= 0 && passiveHasStaff && Number.isFinite(passiveUpdatedAt)
+    ? Math.max(0, Math.floor((passiveNow - passiveUpdatedAt) / 60000))
+    : 0;
+  const passivePending = Number(activeBiz?.passive_balance || 0) + passiveElapsedMinutes * passiveRate * passiveCarCount;
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -362,6 +379,37 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
             <div style={{ marginTop: 15 }}>
               <p style={{ fontSize: 14, color: '#6b5f45', marginBottom: 10 }}>Касса кафе: <b style={{ color: '#3f9d55', fontSize: 18, fontFamily: 'Russo One' }}>{activeBiz.coffee_balance || 0}</b> монет</p>
               <Btn variant="primary" onClick={app.collect} disabled={app.proc || !activeBiz.coffee_balance} style={{ marginBottom: 15 }}>Собрать кассу</Btn>
+            </div>
+          )}
+
+          {passiveTiers && (
+            <div style={{ marginTop: 20, padding: 15, borderRadius: 12, background: 'linear-gradient(145deg, rgba(40,32,20,0.96), rgba(24,24,28,0.94))', border: '1px solid rgba(214,177,103,0.35)', color: '#f8f0df', textAlign: 'left', boxShadow: '0 8px 24px rgba(0,0,0,0.16)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                <h3 style={{ margin: 0, fontSize: 16, color: '#f1d28f' }}>Пассивный доход</h3>
+                <span style={{ fontSize: 12, color: '#d2c5a7' }}>{passiveLevel < 0 ? 'Закрыт' : `Уровень ${passiveLevel} / 3`}</span>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: '#d2c5a7' }}>
+                {passiveLevel < 0
+                  ? 'Открой пассивный доход и получай деньги, пока играешь или отдыхаешь.'
+                  : `${(passiveRate * passiveCarCount).toLocaleString('ru-RU')} ₽ в минуту${activeBiz.biz_type === 'taxi' ? ` · ${passiveRate} ₽ за машину` : ''}`}
+              </p>
+              {passiveLevel >= 0 && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.06)' }}>
+                    <span style={{ color: '#d2c5a7', fontSize: 13 }}>{passiveHasStaff ? 'Накоплено' : 'Для дохода найми сотрудника'}</span>
+                    <b style={{ color: '#9ee6a9', fontSize: 16 }}>{passivePending.toLocaleString('ru-RU')} ₽</b>
+                  </div>
+                  {activeBiz.biz_type === 'taxi' && passiveCarCount === 0 && <p style={{ margin: '0 0 10px', color: '#e5be72', fontSize: 12 }}>Добавь машины в таксопарк, чтобы получать доход.</p>}
+                  <Btn variant="primary" onClick={() => app.collectBusinessPassive(activeBiz.id)} disabled={app.proc || passivePending <= 0} style={{ marginBottom: 8, background: 'linear-gradient(135deg, #3f9d55, #26713a)' }}>Собрать пассивный доход</Btn>
+                </>
+              )}
+              {nextPassiveTier ? (
+                <Btn variant="secondary" onClick={() => app.upgradeBusinessPassive(activeBiz.id)} disabled={app.proc || app.money < nextPassiveTier.cost} style={{ background: 'rgba(214,177,103,0.14)', border: '1px solid rgba(214,177,103,0.55)', color: '#f1d28f' }}>
+                  {passiveLevel < 0 ? 'Открыть' : `Улучшить до уровня ${passiveLevel + 1}`} · {nextPassiveTier.cost.toLocaleString('ru-RU')} ₽
+                </Btn>
+              ) : (
+                <p style={{ margin: '8px 0 0', color: '#9ee6a9', fontSize: 13, textAlign: 'center' }}>Максимальный уровень</p>
+              )}
             </div>
           )}
 

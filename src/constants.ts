@@ -23,6 +23,14 @@ export const TAXI_BIZ_PRICE = 300000;
 export const PHONE_FACTORY_BIZ_PRICE = 300000;
 export const CONSTRUCTION_BIZ_PRICE = 500000;
 
+export const BUSINESS_PASSIVE_TIERS = {
+  coffee: [{ cost: 5000, incomePerMinute: 15 }, { cost: 20000, incomePerMinute: 40 }, { cost: 60000, incomePerMinute: 100 }, { cost: 150000, incomePerMinute: 250 }],
+  salon: [{ cost: 50000, incomePerMinute: 60 }, { cost: 150000, incomePerMinute: 150 }, { cost: 400000, incomePerMinute: 350 }, { cost: 1000000, incomePerMinute: 800 }],
+  phone_factory: [{ cost: 100000, incomePerMinute: 100 }, { cost: 300000, incomePerMinute: 250 }, { cost: 800000, incomePerMinute: 600 }, { cost: 2000000, incomePerMinute: 1400 }],
+  construction: [{ cost: 150000, incomePerMinute: 150 }, { cost: 500000, incomePerMinute: 400 }, { cost: 1500000, incomePerMinute: 900 }, { cost: 3000000, incomePerMinute: 2000 }],
+  taxi: [{ cost: 100000, incomePerMinute: 30 }, { cost: 300000, incomePerMinute: 80 }, { cost: 700000, incomePerMinute: 200 }, { cost: 1500000, incomePerMinute: 500 }],
+} as const;
+
 export const BUTTON_BATCH_SIZE = 10;
 export const BUTTON_BATCH_COST = 7000;
 export const BUTTON_BATCH_TIME = 600000; // 10 минут
