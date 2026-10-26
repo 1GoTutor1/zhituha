@@ -118,6 +118,17 @@ button { user-select: none; -webkit-tap-highlight-color: transparent; }
   80%  { transform: rotate(510deg) translateY(0); }
   100% { transform: rotate(540deg) translateY(0); }
 }
+@keyframes casinoDieTumble {
+  0% { transform: translateY(0) rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  22% { transform: translateY(-17px) rotateX(95deg) rotateY(80deg) rotateZ(32deg); }
+  48% { transform: translateY(-4px) rotateX(205deg) rotateY(190deg) rotateZ(-35deg); }
+  74% { transform: translateY(-13px) rotateX(305deg) rotateY(285deg) rotateZ(24deg); }
+  100% { transform: translateY(0) rotateX(360deg) rotateY(360deg) rotateZ(0deg); }
+}
+@keyframes casinoRaceRattle {
+  from { transform: translateY(0) rotate(-2deg); }
+  to { transform: translateY(-3px) rotate(2deg); }
+}
 /* Гонки: машины едут по полосе с лёгкой тряской, старт -> финиш */
 @keyframes casinoRaceDrive {
   0%   { transform: translateX(-10%) rotate(-1deg); }

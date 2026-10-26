@@ -42,6 +42,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const [diceHistory, setDiceHistory] = useState<number[]>([]);
   const [raceHistory, setRaceHistory] = useState<string[]>([]);
   const lastRoundId = useRef<string | null>(null);
+  const pendingLoadRef = useRef(false);
   const loadingRef = useRef(false);         // защита от наложения запросов loadRound
   const mountedRef = useRef(true);
   const spinRequestedRef = useRef(false);   // мы уже попросили сервер начать спин этого раунда
@@ -55,6 +56,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
   }, [round?.status]);
 
   const loadRound = useCallback(async () => {
+    if (loadingRef.current) { pendingLoadRef.current = true; return; }
     if (loadingRef.current) return; // не дёргаем сервер параллельно (realtime + поллинг + свои таймеры)
     loadingRef.current = true;
     try {
@@ -99,7 +101,13 @@ export const CasinoTab = ({ app }: { app: any }) => {
         }
       }
       lastRoundId.current = r.id;
-    } catch {} finally { loadingRef.current = false; }
+    } catch {} finally {
+      loadingRef.current = false;
+      if (pendingLoadRef.current) {
+        pendingLoadRef.current = false;
+        window.setTimeout(() => { if (mountedRef.current) void loadRound(); }, 80);
+      }
+    }
   }, [pid]);
 
   // подписка на Realtime + страховочный поллинг раз в 5 сек
@@ -140,8 +148,25 @@ export const CasinoTab = ({ app }: { app: any }) => {
     if (spinRequestedRef.current && !pastDeadline) return;
     spinRequestedRef.current = true;
     (async () => {
-      try { await supabase.rpc('spin_round_rpc', { p_spin_ms: SPIN_MS }); } catch {}
-      loadRound();
+      try {
+        const { data, error } = await supabase.rpc('spin_round_rpc', { p_spin_ms: SPIN_MS });
+        if (error || (data as any)?.error || (data as any)?.waiting) {
+          spinRequestedRef.current = false;
+          window.setTimeout(() => { if (mountedRef.current) void loadRound(); }, 250);
+          return;
+        }
+        const refreshWhenFree = (attempt = 0) => {
+          if (loadingRef.current && attempt < 20) {
+            window.setTimeout(() => refreshWhenFree(attempt + 1), 80);
+            return;
+          }
+          if (mountedRef.current) void loadRound();
+        };
+        refreshWhenFree();
+      } catch {
+        spinRequestedRef.current = false;
+        window.setTimeout(() => { if (mountedRef.current) void loadRound(); }, 500);
+      }
     })();
   }, [phase, round?.id, Math.floor(serverNow / 500), loadRound]);
 
@@ -174,14 +199,14 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const DICE_PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
   const DICE_ROTATION: Record<number, string> = { 1: 'rotateX(0deg) rotateY(0deg)', 2: 'rotateX(0deg) rotateY(-90deg)', 3: 'rotateX(-90deg) rotateY(0deg)', 4: 'rotateX(90deg) rotateY(0deg)', 5: 'rotateX(0deg) rotateY(90deg)', 6: 'rotateX(0deg) rotateY(180deg)' };
   const dieFace = (v: number, rolling: boolean, delay: string) => (
-    <div key={`die-${delay}`} style={{ width: 58, height: 58, perspective: 420, margin: 8 }}>
-      <div style={{ position: 'relative', width: 48, height: 48, margin: 5, transformStyle: 'preserve-3d', transform: DICE_ROTATION[v], transition: `transform ${rolling ? '110ms' : '420ms'} cubic-bezier(.2,.75,.25,1)`, filter: 'drop-shadow(0 5px 3px rgba(45,32,12,.3))' }}>
+    <div key={`die-${delay}`} style={{ width: 66, height: 66, perspective: 420, margin: 4, animation: rolling ? 'casinoDieTumble .72s ease-in-out infinite' : 'none', animationDelay: delay }}>
+      <div style={{ position: 'relative', width: 48, height: 48, margin: 8, transformStyle: 'preserve-3d', transform: DICE_ROTATION[v], transition: `transform ${rolling ? '100ms' : '420ms'} cubic-bezier(.2,.75,.25,1)` }}>
         {([
           ['front', 'translateZ(24px)', 1], ['back', 'rotateY(180deg) translateZ(24px)', 6],
           ['right', 'rotateY(90deg) translateZ(24px)', 2], ['left', 'rotateY(-90deg) translateZ(24px)', 5],
           ['top', 'rotateX(90deg) translateZ(24px)', 3], ['bottom', 'rotateX(-90deg) translateZ(24px)', 4],
         ] as const).map(([side, transform, value]) => (
-          <div key={side} style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)', padding: 5, gap: 2, borderRadius: 8, background: 'linear-gradient(145deg,#fffdf5,#e8d8b5)', border: '2px solid #6d5734', boxSizing: 'border-box', transform, backfaceVisibility: 'hidden' }}>
+          <div key={side} style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)', padding: 5, gap: 2, borderRadius: 8, background: 'linear-gradient(145deg,#fffdf5,#e8d8b5)', border: '2px solid #6d5734', boxShadow: 'inset 0 1px 3px rgba(60,40,10,.2)', boxSizing: 'border-box', transform, backfaceVisibility: 'hidden' }}>
             {Array.from({ length: 9 }).map((_, i) => <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: DICE_PIPS[value]?.includes(i) ? '#2f2a1d' : 'transparent', alignSelf: 'center', justifySelf: 'center' }} />)}
           </div>
         ))}
@@ -231,8 +256,8 @@ export const CasinoTab = ({ app }: { app: any }) => {
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
             {(() => {
               // ВНЕ фазы спина колесо стоит (в приёме ставок — эмодзи в центре), никаких «барабанов».
-              if (!spinningVisible) return (
-                <div style={{ position: 'relative', width: 160, height: 160 }}>
+              if (!spinningVisible && round?.roulette_result == null) return (
+                <div style={{ position: 'relative', width: 240, height: 240, margin: '0 auto' }}>
                   <div style={{ position: 'absolute', top: -4, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '10px solid transparent', borderRight: '10px solid transparent', borderTop: '16px solid #f2b632', zIndex: 4 }} />
                   <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid #f2b632', boxShadow: '0 4px 14px rgba(0,0,0,0.4), inset 0 0 0 4px #241f14', background: `conic-gradient(${Array.from({ length: 12 }).map((_, i) => `${wheelColor(Math.round(i * 3))} ${i * 30}deg ${(i + 1) * 30}deg`).join(', ')})` }} />
                   <div style={{ position: 'absolute', left: '50%', top: '50%', width: 56, height: 56, marginLeft: -28, marginTop: -28, borderRadius: '50%', background: '#241f14', border: '3px solid #f2b632', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, zIndex: 3 }}>
@@ -244,7 +269,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
               // прогресса спина (быстро -> замедление -> точная остановка), золотой указатель сверху.
               // Внутренний барабан крутится в ОБРАТНУЮ сторону и показывает меняющиеся числа/цвета.
               // После t>=1 колесо стоит на РЕАЛЬНОМ результате сервера и ждёт фазу итогов (без рестарта).
-              const SEGMENTS = 12, segAngle = 360 / SEGMENTS;
+              const SEGMENTS = 37, segAngle = 360 / SEGMENTS;
               const numbers: number[] = [];
               for (let i = 0; i < SEGMENTS; i++) numbers.push(Math.round((i * 36) / (SEGMENTS - 1))); // 0..36 по кругу
               const spinningNow = phase === 'spinning';
@@ -258,9 +283,9 @@ export const CasinoTab = ({ app }: { app: any }) => {
               // ВНЕШНЕЕ колесо: непрерывный поворот без рывков. Как только сервер опубликовал
               // итог, колесо ПЛАВНО доворачивается (за ~0.5с), чтобы РЕАЛЬНОЕ число встало ровно
               // под золотой указатель — как в настоящей рулетке.
-              const WHEEL_SPIN_DEG = 1800;                    // 5 оборотов за спин
-              const baseRot = WHEEL_SPIN_DEG * e;             // монотонно растёт при spinT 0->1
-              const finalMod = resultNum != null ? ((360 - (numbers.indexOf(resultNum) * segAngle)) % 360 + 360) % 360 : null;
+              const WHEEL_SPIN_DEG = resultNum != null ? 360 * 9 - (resultNum + 0.5) * segAngle : 360 * 9;
+              const baseRot = WHEEL_SPIN_DEG * (spinningNow ? e : 1);
+              const finalMod = null;
               let wheelRot = baseRot;
               if (finalMod != null) {
                 // цель = следующий полный оборот после фазы ставок + короткий финальный доворот (<=90°)
@@ -269,36 +294,37 @@ export const CasinoTab = ({ app }: { app: any }) => {
                 wheelRot = baseRot + (d > 180 ? d - 360 : d);
               }
               // переход включаем только когда колесо реально доворачиваем (остановка/финишная доводка)
-              const wheelTrans = spinningNow && spinT >= 1 && finalMod != null && Math.abs(wheelRot - baseRot) > 0.5
-                ? 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none';
+              const wheelTrans = spinningNow ? 'transform 0.1s linear' : 'none';
               // центральное число: во время вращения — сектор под указателем (чуть с опережением,
               // чтобы финальное значение совпало с остановкой); после остановки — реальный итог
               const centerNum = resultNum != null && (spinT >= 1 || !spinningNow)
                 ? resultNum
-                : numbers[sectorUnder(baseRot + 72 * (1 - e))];
+                : numbers[sectorUnder(wheelRot)];
               // ВНУТРЕННИЙ БАРАБАН: крутится в ОБРАТНУЮ сторону и быстрее — числа и цвета реально
               // «пролетают» как в настоящем автомате; после t>=1 останавливается (без рестарта)
-              const REEL = 10, reelStep = 360 / REEL;
-              const reelRot = -(1800 * e + 360 * 3 * e);
-              const reelOffset = Math.floor(((((-reelRot) % 360) + 360) % 360) / reelStep);
+              const REEL = 10;
+              const reelRot = spinningNow ? -(3600 * e) : round?.roulette_result != null ? -3600 : 0;
+              const reelOffset = 0;
               const reelNums = Array.from({ length: REEL }, (_, i) => (reelOffset + i) % 37);
+              const ballAngle = -90 - 1440 * (1 - (spinningNow ? e : 1));
               return (
-                <div style={{ position: 'relative', width: 160, height: 160 }}>
+                <div style={{ position: 'relative', width: 240, height: 240, margin: '0 auto' }}>
                   {/* золотой указатель (неподвижен) */}
                   <div style={{ position: 'absolute', top: -4, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '10px solid transparent', borderRight: '10px solid transparent', borderTop: '16px solid #f2b632', zIndex: 4, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
                   {/* внешнее вращающееся колесо с секторами */}
                   <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid #f2b632', boxShadow: '0 4px 14px rgba(0,0,0,0.4), inset 0 0 0 4px #241f14', background: `conic-gradient(${numbers.map((n, i) => `${wheelColor(n)} ${i * segAngle}deg ${(i + 1) * segAngle}deg`).join(', ')})`, transform: `rotate(${wheelRot}deg)`, transition: wheelTrans }}>
                     {numbers.map((n, i) => (
-                      <div key={i} style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0, transform: `rotate(${i * segAngle + segAngle / 2}deg) translateY(-63px)` }}>
-                        <span style={{ position: 'absolute', left: -9, top: -9, width: 18, height: 18, borderRadius: '50%', background: 'rgba(15,12,6,0.6)', color: '#fff8e6', fontSize: 9, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `rotate(${-(i * segAngle + segAngle / 2) - wheelRot}deg)` }}>{n}</span>
+                      <div key={i} style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0, transform: `rotate(${i * segAngle + segAngle / 2}deg) translateY(-94px)` }}>
+                        <span style={{ position: 'absolute', left: -7, top: -7, width: 14, height: 14, borderRadius: '50%', background: 'rgba(15,12,6,0.72)', color: '#fff8e6', fontSize: 7, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `rotate(${-(i * segAngle + segAngle / 2) - wheelRot}deg)` }}>{n}</span>
                       </div>
                     ))}
+                    <div style={{ position: 'absolute', left: '50%', top: '50%', width: 10, height: 10, marginLeft: -5, marginTop: -5, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%,#fff,#ffd66b 48%,#a95c14)', boxShadow: '0 1px 5px #100b04', zIndex: 5, transform: `rotate(${ballAngle - wheelRot}deg) translateY(-108px)` }} />
                   </div>
                   {/* внутренний барабан: крутится в обратку, числа+цвет меняются как в настоящем автомате */}
-                  <div style={{ position: 'absolute', left: '50%', top: '50%', width: 84, height: 84, marginLeft: -42, marginTop: -42, borderRadius: '50%', overflow: 'hidden', border: '3px solid #f2b632', boxShadow: 'inset 0 3px 8px rgba(0,0,0,0.5)', background: '#241f14', transform: `rotate(${reelRot}deg)` }}>
+                  <div style={{ position: 'absolute', left: '50%', top: '50%', width: 116, height: 116, marginLeft: -58, marginTop: -58, borderRadius: '50%', overflow: 'hidden', border: '4px solid #f2b632', boxShadow: 'inset 0 3px 12px rgba(0,0,0,0.7), 0 0 0 3px #241f14', background: `conic-gradient(${Array.from({ length: REEL }, (_, i) => `${i % 2 ? '#9b7131' : '#d9b35c'} ${i * 360 / REEL}deg ${(i + 1) * 360 / REEL}deg`).join(', ')})`, transform: `rotate(${reelRot}deg)`, transition: spinningNow ? 'transform 0.1s linear' : 'none' }}>
                     {reelNums.map((n, i) => (
-                      <div key={i} style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0, transform: `rotate(${i * (360 / REEL)}deg) translateY(-30px)` }}>
-                        <span style={{ position: 'absolute', left: -11, top: -11, width: 22, height: 22, borderRadius: '50%', background: wheelColor(n), color: '#fff', fontSize: 10, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `rotate(${-i * (360 / REEL) - reelRot}deg)` }}>{n}</span>
+                      <div key={i} style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0, transform: `rotate(${i * (360 / REEL)}deg) translateY(-43px)` }}>
+                        <span style={{ position: 'absolute', left: -8, top: -8, width: 16, height: 16, borderRadius: '50%', background: wheelColor(n), border: '1px solid #f6d98d', color: '#fff', fontSize: 7, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{n}</span>
                       </div>
                     ))}
                   </div>
@@ -362,7 +388,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
                 return (
                   <div key={c.id} style={{ position: 'relative', height: 30, marginBottom: 6, overflow: 'hidden', borderBottom: idx < RACE_CARS.length - 1 ? '1px dashed rgba(90,70,40,0.3)' : 'none' }}>
                     <span style={{ position: 'absolute', left: 0, top: 4, fontSize: 12, fontFamily: "'Russo One', sans-serif", color: '#6b5f45', zIndex: 1 }}>{c.emoji} {c.name}</span>
-                    <span style={{ position: 'absolute', top: 2, left: `${pos}%`, transition: 'left 0.12s linear', filter: finished ? 'none' : undefined }}>
+                    <span style={{ position: 'absolute', top: 2, left: `${pos}%`, transition: 'left 0.12s linear', animation: finished ? 'none' : 'casinoRaceRattle .16s ease-in-out infinite alternate', filter: finished ? 'none' : undefined }}>
                       {!finished ? '💨' : ''}{c.emoji}
                     </span>
                     <span style={{ position: 'absolute', right: 0, top: 4, fontSize: 16 }}>🏁</span>
