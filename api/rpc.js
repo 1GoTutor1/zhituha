@@ -10,7 +10,7 @@ const CLIENT_RPCS = new Set([
   'buy_phone_rpc', 'list_item_rpc', 'buy_market_item', 'collect_ref_bonus_rpc', 'collect_tips_rpc',
   'redeem_promo', 'reset_game_rpc', 'log_action_rpc', 'get_logs_rpc', 'cleanup_logs_rpc',
   'admin_give_money_rpc', 'admin_set_ban_rpc', 'admin_delete_biz_rpc', 'create_promo_rpc',
-  'get_casino_round_rpc', 'spin_round_rpc', 'place_bet_rpc',
+  'get_casino_round_rpc', 'place_bet_rpc',
 ]);
 
 export default async function handler(req, res) {
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     });
     const { data: player, error: playerError } = await sb.from('players').select('id').eq('telegram_id', String(user.id)).maybeSingle();
     if (playerError) throw playerError;
-    if (!player && !['get_casino_round_rpc', 'spin_round_rpc'].includes(name)) {
+    if (!player && name !== 'get_casino_round_rpc') {
       return res.status(404).json({ error: 'Player not registered' });
     }
 

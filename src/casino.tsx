@@ -17,7 +17,7 @@ const RACE_CARS: any[] = [
   { id: 'matiz',   name: 'Matiz',       emoji: '🛞', coef: 'x25', ch: '1%' },
 ];
 
-type Round = { id: string; status: 'betting' | 'spinning' | 'result'; end_time: number; roulette_result: number | null; dice_result: number | null; dice_first: number | null; dice_second: number | null; race_winner: string | null };
+type Round = { id: string; status: 'betting' | 'spinning' | 'result'; end_time: number; roulette_result: number | null; dice_result: number | null; dice_first: number | null; dice_second: number | null; race_winner: string | null; bet_count: number; bet_total: number };
 
 const SPIN_MS = 5000;        // длительность анимации спина; сервер держит spinning ровно столько же
 const CAR_START_PCT = 10;    // стартовая позиция машин (слева)
@@ -34,6 +34,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const { pid, money, setMoney, showMsg, hapticFeedback, action } = app;
   const [round, setRound] = useState<Round | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [realtimeReady, setRealtimeReady] = useState(false);
   const [game, setGame] = useState<'roulette' | 'dice' | 'race'>('roulette');
   const [choice, setChoice] = useState<string | null>(null);
   const [betAmount, setBetAmount] = useState(1000);
@@ -45,7 +46,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const pendingLoadRef = useRef(false);
   const loadingRef = useRef(false);         // защита от наложения запросов loadRound
   const mountedRef = useRef(true);
-  const spinRequestedRef = useRef(false);   // мы уже попросили сервер начать спин этого раунда
+  const realtimeRefreshRef = useRef<number | null>(null);
   const serverDriftRef = useRef(0);         // поправка «серверные часы минус локальные» (для синхронной гонки)
 
   // тик: 100мс во время спина (плавная анимация), 1с в остальных фазах
@@ -72,10 +73,10 @@ export const CasinoTab = ({ app }: { app: any }) => {
         serverDriftRef.current = Number(data.server_now) - requestMidpoint;
       }
       if (!data) return;
-      const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, dice_first: data.dice_first ?? null, dice_second: data.dice_second ?? null, race_winner: data.race_winner };
+      const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, dice_first: data.dice_first ?? null, dice_second: data.dice_second ?? null, race_winner: data.race_winner, bet_count: Number(data.bet_count) || 0, bet_total: Number(data.bet_total) || 0 };
       if (!mountedRef.current) return;
-      if (r.status !== 'spinning') spinRequestedRef.current = false; // новый раунд — можно снова спросить спин
       setRound(r);
+      if (r.status === 'result' && typeof data.player_money === 'number' && mountedRef.current) setMoney(Number(data.player_money));
       // мои ставки этого раунда (только когда они реально могут измениться)
       if (pid && r.status !== 'spinning' && mountedRef.current) setMyBets(data.my_bets || []);
       // история чисел (последние 10 завершённых) — обновляем только на новом раунде, не каждый поллинг
@@ -106,8 +107,26 @@ export const CasinoTab = ({ app }: { app: any }) => {
   useEffect(() => {
     mountedRef.current = true;
     loadRound();
-    const poll = setInterval(loadRound, 5000);
-    return () => { mountedRef.current = false; clearInterval(poll); };
+    const channel = supabase.channel('casino-live-round')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'casino_rounds' }, () => {
+        if (realtimeRefreshRef.current !== null) window.clearTimeout(realtimeRefreshRef.current);
+        realtimeRefreshRef.current = window.setTimeout(() => {
+          realtimeRefreshRef.current = null;
+          if (mountedRef.current) void loadRound();
+        }, 120);
+      })
+      .subscribe((status: string) => {
+        if (mountedRef.current) setRealtimeReady(status === 'SUBSCRIBED');
+        if (status === 'SUBSCRIBED' && mountedRef.current) void loadRound();
+      });
+    const poll = window.setInterval(loadRound, 15000);
+    return () => {
+      mountedRef.current = false;
+      window.clearInterval(poll);
+      if (realtimeRefreshRef.current !== null) window.clearTimeout(realtimeRefreshRef.current);
+      realtimeRefreshRef.current = null;
+      void supabase.removeChannel(channel);
+    };
   }, [pid, loadRound]);
 
   // «серверное» время (локальное + измеренная поправка) — все анимации считаются ОТ него,
@@ -129,52 +148,6 @@ export const CasinoTab = ({ app }: { app: any }) => {
   // явный старт спина: как только время ставок вышло, просим сервер заранее разыграть итоги
   // и открыть фазу 'spinning' на SPIN_MS. Ставки при этом ещё НЕ рассчитаны — resolve произойдёт
   // автоматически по окончании спина, поэтому анимация гарантированно проигрывается ЦЕЛИКОМ.
-  useEffect(() => {
-    if (phase !== 'betting' || !round) return;
-    if (serverNow < round.end_time) return; // ещё есть время на ставки
-    const pastDeadline = serverNow >= round.end_time + SPIN_MS + 3000; // сервер не открыл спин — повторим запрос/закроем сами
-    if (spinRequestedRef.current && !pastDeadline) return;
-    spinRequestedRef.current = true;
-    (async () => {
-      try {
-        const { data, error } = await supabase.rpc('spin_round_rpc', { p_spin_ms: SPIN_MS });
-        if (error || (data as any)?.error || (data as any)?.waiting) {
-          spinRequestedRef.current = false;
-          window.setTimeout(() => { if (mountedRef.current) void loadRound(); }, 250);
-          return;
-        }
-        const refreshWhenFree = (attempt = 0) => {
-          if (loadingRef.current && attempt < 20) {
-            window.setTimeout(() => refreshWhenFree(attempt + 1), 80);
-            return;
-          }
-          if (mountedRef.current) void loadRound();
-        };
-        refreshWhenFree();
-      } catch {
-        spinRequestedRef.current = false;
-        window.setTimeout(() => { if (mountedRef.current) void loadRound(); }, 500);
-      }
-    })();
-  }, [phase, round?.id, Math.floor(serverNow / 500), loadRound]);
-
-  // фаза result длится 10 сек — по истечении сами дёргаем сервер, тот закроет раунд и откроет новый betting
-  useEffect(() => {
-    if (round?.status === 'result') {
-      const wait = Math.max(250, round.end_time + 250 - serverNow);
-      const t = setTimeout(loadRound, wait);
-      return () => clearTimeout(t);
-    }
-  }, [round?.id, round?.status, round?.end_time, loadRound]);
-
-  // страховка от ВЕЧНОГО СПИНА: если сервер завис в spinning — через ~7 сек дёрнем тик,
-  // сервер (ensure_round/casino_advance) принудительно доведёт зависший раунд и откроет новый
-  useEffect(() => {
-    if (round?.status === 'spinning') {
-      const t = setTimeout(loadRound, SPIN_MS + 2000);
-      return () => clearTimeout(t);
-    }
-  }, [round?.id, round?.status, loadRound]);
 
   // рандомные грани кубиков пока идёт анимация (только на вкладке Кости); по окончании — стоп
   const [fakeDice, setFakeDice] = useState<[number, number]>([1, 1]);
@@ -213,7 +186,6 @@ export const CasinoTab = ({ app }: { app: any }) => {
     setMoney(Number((data as any).money));
     hapticFeedback('medium');
     showMsg(`Ставка принята: ${(data as any).money >= 0 ? betAmount.toLocaleString('ru') : ''}₽`);
-    setMyBets([...myBets, { game_type: game, bet_choice: choice, amount: betAmount, status: 'pending' }]);
     loadRound();
   });
 
@@ -236,6 +208,10 @@ export const CasinoTab = ({ app }: { app: any }) => {
         {phase === 'spinning' && !spinDoneWaitingResult && game === 'race' && <>🏁 Гонка пошла! Машины набирают ход…</>}
         {phase === 'spinning' && spinDoneWaitingResult && <>⏸ Финиш! Ждём официальные итоги…</>}
         {phase === 'result' && <>✅ Итоги раунда! Новый через <span style={{ color: '#ffd23f' }}>{Math.max(0, msLeftInt)}с</span></>}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', margin: '-3px 0 10px', color: '#6b5f45', fontSize: 12 }}>
+        <span>👥 Ставок в раунде: <b>{round?.bet_count || 0}</b> · сумма: <b>{(round?.bet_total || 0).toLocaleString('ru-RU')}₽</b></span>
+        <span style={{ color: realtimeReady ? '#2c7a3c' : '#9b6a18' }}>● {realtimeReady ? 'LIVE синхронизация' : 'переподключение · резервный опрос'}</span>
       </div>
 
       {/* Визуал текущей игры: крутится ТОЛЬКО активная вкладка */}

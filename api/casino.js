@@ -1,11 +1,4 @@
-// api/casino.js — глобальный цикл казино (раунды по 45 сек).
-// Вызывается из Vercel Cron (vercel.json -> crons, 1 раз в сутки — на Hobby-плане
-// cron не чаще раза в день) ИЛИ любым внешним планировщиком. Защищён CRON_SECRET.
-//
-// ВАЖНО: основной движок цикла — клиентский (get_casino_round_rpc вызывает
-// casino_advance() при каждом запросе игроков), поэтому цикл крутится всегда,
-// пока открыт хотя бы один казино-экран. Cron здесь — лишь страховка на случай,
-// когда игроков нет (доводит зависшие раунды и запускает новый цикл).
+// Manual backup tick. The continuous casino loop now runs inside Supabase Cron.
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
