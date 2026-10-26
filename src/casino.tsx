@@ -20,8 +20,6 @@ const RACE_CARS: any[] = [
 type Round = { id: string; status: 'betting' | 'spinning' | 'result'; end_time: number; roulette_result: number | null; dice_result: number | null; dice_first: number | null; dice_second: number | null; race_winner: string | null };
 
 const SPIN_MS = 5000;        // длительность анимации спина; сервер держит spinning ровно столько же
-const BET_MS = 30000;        // приём ставок (совпадает с ensure_round на сервере)
-const RESULT_MS = 10000;     // фаза итогов (совпадает с resolve_round_rpc на сервере)
 const CAR_START_PCT = 10;    // стартовая позиция машин (слева)
 const CAR_FINISH_PCT = 88;   // финиш у 🏁 — машина доезжает ПОСЛЕДНИМ к концу спина и ждёт итоги
 
@@ -62,16 +60,20 @@ export const CasinoTab = ({ app }: { app: any }) => {
     try {
       // серверный «ленивый» цикл: доводит истёкшие/зависшие раунды и гарантирует свежий betting
       let data: any = null;
+      const requestStartedAt = Date.now();
       const { data: rpcData } = await supabase.rpc('get_casino_round_rpc', { p_player_id: pid || null });
       data = rpcData;
+      if (Number.isFinite(Number(data?.server_now))) {
+        // Используем серверное время ответа, а не начало фазы: иначе каждый polling
+        // прибавлял уже прошедшие секунды обратно к таймеру.
+        const requestMidpoint = (requestStartedAt + Date.now()) / 2;
+        serverDriftRef.current = Number(data.server_now) - requestMidpoint;
+      }
       if (!data) {
-        const { data: fallback } = await supabase.from('casino_rounds').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+        const { data: fallback } = await supabase.from('casino_rounds').select('*').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(1).maybeSingle();
         data = fallback;
       }
       if (!data) return;
-      // оценка расхождения часов: сервер пишет end_time по своим часам — по ней синхронизируем анимации
-      const srvNowGuess = Number(data.end_time) - (data.status === 'betting' ? BET_MS : data.status === 'spinning' ? SPIN_MS : RESULT_MS);
-      if (isFinite(srvNowGuess) && srvNowGuess > 1e12) serverDriftRef.current = srvNowGuess - Date.now();
       const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, dice_first: data.dice_first ?? null, dice_second: data.dice_second ?? null, race_winner: data.race_winner };
       if (!mountedRef.current) return;
       if (r.status !== 'spinning') spinRequestedRef.current = false; // новый раунд — можно снова спросить спин
@@ -146,11 +148,11 @@ export const CasinoTab = ({ app }: { app: any }) => {
   // фаза result длится 10 сек — по истечении сами дёргаем сервер, тот закроет раунд и откроет новый betting
   useEffect(() => {
     if (round?.status === 'result') {
-      const wait = Math.max(1000, round.end_time + 1500 - serverNow);
+      const wait = Math.max(250, round.end_time + 250 - serverNow);
       const t = setTimeout(loadRound, wait);
       return () => clearTimeout(t);
     }
-  }, [round?.id, round?.status, now]);
+  }, [round?.id, round?.status, round?.end_time, loadRound]);
 
   // страховка от ВЕЧНОГО СПИНА: если сервер завис в spinning — через ~7 сек дёрнем тик,
   // сервер (ensure_round/casino_advance) принудительно доведёт зависший раунд и откроет новый
