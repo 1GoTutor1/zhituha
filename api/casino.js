@@ -9,7 +9,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Одна «прокрутка» цикла: betting -> spinning -> result.
 async function tick(sb) {
@@ -22,7 +22,9 @@ export default async function handler(req, res) {
   // доступ только по секрету (Vercel сам шлёт Authorization: Bearer $CRON_SECRET)
   const secret = process.env.CRON_SECRET;
   const hdr = req.headers.authorization || '';
-  if (secret && hdr !== `Bearer ${secret}` && req.query.secret !== secret) {
+  if (!secret) return res.status(500).json({ error: 'Cron is not configured' });
+  if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  if (hdr !== `Bearer ${secret}`) {
     return res.status(403).json({ error: 'forbidden' });
   }
   if (!supabaseUrl || !supabaseKey) return res.status(500).json({ error: 'no supabase env' });

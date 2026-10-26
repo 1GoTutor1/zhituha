@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { Send, ShieldAlert } from 'lucide-react';
@@ -13,7 +13,7 @@ import {
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
 import { HomeTab, MarketTab, BusinessTab, DailyRewardModal, AdminTab, AppModals, CafeTab, JobsTab, ShopTab, InventoryTab } from './tabs';
-import { CasinoTab } from './casino';
+const CasinoTab = lazy(() => import('./casino').then((module) => ({ default: module.CasinoTab })));
 
 export default function App() {
   const { user, hapticFeedback, tg, startParam } = useTelegram();
@@ -156,7 +156,7 @@ export default function App() {
     if (!user?.id) return;
     fetch('/api/notify', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telegram_id: user.id.toString(), text })
+      body: JSON.stringify({ init_data: (window as any).Telegram?.WebApp?.initData || '', text })
     }).catch(err => console.error('Ошибка пуша:', err));
   };
 
@@ -166,7 +166,7 @@ export default function App() {
       const res = await fetch('/api/report-bug', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_name: nick, player_id: tgId, message: bugText })
+        body: JSON.stringify({ init_data: (window as any).Telegram?.WebApp?.initData || '', message: bugText })
       });
       if (!res.ok) throw new Error('Ошибка сервера');
       showMsg("Баг отправлен! Спасибо."); 
@@ -747,7 +747,7 @@ export default function App() {
   });
 
   const fire = (workerId: string) => action(async () => {
-    const { data, error } = await supabase.rpc('fire_worker_rpc', { p_worker_id: workerId });
+    const { data, error } = await supabase.rpc('fire_worker_rpc', { p_worker_id: workerId, p_player_id: pid });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
     setAllWorkers(data.workers || []);
@@ -951,7 +951,7 @@ export default function App() {
       {tab === 'shop' && <ShopTab app={app} />}
       {tab === 'market' && <MarketTab app={app} />}
       {tab === 'inventory' && <InventoryTab app={app} />}
-      {tab === 'casino' && <CasinoTab app={app} />}
+      {tab === 'casino' && <Suspense fallback={<div className="loading">Загрузка казино…</div>}><CasinoTab app={app} /></Suspense>}
       {tab === 'admin' && <AdminTab app={app} />}
       {tab !== 'admin' && <BottomNav app={app} />}
     </div>

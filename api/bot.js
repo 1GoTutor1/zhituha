@@ -4,10 +4,10 @@ import { Telegraf } from 'telegraf';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new Telegraf(process.env.BOT_TOKEN || '');
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://zhituha-ashen.vercel.app';
 
 // --- ЗАЩИТА ВЕБХУКА: секретный токен (задаётся при setWebhook) ---
@@ -239,13 +239,12 @@ bot.catch((err, ctx) => {
 });
 
 export default async function handler(req, res) {
-  if (req.method === 'GET') {
-    return res.status(200).send('Бот работает и ждет сообщений от Telegram!');
-  }
+  if (!process.env.BOT_TOKEN || !supabase || !WEBHOOK_SECRET) return res.status(500).json({ error: 'Bot webhook is not configured' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
   // 1. Секретный заголовок вебхука (защита от произвольных POST-запросов на URL).
   //    Устанавливается при регистрации вебхука: setWebhook(url, { secret_token: WEBHOOK_SECRET })
-  if (WEBHOOK_SECRET && req.headers['x-telegram-bot-api-secret-token'] !== WEBHOOK_SECRET) {
+  if (req.headers['x-telegram-bot-api-secret-token'] !== WEBHOOK_SECRET) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 

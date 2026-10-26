@@ -653,16 +653,20 @@ begin
     (select jsonb_agg(w2) from business_workers w2 where w2.business_id = p_business_id));
 end $$;
 
-create or replace function public.fire_worker_rpc(p_worker_id uuid)
+create or replace function public.fire_worker_rpc(p_worker_id uuid, p_player_id uuid)
 returns jsonb language plpgsql security definer as $$
 declare w business_workers;
 begin
   select * into w from business_workers where id = p_worker_id;
   if not found then return jsonb_build_object('error','не найдено'); end if;
+  if not exists (select 1 from businesses b where b.id = w.business_id and b.owner_id = p_player_id) then
+    return jsonb_build_object('error','нет доступа');
+  end if;
   delete from business_workers where id = p_worker_id;
   return jsonb_build_object('workers',
     (select jsonb_agg(w2) from business_workers w2 where w2.business_id = w.business_id));
 end $$;
+
 
 create or replace function public.quit_job_rpc(p_player_id uuid)
 returns jsonb language plpgsql security definer as $$
@@ -903,7 +907,7 @@ begin
   return jsonb_build_object('success', true);
 end $$;
 
-grant execute on all functions in schema public to anon, authenticated;
+-- Browser RPC execution is granted only after all functions have been created below.
 
 -- =================== 10. АДМИН-DIRECT ACTIONS (заменяют прямые UPDATE/DELETE из tabs.tsx) ==========
 create or replace function public.admin_set_ban_rpc(p_admin_id uuid, p_target_player_id uuid, p_val boolean)
@@ -931,7 +935,7 @@ begin
   return jsonb_build_object('success', true);
 end $$;
 
-grant execute on all functions in schema public to anon, authenticated;
+-- Keep SECURITY DEFINER functions private until the server gateway is configured.
 
 -- =================== 10. КАЗИНО (глобальный цикл раундов 45 сек) ============
 create table if not exists public.casino_rounds (
@@ -1212,7 +1216,7 @@ begin
   return jsonb_build_object('ok', true, 'until', now_ms + p_spin_ms);
 end $$;
 
-grant execute on function public.spin_round_rpc(int) to anon, authenticated;
+-- Casino browser calls also go through /api/rpc.
 
 -- клиентский вход в цикл: при заходе на вкладку казино доводит ленивый цикл
 -- (завершает истёкшие/зависшие раунды и гарантирует свежий betting-раунд). Возвращает текущий раунд.
@@ -1250,4 +1254,6 @@ begin
   end if;
 end $$;
 
-grant execute on all functions in schema public to anon, authenticated;
+-- Browser RPC calls are authenticated by /api/rpc with Telegram initData.
+revoke execute on all functions in schema public from public, anon, authenticated;
+grant execute on all functions in schema public to service_role;

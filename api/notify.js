@@ -1,9 +1,10 @@
 // api/notify.js — пуш-уведомления игроку в Telegram
 // Вызывается из клиента (App.tsx -> sendNotification).
 import { createClient } from '@supabase/supabase-js';
+import { verifyTelegramInitData } from './_telegram.js';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
 // простой rate-limit по IP: 20 запросов в минуту
@@ -32,13 +33,12 @@ export default async function handler(req, res) {
   if (rateLimited(ip)) return res.status(429).json({ error: 'Too many requests' });
 
   try {
-    const { telegram_id, text } = req.body || {};
+    const { init_data: initData, text } = req.body || {};
+    const user = verifyTelegramInitData(initData);
+    if (!user) return res.status(403).json({ error: 'Telegram authentication required' });
 
     // telegram_id должен быть числом (id пользователя Telegram), а не фейковый "user_xxxx"
-    const tgId = String(telegram_id || '').trim();
-    if (!/^\d{1,20}$/.test(tgId)) {
-      return res.status(400).json({ error: 'Некорректный telegram_id' });
-    }
+    const tgId = String(user.id);
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return res.status(400).json({ error: 'Пустое сообщение' });
     }
