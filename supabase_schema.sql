@@ -1432,3 +1432,18 @@ end $$;
 -- Browser RPC calls are authenticated by /api/rpc with Telegram initData.
 revoke execute on all functions in schema public from public, anon, authenticated;
 grant execute on all functions in schema public to service_role;
+
+-- SECURITY DEFINER functions must not resolve objects from a caller-controlled schema.
+revoke create on schema public from public, anon, authenticated;
+do $$
+declare f record;
+begin
+  for f in
+    select p.oid::regprocedure as signature
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.prosecdef and p.prokind = 'f'
+  loop
+    execute format('alter function %s set search_path = pg_catalog, public, pg_temp', f.signature);
+  end loop;
+end $$;
