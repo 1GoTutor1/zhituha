@@ -1040,7 +1040,7 @@ export default function App() {
   // чтобы не вставлять пустую строку и не падать на NOT NULL / уникальности имени.
 
 
-  const pageStyle: any = { padding: 'calc(100px + env(safe-area-inset-top, 20px)) 20px calc(90px + env(safe-area-inset-bottom, 20px))', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: 'transparent', color: '#2f2a1d' };
+  const pageStyle: any = { padding: 'calc(100px + env(safe-area-inset-top, 20px)) 20px calc(90px + env(safe-area-inset-bottom, 20px))', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: profileBackground === 'background_concrete' ? 'linear-gradient(145deg, #d2d6d3, #a3aaa7)' : 'transparent', transition: 'background 0.35s ease', color: '#2f2a1d' };
   const authPageStyle: any = { ...pageStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' };
 
   if (!maintenanceChecked) return <div style={authPageStyle}><ShieldAlert size={48} color="#3d7ea6" style={{ marginBottom: 18 }} /><h2>{maintenanceError ? 'Не удалось проверить доступ' : 'Проверяем доступ…'}</h2>{maintenanceError && <><p style={{ color: '#6b5f45', maxWidth: 320 }}>{maintenanceError}</p><Btn variant="primary" onClick={() => void refreshMaintenance()}>Повторить</Btn></>}</div>;

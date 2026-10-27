@@ -942,7 +942,7 @@ export const JobsTab = ({ app }: { app: any }) => {
 const PREMIUM_ITEMS = [
   { id: 'frame_test', name: 'Рамка TEST', price: 120, icon: '🧪', description: 'Фирменная рамка TEST для твоего профиля' },
   { id: 'frame_amber', name: 'Янтарная рамка', price: 60, icon: '🟠', description: 'Тёплый янтарный ободок вокруг аватара' },
-  { id: 'background_concrete', name: 'Фон «Бетон»', price: 90, icon: '🏙️', description: 'Городской фон для карточки профиля' },
+  { id: 'background_concrete', name: 'Фон игры «Бетон»', price: 90, icon: '🏙️', description: 'Меняет фон всей игровой страницы' },
   { id: 'market_slots_2', name: '+2 слота рынка', price: 80, icon: '🛒', description: 'Постоянно увеличивает число объявлений; максимум 9 слотов' },
 ];
 
@@ -971,7 +971,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
       <h3 style={{ marginTop: 0 }}>Моя косметика</h3>
       {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).length === 0 && <p style={{ color: '#6b5f45' }}>Пока нет купленных рамок.</p>}
       {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...frameStyle(id) }}>{id === 'frame_test' ? '🧪 Надеть рамку TEST' : '🟠 Надеть янтарную рамку'}</button>)}
-      {app.ownedCosmetics.includes('background_concrete') && <button onClick={() => app.donateAction('equip', { item_id: 'background_concrete' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8 }}>🏙️ Установить фон «Бетон»</button>}
+      {app.ownedCosmetics.includes('background_concrete') && <button onClick={() => app.donateAction('equip', { item_id: 'background_concrete' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8 }}>🏙️ Установить фон игры «Бетон»</button>}
       <button onClick={() => app.donateAction('equip', { item_id: 'default' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%' }}>Вернуть стандартный вид</button>
     </div>
     <div style={S.card}>
