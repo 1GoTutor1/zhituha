@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
@@ -147,7 +147,7 @@ export const HomeTab = ({ app }: { app: any }) => {
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: '10px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, border: '2px solid rgba(90,70,40,0.22)', cursor: 'pointer', userSelect: 'none' }}>{av.emoji}</div>
+          <div onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: '10px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, ...(app.profileFrame === 'frame_test' ? frameStyle('frame_test') : app.profileFrame === 'frame_amber' ? frameStyle('frame_amber') : { border: '2px solid rgba(90,70,40,0.22)' }), cursor: 'pointer', userSelect: 'none' }}>{av.emoji}</div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'Russo One, Impact, sans-serif' }}>{app.nick}</div>
@@ -158,6 +158,7 @@ export const HomeTab = ({ app }: { app: any }) => {
             <div style={{ fontSize: 13, color: '#6b5f45', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
               ID: {app.tgId.slice(0, 6)}
               {app.boostEnd > Date.now() && <span style={{ color: '#c0453a', fontWeight: 'bold', marginLeft: 5, fontSize: 11, border: '1px solid #c0453a', padding: '1px 4px', borderRadius: 4 }}>x1.1 БУСТ</span>}
+              {app.profileFrame === 'frame_test' && <span style={{ color: '#087f70', fontWeight: 'bold', marginLeft: 4, fontSize: 10, border: '1px solid #63e6be', padding: '1px 5px', borderRadius: 5 }}>TEST</span>}
             </div>
           </div>
         </div>
@@ -188,11 +189,13 @@ export const HomeTab = ({ app }: { app: any }) => {
         </button>
       </div>
 
-      {(app.role === 'admin' || app.role === 'superadmin') && <button onClick={app.openAdmin} style={{ width: '100%', marginBottom: 10, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 10, border: '2px solid #8f302b', background: 'linear-gradient(180deg, #c94b40, #a9322a)', color: '#fff4e0', boxShadow: '0 4px 0 rgba(90,35,30,.35)', fontFamily: 'Russo One, sans-serif', fontSize: 14, cursor: 'pointer' }}><ShieldAlert size={20} /> Панель администратора</button>}
+      {(app.role === 'admin' || app.role === 'superadmin') && <>
+        <button onClick={app.openAdmin} style={{ width: '100%', marginBottom: 10, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 10, border: '2px solid #8f302b', background: 'linear-gradient(180deg, #c94b40, #a9322a)', color: '#fff4e0', boxShadow: '0 4px 0 rgba(90,35,30,.35)', fontFamily: 'Russo One, sans-serif', fontSize: 14, cursor: 'pointer' }}><ShieldAlert size={20} /> Панель администратора</button>
+        <button onClick={() => app.setMaintenance(true)} disabled={app.maintenanceBusy || app.maintenanceEnabled} style={{ width: '100%', marginBottom: 18, padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 10, border: '1px solid rgba(61,126,166,.45)', background: 'rgba(61,126,166,.12)', color: '#2f5f7d', fontWeight: 700, cursor: app.maintenanceBusy || app.maintenanceEnabled ? 'default' : 'pointer', opacity: app.maintenanceEnabled ? .55 : 1 }}><Wrench size={18} /> {app.maintenanceEnabled ? 'Техработы включены' : 'Закрыть игру на техработы'}</button>
+        {app.maintenanceError && <p role="alert" style={{ color: '#c0453a' }}>{app.maintenanceError}</p>}
+      </>}
 
-      <div aria-label="Скоро" style={{ minHeight: 96, marginBottom: 20, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15,15,18,0.72)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.78)', fontFamily: 'Russo One, Impact, sans-serif', fontSize: 18, letterSpacing: 1.5 }}>
-        Скоро...
-      </div>
+      <ShopTab app={app} />
 
       {myCoffee && (
         <div style={{ backgroundColor: '#fbf4e4', border: '1px solid rgba(63,157,85,0.35)', borderRadius: 10, padding: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -259,7 +262,7 @@ export const MarketTab = ({ app }: { app: any }) => {
         <div style={{ marginTop: 20 }}>
           {topPlayers.length === 0 && <p style={{ color: '#6b5f45' }}>{leaderboardMode === 'referrals' && app.referralLeaderboardUnavailable ? '\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'money' ? '\u041f\u043e\u043a\u0430 \u043d\u0438\u043a\u043e\u0433\u043e...' : '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</p>}
           {topPlayers.map((p: any, i: number) => (
-            <div key={i} style={{ backgroundColor: '#fbf4e4', padding: '12px 15px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', marginBottom: 8 }}>
+            <div key={`${p.nickname}-${i}`} style={{ backgroundColor: '#fbf4e4', padding: '12px 15px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', marginBottom: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#b06a15' : i === 1 ? '#5f43a0' : i === 2 ? '#3d7ea6' : '#6b5f45', minWidth: 26 }}>#{i + 1}</span>
                 <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
@@ -287,7 +290,6 @@ export const MarketTab = ({ app }: { app: any }) => {
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
         <div style={{ fontSize: 14, color: '#6b5f45' }}>Твои слоты: <b style={{color: '#2f2a1d'}}>{myLots} / {maxSlots}</b></div>
-        <div style={{ fontSize: 12, color: '#5f43a0' }}>+1 слот за телефон</div>
       </div>
       
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#fbf4e4', padding: 5, borderRadius: 8 }}>
@@ -898,17 +900,82 @@ export const JobsTab = ({ app }: { app: any }) => {
   );
 };
 
-export const ShopTab = ({ app }: { app: any }) => (
+const PREMIUM_ITEMS = [
+  { id: 'frame_test', name: 'Рамка TEST', price: 120, icon: '🧪', description: 'Фирменная рамка TEST для твоего профиля' },
+  { id: 'frame_amber', name: 'Янтарная рамка', price: 60, icon: '🟠', description: 'Тёплый янтарный ободок вокруг аватара' },
+  { id: 'background_concrete', name: 'Фон «Бетон»', price: 90, icon: '🏙️', description: 'Городской фон для карточки профиля' },
+  { id: 'market_slots_2', name: '+2 слота рынка', price: 80, icon: '🛒', description: 'Постоянно увеличивает число объявлений; максимум 9 слотов' },
+];
+
+const frameStyle = (frame: string) => frame === 'frame_test'
+  ? { border: '3px solid #63e6be', boxShadow: '0 0 0 2px #152d2b, 0 0 18px rgba(99,230,190,.65)' }
+  : frame === 'frame_amber'
+    ? { border: '3px solid #e69a32', boxShadow: '0 0 0 2px #6f3d0d, 0 0 14px rgba(230,154,50,.45)' }
+    : { border: '3px solid rgba(90,70,40,.28)' };
+
+export const ProfileTab = ({ app }: { app: any }) => {
+  const avatar = getAvatar(app.avatarId);
+  const background = app.profileBackground === 'background_concrete'
+    ? 'linear-gradient(145deg, #d2d6d3, #a3aaa7)'
+    : 'linear-gradient(145deg, #fbf4e4, #e7d9b8)';
+  return <div style={{ maxWidth: 420, margin: '0 auto', animation: 'fadeIn .3s' }}>
+    <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 0, color: '#6b5f45', cursor: 'pointer', margin: '8px 0 16px' }}>← На главную</button>
+    <h2>Профиль</h2>
+    <div style={{ ...S.card, textAlign: 'center', padding: 24, background }}>
+      <div style={{ width: 92, height: 92, margin: '0 auto 12px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 48, background: avatar.bg, ...frameStyle(app.profileFrame) }}>{avatar.emoji}</div>
+      {app.profileFrame === 'frame_test' && <div style={{ display: 'inline-block', marginBottom: 8, padding: '3px 10px', borderRadius: 12, color: '#073b35', background: '#63e6be', fontFamily: 'Russo One', fontSize: 11, letterSpacing: 1 }}>TEST</div>}
+      <div style={{ fontSize: 23, fontFamily: 'Russo One' }}>{app.nick}</div>
+      <div style={{ color: '#6b5f45', marginTop: 6 }}>ID: {app.tgId.slice(0, 6)} · имя нельзя менять</div>
+      <div style={{ marginTop: 12, fontWeight: 700, color: '#7656a8' }}>◆ {app.premiumBalance} жетонов</div>
+    </div>
+    <div style={S.card}>
+      <h3 style={{ marginTop: 0 }}>Моя косметика</h3>
+      {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).length === 0 && <p style={{ color: '#6b5f45' }}>Пока нет купленных рамок.</p>}
+      {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...frameStyle(id) }}>{id === 'frame_test' ? '🧪 Надеть рамку TEST' : '🟠 Надеть янтарную рамку'}</button>)}
+      {app.ownedCosmetics.includes('background_concrete') && <button onClick={() => app.donateAction('equip', { item_id: 'background_concrete' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8 }}>🏙️ Установить фон «Бетон»</button>}
+      <button onClick={() => app.donateAction('equip', { item_id: 'default' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%' }}>Вернуть стандартный вид</button>
+    </div>
+  </div>;
+};
+
+export const ShopTab = ({ app }: { app: any }) => {
+  const [moneyAmount, setMoneyAmount] = useState('2500');
+  const [premiumAmount, setPremiumAmount] = useState('1');
+  return (
   <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-    <h2>Магазин</h2>
-    <div style={{ ...S.card, textAlign: 'center' }}>
-      <Smartphone size={48} color="#6b5f45" style={{ marginBottom: 15 }} />
-      <h3>Смартфон</h3>
-      <p style={{ fontSize: 13, color: '#6b5f45', marginBottom: 15 }}>Каждый телефон дает +1 слот на рынке (макс 10).</p>
-      {app.phone ? <div style={{ color: '#3f9d55', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckCircle2 size={20} /> Куплено</div> : <Btn variant="purple" onClick={() => app.buyPhone(true)} disabled={app.proc || app.money < 2000 || app.marketSlots >= 10}>Купить за 2000</Btn>}
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h2>Магазин</h2><button onClick={() => app.setTab('profile')} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 12px', fontSize: 12 }}>Мой профиль</button></div>
+    <div style={{ ...S.card, border: '2px solid #8a6ac0' }}>
+      <h3 style={{ marginTop: 0, color: '#7656a8' }}>◆ Донат-жетоны</h3>
+      <p style={{ color: '#6b5f45', fontSize: 13 }}>Покупай жетоны за Telegram Stars. Все пакеты доступны в Telegram Mini App.</p>
+      {[{ id: 'starter', stars: 15, gems: 50 }, { id: 'popular', stars: 50, gems: 250 }, { id: 'big', stars: 100, gems: 650 }].map(pack => <button key={pack.id} onClick={() => app.buyStars(pack.id)} disabled={app.proc} style={{ ...S.btnPurple, width: '100%', marginTop: 8 }}>⭐ {pack.stars} Stars → {pack.gems} жетонов</button>)}
+      <div style={{ borderTop: '1px solid rgba(90,70,40,.15)', marginTop: 14, paddingTop: 12 }}>
+        <b>Обмен игровой валюты</b>
+        <p style={{ color: '#6b5f45', fontSize: 12, margin: '6px 0' }}>2 500 монет → 1 жетон · 1 жетон → 1 500 монет</p>
+        <input aria-label="Количество игровых монет для обмена" type="number" min="2500" max="200000" step="2500" value={moneyAmount} onChange={e => setMoneyAmount(e.target.value)} style={S.input} />
+        <button onClick={() => app.donateAction('exchange', { direction: 'money_to_premium', amount: Number(moneyAmount) })} disabled={app.proc || Number(moneyAmount) < 2500 || Number(moneyAmount) > 200000 || Number(moneyAmount) % 2500 !== 0 || Number(moneyAmount) > app.money} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8 }}>Обменять монеты на жетоны</button>
+        <input aria-label="Количество жетонов для обмена на игровые монеты" type="number" min="1" max="100" step="1" value={premiumAmount} onChange={e => setPremiumAmount(e.target.value)} style={S.input} />
+        <button onClick={() => app.donateAction('exchange', { direction: 'premium_to_money', amount: Number(premiumAmount) })} disabled={app.proc || !Number.isSafeInteger(Number(premiumAmount)) || Number(premiumAmount) < 1 || Number(premiumAmount) > 100 || Number(premiumAmount) > app.premiumBalance} style={{ ...S.btnSecondary, width: '100%' }}>Обменять на {Math.max(0, Number(premiumAmount) || 0) * 1500} монет</button>
+      </div>
+    </div>
+    <div style={S.card}>
+      <h3 style={{ marginTop: 0 }}>Косметика и возможности</h3>
+      {PREMIUM_ITEMS.map(item => {
+        const owned = app.ownedCosmetics.includes(item.id);
+        return <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid rgba(90,70,40,.12)', textAlign: 'left' }}>
+          <span style={{ fontSize: 27 }}>{item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
+          <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || owned || app.premiumBalance < item.price || (item.id === 'market_slots_2' && app.marketSlots >= 9)} style={{ ...S.btnPurple, padding: '8px 10px', opacity: owned ? .55 : 1 }}>{owned ? 'Куплено' : item.id === 'market_slots_2' && app.marketSlots >= 8 ? '40 ◆' : `${item.price} ◆`}</button>
+        </div>;
+      })}
+    </div>
+    <div style={{ ...S.card, textAlign: 'center', padding: 24 }}>
+      <Smartphone size={42} color="#6b5f45" style={{ marginBottom: 12 }} />
+      <h3>Телефоны производит телефонный цех</h3>
+      <p style={{ fontSize: 13, color: '#6b5f45', marginBottom: 10 }}>Готовые телефоны можно купить у игроков на рынке. Покупка телефона не увеличивает число слотов для объявлений.</p>
+      <p style={{ fontSize: 12, color: '#6b5f45', marginBottom: 0 }}>Твой лимит рынка: {app.marketSlots} {app.marketSlots === 1 ? 'слот' : app.marketSlots >= 2 && app.marketSlots <= 4 ? 'слота' : 'слотов'}.</p>
     </div>
   </div>
-);
+  );
+};
 
 export const InventoryTab = ({ app }: { app: any }) => (
   <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>

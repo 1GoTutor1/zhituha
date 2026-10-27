@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
+import { blockDuringMaintenance } from './_maintenance.js';
 
 const CLIENT_RPCS = new Set([
   'update_profile_rpc', 'work_rpc', 'drink_tutorial_coffee_rpc', 'claim_tutorial_reward_rpc', 'claim_daily_reward_rpc', 'collect_coffee_energy_rpc', 'finish_business_timer_rpc',
@@ -32,8 +33,9 @@ export default async function handler(req, res) {
     const sb = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: player, error: playerError } = await sb.from('players').select('id').eq('telegram_id', String(user.id)).maybeSingle();
+    const { data: player, error: playerError } = await sb.from('players').select('id, role').eq('telegram_id', String(user.id)).maybeSingle();
     if (playerError) throw playerError;
+    if (await blockDuringMaintenance(sb, player, res)) return;
     if (!player && name !== 'get_casino_round_rpc') {
       return res.status(404).json({ error: 'Player not registered' });
     }

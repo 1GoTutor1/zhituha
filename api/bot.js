@@ -134,6 +134,42 @@ bot.action('btn_balance', getBalance);
 bot.action('btn_top', getTop);
 bot.action('btn_biz', getBiz);
 
+bot.on('pre_checkout_query', async (ctx) => {
+  const query = ctx.preCheckoutQuery;
+  try {
+    const { data: order, error } = await supabase.from('donation_orders')
+      .select('id, telegram_id, stars_amount, status')
+      .eq('id', query.invoice_payload).maybeSingle();
+    const valid = !error && order && order.status === 'pending'
+      && order.telegram_id === String(ctx.from.id)
+      && query.currency === 'XTR' && Number(query.total_amount) === Number(order.stars_amount);
+    await ctx.answerPreCheckoutQuery(Boolean(valid), valid ? undefined : 'Заказ не найден или сумма не совпадает. Создай новый счёт.');
+  } catch (error) {
+    console.error('Stars pre-checkout validation failed:', error?.message || error);
+    await ctx.answerPreCheckoutQuery(false, 'Не удалось проверить заказ. Попробуй позже.');
+  }
+});
+
+bot.on('message', async (ctx, next) => {
+  const payment = ctx.message?.successful_payment;
+  if (!payment) return next();
+  try {
+    if (payment.currency !== 'XTR') throw new Error('Unexpected Stars currency');
+    const { data, error } = await supabase.rpc('apply_stars_payment_rpc', {
+      p_order_id: payment.invoice_payload,
+      p_telegram_id: String(ctx.from.id),
+      p_charge_id: payment.telegram_payment_charge_id,
+      p_stars_amount: Number(payment.total_amount),
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    if (!data?.duplicate) await ctx.reply('Оплата прошла! Донат-жетоны начислены на аккаунт. Возвращайся в игру.');
+  } catch (error) {
+    console.error('Stars payment delivery failed:', error?.message || error);
+    await ctx.reply('Платёж получен, но начисление задержалось. Напиши администратору и сохрани этот чек.');
+  }
+});
+
 // --- КНОПКА НАЗАД ---
 bot.action('btn_back', async (ctx) => {
   const keyboard = await mainMenuKeyboard(ctx.from.id);

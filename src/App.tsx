@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-import { Send, ShieldAlert } from 'lucide-react';
-import { playUiSound } from './sound';
+import { Send, ShieldAlert, Wrench } from 'lucide-react';
+import { playUiSound, type UiSound } from './sound';
 import { 
   BOT_USERNAME, CHANNEL_LINK, POLL, 
   BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, getRestTime, AVATARS,
@@ -22,8 +22,8 @@ const AdminTab = lazy(() => loadTabs().then((module) => ({ default: module.Admin
 const AppModals = lazy(() => loadTabs().then((module) => ({ default: module.AppModals })));
 const CafeTab = lazy(() => loadTabs().then((module) => ({ default: module.CafeTab })));
 const JobsTab = lazy(() => loadTabs().then((module) => ({ default: module.JobsTab })));
-const ShopTab = lazy(() => loadTabs().then((module) => ({ default: module.ShopTab })));
 const InventoryTab = lazy(() => loadTabs().then((module) => ({ default: module.InventoryTab })));
+const ProfileTab = lazy(() => loadTabs().then((module) => ({ default: module.ProfileTab })));
 const CasinoTab = lazy(() => import('./casino').then((module) => ({ default: module.CasinoTab })));
 
 export default function App() {
@@ -31,12 +31,66 @@ export default function App() {
 
   // Ждём ответа /api/auth (серверная проверка подписи initData), но не дольше 5 сек.
   const [authChecked, setAuthChecked] = useState(false);
+  const [maintenanceChecked, setMaintenanceChecked] = useState(false);
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
+  const [maintenanceAdmin, setMaintenanceAdmin] = useState(false);
+  const [maintenanceBusy, setMaintenanceBusy] = useState(false);
+  const [maintenanceError, setMaintenanceError] = useState('');
+  useEffect(() => {
+    const playButtonTap = (event: MouseEvent) => {
+      if (!event.isTrusted || !(event.target instanceof Element)) return;
+      if (event.target.closest('button:not(:disabled), [role="button"]')) playUiSound('tap');
+    };
+    document.addEventListener('click', playButtonTap, true);
+    return () => document.removeEventListener('click', playButtonTap, true);
+  }, []);
   useEffect(() => {
     if (!user) return;
     if (user.verified) { setAuthChecked(true); return; }
     const to = setTimeout(() => setAuthChecked(true), 5000);
     return () => clearTimeout(to);
   }, [user]);
+
+  const refreshMaintenance = async () => {
+    setMaintenanceError('');
+    try {
+      const response = await fetch('/api/maintenance', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'status', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Не удалось проверить режим техработ');
+      setMaintenanceEnabled(Boolean(result.enabled));
+      setMaintenanceAdmin(Boolean(result.is_admin));
+      setMaintenanceChecked(true);
+    } catch (error) {
+      setMaintenanceError(error instanceof Error ? error.message : 'Не удалось проверить режим техработ');
+      setMaintenanceChecked(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshMaintenance();
+    const timer = window.setInterval(() => { void refreshMaintenance(); }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [user]);
+
+  const setMaintenance = async (enabled: boolean) => {
+    setMaintenanceBusy(true);
+    setMaintenanceError('');
+    try {
+      const response = await fetch('/api/maintenance', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set', enabled, init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Не удалось изменить режим техработ');
+      setMaintenanceEnabled(Boolean(result.enabled));
+      setMaintenanceAdmin(Boolean(result.is_admin));
+    } catch (error) {
+      setMaintenanceError(error instanceof Error ? error.message : 'Не удалось изменить режим техработ');
+    } finally { setMaintenanceBusy(false); }
+  };
   
   const [loading, setLoading] = useState(!!(window as any).Telegram?.WebApp?.initDataUnsafe?.user);
   // Подписку больше НЕ проверяем на клиенте (раньше вызывался несуществующий
@@ -47,7 +101,7 @@ export default function App() {
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
   const [toast, setToast] = useState<{ msg: string, err: boolean, id: number } | null>(null);
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'admin'>('home');
+  const [tab, setTab] = useState<'home' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'profile' | 'admin'>('home');
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
@@ -58,6 +112,10 @@ export default function App() {
   const [onboardStep, setOnboardStep] = useState(0);
   const [tutorialWorkClicks, setTutorialWorkClicks] = useState(0);
   const [marketSlots, setMarketSlots] = useState(3);
+  const [premiumBalance, setPremiumBalance] = useState(0);
+  const [ownedCosmetics, setOwnedCosmetics] = useState<string[]>([]);
+  const [profileFrame, setProfileFrame] = useState('');
+  const [profileBackground, setProfileBackground] = useState('');
   // undefined = ещё не прочитали из БД; true/false — реальное значение.
   // Раньше стартовало с false → при каждом заходе на секунду мелькал экран
   // «Подпишись на канал», пока loadData не дочитает is_subscribed=true.
@@ -105,8 +163,6 @@ export default function App() {
   const [boardOpen, setBoardOpen] = useState(false);
   const [adminTab, setAdminTab] = useState<'players' | 'promos' | 'logs'>('players');
 
-  const [, setClicks] = useState(0);
-  const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoInput, setPromoInput] = useState('');
@@ -139,7 +195,10 @@ export default function App() {
   const baseWorkPay = JOB_WORK;
   const workPay = Math.floor(baseWorkPay * (1 + bizBonusPercent / 100));
 
-  const showMsg = (msg: string, err = false) => { setToast({ msg, err, id: Date.now() }); playUiSound(err); };
+  const showMsg = (msg: string, err = false, sound?: UiSound) => {
+    setToast({ msg, err, id: Date.now() });
+    playUiSound(sound || (err ? 'error' : 'success'));
+  };
   const closeToast = () => setToast(null);
   // Идентификатор игрока = Telegram id. В браузере вне Telegram (dev-режим) разрешаем
   // локальную заглушку, но в самом Telegram — только реальный id из initDataUnsafe.
@@ -218,7 +277,7 @@ export default function App() {
     if (data && data.success) {
       setEnergy(data.energy);
       setBrewEnd(0);
-      showMsg("Кофе готов! Энергия восстановлена!");
+      showMsg("Кофе готов! Энергия восстановлена!", false, 'reward');
       hapticFeedback('heavy');
       sendNotification("☕ Твой кофе готов! Энергия восстановлена, залетай в игру!");
       loadData(true);
@@ -275,6 +334,10 @@ export default function App() {
       setRefBalance(Number(d.referral_balance) || 0); setDailyStreak(Number(d.daily_streak) || 0);
       setBoostEnd(Number(d.boost_end) || 0); setOnboardStep(Number(d.onboarding_step) || 0);
       setMarketSlots(Number(d.market_slots) || 3);
+      setPremiumBalance(Number(d.premium_balance) || 0);
+      setOwnedCosmetics(Array.isArray(d.owned_cosmetics) ? d.owned_cosmetics : []);
+      setProfileFrame(d.profile_frame || '');
+      setProfileBackground(d.profile_background || '');
       setBrewEnd(Number(d.brew_end) || 0);
       setTipBalance(Number(d.tip_balance) || 0);
       setIsSubscribed(d.is_subscribed !== false); // undefined -> true/false из БД, без мигания окна подписки
@@ -350,7 +413,56 @@ export default function App() {
     setHasCar(!!data.has_car); setCarModel(data.car_model || 'none');
     setHasHouse(!!data.has_house); setHouseType(data.house_type || 'none');
     setMarketSlots(Number(data.market_slots) || 3);
+    setPremiumBalance(Number(data.premium_balance) || 0);
+    setOwnedCosmetics(Array.isArray(data.owned_cosmetics) ? data.owned_cosmetics : []);
+    setProfileFrame(data.profile_frame || '');
+    setProfileBackground(data.profile_background || '');
+    return data;
   };
+
+  const donationAction = async (action: string, extra: Record<string, unknown> = {}) => {
+    const response = await fetch('/api/donations', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, init_data: (window as any).Telegram?.WebApp?.initData || '', ...extra }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Ошибка донат-магазина');
+    return result;
+  };
+
+  const buyStars = (packageId: string) => action(async () => {
+    const result = await donationAction('create_invoice', { package_id: packageId });
+    if (!tg?.openInvoice || !result.invoice_url) throw new Error('Открой игру в Telegram, чтобы оплатить Stars');
+    tg.openInvoice(result.invoice_url, async (status: string) => {
+      if (status === 'paid') {
+        const expectedCredits: Record<string, number> = { starter: 50, popular: 250, big: 650 };
+        const expectedBalance = premiumBalance + (expectedCredits[packageId] || 0);
+        for (let attempt = 0; attempt < 6; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          let updated;
+          try { updated = await refreshProfile(); } catch { /* Retry while Telegram delivers the payment webhook. */ }
+          if (Number(updated?.premium_balance) >= expectedBalance) {
+            showMsg('Stars получены! Жетоны начислены');
+            return;
+          }
+        }
+        showMsg('Оплата прошла. Баланс синхронизируется, зайди в игру чуть позже.');
+      } else if (status === 'failed') showMsg('Платёж не прошёл', true);
+    });
+  });
+
+  const donateAction = (actionType: string, extra: Record<string, unknown> = {}) => action(async () => {
+    const result = await donationAction(actionType, extra);
+    if (result.player) {
+      setPremiumBalance(Number(result.player.premium_balance) || 0);
+      setMoney(Number(result.player.money) || 0);
+      setMarketSlots(Number(result.player.market_slots) || 3);
+      setOwnedCosmetics(Array.isArray(result.player.owned_cosmetics) ? result.player.owned_cosmetics : []);
+      setProfileFrame(result.player.profile_frame || '');
+      setProfileBackground(result.player.profile_background || '');
+    }
+    showMsg(result.message || 'Готово!');
+  });
 
   // После каждого успешного действия подтягиваем актуальные цифры с сервера,
   // чтобы интерфейс обновлялся мгновенно (деньги/энергия/таймеры/склады).
@@ -360,7 +472,7 @@ export default function App() {
 
   useEffect(() => {
     if (tab === 'market') { loadMarket(); refreshProfile(); pollMyBizs(); }
-    if (tab === 'shop' || tab === 'inventory') { refreshProfile(); pollMyBizs(); }
+    if (tab === 'inventory') { refreshProfile(); pollMyBizs(); }
     if (['business', 'jobs', 'cafe'].includes(tab)) {
       refreshProfile(); pollMyBizs();
       const int = setInterval(() => { refreshProfile(); pollMyBizs(); }, POLL);
@@ -379,7 +491,7 @@ export default function App() {
     try {
       const { data, error } = await supabase.rpc('finish_business_timer_rpc', { p_biz_id: biz.id, p_player_id: pid });
       if (error || !data || !data.success) return false;
-      showMsg(msg); hapticFeedback('heavy'); loadData(true); sendNotification(notifyText);
+      showMsg(msg, false, 'reward'); hapticFeedback('heavy'); loadData(true); sendNotification(notifyText);
       return true;
     } catch (e) { return false; }
   };
@@ -387,7 +499,7 @@ export default function App() {
   useEffect(() => {
     const int = setInterval(() => {
       const now = Date.now();
-      if (restEnd > 0) { const r = Math.max(0, Math.ceil((restEnd - now) / 1000)); setTLeft(r); if (r === 0) setRestEnd(0); }
+      if (restEnd > 0) { const r = Math.max(0, Math.ceil((restEnd - now) / 1000)); setTLeft(r); if (r === 0) { setRestEnd(0); playUiSound('reward'); } }
       
       if (brewEnd > 0) {
         const r = Math.max(0, Math.ceil((brewEnd - now) / 1000)); setBLeft(r);
@@ -455,7 +567,15 @@ export default function App() {
         referrer_id: refBy,
       }),
     });
-    const result = await response.json();
+    let result: any;
+    try {
+      result = await response.json();
+    } catch {
+      if (import.meta.env.DEV && response.status === 404) {
+        throw new Error('Локальный Vite не запускает серверный /api/register. Для регистрации нужен backend через Vercel Dev.');
+      }
+      throw new Error('Сервер регистрации вернул пустой или некорректный ответ.');
+    }
     if (!response.ok || !result.player) throw new Error(result.error || 'Не удалось создать аккаунт');
     const data = result.player;
     setPid(data.id); setNick(data.nickname || final); setGender(data.gender || selG); setAvatarId(data.avatar_id || avatarId);
@@ -512,7 +632,7 @@ export default function App() {
     if (typeof data.money === 'number') setMoney(data.money);
     if (typeof data.energy === 'number') setEnergy(data.energy);
     if (typeof data.boost_end === 'number') setBoostEnd(data.boost_end);
-    if (data.reward_type === 'money') showMsg(data.boost_awarded ? `Награда: +${data.reward_amount} монет и БУСТ x1.1!` : `Награда: +${data.reward_amount} монет!`);
+    if (data.reward_type === 'money') showMsg(data.boost_awarded ? `Награда: +${data.reward_amount} монет и БУСТ x1.1!` : `Награда: +${data.reward_amount} монет!`, false, 'reward');
     else showMsg('Награда: кофе! Энергия восстановлена!');
     hapticFeedback('heavy');
     await afterAction();
@@ -542,7 +662,7 @@ export default function App() {
     if (data) {
       setMoney(Number(data.money));
       setMyBizs(prev => prev.map(b => b.id === taxi.id ? { ...b, stock: data.stock } : b));
-      showMsg(`Собрано ${data.income} монет!`);
+      showMsg(`Собрано ${data.income} монет!`, false, 'reward');
       await afterAction();
     }
   });
@@ -729,7 +849,7 @@ export default function App() {
     if (data) {
       setMoney(Number(data.money));
       setMyBizs(prev => prev.map(b => b.id === coffeeBiz.id ? { ...b, coffee_balance: 0 } : b));
-      showMsg(`Собрано ${data.collected}`); hapticFeedback('medium');
+      showMsg(`Собрано ${data.collected}`, false, 'reward'); hapticFeedback('medium');
       await afterAction();
     }
   });
@@ -750,7 +870,7 @@ export default function App() {
     if (data?.error) throw new Error(data.error);
     setMoney(Number(data.money));
     setMyBizs(prev => prev.map(b => b.id === bizId ? { ...b, passive_balance: 0, passive_updated_at: data.passive_updated_at } : b));
-    showMsg(`Пассивный доход собран: ${Number(data.collected).toLocaleString('ru-RU')} ₽`);
+    showMsg(`Пассивный доход собран: ${Number(data.collected).toLocaleString('ru-RU')} ₽`, false, 'reward');
     await afterAction();
   });
 
@@ -782,6 +902,7 @@ export default function App() {
   });
 
   const buyPhone = (buy: boolean) => action(async () => {
+    if (buy) return showMsg('Телефоны производит телефонный цех — ищи их на рынке.', true);
     const { data, error } = await supabase.rpc('buy_phone_rpc', { p_player_id: pid, p_is_buying: buy });
     if (error) throw error;
     if (data && data.error) throw new Error(data.error);
@@ -841,7 +962,7 @@ export default function App() {
     
     setMoney(data.money);
     setRefBalance(0);
-    showMsg(`Собрано ${data.collected} с рефералов!`); hapticFeedback('heavy'); setRefOpen(false);
+    showMsg(`Собрано ${data.collected} с рефералов!`, false, 'reward'); hapticFeedback('heavy'); setRefOpen(false);
     await afterAction();
   });
 
@@ -852,18 +973,13 @@ export default function App() {
     
     setMoney(data.money);
     setTipBalance(0);
-    showMsg(`Собрано ${data.collected}₽ чаевых!`); hapticFeedback('heavy');
+    showMsg(`Собрано ${data.collected}₽ чаевых!`, false, 'reward'); hapticFeedback('heavy');
     await afterAction();
   });
 
   const handleAvatar = () => {
-    if (role === 'superadmin' || role === 'admin') { setTab('admin'); hapticFeedback('heavy'); return; }
-    setClicks(c => { 
-      if (c + 1 >= 5) { if (role === 'superadmin' || role === 'admin') setTab('admin'); else showMsg("Вы не админ", true); return 0; } 
-      return c + 1; 
-    });
-    if (clickTimeout.current) clearTimeout(clickTimeout.current);
-    clickTimeout.current = setTimeout(() => setClicks(0), 2000);
+    setTab('profile');
+    hapticFeedback('light');
   };
 
   const openAdmin = () => {
@@ -908,10 +1024,11 @@ export default function App() {
   };
 
   const app = useMemo(() => ({
-    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData,
+    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData,
+    maintenanceEnabled, maintenanceAdmin, maintenanceBusy, maintenanceError, setMaintenance,
     bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive
   }), [
-    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg
+    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBusy, maintenanceError, setMaintenance
   ]);
 
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
@@ -923,6 +1040,10 @@ export default function App() {
 
   const pageStyle: any = { padding: 'calc(100px + env(safe-area-inset-top, 20px)) 20px calc(90px + env(safe-area-inset-bottom, 20px))', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: 'transparent', color: '#2f2a1d' };
   const authPageStyle: any = { ...pageStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' };
+
+  if (!maintenanceChecked) return <div style={authPageStyle}><ShieldAlert size={48} color="#3d7ea6" style={{ marginBottom: 18 }} /><h2>{maintenanceError ? 'Не удалось проверить доступ' : 'Проверяем доступ…'}</h2>{maintenanceError && <><p style={{ color: '#6b5f45', maxWidth: 320 }}>{maintenanceError}</p><Btn variant="primary" onClick={() => void refreshMaintenance()}>Повторить</Btn></>}</div>;
+  if (maintenanceEnabled && !maintenanceAdmin) return <div style={authPageStyle}><Wrench size={56} color="#3d7ea6" style={{ marginBottom: 18 }} /><h1 style={{ marginBottom: 8 }}>Технические работы</h1><p style={{ color: '#6b5f45', maxWidth: 320 }}>Игра временно закрыта. Загляни чуть позже.</p></div>;
+  if (maintenanceEnabled && maintenanceAdmin) return <div style={authPageStyle}><Wrench size={56} color="#3d7ea6" style={{ marginBottom: 18 }} /><h1 style={{ marginBottom: 8 }}>Игра закрыта</h1><p style={{ color: '#6b5f45', maxWidth: 320 }}>Сейчас войти могут только администраторы.</p><Btn variant="primary" disabled={maintenanceBusy} onClick={() => void setMaintenance(false)}>{maintenanceBusy ? 'Открываем…' : 'Открыть игру'}</Btn>{maintenanceError && <p role="alert" style={{ color: '#c0453a' }}>{maintenanceError}</p>}</div>;
 
   if (loading) return <div style={{ color: '#2f2a1d', textAlign: 'center', marginTop: 'calc(100px + env(safe-area-inset-top, 20px))' }}>Загрузка...</div>;
   // Gate: в Telegram без успешно проверенной сервером подписи initData игру не показываем.
@@ -973,10 +1094,10 @@ export default function App() {
         {tab === 'cafe' && <CafeTab app={app} />}
         {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}
         {tab === 'jobs' && <JobsTab app={app} />}
-        {tab === 'shop' && <ShopTab app={app} />}
         {tab === 'market' && <MarketTab app={app} />}
         {tab === 'inventory' && <InventoryTab app={app} />}
         {tab === 'casino' && <CasinoTab app={app} />}
+        {tab === 'profile' && <ProfileTab app={app} />}
         {tab === 'admin' && <AdminTab app={app} />}
       </Suspense>
       {tab !== 'admin' && <BottomNav app={app} />}

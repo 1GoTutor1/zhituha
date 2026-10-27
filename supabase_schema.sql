@@ -430,25 +430,19 @@ begin
   return jsonb_build_object('energy', greatest(coalesce(p.energy,0), target_energy), 'rest_end', now_ms + cooldown_ms, 'rest_time', cooldown_ms);
 end $$;
 
--- Телефон: покупка/сдача (влияет на market_slots)
+-- Телефон нельзя купить у системы; сдача личного телефона не меняет слоты рынка.
 create or replace function public.buy_phone_rpc(p_player_id uuid, p_is_buying boolean)
 returns jsonb language plpgsql security definer as $$
-declare p players; slots int;
+declare p players;
 begin
   select * into p from players where id = p_player_id for update;
   if not found then return jsonb_build_object('error','player not found'); end if;
   if p_is_buying then
-    if p.phone_count > 0 then return jsonb_build_object('error','телефон уже есть'); end if;
-    if p.money < 2000 then return jsonb_build_object('error','мало денег'); end if;
-    slots := coalesce(p.market_slots,3) + 2;
-    update players set money = money - 2000, phone_count = 1, market_slots = slots where id = p_player_id;
-    return jsonb_build_object('money', p.money - 2000, 'market_slots', slots);
-  else
-    if p.phone_count <= 0 then return jsonb_build_object('error','телефона нет'); end if;
-    slots := greatest(3, coalesce(p.market_slots,3) - 2);
-    update players set money = money + 1400, phone_count = 0, market_slots = slots where id = p_player_id;
-    return jsonb_build_object('money', p.money + 1400, 'market_slots', slots);
+    return jsonb_build_object('error','телефоны больше нельзя купить у системы');
   end if;
+  if p.phone_count <= 0 then return jsonb_build_object('error','телефона нет'); end if;
+  update players set money = money + 1400, phone_count = 0 where id = p_player_id;
+  return jsonb_build_object('money', p.money + 1400, 'market_slots', coalesce(p.market_slots,3));
 end $$;
 
 -- =================== 5. БИЗНЕСЫ ===================
@@ -1285,12 +1279,16 @@ create table if not exists public.casino_rounds (
   race_winner text,                         -- id машины
   dice_first int,                           -- первая грань кубика
   dice_second int,                          -- вторая грань кубика
+  bet_count int not null default 0,
+  bet_total bigint not null default 0,
   created_at timestamptz not null default clock_timestamp()
 );
 
 -- Добавляем грани и в уже созданные проекты, сохраняя совместимость со старой схемой.
 alter table public.casino_rounds add column if not exists dice_first int;
 alter table public.casino_rounds add column if not exists dice_second int;
+alter table public.casino_rounds add column if not exists bet_count int not null default 0;
+alter table public.casino_rounds add column if not exists bet_total bigint not null default 0;
 alter table public.casino_rounds alter column created_at set default clock_timestamp();
 create index if not exists idx_casino_rounds_created on casino_rounds (created_at desc);
 
@@ -1304,6 +1302,14 @@ create table if not exists public.casino_bets (
   status text not null default 'pending',   -- pending | won | lost
   created_at timestamptz not null default timezone('utc', now())
 );
+update public.casino_rounds r set
+  bet_count = coalesce(b.bet_count, 0),
+  bet_total = coalesce(b.bet_total, 0)
+from (
+  select round_id, count(*)::int as bet_count, sum(amount)::bigint as bet_total
+  from public.casino_bets group by round_id
+) b
+where b.round_id = r.id;
 create index if not exists idx_casino_bets_round on casino_bets (round_id, status);
 create index if not exists idx_casino_bets_player on casino_bets (player_id, created_at desc);
 
@@ -1314,6 +1320,9 @@ drop policy if exists "read all" on casino_bets;
 revoke select on casino_rounds, casino_bets from public, anon, authenticated;
 drop policy if exists "no write" on casino_rounds; create policy "no write" on casino_rounds for all using (false) with check (false);
 drop policy if exists "no write" on casino_bets;   create policy "no write" on casino_bets   for all using (false) with check (false);
+drop policy if exists "public read casino rounds" on casino_rounds;
+create policy "public read casino rounds" on casino_rounds for select using (true);
+grant select on public.casino_rounds to anon, authenticated;
 
 -- Фикс «вечной игры»: раньше просроченный betting сам закрывался здесь же (insert нового
 -- betting), из-за чего два параллельных вызова могли породить ДВА новых цикла — счётчики
@@ -1388,6 +1397,7 @@ begin
   update players set money = money - p_amount where id = p_player_id;
   insert into casino_bets(round_id, player_id, game_type, bet_choice, amount)
   values (r.id, p_player_id, p_game_type, p_bet_choice, p_amount);
+  update casino_rounds set bet_count = bet_count + 1, bet_total = bet_total + p_amount where id = r.id;
   perform log_action_rpc(p_player_id, 'casino_bet',
     jsonb_build_object('game',p_game_type,'choice',p_bet_choice,'round',r.id), -p_amount, p.money - p_amount);
   return jsonb_build_object('success', true, 'money', p.money - p_amount, 'round_id', r.id);
@@ -1471,7 +1481,7 @@ begin
 
     if mult > 0 then
       update casino_bets set status='won' where id = b.id;
-      perform change_stats(b.player_id, floor(b.amount * mult), 0);
+      perform change_stats(b.player_id, floor(b.amount * mult)::bigint, 0);
       win_cnt := win_cnt + 1; payout_total := payout_total + floor(b.amount * mult);
     else
       update casino_bets set status='lost' where id = b.id;
@@ -1489,31 +1499,30 @@ begin
                             'race', v_winner, 'wins', win_cnt, 'payout', payout_total);
 end $$;
 
--- внутренний тик: доводит все просроченные betting-раунды и зависшие spinning
+-- Серверный тик: запускает спин просроченного betting и завершает истёкший spinning.
 create or replace function public.casino_advance()
 returns int language plpgsql security definer as $$
-  declare r record; n int := 0; now_ms bigint := floor(extract(epoch from clock_timestamp())*1000);
+declare r casino_rounds; now_ms bigint := floor(extract(epoch from clock_timestamp())*1000);
 begin
-  -- зависшие spinning (>8 сек) закрываем в result напрямую — ставки уже рассчитаны внутри resolve
-  for r in select id from casino_rounds
-            where status='spinning' and coalesce(end_time,0) < now_ms loop
-    -- spin_round_rpc уже выбрал результат; здесь нужно провести выплаты,
-    -- а не просто закрыть раунд.
+  select * into r from casino_rounds order by created_at desc, id desc limit 1 for update;
+  if not found then return 0; end if;
+
+  -- Раунд проходит полный серверный spin независимо от того, открыт ли клиент.
+  if r.status='betting' and r.end_time <= now_ms then
+    perform spin_round_rpc(5000);
+    return 1;
+  end if;
+
+  -- Завершить spinning можно только после полного времени анимации.
+  if r.status='spinning' and coalesce(r.end_time,0) <= now_ms then
     perform resolve_round_rpc(r.id);
-    n := n + 1;
-  end loop;
-  for r in select id from casino_rounds
-            where status='betting' and end_time <= now_ms loop
-    perform resolve_round_rpc(r.id);
-    n := n + 1;
-  end loop;
-  return n;
+    return 1;
+  end if;
+  return 0;
 end $$;
 
--- ЯВНЫЙ СТарт анимации: клиент вызывает эту функцию сразу после принятия последней ставки
--- (или когда понял, что время ставок истекло). Она вычисляет ИТОГИ заранее, оставляет раунд
--- в 'spinning' на p_spin_ms миллисекунд и возвращает результат. Ставки при этом НЕ
--- рассчитываются — это делает resolve_round_rpc ровно один раз, когда спин закончится.
+-- Начало серверного spin: фиксирует итог, закрывает ставки и оставляет фазу spinning.
+-- Выплаты проводит resolve_round_rpc после истечения p_spin_ms.
 -- Так анимация гарантированно проигрывается целиком (машины доезжают, барабан останавливается),
 -- а фаза 'result' стартует только после неё. Идемпотентна для одного раунда.
 create or replace function public.spin_round_rpc(p_spin_ms int default 5000)
@@ -1557,20 +1566,18 @@ end $$;
 
 -- Casino browser calls also go through /api/rpc.
 
--- клиентский вход в цикл: при заходе на вкладку казино доводит ленивый цикл
--- (завершает истёкшие/зависшие раунды и гарантирует свежий betting-раунд). Возвращает текущий раунд.
+-- Только читает состояние. Движение раундов выполняет серверный Supabase Cron.
 create or replace function public.get_casino_round_rpc(p_player_id uuid default null)
 returns jsonb language plpgsql security definer as $$
 declare r casino_rounds;
 begin
-  perform casino_advance();
-  perform ensure_round();
   select * into r from casino_rounds order by created_at desc, id desc limit 1;
   if not found then return null; end if;
   return jsonb_build_object(
     'id', r.id, 'status', r.status, 'end_time', r.end_time,
     'roulette_result', r.roulette_result, 'dice_result', r.dice_result,
     'dice_first', r.dice_first, 'dice_second', r.dice_second, 'race_winner', r.race_winner,
+    'bet_count', r.bet_count, 'bet_total', r.bet_total,
     'my_bets', coalesce((select jsonb_agg(jsonb_build_object(
       'game_type', game_type, 'bet_choice', bet_choice, 'amount', amount, 'status', status
     ) order by created_at desc) from casino_bets where round_id = r.id and player_id = p_player_id), '[]'::jsonb),
@@ -1582,7 +1589,7 @@ begin
     'server_now', floor(extract(epoch from clock_timestamp())*1000));
 end $$;
 
--- вызывается из cron (api/casino.js): завершает истёкшие + создаёт новый раунд
+-- Вызывается из Supabase Cron: продвигает состояние и создаёт следующий раунд.
 create or replace function public.casino_tick_rpc()
 returns jsonb language plpgsql security definer as $$
 declare n int;
@@ -1604,6 +1611,10 @@ end $$;
 -- Browser RPC calls are authenticated by /api/rpc with Telegram initData.
 revoke execute on all functions in schema public from public, anon, authenticated;
 grant execute on all functions in schema public to service_role;
+
+-- Независимый от открытых клиентов цикл: переход раундов проверяется каждую секунду.
+create extension if not exists pg_cron;
+select cron.schedule('casino-live-tick', '1 second', $$select public.casino_tick_rpc();$$);
 
 -- SECURITY DEFINER functions must not resolve objects from a caller-controlled schema.
 revoke create on schema public from public, anon, authenticated;

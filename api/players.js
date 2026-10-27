@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
+import { blockDuringMaintenance } from './_maintenance.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -15,6 +16,11 @@ export default async function handler(req, res) {
   const sb = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const { action } = req.body || {};
   try {
+    const { data: currentPlayer, error: currentPlayerError } = await sb.from('players')
+      .select('id, role').eq('telegram_id', String(user.id)).maybeSingle();
+    if (currentPlayerError) throw currentPlayerError;
+    if (await blockDuringMaintenance(sb, currentPlayer, res)) return;
+
     if (action === 'leaderboard') {
       const { data, error } = await sb.from('players').select('nickname, money').order('money', { ascending: false }).limit(10);
       if (error) throw error;
@@ -34,7 +40,7 @@ export default async function handler(req, res) {
       if (!['admin', 'superadmin'].includes(player.role)) return res.status(403).json({ error: 'Admin access required' });
       const query = typeof req.body?.query === 'string' ? req.body.query.trim().slice(0, 40) : '';
       if (!query) return res.status(200).json({ players: [] });
-      const { data, error } = await sb.from('players').select('id, nickname, money, is_banned').ilike('nickname', `%${query}%`).limit(5);
+      const { data, error } = await sb.from('players').select('id, telegram_id, nickname, money, is_banned').ilike('nickname', `%${query}%`).order('nickname', { ascending: true }).limit(20);
       if (error) throw error;
       return res.status(200).json({ players: data || [] });
     }

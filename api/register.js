@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
+import { readMaintenance } from './_maintenance.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -21,6 +22,7 @@ export default async function handler(req, res) {
 
   const sb = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   try {
+    if (await readMaintenance(sb)) return res.status(503).json({ error: 'maintenance', maintenance: true });
     const telegramId = String(user.id);
     const { data: existing, error: lookupError } = await sb.from('players').select('*').eq('telegram_id', telegramId).maybeSingle();
     if (lookupError) throw lookupError;
