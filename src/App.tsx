@@ -282,7 +282,6 @@ export default function App() {
       setBrewEnd(0);
       showMsg("Кофе готов! Энергия восстановлена!", false, 'reward');
       hapticFeedback('heavy');
-      sendNotification("☕ Твой кофе готов! Энергия восстановлена, залетай в игру!");
       loadData(true);
     } else if (data && data.brew_end) {
       setBrewEnd(data.brew_end);

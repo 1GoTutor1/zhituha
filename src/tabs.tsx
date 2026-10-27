@@ -531,6 +531,7 @@ export const AdminTab = ({ app }: { app: any }) => {
   const [promoCode, setPromoCode] = useState('');
   const [promoAmount, setPromoAmount] = useState('');
   const [promoLimit, setPromoLimit] = useState('100');
+  const [grantCosmeticId, setGrantCosmeticId] = useState('frame_test');
   
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -636,6 +637,28 @@ export const AdminTab = ({ app }: { app: any }) => {
     if (app.loadData) app.loadData(true); 
   };
   
+  const handleGrantCosmetic = async () => {
+    if (!selectedPlayer) return;
+    try {
+      const response = await fetch('/api/players', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'admin_grant_cosmetic',
+          target_player_id: selectedPlayer.id,
+          item_id: grantCosmeticId,
+          init_data: (window as any).Telegram?.WebApp?.initData || '',
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) return app.showMsg(result.error || 'Не удалось выдать косметику', true);
+      setSelectedPlayer((current: any) => current ? { ...current, owned_cosmetics: result.owned_cosmetics || [] } : current);
+      app.showMsg(result.already_owned ? 'У игрока уже есть этот предмет' : 'Косметика выдана');
+      if (selectedPlayer.id === app.pid && app.loadData) await app.loadData(true);
+    } catch {
+      app.showMsg('Не удалось выдать косметику', true);
+    }
+  };
+
   const handleBan = async () => { 
     if (!selectedPlayer) return; 
     const newStatus = !selectedPlayer.is_banned; 
@@ -681,7 +704,7 @@ export const AdminTab = ({ app }: { app: any }) => {
     setPromoAmount('');
   };
 
-  const logFilters = ['all', 'money_change', 'admin_give_money', 'admin_ban', 'admin_unban', 'admin_delete_biz', 'admin_create_promo', 'promo_used'];
+  const logFilters = ['all', 'money_change', 'admin_give_money', 'admin_ban', 'admin_unban', 'admin_delete_biz', 'admin_create_promo', 'admin_grant_cosmetic', 'promo_used'];
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -746,8 +769,21 @@ export const AdminTab = ({ app }: { app: any }) => {
                 <Btn variant={selectedPlayer.is_banned ? 'secondary' : 'danger'} onClick={handleBan} style={{ padding: 10, fontSize: 13 }}><Ban size={16}/> {selectedPlayer.is_banned ? 'Разбан' : 'Бан'}</Btn>
               </div>
 
+              <div style={{ borderTop: '1px solid rgba(90,70,40,.3)', paddingTop: 15, marginBottom: 15 }}>
+                <h4 style={{ margin: '0 0 10px 0' }}>Выдать косметику</h4>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select aria-label="Косметика для выдачи" value={grantCosmeticId} onChange={e => setGrantCosmeticId(e.target.value)} style={{ ...S.input, marginBottom: 0, flex: 1 }}>
+                    <option value="frame_test">Рамка TEST</option>
+                    <option value="frame_amber">Янтарная рамка</option>
+                    <option value="background_concrete">Фон «Бетон»</option>
+                  </select>
+                  <Btn variant="purple" onClick={handleGrantCosmetic} style={{ width: 'auto', padding: '8px 12px' }}>Выдать</Btn>
+                </div>
+              </div>
+
               <h4 style={{ margin: '15px 0 10px 0', borderTop: '1px solid rgba(90,70,40,0.3)', paddingTop: 15 }}>Бизнесы ({playerBizs.length})</h4>
               {playerDetailsLoading && <p role="status" style={{ color: '#6b5f45', fontSize: 12 }}>Загружаем бизнесы игрока…</p>}
+
               {playerBizs.map(b => (
                 <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(90,70,40,0.08)', padding: 10, borderRadius: 12, marginBottom: 8 }}>
                   <span style={{ fontSize: 13 }}>{b.business_name} ({b.biz_type})</span>
