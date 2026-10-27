@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
 
 const CLIENT_RPCS = new Set([
-  'update_profile_rpc', 'work_rpc', 'drink_tutorial_coffee_rpc', 'claim_tutorial_reward_rpc', 'collect_coffee_energy_rpc', 'finish_business_timer_rpc',
+  'update_profile_rpc', 'work_rpc', 'drink_tutorial_coffee_rpc', 'claim_tutorial_reward_rpc', 'claim_daily_reward_rpc', 'collect_coffee_energy_rpc', 'finish_business_timer_rpc',
   'taxi_add_car_rpc', 'taxi_collect_rpc', 'taxi_repair_rpc', 'start_phone_order_rpc', 'buy_business_rpc',
   'sell_business_rpc', 'cancel_lot_rpc', 'start_car_order_rpc', 'start_build_rpc', 'rest_rpc',
   'upgrade_business_passive_rpc', 'collect_business_passive_rpc',
