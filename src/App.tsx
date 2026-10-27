@@ -687,7 +687,7 @@ export default function App() {
     if (data?.error) return showMsg(data.error, true);
     setMoney(Number(data.money)); setEnergy(Number(data.energy));
     window.dispatchEvent(new CustomEvent('zhituha:work-reward', { detail: Number(data.work_pay) }));
-    showMsg(`+${data.work_pay} монет`); hapticFeedback('medium');
+    hapticFeedback('medium');
     await afterAction(); // мгновенное обновление цифр с сервера
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }
   });
