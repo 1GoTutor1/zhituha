@@ -359,7 +359,7 @@ begin
     if hash_value >= 2147483648 then hash_value := hash_value - 4294967296; end if;
   end loop;
   day_index := mod(abs(hash_value), 10)::int;
-  work_pay := floor((case when day_index = 8 then 225 else 150 end) * (1 + business_bonus / 100.0));
+  work_pay := floor(150 * (1 + business_bonus / 100.0));
 
   update players set money = coalesce(money,0) + work_pay, energy = coalesce(energy,0) - energy_cost
     where id = p_player_id returning * into p;

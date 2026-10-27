@@ -90,7 +90,7 @@ export const DAY_MODIFIERS = [
   { id: 6, name: "Кофейный бум", desc: "Кофе дает +30% энергии", type: "coffee_energy", mult: 1.3, color: "#b06a15" },
   { id: 7, name: "День друзей", desc: "Реферальные бонусы x2", type: "ref", mult: 2, color: "#c0453a" },
   { id: 8, name: "Стройка века", desc: "Стройка дома +50% скорости", type: "build", mult: 1.5, color: "#96600d" },
-  { id: 9, name: "Тихий день", desc: "Работа x1.5", type: "work", mult: 1.5, color: "#5b5648" },
+  { id: 9, name: "\u0422\u0438\u0445\u0438\u0439 \u0434\u0435\u043d\u044c", desc: "\u0420\u0430\u0431\u043e\u0442\u0430 \u043e\u043f\u043b\u0430\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u043f\u043e \u043e\u0431\u044b\u0447\u043d\u043e\u043c\u0443 \u0442\u0430\u0440\u0438\u0444\u0443", type: "work", mult: 1, color: "#5b5648" },
   { id: 10, name: "Госзаказ", desc: "Производство телефонов +50% скорости", type: "factory", mult: 1.5, color: "#2563a8" },
 ];
 

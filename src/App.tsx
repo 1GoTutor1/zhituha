@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { Send, ShieldAlert } from 'lucide-react';
+import { playUiSound } from './sound';
 import { 
   BOT_USERNAME, CHANNEL_LINK, POLL, 
   BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, getRestTime, AVATARS,
@@ -135,10 +136,10 @@ export default function App() {
     else if (b.biz_type === 'construction') bizBonusPercent += 25;
   });
 
-  const baseWorkPay = dayMod?.type === 'work' ? Math.floor(JOB_WORK * 1.5) : JOB_WORK;
+  const baseWorkPay = JOB_WORK;
   const workPay = Math.floor(baseWorkPay * (1 + bizBonusPercent / 100));
 
-  const showMsg = (msg: string, err = false) => { setToast({ msg, err, id: Date.now() }); };
+  const showMsg = (msg: string, err = false) => { setToast({ msg, err, id: Date.now() }); playUiSound(err); };
   const closeToast = () => setToast(null);
   // Идентификатор игрока = Telegram id. В браузере вне Telegram (dev-режим) разрешаем
   // локальную заглушку, но в самом Telegram — только реальный id из initDataUnsafe.
@@ -685,6 +686,7 @@ export default function App() {
     if (error) throw error;
     if (data?.error) return showMsg(data.error, true);
     setMoney(Number(data.money)); setEnergy(Number(data.energy));
+    window.dispatchEvent(new CustomEvent('zhituha:work-reward', { detail: Number(data.work_pay) }));
     showMsg(`+${data.work_pay} монет`); hapticFeedback('medium');
     await afterAction(); // мгновенное обновление цифр с сервера
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }

@@ -9,6 +9,7 @@ import {
 } from './constants';
 import { Btn, Modal } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
+import { isUiSoundEnabled, toggleUiSound } from './sound';
 
 export const AppModals = ({ app }: { app: any }) => (
   <>
@@ -129,6 +130,17 @@ export const HomeTab = ({ app }: { app: any }) => {
   const maxEnergy = app.maxEnergy;
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
   const modifier = getDayModifier();
+  const [soundEnabled, setSoundEnabled] = useState(isUiSoundEnabled);
+  const [workReward, setWorkReward] = useState<{ id: number; amount: number } | null>(null);
+  useEffect(() => {
+    const onReward = (event: Event) => {
+      const id = Date.now();
+      setWorkReward({ id, amount: Number((event as CustomEvent<number>).detail) });
+      window.setTimeout(() => setWorkReward(current => current?.id === id ? null : current), 1200);
+    };
+    window.addEventListener('zhituha:work-reward', onReward);
+    return () => window.removeEventListener('zhituha:work-reward', onReward);
+  }, []);
   const energyCost = app.hasCar ? 10 : 20;
 
   return (
@@ -150,6 +162,7 @@ export const HomeTab = ({ app }: { app: any }) => {
           </div>
         </div>
         <div style={{ textAlign: 'right', fontWeight: 'bold' }}>
+          <button aria-label={soundEnabled ? 'Mute' : 'Unmute'} onClick={() => setSoundEnabled(toggleUiSound())} style={{ border: '1px solid rgba(90,70,40,.2)', borderRadius: 8, padding: 6, marginBottom: 8, background: 'rgba(90,70,40,.06)', color: '#6b5f45', cursor: 'pointer' }}>{soundEnabled ? '\u{1F50A}' : '\u{1F507}'}</button>
           <div style={{ color: '#b06a15', marginBottom: 5, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontSize: 18, fontFamily: 'Russo One, Impact, sans-serif' }}><Coins size={18} /> <AnimatedNumber value={app.money} /></div>
           <div style={{ color: '#5f43a0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontSize: 14 }}><Zap size={16} /> <AnimatedNumber value={app.energy} format={(n) => `${n}/${maxEnergy}`} /></div>
         </div>
@@ -190,9 +203,10 @@ export const HomeTab = ({ app }: { app: any }) => {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Btn variant="purple" onClick={app.work} disabled={app.proc || app.energy < energyCost} style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: '#f6f2fc', padding: 20, fontSize: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <Btn variant="purple" onClick={app.work} disabled={app.proc || app.energy < energyCost} style={{ position: 'relative', overflow: 'visible', background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: '#f6f2fc', padding: 20, fontSize: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Users size={24} /> Вкалывать (-{energyCost}⚡ +{app.workPay}💰)</div>
           {app.bizBonusPercent > 0 && <div style={{ fontSize: 12, color: '#d9f2e2', display: 'flex', alignItems: 'center', gap: 4 }}><TrendingUp size={14}/> Бонус бизнесов: +{app.bizBonusPercent}%</div>}
+          {workReward && <span key={workReward.id} className="work-reward-float">+{workReward.amount} {'\u20bd'}</span>}
         </Btn>
         
         <Btn variant="secondary" onClick={app.rest} disabled={app.proc || app.tLeft > 0 || app.energy >= maxEnergy} style={{ background: '#fbf4e4', border: '1px solid rgba(90,70,40,0.22)', color: app.tLeft > 0 ? '#6b5f45' : '#2f2a1d', padding: 20, fontSize: 18 }}>
