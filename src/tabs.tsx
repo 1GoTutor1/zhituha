@@ -977,12 +977,6 @@ export const ShopTab = ({ app }: { app: any }) => {
         <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || app.marketSlots >= 9 || app.premiumBalance < item.price} style={{ ...S.btnPurple, padding: '8px 10px' }}>{app.marketSlots >= 9 ? '\u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C' : `${item.price} \u25C6`}</button>
       </div>)}
     </div>
-    <div style={{ ...S.card, textAlign: 'center', padding: 24 }}>
-      <Smartphone size={42} color="#6b5f45" style={{ marginBottom: 12 }} />
-      <h3>Телефоны производит телефонный цех</h3>
-      <p style={{ fontSize: 13, color: '#6b5f45', marginBottom: 10 }}>Готовые телефоны можно купить у игроков на рынке. Покупка телефона не увеличивает число слотов для объявлений.</p>
-      <p style={{ fontSize: 12, color: '#6b5f45', marginBottom: 0 }}>Твой лимит рынка: {app.marketSlots} {app.marketSlots === 1 ? 'слот' : app.marketSlots >= 2 && app.marketSlots <= 4 ? 'слота' : 'слотов'}.</p>
-    </div>
   </div>
   );
 };
