@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, CheckCircle2, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
@@ -187,6 +187,8 @@ export const HomeTab = ({ app }: { app: any }) => {
           <Coffee size={24} color="#b06a15" /><span style={{ fontSize: 13 }}>Пить кофе</span>
         </button>
       </div>
+
+      {(app.role === 'admin' || app.role === 'superadmin') && <button onClick={app.openAdmin} style={{ width: '100%', marginBottom: 10, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 10, border: '2px solid #8f302b', background: 'linear-gradient(180deg, #c94b40, #a9322a)', color: '#fff4e0', boxShadow: '0 4px 0 rgba(90,35,30,.35)', fontFamily: 'Russo One, sans-serif', fontSize: 14, cursor: 'pointer' }}><ShieldAlert size={20} /> Панель администратора</button>}
 
       <div aria-label="Скоро" style={{ minHeight: 96, marginBottom: 20, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15,15,18,0.72)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.78)', fontFamily: 'Russo One, Impact, sans-serif', fontSize: 18, letterSpacing: 1.5 }}>
         Скоро...
@@ -512,8 +514,15 @@ const LogEntry = ({ log }: { log: any }) => {
 export const AdminTab = ({ app }: { app: any }) => {
   const [searchQ, setSearchQ] = useState('');
   const [foundPlayers, setFoundPlayers] = useState<any[]>([]);
+  const [activeSearchQ, setActiveSearchQ] = useState('');
+  const [adminPlayersPage, setAdminPlayersPage] = useState(1);
+  const [adminPlayersPages, setAdminPlayersPages] = useState(1);
+  const [adminPlayersTotal, setAdminPlayersTotal] = useState(0);
+  const [adminPlayersLoading, setAdminPlayersLoading] = useState(false);
+  const playersRequestId = useRef(0);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [playerBizs, setPlayerBizs] = useState<any[]>([]);
+  const [playerDetailsLoading, setPlayerDetailsLoading] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [promoAmount, setPromoAmount] = useState('');
   const [promoLimit, setPromoLimit] = useState('100');
@@ -553,21 +562,61 @@ export const AdminTab = ({ app }: { app: any }) => {
     if (app.adminTab === 'logs') loadLogs();
   }, [app.adminTab, logsFilter]);
 
-  const handleSearch = async () => { 
-    if (!searchQ) return; 
-    const response = await fetch('/api/players', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'admin_search', query: searchQ, init_data: (window as any).Telegram?.WebApp?.initData || '' }),
-    });
-    const result = await response.json();
-    if (!response.ok) return app.showMsg(result.error || 'Ошибка поиска', true);
-    setFoundPlayers(result.players || []);
+  const loadAdminPlayers = async (page = adminPlayersPage, query = activeSearchQ) => {
+    const requestId = ++playersRequestId.current;
+    setAdminPlayersLoading(true);
+    try {
+      const response = await fetch('/api/players', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin_list', page, query, init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+      });
+      const result = await response.json();
+      if (requestId !== playersRequestId.current) return;
+      if (!response.ok) return app.showMsg(result.error || 'Не удалось загрузить игроков', true);
+      const pages = Math.max(1, Number(result.total_pages) || 1);
+      if (page > pages) {
+        setAdminPlayersPages(pages);
+        setAdminPlayersPage(pages);
+        return;
+      }
+      setFoundPlayers(result.players || []);
+      setAdminPlayersTotal(Number(result.total) || 0);
+      setAdminPlayersPages(pages);
+    } catch {
+      if (requestId !== playersRequestId.current) return;
+      app.showMsg('Не удалось загрузить игроков', true);
+    } finally {
+      if (requestId === playersRequestId.current) setAdminPlayersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (app.adminTab === 'players' && !selectedPlayer) loadAdminPlayers();
+  }, [app.adminTab, adminPlayersPage, activeSearchQ, selectedPlayer]);
+
+  const handleSearch = () => {
+    const query = searchQ.trim();
+    if (adminPlayersPage !== 1) setAdminPlayersPage(1);
+    if (activeSearchQ === query && adminPlayersPage === 1) loadAdminPlayers(1, query);
+    else setActiveSearchQ(query);
   };
   
   const loadPlayerDetails = async (p: any) => { 
-    setSelectedPlayer(p); 
-    const { data } = await app.supabase.from('businesses').select('*').eq('owner_id', p.id); 
-    setPlayerBizs(data || []); 
+    const requestId = ++playersRequestId.current;
+    setSelectedPlayer(p);
+    setPlayerDetailsLoading(true);
+    try {
+      const { data, error } = await app.supabase.from('businesses').select('*').eq('owner_id', p.id);
+      if (error) throw error;
+      if (requestId !== playersRequestId.current) return;
+      setPlayerBizs(data || []);
+    } catch (error: any) {
+      if (requestId !== playersRequestId.current) return;
+      setPlayerBizs([]);
+      app.showMsg(error?.message || 'Не удалось загрузить бизнесы игрока', true);
+    } finally {
+      if (requestId === playersRequestId.current) setPlayerDetailsLoading(false);
+    }
   };
   
   const handleGiveMoney = async (amount: number) => { 
@@ -647,15 +696,27 @@ export const AdminTab = ({ app }: { app: any }) => {
           {!selectedPlayer ? (
             <>
               <div style={{ display: 'flex', gap: 10, marginBottom: 15 }}>
-                <input type="text" placeholder="Поиск по нику..." value={searchQ} onChange={e => setSearchQ(e.target.value)} style={{ ...S.input, marginBottom: 0, flex: 1 }} />
-                <Btn variant="primary" onClick={handleSearch} style={{ width: 'auto', padding: '0 15px' }}><Search size={20}/></Btn>
+                <input type="text" placeholder="Поиск по нику..." value={searchQ} onChange={e => setSearchQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }} style={{ ...S.input, marginBottom: 0, flex: 1 }} />
+                <Btn variant="primary" onClick={handleSearch} disabled={adminPlayersLoading} style={{ width: 'auto', padding: '0 15px' }}><Search size={20}/></Btn>
+                {activeSearchQ && <Btn variant="secondary" onClick={() => { setSearchQ(''); setActiveSearchQ(''); setAdminPlayersPage(1); }} disabled={adminPlayersLoading} style={{ width: 'auto', padding: '0 10px' }}>Сбросить</Btn>}
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, fontSize: 12, color: '#6b5f45' }}>
+                <span>{activeSearchQ ? `Результаты поиска: ${adminPlayersTotal}` : `Игроков: ${adminPlayersTotal}`}</span>
+                <Btn variant="secondary" onClick={() => loadAdminPlayers()} disabled={adminPlayersLoading} style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }}>Обновить</Btn>
+              </div>
+              {adminPlayersLoading && <p style={{ color: '#6b5f45', textAlign: 'center' }}>Загружаю игроков...</p>}
               {foundPlayers.map(p => (
                 <div key={p.id} onClick={() => loadPlayerDetails(p)} style={{ background: '#fbf4e4', padding: 15, borderRadius: 8, marginBottom: 10, cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
                   <span style={{ color: '#2c7a3c' }}>{p.money} <Coins size={12}/></span>
                 </div>
               ))}
+              {!adminPlayersLoading && foundPlayers.length === 0 && <p style={{ color: '#6b5f45', textAlign: 'center' }}>Игроки не найдены.</p>}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
+                <Btn variant="secondary" onClick={() => setAdminPlayersPage(page => Math.max(1, page - 1))} disabled={adminPlayersLoading || adminPlayersPage <= 1} style={{ width: 'auto', padding: '8px 12px' }}>← Назад</Btn>
+                <span style={{ color: '#6b5f45', fontSize: 12 }}>Страница {adminPlayersPage} из {adminPlayersPages}</span>
+                <Btn variant="secondary" onClick={() => setAdminPlayersPage(page => Math.min(adminPlayersPages, page + 1))} disabled={adminPlayersLoading || adminPlayersPage >= adminPlayersPages} style={{ width: 'auto', padding: '8px 12px' }}>Дальше →</Btn>
+              </div>
               
               <div style={{ marginTop: 40, padding: 20, border: '1px solid #c0453a', borderRadius: 8, background: 'rgba(192,69,58,0.08)' }}>
                 <h3 style={{ color: '#c0453a', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: 5 }}><AlertTriangle size={20}/> Опасная зона</h3>
@@ -681,6 +742,7 @@ export const AdminTab = ({ app }: { app: any }) => {
               </div>
 
               <h4 style={{ margin: '15px 0 10px 0', borderTop: '1px solid rgba(90,70,40,0.3)', paddingTop: 15 }}>Бизнесы ({playerBizs.length})</h4>
+              {playerDetailsLoading && <p role="status" style={{ color: '#6b5f45', fontSize: 12 }}>Загружаем бизнесы игрока…</p>}
               {playerBizs.map(b => (
                 <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(90,70,40,0.08)', padding: 10, borderRadius: 12, marginBottom: 8 }}>
                   <span style={{ fontSize: 13 }}>{b.business_name} ({b.biz_type})</span>

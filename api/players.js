@@ -38,6 +38,22 @@ export default async function handler(req, res) {
       if (error) throw error;
       return res.status(200).json({ players: data || [] });
     }
+    if (action === 'admin_list') {
+      if (!['admin', 'superadmin'].includes(player.role)) return res.status(403).json({ error: 'Admin access required' });
+      const pageSize = 20;
+      const requestedPage = Number(req.body?.page);
+      const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, 1000000) : 1;
+      const query = typeof req.body?.query === 'string' ? req.body.query.trim().slice(0, 40) : '';
+      let playersQuery = sb.from('players')
+        .select('id, telegram_id, nickname, money, is_banned', { count: 'exact' })
+        .order('nickname', { ascending: true })
+        .range((page - 1) * pageSize, page * pageSize - 1);
+      if (query) playersQuery = playersQuery.ilike('nickname', `%${query}%`);
+      const { data, error, count } = await playersQuery;
+      if (error) throw error;
+      const total = count || 0;
+      return res.status(200).json({ players: data || [], page, page_size: pageSize, total, total_pages: Math.max(1, Math.ceil(total / pageSize)) });
+    }
     if (action === 'casino_money') return res.status(200).json({ money: player.money });
     return res.status(400).json({ error: 'Unsupported player action' });
   } catch (error) {
