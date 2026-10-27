@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy, Palette } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
@@ -195,7 +195,10 @@ export const HomeTab = ({ app }: { app: any }) => {
         {app.maintenanceError && <p role="alert" style={{ color: '#c0453a' }}>{app.maintenanceError}</p>}
       </>}
 
-      <ShopTab app={app} />
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+        <button onClick={() => app.setTab('shop')} style={{ ...S.btnPurple, flex: 1, width: 'auto', minWidth: 0, padding: '14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13 }}><Gift size={18} /> Донат</button>
+        <button onClick={() => app.setTab('profile')} style={{ ...S.btnSecondary, flex: 1, width: 'auto', minWidth: 0, padding: '14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13 }}><Palette size={18} /> Косметика</button>
+      </div>
 
       {myCoffee && (
         <div style={{ backgroundColor: '#fbf4e4', border: '1px solid rgba(63,157,85,0.35)', borderRadius: 10, padding: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -935,6 +938,16 @@ export const ProfileTab = ({ app }: { app: any }) => {
       {app.ownedCosmetics.includes('background_concrete') && <button onClick={() => app.donateAction('equip', { item_id: 'background_concrete' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8 }}>🏙️ Установить фон «Бетон»</button>}
       <button onClick={() => app.donateAction('equip', { item_id: 'default' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%' }}>Вернуть стандартный вид</button>
     </div>
+    <div style={S.card}>
+      <h3 style={{ marginTop: 0 }}>{'\u041C\u0430\u0433\u0430\u0437\u0438\u043D \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0438'}</h3>
+      {PREMIUM_ITEMS.filter(item => item.id !== 'market_slots_2').map(item => {
+        const owned = app.ownedCosmetics.includes(item.id);
+        return <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid rgba(90,70,40,.12)', textAlign: 'left' }}>
+          <span style={{ fontSize: 27 }}>{item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
+          <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || owned || app.premiumBalance < item.price} style={{ ...S.btnPurple, padding: '8px 10px', opacity: owned ? .55 : 1 }}>{owned ? '\u041A\u0443\u043F\u043B\u0435\u043D\u043E' : `${item.price} \u25C6`}</button>
+        </div>;
+      })}
+    </div>
   </div>;
 };
 
@@ -943,7 +956,7 @@ export const ShopTab = ({ app }: { app: any }) => {
   const [premiumAmount, setPremiumAmount] = useState('1');
   return (
   <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h2>Магазин</h2><button onClick={() => app.setTab('profile')} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 12px', fontSize: 12 }}>Мой профиль</button></div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h2>Донат</h2><button onClick={() => app.setTab('home')} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 12px', fontSize: 12 }}>На главную</button></div>
     <div style={{ ...S.card, border: '2px solid #8a6ac0' }}>
       <h3 style={{ marginTop: 0, color: '#7656a8' }}>◆ Донат-жетоны</h3>
       <p style={{ color: '#6b5f45', fontSize: 13 }}>Покупай жетоны за Telegram Stars. Все пакеты доступны в Telegram Mini App.</p>
@@ -958,14 +971,11 @@ export const ShopTab = ({ app }: { app: any }) => {
       </div>
     </div>
     <div style={S.card}>
-      <h3 style={{ marginTop: 0 }}>Косметика и возможности</h3>
-      {PREMIUM_ITEMS.map(item => {
-        const owned = app.ownedCosmetics.includes(item.id);
-        return <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid rgba(90,70,40,.12)', textAlign: 'left' }}>
-          <span style={{ fontSize: 27 }}>{item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
-          <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || owned || app.premiumBalance < item.price || (item.id === 'market_slots_2' && app.marketSlots >= 9)} style={{ ...S.btnPurple, padding: '8px 10px', opacity: owned ? .55 : 1 }}>{owned ? 'Куплено' : item.id === 'market_slots_2' && app.marketSlots >= 8 ? '40 ◆' : `${item.price} ◆`}</button>
-        </div>;
-      })}
+      <h3 style={{ marginTop: 0 }}>{'\u0423\u043B\u0443\u0447\u0448\u0435\u043D\u0438\u044F \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430'}</h3>
+      {PREMIUM_ITEMS.filter(item => item.id === 'market_slots_2').map(item => <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}>
+        <span style={{ fontSize: 27 }}>{item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
+        <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || app.marketSlots >= 9 || app.premiumBalance < item.price} style={{ ...S.btnPurple, padding: '8px 10px' }}>{app.marketSlots >= 9 ? '\u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C' : `${item.price} \u25C6`}</button>
+      </div>)}
     </div>
     <div style={{ ...S.card, textAlign: 'center', padding: 24 }}>
       <Smartphone size={42} color="#6b5f45" style={{ marginBottom: 12 }} />

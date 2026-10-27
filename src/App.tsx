@@ -22,6 +22,7 @@ const AdminTab = lazy(() => loadTabs().then((module) => ({ default: module.Admin
 const AppModals = lazy(() => loadTabs().then((module) => ({ default: module.AppModals })));
 const CafeTab = lazy(() => loadTabs().then((module) => ({ default: module.CafeTab })));
 const JobsTab = lazy(() => loadTabs().then((module) => ({ default: module.JobsTab })));
+const ShopTab = lazy(() => loadTabs().then((module) => ({ default: module.ShopTab })));
 const InventoryTab = lazy(() => loadTabs().then((module) => ({ default: module.InventoryTab })));
 const ProfileTab = lazy(() => loadTabs().then((module) => ({ default: module.ProfileTab })));
 const CasinoTab = lazy(() => import('./casino').then((module) => ({ default: module.CasinoTab })));
@@ -103,7 +104,7 @@ export default function App() {
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
   const [toast, setToast] = useState<{ msg: string, err: boolean, id: number } | null>(null);
-  const [tab, setTab] = useState<'home' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'profile' | 'admin'>('home');
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'profile' | 'admin'>('home');
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
@@ -474,7 +475,7 @@ export default function App() {
 
   useEffect(() => {
     if (tab === 'market') { loadMarket(); refreshProfile(); pollMyBizs(); }
-    if (tab === 'inventory') { refreshProfile(); pollMyBizs(); }
+    if (tab === 'shop' || tab === 'inventory') { refreshProfile(); pollMyBizs(); }
     if (['business', 'jobs', 'cafe'].includes(tab)) {
       refreshProfile(); pollMyBizs();
       const int = setInterval(() => { refreshProfile(); pollMyBizs(); }, POLL);
@@ -1096,6 +1097,7 @@ export default function App() {
         {tab === 'cafe' && <CafeTab app={app} />}
         {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}
         {tab === 'jobs' && <JobsTab app={app} />}
+        {tab === 'shop' && <ShopTab app={app} />}
         {tab === 'market' && <MarketTab app={app} />}
         {tab === 'inventory' && <InventoryTab app={app} />}
         {tab === 'casino' && <CasinoTab app={app} />}
