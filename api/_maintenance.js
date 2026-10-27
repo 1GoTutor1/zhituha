@@ -3,7 +3,10 @@ export async function readMaintenance(sb) {
     .select('maintenance_enabled')
     .eq('setting_key', 'main')
     .maybeSingle();
-  if (error && error.code !== 'PGRST116') throw error;
+  // A not-yet-applied maintenance migration must never lock the whole game.
+  // PostgREST can report a missing table before the schema cache refreshes.
+  if (error && ['PGRST116', 'PGRST205', '42P01'].includes(error.code)) return false;
+  if (error) throw error;
   return Boolean(data?.maintenance_enabled);
 }
 

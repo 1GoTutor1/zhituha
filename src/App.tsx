@@ -65,7 +65,9 @@ export default function App() {
       setMaintenanceChecked(true);
     } catch (error) {
       setMaintenanceError(error instanceof Error ? error.message : 'Не удалось проверить режим техработ');
-      setMaintenanceChecked(false);
+      setMaintenanceEnabled(false);
+      setMaintenanceAdmin(false);
+      setMaintenanceChecked(true);
     }
   };
 
