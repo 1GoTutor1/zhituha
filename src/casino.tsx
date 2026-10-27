@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { Btn } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
+import { playUiSound } from './sound';
 
 // ============ КАЗИНО: глобальный цикл раундов (30с ставки / 5с спин / 10с результат) ============
 
@@ -52,6 +53,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const [diceHistory, setDiceHistory] = useState<number[]>([]);
   const [raceHistory, setRaceHistory] = useState<string[]>([]);
   const lastRoundId = useRef<string | null>(null);
+  const lastObservedPhase = useRef<Round['status'] | null>(null);
   const pendingLoadRef = useRef(false);
   const loadingRef = useRef(false);         // защита от наложения запросов loadRound
   const mountedRef = useRef(true);
@@ -96,6 +98,13 @@ export const CasinoTab = ({ app }: { app: any }) => {
       const r: Round = { id: data.id, status: data.status, end_time: Number(data.end_time), roulette_result: data.roulette_result, dice_result: data.dice_result, dice_first: data.dice_first ?? null, dice_second: data.dice_second ?? null, race_winner: data.race_winner, bet_count: Number(data.bet_count) || 0, bet_total: Number(data.bet_total) || 0 };
       if (!mountedRef.current) return;
       setRound(r);
+      const previousPhase = lastObservedPhase.current;
+      if (r.status === 'spinning' && previousPhase !== 'spinning') playUiSound('casinoSpin');
+      if (r.status === 'result' && previousPhase === 'spinning') {
+        const settledBets = data.my_bets || [];
+        if (settledBets.length) playUiSound(settledBets.some((bet: any) => bet.status === 'won') ? 'casinoWin' : 'casinoLose');
+      }
+      lastObservedPhase.current = r.status;
       if (r.status === 'result' && typeof data.player_money === 'number' && mountedRef.current) setMoney(Number(data.player_money));
       // мои ставки этого раунда (только когда они реально могут измениться)
       if (pid && r.status !== 'spinning' && mountedRef.current) setMyBets(data.my_bets || []);
@@ -219,7 +228,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
     if ((data as any)?.error) return showMsg((data as any).error, true);
     setMoney(Number((data as any).money));
     hapticFeedback('medium');
-    showMsg(`Ставка принята: ${(data as any).money >= 0 ? betAmount.toLocaleString('ru') : ''}₽`);
+    showMsg(`Ставка принята: ${(data as any).money >= 0 ? betAmount.toLocaleString('ru') : ''}₽`, false, 'casinoBet');
     loadRound();
   });
 
