@@ -7,7 +7,7 @@ type BankSection = 'account' | 'deposits' | 'stocks' | 'loans' | 'history';
 type Stock = { symbol: string; title: string; price: number; previous_price: number; history: { price: number; at: string }[] };
 type Deposit = { id: string; principal: number; rate_bps: number; term_hours: number; maturity_at: string; status: string; created_at: string };
 type Loan = { id: string; collateral_type: 'car' | 'house' | 'business'; collateral_model: string; collateral_business_id: string | null; collateral_value: number; principal: number; amount_due: number; due_at: string; grace_until: string; status: string };
-type Holding = { symbol: string; shares: number; price: number; value: number };
+type Holding = { symbol: string; shares: number; price: number; value: number; cost_basis: number; realized_profit: number; liquidation_value: number };
 type Transaction = { id: number; operation: string; amount: number; details: Record<string, unknown>; created_at: string };
 type OwnedBusiness = { id: string; biz_type: string; business_name: string; passive_level?: number | null };
 type BankState = { wallet: number; balance: number; deposits: Deposit[]; loan: Loan | null; holdings: Holding[]; stocks: Stock[]; transactions: Transaction[]; server_now: string };
@@ -53,7 +53,7 @@ const businessCollateralValue = (business: OwnedBusiness) => {
 const money = (value: number) => `${Math.floor(Number(value) || 0).toLocaleString('ru-RU')} ₽`;
 const dateTime = (value: string) => new Date(value).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const bankErrorText = (message: string) => message === 'RPC failed'
-  ? 'Банк ещё не подключён к базе. Сначала выполни BANK_MIGRATION.sql в Supabase.'
+  ? 'Банк вернул ошибку запроса. Обнови страницу; если ошибка повторится, проверь логи Vercel для api/rpc.'
   : message;
 
 const StockChart = ({ history, color }: { history: Stock['history']; color: string }) => {
@@ -155,6 +155,12 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const deposits = bank?.deposits || [];
   const loan = bank?.loan || null;
   const sharesToTrade = Math.max(1, Math.floor(Number(sharesAmount) || 1));
+  const stockPortfolio = bank?.holdings || [];
+  const stockInvested = stockPortfolio.reduce((sum, holding) => sum + Number(holding.cost_basis || 0), 0);
+  const stockLiquidationValue = stockPortfolio.reduce((sum, holding) => sum + Number(holding.liquidation_value ?? Math.floor(holding.shares * holding.price * 0.95)), 0);
+  const stockRealizedProfit = stockPortfolio.reduce((sum, holding) => sum + Number(holding.realized_profit || 0), 0);
+  const stockUnrealizedProfit = stockLiquidationValue - stockInvested;
+  const stockTotalProfit = stockRealizedProfit + stockUnrealizedProfit;
   const selectedBusiness = app.myBizs.find(business => business.id === collateralBusinessId);
   const selectedCollateralValue = collateral === 'car'
     ? (app.carModel === 'toyota' ? 65_000 : 28_000)
@@ -228,11 +234,30 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
 
         {section === 'stocks' && <>
           <div style={{ ...S.card, padding: 12, fontSize: 12, color: '#6b5f45' }}><ChartNoAxesCombined size={16} style={{ verticalAlign: 'middle' }} /> Котировки общие для игроков и меняются каждую минуту по активности игры и случайному движению. Продажа — 95% текущей цены.</div>
+          <div style={{ ...S.card, padding: 14, border: `1px solid ${stockTotalProfit >= 0 ? 'rgba(63,157,85,.35)' : 'rgba(192,69,58,.35)'}`, background: stockTotalProfit >= 0 ? 'linear-gradient(135deg, rgba(63,157,85,.10), #fffaf0 70%)' : 'linear-gradient(135deg, rgba(192,69,58,.10), #fffaf0 70%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <div><div style={{ color: '#6b5f45', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Результат по акциям</div><div style={{ color: stockTotalProfit >= 0 ? '#2c7a3c' : '#b83229', fontSize: 24, fontWeight: 900, marginTop: 3 }}>{stockTotalProfit > 0 ? '+' : ''}{money(stockTotalProfit)}</div></div>
+              <div style={{ fontSize: 24 }}>{stockTotalProfit >= 0 ? '📈' : '📉'}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 7, marginTop: 12 }}>
+              {[
+                ['Вложено сейчас', stockInvested, '#5a4a2f', false],
+                ['Получишь при продаже', stockLiquidationValue, '#3d7ea6', false],
+                ['Зафиксировано продажами', stockRealizedProfit, stockRealizedProfit >= 0 ? '#2c7a3c' : '#b83229', true],
+                ['Изменение открытых акций', stockUnrealizedProfit, stockUnrealizedProfit >= 0 ? '#2c7a3c' : '#b83229', true]
+              ].map(([label, value, color, signed]) => <div key={String(label)} style={{ padding: 9, borderRadius: 8, background: 'rgba(255,255,255,.66)' }}><div style={{ color: '#80745e', fontSize: 10 }}>{label}</div><b style={{ color: String(color), fontSize: 13 }}>{signed && Number(value) > 0 ? '+' : ''}{money(Number(value))}</b></div>)}
+            </div>
+            <div style={{ color: '#80745e', fontSize: 10, marginTop: 8 }}>В прибыли учтены цены покупок, фактические продажи и комиссия 5% при продаже.</div>
+          </div>
           <label style={{ display: 'block', color: '#6b5f45', fontSize: 12, margin: '8px 0 5px' }}>Количество акций</label>
           <input type="number" min="1" max="10000" step="1" value={sharesAmount} onChange={event => setSharesAmount(event.target.value)} style={S.input} />
           {stocks.map(stock => {
             const holding = holdings.get(stock.symbol);
             const shares = Number(holding?.shares) || 0;
+            const costBasis = Number(holding?.cost_basis) || 0;
+            const sellValue = Number(holding?.liquidation_value ?? Math.floor(shares * stock.price * 0.95));
+            const openProfit = sellValue - costBasis;
+            const realizedProfit = Number(holding?.realized_profit) || 0;
             const change = stock.previous_price ? ((stock.price - stock.previous_price) / stock.previous_price) * 100 : 0;
             const color = change >= 0 ? '#3f9d55' : '#c0453a';
             return <div key={stock.symbol} style={S.card}>
@@ -241,6 +266,12 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
                 <div style={{ textAlign: 'right' }}><b style={{ fontSize: 17 }}>{money(stock.price)}</b><div style={{ color, fontSize: 11 }}>{change >= 0 ? '+' : ''}{change.toFixed(2)}% за тик</div></div>
               </div>
               <div style={{ margin: '10px 0' }}><StockChart history={stock.history || []} color={color} /><div style={{ display: 'flex', justifyContent: 'space-between', color: '#8a806c', fontSize: 10 }}><span>−60 мин</span><span>Сейчас</span></div></div>
+              <div style={{ padding: 10, borderRadius: 9, background: openProfit >= 0 ? 'rgba(63,157,85,.08)' : 'rgba(192,69,58,.08)', marginBottom: 9 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11 }}><span style={{ color: '#6b5f45' }}>Вложено в оставшиеся акции</span><b>{money(costBasis)}</b></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, marginTop: 4 }}><span style={{ color: '#6b5f45' }}>Вернётся при продаже сейчас</span><b>{money(sellValue)}</b></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, marginTop: 6 }}><span style={{ color: '#6b5f45' }}>Профит открытых</span><b style={{ color: openProfit >= 0 ? '#2c7a3c' : '#b83229' }}>{openProfit > 0 ? '+' : ''}{money(openProfit)}</b></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, marginTop: 4 }}><span style={{ color: '#6b5f45' }}>Уже зафиксировано продажами</span><b style={{ color: realizedProfit >= 0 ? '#2c7a3c' : '#b83229' }}>{realizedProfit > 0 ? '+' : ''}{money(realizedProfit)}</b></div>
+              </div>
               <div style={{ fontSize: 11, color: '#6b5f45', marginBottom: 8 }}>Покупка: {money(stock.price * sharesToTrade)} · продажа {sharesToTrade} шт.: {money(Math.floor(stock.price * sharesToTrade * 0.95))}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <Btn variant="secondary" disabled={busy || sharesToTrade > 10000 || Number(bank?.balance) < stock.price * sharesToTrade} onClick={() => void run('bank_buy_stock_rpc', { p_symbol: stock.symbol, p_shares: sharesToTrade }, 'Акции куплены')} style={{ flex: 1, padding: 9 }}>Купить</Btn>

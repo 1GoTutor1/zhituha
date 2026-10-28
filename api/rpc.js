@@ -58,7 +58,22 @@ export default async function handler(req, res) {
 
     const { data, error } = await sb.rpc(name, safeArgs);
     if (error) {
-      console.error('RPC failed:', name, error.message);
+      console.error('RPC failed:', name, error.code, error.message);
+      if (name.startsWith('bank_')) {
+        if (error.code === 'PGRST202' || error.code === '42883') {
+          return res.status(400).json({ error: `Банковская функция ${name} не найдена в Supabase. Проверь, что применены SQL-миграции банка.` });
+        }
+        if (error.code === '42P01') {
+          return res.status(400).json({ error: 'Не найдена таблица банка в Supabase. Выполни BANK_MIGRATION.sql.' });
+        }
+        if (error.code === '42703') {
+          return res.status(400).json({ error: 'Схема банка устарела: не хватает колонки. Выполни актуальную миграцию банка.' });
+        }
+        if (error.code === '42501') {
+          return res.status(400).json({ error: `Supabase запретил выполнение ${name}. Проверь права service_role в банковской миграции.` });
+        }
+        return res.status(400).json({ error: `Ошибка банковского запроса (${error.code || 'без кода'}). Подробности есть в логах Vercel: api/rpc.` });
+      }
       if (name === 'list_item_rpc' && error.message?.includes('Заложенное имущество')) {
         return res.status(400).json({ error: 'Сначала погаси кредит, чтобы продать заложенное имущество' });
       }

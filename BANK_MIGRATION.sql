@@ -41,6 +41,8 @@ create table if not exists public.bank_stock_holdings (
   player_id uuid not null references public.players(id) on delete cascade,
   symbol text not null references public.bank_stock_quotes(symbol),
   shares bigint not null default 0 check (shares >= 0),
+  cost_basis numeric(30,6) not null default 0 check (cost_basis >= 0),
+  realized_profit numeric(30,6) not null default 0,
   updated_at timestamptz not null default now(),
   primary key (player_id, symbol)
 );
@@ -160,9 +162,11 @@ begin
     ) order by d.created_at desc) from public.bank_deposits d where d.player_id=p_player_id and d.status='active'),'[]'::jsonb),
     'loan', (select to_jsonb(l) from public.bank_loans l where l.player_id=p_player_id and l.status in ('active','foreclosed') and l.amount_due > 0 order by l.created_at desc limit 1),
     'holdings', coalesce((select jsonb_agg(jsonb_build_object(
-      'symbol',h.symbol,'shares',h.shares,'price',q.price,'value',h.shares*q.price
+      'symbol',h.symbol,'shares',h.shares,'price',q.price,'value',h.shares*q.price,
+      'cost_basis',h.cost_basis,'realized_profit',h.realized_profit,
+      'liquidation_value',floor(h.shares*q.price*0.95)
     ) order by h.symbol) from public.bank_stock_holdings h join public.bank_stock_quotes q using(symbol)
-      where h.player_id=p_player_id and h.shares>0),'[]'::jsonb),
+      where h.player_id=p_player_id and (h.shares>0 or h.realized_profit<>0)),'[]'::jsonb),
     'stocks', coalesce((select jsonb_agg(jsonb_build_object(
       'symbol',q.symbol,'title',q.title,'price',q.price,'previous_price',q.previous_price,
       'updated_at',q.updated_at,'history',coalesce((select jsonb_agg(jsonb_build_object('price',t.price,'at',t.created_at) order by t.created_at)
@@ -269,8 +273,9 @@ begin
   select * into a from public.bank_accounts where player_id=p_player_id for update;
   if not found or a.balance<total then return jsonb_build_object('error','Недостаточно денег на банковском счёте'); end if;
   update public.bank_accounts set balance=balance-total,updated_at=now() where player_id=p_player_id;
-  insert into public.bank_stock_holdings(player_id,symbol,shares) values(p_player_id,p_symbol,p_shares)
-    on conflict(player_id,symbol) do update set shares=bank_stock_holdings.shares+excluded.shares,updated_at=now();
+  insert into public.bank_stock_holdings(player_id,symbol,shares,cost_basis) values(p_player_id,p_symbol,p_shares,total)
+    on conflict(player_id,symbol) do update set shares=bank_stock_holdings.shares+excluded.shares,
+      cost_basis=bank_stock_holdings.cost_basis+excluded.cost_basis,updated_at=now();
   insert into public.bank_transactions(player_id,operation,amount,details)
     values(p_player_id,'stock_buy',-total,jsonb_build_object('symbol',p_symbol,'shares',p_shares,'price',q.price));
   return jsonb_build_object('success',true,'balance',a.balance-total,'price',q.price,'total',total);
@@ -278,7 +283,7 @@ end $$;
 
 create or replace function public.bank_sell_stock_rpc(p_player_id uuid, p_symbol text, p_shares int)
 returns jsonb language plpgsql security definer set search_path = pg_catalog, public, pg_temp as $$
-declare q public.bank_stock_quotes; h public.bank_stock_holdings; proceeds bigint;
+declare q public.bank_stock_quotes; h public.bank_stock_holdings; proceeds bigint; sold_cost numeric(30,6);
 begin
   if p_shares is null or p_shares<1 or p_shares>10000 then return jsonb_build_object('error','Некорректное количество акций'); end if;
   select * into q from public.bank_stock_quotes where symbol=p_symbol for update;
@@ -286,7 +291,9 @@ begin
   select * into h from public.bank_stock_holdings where player_id=p_player_id and symbol=p_symbol for update;
   if not found or h.shares<p_shares then return jsonb_build_object('error','Недостаточно акций'); end if;
   proceeds := floor(q.price*p_shares*0.95)::bigint;
-  update public.bank_stock_holdings set shares=shares-p_shares,updated_at=now() where player_id=p_player_id and symbol=p_symbol;
+  sold_cost := h.cost_basis*p_shares/h.shares;
+  update public.bank_stock_holdings set shares=shares-p_shares,cost_basis=greatest(0,cost_basis-sold_cost),
+    realized_profit=realized_profit+proceeds-sold_cost,updated_at=now() where player_id=p_player_id and symbol=p_symbol;
   update public.bank_accounts set balance=balance+proceeds,updated_at=now() where player_id=p_player_id;
   insert into public.bank_transactions(player_id,operation,amount,details)
     values(p_player_id,'stock_sell',proceeds,jsonb_build_object('symbol',p_symbol,'shares',p_shares,'price',q.price,'payout_percent',95));
