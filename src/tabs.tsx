@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Sun, Moon, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Sun, Moon, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront } from 'lucide-react';
 import { 
   getAvatar, BUILDING_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
@@ -241,7 +241,7 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
       </> : <>
         <div className="profession-stage-label"><b>Один цикл — около 30 секунд</b><span>Три простых действия · +25 XP</span></div>
         {full && <div className="profession-inventory-full">Инвентарь заполнен · {career.inventory_slots}/200 <button onClick={() => app.setTab('inventory')}>Открыть</button></div>}
-        <button className="profession-action-button" disabled={app.proc || full || (profession.id === 'taxi' && career.taxi_fleet?.selected_car_index == null)} onClick={app.startProfessionCycle}><Icon size={20} /> Начать работу</button>
+        <button className="profession-action-button" disabled={app.proc || full || app.energy < (app.hasCar ? 10 : 20) || (profession.id === 'taxi' && career.taxi_fleet?.selected_car_index == null)} onClick={app.startProfessionCycle}><Icon size={20} /> {app.energy < (app.hasCar ? 10 : 20) ? 'Недостаточно энергии' : 'Начать работу'}</button>
       </>}
     </div>
     <div className="profession-reward-preview">
@@ -297,7 +297,7 @@ export const HomeTab = ({ app }: { app: any }) => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
         <button onClick={() => app.setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 10, backgroundColor: '#fbf4e4', border: '1px solid rgba(192, 132, 252, 0.3)', color: '#2f2a1d', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-          <Briefcase size={24} color="#5f43a0" /><span style={{ fontSize: 13 }}>Мои бизнесы</span>
+          <Briefcase size={24} color="#5f43a0" /><span style={{ fontSize: 13 }}>Бизнесы</span>
         </button>
         <button onClick={() => app.setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 10, backgroundColor: '#fbf4e4', border: '1px solid rgba(249, 115, 22, 0.3)', color: '#2f2a1d', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
           <Coffee size={24} color="#b06a15" /><span style={{ fontSize: 13 }}>Пить кофе</span>
@@ -521,6 +521,7 @@ const BusinessAuctionEntry = ({ location, app }: any) => {
 };
 
 export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
+  const [businessView, setBusinessView] = useState<'all' | 'mine'>('all');
   const [passiveNow, setPassiveNow] = useState(Date.now());
   const [auctionOpen, setAuctionOpen] = useState(false);
   const [auctionPrice, setAuctionPrice] = useState('');
@@ -530,11 +531,6 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
     const timer = setInterval(() => setPassiveNow(Date.now()), 10000);
     return () => clearInterval(timer);
   }, []);
-
-  const bizTypes = ['coffee', 'salon', 'taxi', 'construction', 'minimarket', 'auto_repair'];
-  const currentIndex = bizTypes.indexOf(app.activeBizType);
-  const prevType = bizTypes[(currentIndex - 1 + bizTypes.length) % bizTypes.length];
-  const nextType = bizTypes[(currentIndex + 1) % bizTypes.length];
 
   const getBizName = (type: string) => ({ coffee: 'Кофейня', salon: 'Автосалон', taxi: 'Таксопарк', construction: 'Стройтрест', minimarket: 'Мини-маркет', auto_repair: 'Автомастерская' }[type] || 'Бизнес');
 
@@ -562,15 +558,23 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-      <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 'none', color: '#6b5f45', marginBottom: 20, marginTop: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Мой Бизнес</h2>
-      
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <button onClick={() => app.setActiveBizType(prevType)} style={{ background: 'rgba(90,70,40,0.08)', border: 'none', borderRadius: 12, padding: 10, cursor: 'pointer' }}><ChevronLeft size={20} color="#2f2a1d" /></button>
-        <div style={{ fontSize: 20, fontWeight: 'bold' }}>{activeBiz ? activeBiz.business_name : getBizName(app.activeBizType)}</div>
-        <button onClick={() => app.setActiveBizType(nextType)} style={{ background: 'rgba(90,70,40,0.08)', border: 'none', borderRadius: 12, padding: 10, cursor: 'pointer' }}><ChevronRight size={20} color="#2f2a1d" /></button>
+      <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 'none', color: '#6b5f45', marginBottom: 20, marginTop: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Бизнесы</h2>
+
+      <div role="tablist" aria-label="Разделы бизнеса" style={{ display: 'flex', gap: 6, padding: 5, marginBottom: 18, borderRadius: 10, background: 'rgba(90,70,40,.08)' }}>
+        {([{ id: 'all', label: 'Все' }, { id: 'mine', label: `Мои (${app.myBizs.length})` }] as const).map(item => <button key={item.id} type="button" role="tab" aria-selected={businessView === item.id} onClick={() => setBusinessView(item.id)} style={{ flex: 1, padding: 10, border: 0, borderRadius: 7, cursor: 'pointer', fontWeight: 700, background: businessView === item.id ? '#fbf4e4' : 'transparent', color: '#2f2a1d', boxShadow: businessView === item.id ? '0 1px 4px rgba(50,40,25,.12)' : 'none' }}>{item.label}</button>)}
       </div>
 
-      <section className="business-location-catalog">
+      {businessView === 'mine' && <>
+      <section className="business-location-catalog" style={{ marginBottom: 18 }}>
+        <div className="business-catalog-heading"><div><h3>Мои бизнесы</h3><span>{app.myBizs.length} / 3</span></div></div>
+        {app.myBizs.length ? app.myBizs.map((business: any) => <button key={business.id} type="button" onClick={() => { app.setActiveBizType(business.biz_type); app.setActiveBizId(business.id); }} className="business-location-row" style={{ width: '100%', textAlign: 'left', cursor: 'pointer', color: '#2f2a1d', background: String(activeBiz?.id) === String(business.id) ? 'rgba(61,126,166,.12)' : undefined }}>
+          <span className="business-location-info"><b>{business.business_name}</b><small>{getBizName(business.biz_type)}{String(activeBiz?.id) === String(business.id) ? ' · выбрано' : ''}</small></span>
+          <span className="business-location-action">Открыть</span>
+        </button>) : <p style={{ margin: 12, color: '#6b5f45', fontSize: 13 }}>У тебя пока нет бизнеса. Найди свободную точку во вкладке «Все».</p>}
+      </section>
+      </>}
+
+      {businessView === 'all' && <section className="business-location-catalog">
         <div className="business-catalog-heading"><div><h3>Точки бизнеса</h3><span>В собственности: {app.businessCatalog?.owned_count ?? app.myBizs.length} / 3</span></div><button onClick={app.loadBusinessCatalog} aria-label="Обновить список"><RefreshCw size={17} /></button></div>
         {(app.businessCatalog?.locations || []).map((location: any) => {
           const owned = location.status === 'owned';
@@ -580,14 +584,14 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
           return <div key={location.location_key} className="business-location-row">
             <div className="business-location-info"><b>{location.business_name}</b><small>{owned ? 'Твой бизнес' : available ? 'Свободно у государства' : `Владелец: ${location.owner_name || 'занято'}`}</small></div>
             <div className="business-location-action">
-              {owned ? <button onClick={() => { app.setActiveBizType(location.biz_type); app.setActiveBizId(location.business_id); }}>Управлять</button>
+              {owned ? <button onClick={() => { app.setActiveBizType(location.biz_type); app.setActiveBizId(location.business_id); setBusinessView('mine'); }}>Управлять</button>
                 : available && purchasable && price != null ? <button disabled={app.proc || app.businessCatalog?.owned_count >= 3 || app.money < price} onClick={() => app.purchaseBusinessLocation(location.location_key)}>{price.toLocaleString('ru-RU')} ₽ · Купить</button>
                 : location.status === 'auction' ? <BusinessAuctionEntry location={location} app={app} />
                 : <span>{price == null ? 'Цена не задана' : !purchasable ? 'Готовится' : 'Занято'}</span>}
             </div>
           </div>;
         })}
-      </section>
+      </section>}
 
       <Modal open={auctionOpen} onClose={() => setAuctionOpen(false)} contentStyle={{ maxWidth: 360 }}>
         <h3 style={{ marginTop: 0 }}>Выставить бизнес на торги</h3>
@@ -600,7 +604,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
         </div>
       </Modal>
 
-      {activeBiz ? (
+      {businessView === 'mine' && (activeBiz ? (
         <div style={S.card}>
           <section style={{ marginBottom: 18, padding: 13, borderRadius: 10, background: 'rgba(61,126,166,.08)', textAlign: 'left' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><b>Касса бизнеса</b><strong>{Number(activeBiz.cash_balance || 0).toLocaleString('ru-RU')} ₽</strong></div>
@@ -757,7 +761,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
           <h3>Выбери точку бизнеса</h3>
           <p style={{ color: '#6b5f45' }}>Покупка у государства доступна в каталоге выше. Свободные места ограничены.</p>
         </div>
-      )}
+      ))}
     </div>
   );
 };

@@ -974,9 +974,12 @@ export default function App() {
   });
 
   const startProfessionCycle = () => action(async () => {
+    const energyCost = hasCar ? 10 : 20;
+    if (energy < energyCost) return showMsg("Недостаточно энергии для работы", true);
     const { data, error } = await supabase.rpc('start_profession_cycle_rpc', { p_player_id: pid });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
+    setEnergy(Number(data.energy));
     setCareer((current: any) => ({ ...current, active_cycle: data.active_cycle }));
     hapticFeedback('medium');
   });
