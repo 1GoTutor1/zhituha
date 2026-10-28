@@ -280,7 +280,7 @@ body[data-ui-theme="dark"] .maintenance-testing-banner { background: rgba(34, 39
 .profession-taxi-2 { transform: translateX(12px); }
 .profession-taxi-3 { transform: translateX(35px); }
 
-.business-location-catalog { margin: 0 0 18px; padding: 14px; border-radius: 12px; background: var(--card-bg, #fbf4e4); border: 1px solid rgba(90,70,40,.16); text-align: left; }
+.business-location-catalog { margin: 0 0 18px; padding: 14px; border-radius: 12px; background: var(--bg-card, #fbf4e4); border: 1px solid var(--border-color, rgba(90,70,40,.16)); color: var(--text-main, #2f2a1d); text-align: left; }
 .business-catalog-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
 .business-catalog-heading h3 { margin:0; font-size:16px; }
 .business-catalog-heading span { color:#6b5f45; font-size:12px; }
@@ -299,6 +299,20 @@ body[data-ui-theme="dark"] .maintenance-testing-banner { background: rgba(34, 39
 .business-auction-entry input { min-width:0; width:82px; border:1px solid rgba(90,70,40,.24); border-radius:6px; padding:6px 4px; background:#fffaf0; color:#2f2a1d; font-size:11px; }
 .business-auction-entry button { border:1px solid rgba(61,126,166,.55); border-radius:7px; padding:6px 8px; background:rgba(61,126,166,.12); color:#2f5f7d; font-size:11px; font-weight:700; cursor:pointer; }
 .business-auction-entry button:disabled { opacity:.45; }
+body[data-ui-theme="dark"] .business-location-catalog { background:#222724; border-color:rgba(220,230,222,.16); color:#eceeea; box-shadow:0 8px 22px rgba(0,0,0,.18); }
+body[data-ui-theme="dark"] .business-catalog-heading h3,
+body[data-ui-theme="dark"] .business-location-info b { color:#eceeea; }
+body[data-ui-theme="dark"] .business-catalog-heading span,
+body[data-ui-theme="dark"] .business-location-info small { color:#aeb6af; }
+body[data-ui-theme="dark"] .business-catalog-heading button { background:#2c332f; color:#d8dfd9; }
+body[data-ui-theme="dark"] .business-location-row { border-color:rgba(220,230,222,.12); }
+body[data-ui-theme="dark"] .business-location-action button,
+body[data-ui-theme="dark"] .business-auction-entry button { background:rgba(77,145,180,.2); color:#c9e5f3; border-color:rgba(115,180,212,.45); }
+body[data-ui-theme="dark"] .business-location-action button:disabled,
+body[data-ui-theme="dark"] .business-auction-entry button:disabled { opacity:.72; }
+body[data-ui-theme="dark"] .business-location-action span,
+body[data-ui-theme="dark"] .business-auction-entry small { color:#c3aa75; }
+body[data-ui-theme="dark"] .business-auction-entry input { background:#202522; color:#eceeea; border-color:rgba(220,230,222,.2); }
 .profile-section-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:12px 0; padding:5px; border-radius:10px; background:rgba(90,70,40,.08); }
 .profile-section-tabs button { border:0; border-radius:7px; padding:9px 4px; background:transparent; color:#6b5f45; font-size:12px; font-weight:700; cursor:pointer; }
 .profile-section-tabs button.active { background:#fffaf0; color:#2f2a1d; box-shadow:0 1px 4px rgba(50,40,20,.12); }
