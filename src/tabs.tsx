@@ -487,7 +487,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
             {bizWorkers.length === 0 && <p style={{ fontSize: 12, color: '#b06a15', margin: 0 }}>Нет сотрудников. Биржа труда ждет!</p>}
             {bizWorkers.map((w: any) => (
               <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(90,70,40,0.08)', padding: 10, borderRadius: 12, marginBottom: 8 }}>
-                <div style={{ fontSize: 13, textAlign: 'left' }}><b>{w.player_name}</b><br/><span style={{ color: '#6b5f45', fontSize: 11 }}>{w.role} (ЗП: {w.salary})</span></div>
+                <div style={{ fontSize: 13, textAlign: 'left' }}><b>{w.player_name}</b><br/><span style={{ color: '#6b5f45', fontSize: 11 }}>{w.role} (ЗП: {activeBiz.biz_type === 'salon' ? (w.role === 'Механик' ? '3% с продажи авто' : '5% с продажи авто') : `${w.salary} ₽`})</span></div>
                 <Btn variant="danger" onClick={() => app.fire(w.id)} disabled={app.proc} style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }}>Уволить</Btn>
               </div>
             ))}
@@ -950,7 +950,7 @@ export const JobsTab = ({ app }: { app: any }) => {
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>{job.role}</div>
                 <div style={{ fontSize: 12, color: '#6b5f45', marginTop: 4 }}>{job.biz.business_name} ({job.biz.owner_name})</div>
-                <div style={{ fontSize: 12, color: '#3d7ea6', marginTop: 2 }}>ЗП: {job.salary} 💰</div>
+                <div style={{ fontSize: 12, color: '#3d7ea6', marginTop: 2 }}>ЗП: {job.biz.biz_type === 'salon' ? (job.role === 'Механик' ? '3% с продажи авто' : '5% с продажи авто') : `${job.salary} ₽`}</div>
               </div>
               <Btn variant="secondary" onClick={() => app.hire(job.biz.id, job.role, job.salary)} disabled={app.proc || app.myJob !== null} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>{app.myJob ? 'Уже работаете' : 'Устроиться'}</Btn>
             </div>
@@ -963,6 +963,8 @@ export const JobsTab = ({ app }: { app: any }) => {
   if (app.myJob) {
     const biz = app.allBiz.find((b:any) => b.id === app.myJob.business_id);
     const isCoffee = biz?.biz_type === 'coffee';
+    const isSalon = biz?.biz_type === 'salon';
+    const salonPayPercent = app.myJob.role === 'Механик' ? 3 : 5;
     
     return (
       <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -982,6 +984,8 @@ export const JobsTab = ({ app }: { app: any }) => {
                 <Btn variant="primary" onClick={app.collectTips} disabled={app.proc || !app.tipBalance} style={{ marginTop: 10, padding: 8, fontSize: 13 }}><Wallet size={16} style={{ display: 'inline', marginRight: 5 }}/> Забрать чаевые</Btn>
               </div>
             </>
+          ) : isSalon ? (
+            <p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#6b5f45' }}>Получаешь <b style={{ color: '#3f9d55' }}>{salonPayPercent}%</b> от цены продажи автомобиля после его продажи.</p>
           ) : (
             <p style={{ margin: '0 0 15px 0', fontSize: 14, color: '#6b5f45' }}>Зарплата: <b style={{ color: '#3f9d55' }}>{app.myJob.salary} 💰</b></p>
           )}

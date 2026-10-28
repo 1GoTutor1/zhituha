@@ -672,9 +672,7 @@ begin
 
   -- ЗП за завершённую партию (дизайн-док): работягам + начальнику, если наняты.
   pay := '{}'::jsonb;
-  if b.biz_type = 'salon' then
-    pay := public.pay_workers_for_batch(p_biz_id, 'Механик', 'Продавец');
-  elsif b.biz_type = 'phone_factory' then
+  if b.biz_type = 'phone_factory' then
     pay := public.pay_workers_for_batch(p_biz_id, 'Сборщик', 'Инженер');
   elsif b.biz_type = 'construction' then
     pay := public.pay_workers_for_batch(p_biz_id, 'Строитель', 'Прораб');
@@ -1046,7 +1044,11 @@ end $$;
 -- item_data хранится как 'personal:<тип>' / 'stock:<тип>'.
 create or replace function public.buy_market_item(p_buyer_id uuid, p_item_id uuid, p_commission_percent int default 5)
 returns jsonb language plpgsql security definer as $$
-declare m market_items; buyer players; payout bigint; real_data text; item_source text;
+declare
+  m market_items; buyer players; payout bigint; real_data text; item_source text;
+  salon_id uuid; mech_count int := 0; seller_count int := 0;
+  mech_pool bigint := 0; seller_pool bigint := 0; mech_each bigint := 0; seller_each bigint := 0;
+  mech_paid bigint := 0; seller_paid bigint := 0; owner_payout bigint;
 begin
   if p_commission_percent is null or p_commission_percent not in (0, 5) then return jsonb_build_object('error','invalid commission'); end if;
   select * into m from market_items where id = p_item_id for update;
@@ -1079,9 +1081,46 @@ begin
     house_type = case when m.item_type = 'house' then real_data else house_type end
   where id = p_buyer_id;
   payout := m.price - floor(m.price * p_commission_percent / 100.0);
-  perform change_stats(m.seller_id, payout, 0);
+  if m.item_type = 'car' and item_source = 'stock' then
+    select id into salon_id from businesses where owner_id = m.seller_id and biz_type = 'salon' for update;
+    if salon_id is not null then
+      select count(*) into mech_count from business_workers where business_id = salon_id and role = 'Механик';
+      select count(*) into seller_count from business_workers where business_id = salon_id and role = 'Продавец';
+      mech_pool := floor(m.price * 0.03) * mech_count;
+      seller_pool := floor(m.price * 0.05);
+
+      if mech_count > 0 then
+        mech_each := floor(m.price * 0.03);
+        with ranked_workers as (
+          select player_id, row_number() over (order by id) as row_num
+          from business_workers where business_id = salon_id and role = 'Механик'
+        )
+        update players p set money = coalesce(p.money, 0) + mech_each
+          + case when ranked_workers.row_num <= mech_pool % mech_count then 1 else 0 end
+        from ranked_workers where p.id = ranked_workers.player_id;
+        mech_paid := mech_pool;
+      end if;
+
+      if seller_count > 0 then
+        seller_each := seller_pool / seller_count;
+        with ranked_workers as (
+          select player_id, row_number() over (order by id) as row_num
+          from business_workers where business_id = salon_id and role = 'Продавец'
+        )
+        update players p set money = coalesce(p.money, 0) + seller_each
+          + case when ranked_workers.row_num <= seller_pool % seller_count then 1 else 0 end
+        from ranked_workers where p.id = ranked_workers.player_id;
+        seller_paid := seller_pool;
+      end if;
+    end if;
+  end if;
+
+  owner_payout := payout - mech_paid - seller_paid;
+  perform change_stats(m.seller_id, owner_payout, 0);
   return jsonb_build_object('success', true, 'item_type', m.item_type, 'item_data', real_data,
-                            'money', buyer.money - m.price);
+                            'money', buyer.money - m.price,
+                            'mechanic_pay', mech_paid, 'seller_pay', seller_paid,
+                            'owner_payout', owner_payout);
 end $$;
 
 -- Снять лот: вернуть товар (личное имущество или на склад) и DELETE строки лота.
