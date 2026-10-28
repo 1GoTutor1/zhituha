@@ -46,7 +46,10 @@ export const AppModals = ({ app }: { app: any }) => (
       <Gift size={40} color="#3f9d55" style={{ marginBottom: 15 }} />
       <h3>Активация промокода</h3>
       <input type="text" value={app.promoInput} onChange={(e: any) => app.setPromoInput(e.target.value.toUpperCase())} placeholder="ALPHA100" style={S.input} />
-      <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => app.setPromoOpen(false)} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Отмена</Btn><Btn variant="primary" onClick={app.redeemPromo}>Активировать</Btn></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.85fr) minmax(0, 1.4fr)', gap: 10, width: '100%' }}>
+        <Btn variant="secondary" onClick={() => app.setPromoOpen(false)} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d', minWidth: 0, padding: '12px 8px', fontSize: 14, whiteSpace: 'nowrap' }}>Отмена</Btn>
+        <Btn variant="primary" onClick={app.redeemPromo} style={{ minWidth: 0, padding: '12px 8px', fontSize: 14, whiteSpace: 'nowrap' }}>Активировать</Btn>
+      </div>
     </Modal>
 
     <Modal open={app.bugOpen} onClose={() => app.setBugOpen(false)}>
