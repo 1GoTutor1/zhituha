@@ -127,10 +127,8 @@ export default function App() {
   };
   
   const [loading, setLoading] = useState(!!(window as any).Telegram?.WebApp?.initDataUnsafe?.user);
-  // Подписку больше НЕ проверяем на клиенте (раньше вызывался несуществующий
-  // supabase edge-функция 'check-subscription' — всегда была ошибка).
-  // Проверка подписки сделана на стороне бота: /start без подписки не даёт аккаунт.
-  const [isCheckingSub, setIsCheckingSub] = useState(false);
+  const [isCheckingSub, setIsCheckingSub] = useState(Boolean(user?.id));
+  const [subscriptionError, setSubscriptionError] = useState('');
   const [proc, setProc] = useState(false);
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
@@ -655,24 +653,38 @@ export default function App() {
     if (result.referred) showMsg("Бонус +1000 монет за приглашение!");
   });
 
-  // Подписка: берём из БД (столбец is_subscribed пишет бот при /start).
-  // Раньше здесь дергалась несуществующая edge-функция 'check-subscription'.
-  const checkSubOnLoad = async () => { setIsCheckingSub(false); };
+  const checkSubOnLoad = async () => {
+    if (!user?.id) { setIsCheckingSub(false); setIsSubscribed(undefined); return; }
+    setIsCheckingSub(true);
+    setSubscriptionError('');
+    try {
+      const response = await fetch('/api/players', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'subscription_check', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Проверка подписки временно недоступна');
+      const subscribed = result.is_subscribed === true;
+      setIsSubscribed(subscribed);
+      return subscribed;
+    } catch (error) {
+      setIsSubscribed(undefined);
+      setSubscriptionError(error instanceof Error ? error.message : 'Не удалось проверить подписку');
+      return null;
+    } finally { setIsCheckingSub(false); }
+  };
 
   useEffect(() => { 
     if (user) checkSubOnLoad(); 
-    else setIsCheckingSub(false); 
+    else { setIsCheckingSub(false); setIsSubscribed(undefined); setSubscriptionError(''); }
   }, [user]);
 
   const verifySubscription = async () => {
-    // Кнопка «Я подписался»: отмечаем подписку в БД и пускаем в игру.
-    // Реальную проверку членства в канале делает бот (/start → getChatMember).
     if (!user?.id) return;
-    setIsCheckingSub(true); hapticFeedback('medium');
-    try {
-      setIsSubscribed(true); if (pid) await sync({ is_subscribed: true });
-      showMsg("Спасибо за подписку! Добро пожаловать!");
-    } catch (e) { showMsg("Ошибка. Попробуй позже.", true); } finally { setIsCheckingSub(false); }
+    hapticFeedback('medium');
+    const subscribed = await checkSubOnLoad();
+    if (subscribed === true) showMsg("Подписка подтверждена. Добро пожаловать!");
+    else if (subscribed === false) showMsg("Подписка пока не найдена. Подпишись на канал и попробуй ещё раз.", true);
   };
 
   const drinkTutorialCoffee = () => action(async () => {
@@ -1276,6 +1288,7 @@ export default function App() {
     return <div style={authPageStyle}><ShieldAlert size={50} color="#3d7ea6" style={{ marginBottom: 20 }} /><h2>Проверка аккаунта…</h2><p style={{ color: '#6b5f45', maxWidth: 300 }}>Telegram-безопасность: подтверждаем подпись.</p></div>;
   }
   if (isCheckingSub) return <div style={authPageStyle}><Send size={50} color="#3d7ea6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
+  if (user && subscriptionError) return <div style={authPageStyle}><ShieldAlert size={50} color="#3d7ea6" style={{ marginBottom: 20 }} /><h2>Не удалось проверить подписку</h2><p style={{ color: '#6b5f45', maxWidth: 320 }}>{subscriptionError}</p><Btn variant="primary" onClick={verifySubscription}>Повторить</Btn></div>;
   if (isBanned) return <div style={authPageStyle}><ShieldAlert size={80} color="#c0453a" style={{ marginBottom: 20 }} /><h1>Вы забанены!</h1><p style={{ color: '#6b5f45', maxWidth: '300px' }}>Администрация заблокировала ваш аккаунт.</p></div>;
   
   // Окно подписки показываем ТОЛЬКО когда точно знаем (из БД), что не подписан.

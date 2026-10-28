@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
 import { blockDuringMaintenance, readMaintenance } from './_maintenance.js';
+import { checkChannelSubscription } from './_subscription.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -26,6 +27,19 @@ export default async function handler(req, res) {
     const { data: player, error: playerError } = playerResult;
     if (playerError) throw playerError;
     if (await blockDuringMaintenance(sb, player, res, maintenanceEnabled)) return;
+
+    if (action === 'subscription_check') {
+      let isSubscribed;
+      try { isSubscribed = await checkChannelSubscription(user.id, BOT_TOKEN); }
+      catch {
+        return res.status(503).json({ error: 'Не удалось проверить подписку. Попробуй ещё раз.' });
+      }
+      if (player) {
+        const { error } = await sb.from('players').update({ is_subscribed: isSubscribed }).eq('id', player.id);
+        if (error) throw error;
+      }
+      return res.status(200).json({ is_subscribed: isSubscribed });
+    }
 
     if (action === 'leaderboard') {
       const { data, error } = await sb.from('players').select('id, nickname, money')

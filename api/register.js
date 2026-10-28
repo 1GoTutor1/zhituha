@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
 import { readMaintenance } from './_maintenance.js';
+import { checkChannelSubscription } from './_subscription.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -23,6 +24,10 @@ export default async function handler(req, res) {
   const sb = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   try {
     if (await readMaintenance(sb)) return res.status(503).json({ error: 'maintenance', maintenance: true });
+    let isSubscribed;
+    try { isSubscribed = await checkChannelSubscription(user.id, BOT_TOKEN); }
+    catch { return res.status(503).json({ error: 'Не удалось проверить подписку. Попробуй ещё раз.' }); }
+    if (!isSubscribed) return res.status(403).json({ error: 'Сначала подпишись на Telegram-канал Житухи.' });
     const telegramId = String(user.id);
     const { data: existing, error: lookupError } = await sb.from('players').select('*').eq('telegram_id', telegramId).maybeSingle();
     if (lookupError) throw lookupError;

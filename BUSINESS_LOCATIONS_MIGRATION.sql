@@ -33,14 +33,14 @@ insert into public.business_locations(location_key,biz_type,business_name,purcha
   ('coffee_03','coffee','Кофейня №3',350000),('coffee_04','coffee','Кофейня №4',350000),
   ('coffee_05','coffee','Кофейня №5',350000),('coffee_06','coffee','Кофейня №6',350000),
   ('coffee_07','coffee','Кофейня №7',350000),
-  ('salon_low','salon','Автосалон низкого класса',150000),
-  ('salon_mid','salon','Автосалон среднего класса',150000),
-  ('salon_high','salon','Автосалон высокого класса',150000),
+  ('salon_low','salon','Автосалон низкого класса',350000),
+  ('salon_mid','salon','Автосалон среднего класса',650000),
+  ('salon_high','salon','Автосалон высокого класса',1000000),
   ('taxi_yandex','taxi','Таксопарк Яндекс',1200000),
   ('taxi_maxim','taxi','Таксопарк Максим',1000000),
   ('taxi_uber','taxi','Таксопарк Uber',1200000),
-  ('construction_01','construction','Стройтрест №1',500000),
-  ('construction_02','construction','Стройтрест №2',500000),
+  ('construction_01','construction','Стройтрест №1',850000),
+  ('construction_02','construction','Стройтрест №2',850000),
   ('minimarket_01','minimarket','Минимаркет №1',600000),
   ('minimarket_02','minimarket','Минимаркет №2',600000),
   ('minimarket_03','minimarket','Минимаркет №3',600000),
@@ -132,8 +132,9 @@ begin
   select * into b from public.businesses where id=p_biz_id and owner_id=p_player_id for update;
   if not found then return jsonb_build_object('error','Бизнес не найден'); end if;
   select purchase_price into base_price from public.business_locations where location_key=b.location_key;
-  base_price := coalesce(base_price,case b.biz_type when 'coffee' then 350000 when 'salon' then 150000
-    when 'taxi' then 1200000 when 'construction' then 500000 when 'auto_repair' then 900000
+  base_price := coalesce(base_price,case b.biz_type when 'coffee' then 350000
+    when 'salon' then case b.location_key when 'salon_mid' then 650000 when 'salon_high' then 1000000 else 350000 end
+    when 'taxi' then 1200000 when 'construction' then 850000 when 'auto_repair' then 900000
     when 'casino' then 20000000 else 0 end);
   if base_price<=0 then return jsonb_build_object('error','Для этой точки не настроена цена продажи'); end if;
   refund := floor(base_price*0.5);
@@ -306,8 +307,9 @@ begin
   if exists(select 1 from public.business_auctions where business_id=b.id and status='active') then
     return jsonb_build_object('error','Сначала заверши или дождись торгов'); end if;
   select purchase_price into base_price from public.business_locations where location_key=b.location_key;
-  base_price := coalesce(base_price,case b.biz_type when 'coffee' then 350000 when 'salon' then 150000
-    when 'taxi' then 1200000 when 'construction' then 500000 when 'auto_repair' then 900000
+  base_price := coalesce(base_price,case b.biz_type when 'coffee' then 350000
+    when 'salon' then case b.location_key when 'salon_mid' then 650000 when 'salon_high' then 1000000 else 350000 end
+    when 'taxi' then 1200000 when 'construction' then 850000 when 'auto_repair' then 900000
     when 'casino' then 20000000 else 0 end);
   if base_price<=0 then return jsonb_build_object('error','Для этой точки не настроена цена продажи'); end if;
   refund := floor(base_price*0.5);

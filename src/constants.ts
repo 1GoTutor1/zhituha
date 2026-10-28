@@ -18,10 +18,10 @@ export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 2700000; // 45 минут
 export const BUILDING_PRICE = 350000, BUILDING_TIME = 3600000, APARTMENTS_PER_BUILD = 10; // 1 час
 
 export const COFFEE_BIZ_PRICE = 15000;
-export const SALON_BIZ_PRICE = 150000;
+export const SALON_BIZ_PRICE = 350000;
 export const TAXI_BIZ_PRICE = 300000;
 export const PHONE_FACTORY_BIZ_PRICE = 300000;
-export const CONSTRUCTION_BIZ_PRICE = 500000;
+export const CONSTRUCTION_BIZ_PRICE = 850000;
 
 export const BUSINESS_PASSIVE_TIERS = {
   coffee: [{ cost: 5000, incomePerMinute: 15 }, { cost: 20000, incomePerMinute: 40 }, { cost: 60000, incomePerMinute: 100 }, { cost: 150000, incomePerMinute: 250 }],

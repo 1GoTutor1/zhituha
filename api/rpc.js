@@ -54,6 +54,9 @@ export default async function handler(req, res) {
     if (!player && name !== 'get_casino_round_rpc') {
       return res.status(404).json({ error: 'Player not registered' });
     }
+    if (player && player.is_subscribed !== true) {
+      return res.status(403).json({ error: 'Подпишись на Telegram-канал Житухи и нажми «Проверить подписку».' });
+    }
 
     const safeArgs = { ...args };
     if (player) {
