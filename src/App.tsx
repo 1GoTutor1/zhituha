@@ -996,17 +996,7 @@ export default function App() {
     hapticFeedback('medium');
   });
 
-  const stepProfessionCycle = (step: number) => action(async () => {
-    const { data, error } = await supabase.rpc('profession_step_rpc', { p_player_id: pid, p_step: step });
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
-    setCareer((current: any) => ({ ...current, active_cycle: { ...current.active_cycle, actions_done: data.actions_done } }));
-    const professionSounds: Record<string, UiSound> = { miner: 'mine', lumberjack: 'woodcut', fisherman: 'fishing', farmer: 'harvest', courier: 'delivery', taxi: 'taxi' };
-    playUiSound(professionSounds[career.profession] || 'tap');
-    hapticFeedback(step === 3 ? 'medium' : 'light');
-  });
-
-  const finishProfessionCycle = () => action(async () => {
+  const completeProfessionCycle = async () => {
     const { data, error } = await supabase.rpc('finish_profession_cycle_rpc', { p_player_id: pid });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
@@ -1019,8 +1009,20 @@ export default function App() {
       hapticFeedback('heavy');
     }
     if (onboardStep === 0) await advanceTutorial(1);
+  };
+
+  const stepProfessionCycle = (step: number) => action(async () => {
+    const { data, error } = await supabase.rpc('profession_step_rpc', { p_player_id: pid, p_step: step });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    setCareer((current: any) => ({ ...current, active_cycle: { ...current.active_cycle, actions_done: data.actions_done } }));
+    const professionSounds: Record<string, UiSound> = { miner: 'mine', lumberjack: 'woodcut', fisherman: 'fishing', farmer: 'harvest', courier: 'delivery', taxi: 'taxi' };
+    playUiSound(professionSounds[career.profession] || 'tap');
+    hapticFeedback(step === 3 ? 'medium' : 'light');
+    if (data.actions_done === 3) await completeProfessionCycle();
   });
 
+  const finishProfessionCycle = () => action(completeProfessionCycle);
   const claimProfessionReward = (choice: 'inventory' | 'sell') => action(async () => {
     const { data, error } = await supabase.rpc('claim_profession_reward_rpc', { p_player_id: pid, p_choice: choice });
     if (error) throw error;

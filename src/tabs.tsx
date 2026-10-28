@@ -194,13 +194,7 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
   const profession = PLAYER_PROFESSIONS.find(item => item.id === career.profession) || PLAYER_PROFESSIONS[0];
   const Icon = PROFESSION_ICONS[profession.id] || Pickaxe;
   const cycle = career.active_cycle;
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(timer);
-  }, []);
-  const remaining = cycle ? Math.max(0, Math.ceil((Date.parse(cycle.completes_at) - now) / 1000)) : 0;
-  const progress = cycle ? Math.min(100, Math.max(0, ((now - Date.parse(cycle.started_at)) / 30_000) * 100)) : 0;
+  const progress = cycle ? Math.min(100, Math.max(0, (Number(cycle.actions_done || 0) / 3) * 100)) : 0;
   const unlocked = Array.isArray(career.unlocked) ? career.unlocked : ['miner'];
   const drops = PROFESSION_LOOT[profession.id] || [];
   const canDoStep = !!cycle && cycle.actions_done < 3 && !app.proc;
@@ -232,14 +226,14 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
     <ProfessionScene profession={profession.id} stage={cycle?.actions_done || 0} />
     <div className="profession-cycle-status">
       {cycle ? <>
-        <div className="profession-stage-label"><b>{cycle.actions_done < 3 ? `Этап ${cycle.actions_done + 1} из 3` : remaining > 0 ? 'Работаем над заказом' : 'Результат готов'}</b>
-          <span>{cycle.actions_done < 3 ? profession.actionLabels[cycle.actions_done] : remaining > 0 ? `${remaining} сек.` : 'Можно забрать'}</span></div>
+        <div className="profession-stage-label"><b>{cycle.actions_done < 3 ? `Этап ${cycle.actions_done + 1} из 3` : 'Результат готов'}</b>
+          <span>{cycle.actions_done < 3 ? profession.actionLabels[cycle.actions_done] : 'Можно забрать'}</span></div>
         <div className="profession-cycle-track"><span style={{ width: `${progress}%` }} /></div>
         {cycle.actions_done < 3
           ? <button className="profession-action-button" disabled={!canDoStep} onClick={() => app.stepProfessionCycle(cycle.actions_done + 1)}><Icon size={20} /> {profession.actionLabels[cycle.actions_done]}</button>
-          : <button className="profession-action-button" disabled={remaining > 0 || app.proc} onClick={app.finishProfessionCycle}>{remaining > 0 ? `Завершение через ${remaining} сек.` : 'Забрать результат'}</button>}
+          : <button className="profession-action-button" disabled={app.proc} onClick={app.finishProfessionCycle}>Забрать результат</button>}
       </> : <>
-        <div className="profession-stage-label"><b>Один цикл — около 30 секунд</b><span>Три простых действия · +25 XP</span></div>
+        <div className="profession-stage-label"><b>Три простых действия</b><span>Выполни их и сразу получи награду · +25 XP</span></div>
         {full && <div className="profession-inventory-full">Инвентарь заполнен · {career.inventory_slots}/200 <button onClick={() => app.setTab('inventory')}>Открыть</button></div>}
         <button className="profession-action-button" disabled={app.proc || full || app.energy < (app.hasCar ? 10 : 20) || (profession.id === 'taxi' && career.taxi_fleet?.selected_car_index == null)} onClick={app.startProfessionCycle}><Icon size={20} /> {app.energy < (app.hasCar ? 10 : 20) ? 'Недостаточно энергии' : 'Начать работу'}</button>
       </>}
