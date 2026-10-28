@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDownToLine, ArrowUpFromLine, Building2, Car, ChartNoAxesCombined, Clock3, Landmark, RefreshCw, Send, ShieldCheck, Wallet } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDownToLine, ArrowUpFromLine, Building2, Car, ChartNoAxesCombined, Clock3, Landmark, RefreshCw, Send, ShieldCheck, Store, Wallet } from 'lucide-react';
 import { Btn } from './components';
 import { S } from './constants';
 
 type BankSection = 'account' | 'deposits' | 'stocks' | 'loans' | 'history';
 type Stock = { symbol: string; title: string; price: number; previous_price: number; history: { price: number; at: string }[] };
 type Deposit = { id: string; principal: number; rate_bps: number; term_hours: number; maturity_at: string; status: string; created_at: string };
-type Loan = { id: string; collateral_type: 'car' | 'house'; collateral_model: string; collateral_value: number; principal: number; amount_due: number; due_at: string; grace_until: string; status: string };
+type Loan = { id: string; collateral_type: 'car' | 'house' | 'business'; collateral_model: string; collateral_business_id: string | null; collateral_value: number; principal: number; amount_due: number; due_at: string; grace_until: string; status: string };
 type Holding = { symbol: string; shares: number; price: number; value: number };
 type Transaction = { id: number; operation: string; amount: number; details: Record<string, unknown>; created_at: string };
+type OwnedBusiness = { id: string; biz_type: string; business_name: string; passive_level?: number | null };
 type BankState = { wallet: number; balance: number; deposits: Deposit[]; loan: Loan | null; holdings: Holding[]; stocks: Stock[]; transactions: Transaction[]; server_now: string };
 type RpcReply = { data: unknown; error: { message: string } | null };
 type BankApp = {
@@ -17,13 +18,32 @@ type BankApp = {
   hasCar: boolean;
   carModel: string;
   hasHouse: boolean;
+  myBizs: OwnedBusiness[];
   supabase: { rpc: (name: string, args: Record<string, unknown>) => Promise<RpcReply> };
   setMoney?: (value: number) => void;
   hapticFeedback?: (style: 'light' | 'medium' | 'heavy') => void;
   showMsg?: (message: string, error?: boolean) => void;
+  loadData?: (silent?: boolean) => Promise<void>;
 };
 const STOCK_LABELS: Record<string, string> = {
   coffee_beans: 'Кофейные зёрна', auto_parts: 'Автозапчасти', building_materials: 'Стройматериалы'
+};
+const BUSINESS_NAMES: Record<string, string> = {
+  coffee: 'Кофейня', salon: 'Автосалон', taxi: 'Таксопарк',
+  phone_factory: 'Телефонный цех', construction: 'Стройтрест'
+};
+const BUSINESS_BASE_VALUES: Record<string, number> = {
+  coffee: 15_000, salon: 150_000, taxi: 300_000, phone_factory: 300_000, construction: 500_000
+};
+const BUSINESS_UPGRADE_COSTS: Record<string, number[]> = {
+  coffee: [5_000, 20_000, 60_000, 150_000], salon: [50_000, 150_000, 400_000, 1_000_000],
+  taxi: [100_000, 300_000, 700_000, 1_500_000], phone_factory: [100_000, 300_000, 800_000, 2_000_000],
+  construction: [150_000, 500_000, 1_500_000, 3_000_000]
+};
+const businessCollateralValue = (business: OwnedBusiness) => {
+  const level = Math.max(-1, Math.min(3, Number(business.passive_level ?? -1)));
+  const upgrades = (BUSINESS_UPGRADE_COSTS[business.biz_type] || []).slice(0, level + 1).reduce((sum, cost) => sum + cost, 0);
+  return (BUSINESS_BASE_VALUES[business.biz_type] || 0) + Math.floor(upgrades * 0.5);
 };
 const money = (value: number) => `${Math.floor(Number(value) || 0).toLocaleString('ru-RU')} ₽`;
 const dateTime = (value: string) => new Date(value).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -66,9 +86,11 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const [transferAmount, setTransferAmount] = useState('1000');
   const [depositAmount, setDepositAmount] = useState('1000');
   const [sharesAmount, setSharesAmount] = useState('1');
-  const [collateral, setCollateral] = useState<'car' | 'house' | ''>('');
+  const [collateral, setCollateral] = useState<'car' | 'house' | 'business' | ''>('');
+  const [collateralBusinessId, setCollateralBusinessId] = useState('');
   const [loanAmount, setLoanAmount] = useState('10000');
   const [repaymentAmount, setRepaymentAmount] = useState('1000');
+  const lastForeclosureSeen = useRef<number | null>(null);
 
   const loadBank = useCallback(async (quiet = false) => {
     if (!app.pid) return;
@@ -81,6 +103,12 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
       if (state.error) throw new Error(state.error);
       setBank(state);
       app.setMoney?.(Number(state.wallet) || 0);
+      const foreclosure = state.transactions.find(transaction => transaction.operation === 'loan_foreclosure');
+      if (foreclosure && foreclosure.id !== lastForeclosureSeen.current) {
+        const hadSeenForeclosure = lastForeclosureSeen.current !== null;
+        lastForeclosureSeen.current = foreclosure.id;
+        if (hadSeenForeclosure) void app.loadData?.(true);
+      }
       setError('');
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить банк');
@@ -122,9 +150,11 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const deposits = bank?.deposits || [];
   const loan = bank?.loan || null;
   const sharesToTrade = Math.max(1, Math.floor(Number(sharesAmount) || 1));
+  const selectedBusiness = app.myBizs.find(business => business.id === collateralBusinessId);
   const selectedCollateralValue = collateral === 'car'
     ? (app.carModel === 'toyota' ? 65_000 : 28_000)
-    : collateral === 'house' ? 50_000 : 0;
+    : collateral === 'house' ? 50_000
+      : collateral === 'business' && selectedBusiness ? businessCollateralValue(selectedBusiness) : 0;
   const maxLoan = Math.floor(selectedCollateralValue * 0.7);
 
   const sections: { id: BankSection; title: string }[] = [
@@ -220,7 +250,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
           {loan ? <div style={S.card}>
             <h3 style={{ margin: '0 0 8px' }}>Текущий кредит</h3>
             <p style={{ fontSize: 13, margin: '4px 0' }}>Остаток долга: <b>{money(loan.amount_due)}</b></p>
-            <p style={{ fontSize: 12, color: '#6b5f45', margin: '4px 0' }}>Залог: {loan.collateral_type === 'car' ? (loan.collateral_model === 'toyota' ? 'Тойота' : 'Лада') : 'Квартира'} · оценка {money(loan.collateral_value)}</p>
+            <p style={{ fontSize: 12, color: '#6b5f45', margin: '4px 0' }}>Залог: {loan.collateral_type === 'car' ? (loan.collateral_model === 'toyota' ? 'Тойота' : 'Лада') : loan.collateral_type === 'house' ? 'Квартира' : BUSINESS_NAMES[loan.collateral_model] || 'Бизнес'} · оценка {money(loan.collateral_value)}</p>
             <p style={{ fontSize: 12, color: '#6b5f45', margin: '4px 0 12px' }}>Срок {dateTime(loan.due_at)} · после него ещё сутки на погашение</p>
             <input type="number" min="1" step="1" value={repaymentAmount} onChange={event => setRepaymentAmount(event.target.value)} style={S.input} />
             <Btn variant="primary" disabled={busy || Number(bank?.balance) < 1} onClick={() => void run('bank_repay_loan_rpc', { p_loan_id: loan.id, p_amount: Number(repaymentAmount) }, 'Платёж по кредиту внесён')}>Погасить часть</Btn>
@@ -232,10 +262,17 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
               {app.hasCar && <button type="button" onClick={() => setCollateral('car')} style={{ flex: 1, padding: 10, borderRadius: 8, cursor: 'pointer', background: collateral === 'car' ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: collateral === 'car' ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d' }}><Car size={16} /> {app.carModel === 'toyota' ? 'Тойота' : 'Лада'}<br/><small>до {money(Math.floor((app.carModel === 'toyota' ? 65000 : 28000) * .7))}</small></button>}
               {app.hasHouse && <button type="button" onClick={() => setCollateral('house')} style={{ flex: 1, padding: 10, borderRadius: 8, cursor: 'pointer', background: collateral === 'house' ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: collateral === 'house' ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d' }}><Building2 size={16} /> Квартира<br/><small>до {money(35000)}</small></button>}
             </div>
-            {!app.hasCar && !app.hasHouse && <p style={{ color: '#b06a15', fontSize: 12 }}>Для кредита нужна машина или квартира.</p>}
-            {collateral && <><p style={{ color: '#6b5f45', fontSize: 12, margin: '0 0 5px' }}>Максимум по залогу: {money(maxLoan)}</p><input type="number" min="1000" max={maxLoan} step="1000" value={loanAmount} onChange={event => setLoanAmount(event.target.value)} style={S.input} /><p style={{ color: '#6b5f45', fontSize: 12 }}>Вернуть через 72 часа: {money(Number(loanAmount) + Math.ceil(Number(loanAmount) * .1))}</p><Btn variant="primary" disabled={busy || Number(loanAmount) < 1000 || Number(loanAmount) > maxLoan} onClick={() => void run('bank_apply_loan_rpc', { p_collateral_type: collateral, p_amount: Number(loanAmount) }, 'Кредит зачислен на банковский счёт')}>Получить кредит</Btn></>}
+            {app.myBizs.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginBottom: 10 }}>
+              {app.myBizs.map(business => {
+                const appraisal = businessCollateralValue(business);
+                const selected = collateral === 'business' && collateralBusinessId === business.id;
+                return <button key={business.id} type="button" onClick={() => { setCollateral('business'); setCollateralBusinessId(business.id); }} style={{ padding: 10, borderRadius: 8, cursor: 'pointer', background: selected ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: selected ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d', textAlign: 'left' }}><Store size={16} /> {business.business_name || BUSINESS_NAMES[business.biz_type]}<br/><small>Кредит до {money(Math.floor(appraisal * 0.7))}</small></button>;
+              })}
+            </div>}
+            {!app.hasCar && !app.hasHouse && app.myBizs.length === 0 && <p style={{ color: '#b06a15', fontSize: 12 }}>Для кредита нужна машина, квартира или бизнес.</p>}
+            {collateral && (collateral !== 'business' || selectedBusiness) && <><p style={{ color: '#6b5f45', fontSize: 12, margin: '0 0 5px' }}>Оценка залога: {money(selectedCollateralValue)} · максимум кредита: {money(maxLoan)}</p><input type="number" min="1000" max={maxLoan} step="1000" value={loanAmount} onChange={event => setLoanAmount(event.target.value)} style={S.input} /><p style={{ color: '#6b5f45', fontSize: 12 }}>Вернуть через 72 часа: {money(Number(loanAmount) + Math.ceil(Number(loanAmount) * .1))}</p><Btn variant="primary" disabled={busy || Number(loanAmount) < 1000 || Number(loanAmount) > maxLoan} onClick={() => void run('bank_apply_loan_rpc', { p_collateral_type: collateral, p_collateral_business_id: collateral === 'business' ? collateralBusinessId : null, p_amount: Number(loanAmount) }, 'Кредит зачислен на банковский счёт')}>Получить кредит</Btn></>}
           </div>}
-          <div style={{ ...S.card, display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12, color: '#6b5f45' }}><ShieldCheck size={17} color="#3f9d55" /> Заложенное имущество нельзя выставить на рынок. Банк спишет залог только после окончания срока и суток на погашение.</div>
+          <div style={{ ...S.card, display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12, color: '#6b5f45' }}><ShieldCheck size={17} color="#3f9d55" /> Заложенные машину и квартиру нельзя продать через рынок, бизнес — продать или передать. Банк взыщет залог после окончания срока и суток на погашение.</div>
         </>}
 
         {section === 'history' && <>

@@ -62,6 +62,9 @@ export default async function handler(req, res) {
       if (name === 'list_item_rpc' && error.message?.includes('Заложенное имущество')) {
         return res.status(400).json({ error: 'Сначала погаси кредит, чтобы продать заложенное имущество' });
       }
+      if (name === 'sell_business_rpc' && error.message?.includes('Заложенный бизнес')) {
+        return res.status(400).json({ error: 'Сначала погаси кредит, чтобы продать бизнес' });
+      }
       return res.status(400).json({ error: 'RPC failed' });
     }
     return res.status(200).json({ data });
