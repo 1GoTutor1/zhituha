@@ -1,5 +1,4 @@
 // api/bot.js
-import crypto from 'crypto';
 import { Telegraf } from 'telegraf';
 import { createClient } from '@supabase/supabase-js';
 
@@ -20,6 +19,7 @@ const formatTime = (ms) => {
   const secs = Math.floor((ms % 60000) / 1000);
   return `${mins}м ${secs}с`;
 };
+const escapeMarkdown = (value) => String(value ?? '').replace(/([_*\[\]\x60])/g, '\\$1');
 
 const getStockSafe = (biz) => {
   if (!biz || !biz.stock) return {};
@@ -39,6 +39,7 @@ const mainMenuKeyboard = async (tgId, appUrl = WEBAPP_URL) => {
   const rows = [
     [{ text: '🎮 Играть в Житуху', web_app: { url: appUrl } }],
     [{ text: '💰 Баланс', callback_data: 'btn_balance' }, { text: '🏢 Бизнесы', callback_data: 'btn_biz' }],
+    [{ text: '📈 Прогресс', callback_data: 'btn_progress' }],
     [{ text: '🏆 Топ богачей', callback_data: 'btn_top' }],
   ];
   if (admin) rows.push([{ text: '⚙️ Админка', callback_data: 'btn_admin' }]);
@@ -58,18 +59,81 @@ const replyOrEdit = async (ctx, text, extra = {}) => {
 // --- КОМАНДЫ / ЭКРАНЫ ---
 const getBalance = async (ctx) => {
   const tgId = ctx.from.id.toString();
-  const { data: player } = await supabase.from('players').select('*').eq('telegram_id', tgId).maybeSingle();
+  const { data: player, error } = await supabase.from('players')
+    .select('nickname, money, energy, has_house, house_type, has_car, car_model, phone_count, daily_streak, referral_balance, tip_balance, premium_balance, profile_frame, profile_background')
+    .eq('telegram_id', tgId).maybeSingle();
+  if (error) {
+    console.error('Bot profile query failed:', error.message);
+    return replyOrEdit(ctx, 'Не удалось загрузить профиль. Попробуй ещё раз позже.', { reply_markup: backKeyboard() });
+  }
   if (!player) return replyOrEdit(ctx, '❌ Ты еще не зарегистрирован в игре! Нажми /start и создай персонажа.', { reply_markup: backKeyboard() });
 
   const maxEnergy = player.has_house ? 150 : 100;
-  const text = `💳 *Твой профиль:*\n\n` +
+  const text = `👤 *${escapeMarkdown(player.nickname || 'Профиль игрока')}*\n\n` +
     `💰 Баланс: *${Number(player.money).toLocaleString('ru-RU')}* монет\n` +
     `⚡ Энергия: *${player.energy}/${maxEnergy}*\n` +
     `💵 Чаевые: *${player.tip_balance || 0}*\n` +
+    `🪙 Жетоны: *${player.premium_balance || 0}*\n` +
+    `📅 Серия ежедневных наград: *${player.daily_streak || 0}* дн.\n` +
+    `👥 Реферальный баланс: *${player.referral_balance || 0}*\n` +
     `🚗 Машина: *${player.has_car ? (player.car_model === 'lada' ? 'Лада' : 'Тойота') : 'Нет'}*\n` +
-    `🏠 Жилье: *${player.has_house ? 'Квартира' : 'Нет'}*`;
+    `🏠 Жильё: *${player.has_house ? (player.house_type || 'Квартира') : 'Нет'}*\n` +
+    `📱 Телефоны: *${player.phone_count || 0}*` +
+    (player.profile_frame ? `\n🖼 Рамка: *${player.profile_frame}*` : '') +
+    (player.profile_background ? `\n🎨 Фон: *${player.profile_background}*` : '');
 
   await replyOrEdit(ctx, text, { parse_mode: 'Markdown', reply_markup: backKeyboard() });
+};
+
+const getProgress = async (ctx) => {
+  const tgId = String(ctx.from.id);
+  const { data: player, error: playerError } = await supabase.from('players')
+    .select('id, nickname, daily_streak, phone_count, energy, has_house')
+    .eq('telegram_id', tgId).maybeSingle();
+  if (playerError) {
+    console.error('Bot progress query failed:', playerError.message);
+    return replyOrEdit(ctx, 'Не удалось загрузить прогресс. Попробуй ещё раз позже.', { reply_markup: backKeyboard() });
+  }
+  if (!player) return replyOrEdit(ctx, '❌ Сначала создай персонажа в игре через /start.', { reply_markup: backKeyboard() });
+
+  const [bizResult, referralResult] = await Promise.all([
+    supabase.from('businesses').select('biz_type, business_name, build_end, car_order_end, passive_level').eq('owner_id', player.id),
+    supabase.from('players').select('id', { count: 'exact', head: true }).eq('referred_by', tgId),
+  ]);
+  if (bizResult.error || referralResult.error) {
+    console.error('Bot progress details query failed:', bizResult.error?.message || referralResult.error?.message);
+    return replyOrEdit(ctx, 'Не удалось загрузить прогресс. Попробуй ещё раз позже.', { reply_markup: backKeyboard() });
+  }
+
+  const now = Date.now();
+  const activeTimers = (bizResult.data || []).flatMap((biz) => {
+    const timers = [];
+    const buildEnd = Number(biz.build_end);
+    const orderEnd = Number(biz.car_order_end);
+    if (Number.isFinite(buildEnd) && buildEnd > now) {
+      const label = biz.biz_type === 'phone_factory' ? 'производство телефонов' : 'стройка';
+      timers.push(`🏗 ${escapeMarkdown(biz.business_name)}: ${label} — ${formatTime(buildEnd - now)}`);
+    }
+    if (Number.isFinite(orderEnd) && orderEnd > now) timers.push(`🚘 ${escapeMarkdown(biz.business_name)}: заказ авто — ${formatTime(orderEnd - now)}`);
+    return timers;
+  });
+  const bizLines = (bizResult.data || []).map((biz) => {
+    const level = Number(biz.passive_level ?? -1);
+    return `• ${escapeMarkdown(biz.business_name)} (пассивный доход: ${level < 0 ? 'не открыт' : `ур. ${level}`})`;
+  });
+  const lines = [
+    `📈 *Прогресс ${escapeMarkdown(player.nickname || 'игрока')}*`,
+    '',
+    `📅 Серия ежедневных наград: *${player.daily_streak || 0} дн.*`,
+    `👥 Приглашено игроков: *${referralResult.count || 0}*`,
+    `🏢 Бизнесов: *${bizLines.length}*`,
+    `📱 Телефонов: *${player.phone_count || 0}*`,
+    `⚡ Энергия: *${player.energy}/${player.has_house ? 150 : 100}*`,
+    '',
+    bizLines.length ? `*Твои бизнесы:*\n${bizLines.join('\n')}` : '🏚 Пока нет бизнеса. Открой игру, чтобы начать.',
+    activeTimers.length ? `\n\n*Активные таймеры:*\n${activeTimers.join('\n')}` : '',
+  ].filter(Boolean);
+  await replyOrEdit(ctx, lines.join('\n'), { parse_mode: 'Markdown', reply_markup: backKeyboard() });
 };
 
 const getTop = async (ctx) => {
@@ -127,10 +191,13 @@ bot.start(async (ctx) => {
 });
 
 bot.command(['balance', 'bal'], getBalance);
+bot.command('profile', getBalance);
+bot.command('progress', getProgress);
 bot.command('top', getTop);
 bot.command(['biz', 'business'], getBiz);
 
 bot.action('btn_balance', getBalance);
+bot.action('btn_progress', getProgress);
 bot.action('btn_top', getTop);
 bot.action('btn_biz', getBiz);
 
@@ -163,10 +230,17 @@ bot.on('message', async (ctx, next) => {
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    if (!data?.duplicate) await ctx.reply('Оплата прошла! Донат-жетоны начислены на аккаунт. Возвращайся в игру.');
+    await ctx.reply('Оплата подтверждена! Донат-жетоны зачислены на аккаунт. Возвращайся в игру.');
   } catch (error) {
     console.error('Stars payment delivery failed:', error?.message || error);
-    await ctx.reply('Платёж получен, но начисление задержалось. Напиши администратору и сохрани этот чек.');
+    try {
+      await ctx.reply('Платёж получен, но начисление пока не подтверждено. Сохрани чек; бот повторит обработку, а если жетоны не появятся — напиши администратору.');
+    } catch (replyError) {
+      console.error('Stars payment failure notice failed:', replyError?.message || replyError);
+    }
+    // Пусть webhook ответит Telegram ошибкой: он повторит update, а RPC безопасно
+    // вернёт duplicate, если успел начислить жетоны до временного сбоя.
+    throw error;
   }
 });
 
@@ -262,6 +336,8 @@ bot.command('broadcast', async (ctx) => {
 const setupCommands = async () => {
   await bot.telegram.setMyCommands([
     { command: 'balance', description: '💰 Мой баланс и энергия' },
+    { command: 'profile', description: '👤 Профиль, активы и жетоны' },
+    { command: 'progress', description: '📈 Прогресс, приглашения и таймеры' },
     { command: 'biz', description: '🏢 Мои бизнесы и таймеры' },
     { command: 'top', description: '🏆 Топ-5 богачей района' },
     { command: 'stats', description: '📊 Статистика сервера (Админ)' },
@@ -272,6 +348,7 @@ setupCommands().catch(console.error);
 // --- ОБРАБОТЧИК ---
 bot.catch((err, ctx) => {
   console.error(`Ошибка для ${ctx.updateType}`, err);
+  throw err;
 });
 
 export default async function handler(req, res) {
