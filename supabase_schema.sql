@@ -1472,8 +1472,11 @@ begin
         when b.bet_choice = 'under7' and v_dice < 7 then 2
         when b.bet_choice = 'over7'  and v_dice > 7 then 2
         when b.bet_choice = 'exact7' and v_dice = 7 then 5
-        when b.bet_choice = 'double' and v_dice1 = v_dice2 then 30
-        when b.bet_choice = 'exact_' || v_dice then 30
+        when b.bet_choice = 'double' and v_dice1 = v_dice2 then 5
+        when b.bet_choice = 'exact_' || v_dice then case v_dice
+          when 2 then 30 when 3 then 15 when 4 then 10 when 5 then 7.5
+          when 6 then 6 when 7 then 5 when 8 then 6 when 9 then 7.5
+          when 10 then 10 when 11 then 15 when 12 then 30 else 0 end
         else 0 end;
     else -- race
       mult := case

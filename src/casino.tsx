@@ -8,6 +8,7 @@ import { playUiSound } from './sound';
 
 export const RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
 export const colorOf = (n: number) => (n === 0 ? 'green' : RED_NUMBERS.includes(n) ? 'red' : 'black');
+const DICE_EXACT_MULTIPLIERS: Record<number, number> = { 2: 30, 3: 15, 4: 10, 5: 7.5, 6: 6, 7: 5, 8: 6, 9: 7.5, 10: 10, 11: 15, 12: 30 };
 
 const RACE_CARS: any[] = [
   { id: 'skyline', name: 'Skyline R34', emoji: '🚙', coef: 'x2',  ch: '40%' },
@@ -458,8 +459,8 @@ export const CasinoTab = ({ app }: { app: any }) => {
             {betBtn('under7', 'Меньше 7 x2', undefined, !canBet)}
             {betBtn('over7', 'Больше 7 x2', undefined, !canBet)}
             {betBtn('exact7', 'Ровно 7 x5', undefined, !canBet)}
-            {betBtn('double', 'Дубль x30', undefined, !canBet)}
-            {[2, 3, 4, 5, 6, 8, 9, 10, 11, 12].map(n => betBtn(`exact_${n}`, `${n} x30`, undefined, !canBet))}
+            {betBtn('double', 'Дубль x5', undefined, !canBet)}
+            {[2, 3, 4, 5, 6, 8, 9, 10, 11, 12].map(n => betBtn(`exact_${n}`, `${n} x${DICE_EXACT_MULTIPLIERS[n]}`, undefined, !canBet))}
           </div>
         )}
         {game === 'race' && (
