@@ -1,6 +1,7 @@
 let audioContext: AudioContext | null = null;
 
-export type UiSound = 'tap' | 'success' | 'error' | 'reward' | 'casinoBet' | 'casinoSpin' | 'casinoWin' | 'casinoLose';
+export type UiSound = 'tap' | 'success' | 'error' | 'reward' | 'casinoBet' | 'casinoSpin' | 'casinoWin' | 'casinoLose'
+  | 'mine' | 'woodcut' | 'fishing' | 'harvest' | 'delivery' | 'taxi';
 
 export function isUiSoundEnabled() {
   try {
@@ -54,6 +55,30 @@ const SOUND_NOTES: Record<UiSound, { frequency: number; delay: number; duration:
   casinoLose: [
     { frequency: 330, delay: 0, duration: 0.12, volume: 0.05, wave: 'triangle' },
     { frequency: 247, delay: 0.1, duration: 0.18, volume: 0.045, wave: 'triangle' },
+  ],
+  mine: [
+    { frequency: 240, delay: 0, duration: 0.055, volume: 0.05, wave: 'square' },
+    { frequency: 520, delay: 0.025, duration: 0.07, volume: 0.03 },
+  ],
+  woodcut: [
+    { frequency: 180, delay: 0, duration: 0.11, volume: 0.05, wave: 'triangle' },
+    { frequency: 120, delay: 0.06, duration: 0.13, volume: 0.04, wave: 'triangle' },
+  ],
+  fishing: [
+    { frequency: 740, delay: 0, duration: 0.08, volume: 0.035 },
+    { frequency: 980, delay: 0.08, duration: 0.13, volume: 0.04 },
+  ],
+  harvest: [
+    { frequency: 480, delay: 0, duration: 0.08, volume: 0.035 },
+    { frequency: 720, delay: 0.06, duration: 0.1, volume: 0.04 },
+  ],
+  delivery: [
+    { frequency: 880, delay: 0, duration: 0.055, volume: 0.04 },
+    { frequency: 1175, delay: 0.07, duration: 0.1, volume: 0.04 },
+  ],
+  taxi: [
+    { frequency: 420, delay: 0, duration: 0.055, volume: 0.035, wave: 'square' },
+    { frequency: 540, delay: 0.07, duration: 0.08, volume: 0.04, wave: 'square' },
   ],
 };
 

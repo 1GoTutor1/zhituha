@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, Briefcase, Globe, Backpack, Dices, Landmark } from 'lucide-react';
+import { Home, Briefcase, Globe, Backpack, Dices, Landmark, MoreHorizontal, X } from 'lucide-react';
 import { S } from './constants';
 
 export const Btn = ({ variant = 'primary', onClick, disabled, children, style = {} }: any) => {
@@ -67,18 +67,39 @@ export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) =
 };
 
 export const BottomNav = ({ app }: { app: any }) => {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [inventoryNew, setInventoryNew] = useState(() => { try { return localStorage.getItem('zhituha_inventory_new') === '1'; } catch { return false; } });
+  useEffect(() => {
+    const markNew = () => setInventoryNew(true);
+    const markSeen = () => setInventoryNew(false);
+    window.addEventListener('zhituha:inventory-new', markNew);
+    window.addEventListener('zhituha:inventory-seen', markSeen);
+    return () => {
+      window.removeEventListener('zhituha:inventory-new', markNew);
+      window.removeEventListener('zhituha:inventory-seen', markSeen);
+    };
+  }, []);
   const items = [
     { id: 'home', icon: Home, text: 'Главная' }, { id: 'jobs', icon: Briefcase, text: 'Работа' },
-    { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'casino', icon: Dices, text: 'Казино' }, { id: 'inventory', icon: Backpack, text: 'Сумка' },
-    { id: 'bank', icon: Landmark, text: 'Банк' }
+    { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'casino', icon: Dices, text: 'Казино' },
   ];
+  const navigate = (id: string) => { app.setTab(id); app.hapticFeedback('light'); app.setBoardOpen(false); setMoreOpen(false); };
   return (
-    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(251, 244, 228, 0.96)', backdropFilter: 'blur(10px)', borderTop: '2px solid rgba(90,70,40,0.25)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 calc(20px + env(safe-area-inset-bottom, 20px)) 0', zIndex: 100 }}>
-      {items.map(t => (
-        <button key={t.id} onClick={() => { app.setTab(t.id); app.hapticFeedback('light'); app.setBoardOpen(false); }} style={{ backgroundColor: app.tab === t.id ? 'rgba(242,182,50,0.22)' : 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', borderRadius: 10, padding: '4px 0', color: app.tab === t.id ? '#c98a10' : '#6b5f45', transition: 'all 0.2s' }}>
-          <t.icon size={22} style={{ marginBottom: 4 }} /><span style={{ fontSize: 10, fontWeight: app.tab === t.id ? 'bold' : 'normal', fontFamily: "'Russo One', sans-serif", textTransform: 'uppercase', letterSpacing: '0.3px' }}>{t.text}</span>
+    <>
+      {moreOpen && <><button className="more-menu-scrim" aria-label="Закрыть меню" onClick={() => setMoreOpen(false)} /><div className="more-menu-sheet"><div className="more-menu-heading"><b>Ещё</b><button aria-label="Закрыть" onClick={() => setMoreOpen(false)}><X size={18} /></button></div>
+        <button onClick={() => navigate('inventory')}><Backpack size={20} /> Инвентарь {inventoryNew && <i className="inventory-new-dot" />}</button>
+        <button onClick={() => navigate('bank')}><Landmark size={20} /> Банк</button>
+      </div></>}
+      <div className="bottom-nav-bar">
+        {items.map(t => (
+          <button key={t.id} onClick={() => navigate(t.id)} className={`bottom-nav-item${app.tab === t.id ? ' is-active' : ''}`}>
+            <t.icon size={22} /><span>{t.text}</span>
+          </button>
+        ))}
+        <button onClick={() => setMoreOpen(current => !current)} className={`bottom-nav-item${moreOpen || ['inventory','bank'].includes(app.tab) ? ' is-active' : ''}`} aria-expanded={moreOpen}>
+          <span className="bottom-nav-more-icon"><MoreHorizontal size={22} />{inventoryNew && <i className="inventory-new-dot" />}</span><span>Ещё</span>
         </button>
-      ))}
-    </div>
+      </div>
+    </>
   );
 };

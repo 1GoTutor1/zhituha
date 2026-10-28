@@ -12,7 +12,7 @@ export const BASE_REST_TIME = REST_CD;
 export const LADA_REST_TIME = 80000; 
 export const TOYOTA_REST_TIME = 70000; 
 
-export const LADA_PRICE = 20000, LADA_TIME = 900000; // 15 минут
+export const LADA_PRICE = 35000, LADA_TIME = 900000; // Ока, 15 минут
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 2700000; // 45 минут
 
 export const BUILDING_PRICE = 350000, BUILDING_TIME = 3600000, APARTMENTS_PER_BUILD = 10; // 1 час
@@ -46,7 +46,7 @@ export const TAXI_REPAIR_LADA = 3000;
 export const TAXI_REPAIR_TOYOTA = 10000;
 export const TAXI_HEALTH_DROP_RATE = 8;
 
-export const DEFAULT_SELL_LADA = 28000;
+export const DEFAULT_SELL_LADA = 40000;
 export const DEFAULT_SELL_TOYOTA = 65000;
 export const DEFAULT_SELL_APARTMENT = 50000;
 export const DEFAULT_SELL_PHONE = 2000;
@@ -54,6 +54,50 @@ export const DEFAULT_SELL_BUTTON = 2000;
 export const DEFAULT_SELL_SMARTPHONE = 15000;
 export const PHONE_SELL_TO_SHOP = 1400;
 export const COFFEE_OWNER_INCOME = 410;
+
+export const PLAYER_PROFESSIONS = [
+  { id: 'miner', name: 'Шахтёр', unlockLevel: 1, actionLabels: ['Удар по трещине', 'Ещё удар', 'Последний удар'], output: 'Руды и камни', minPrice: 200, maxPrice: 3000 },
+  { id: 'lumberjack', name: 'Лесоруб', unlockLevel: 3, actionLabels: ['Замахнуться', 'Попасть в метку', 'Срубить дерево'], output: 'Древесина и находки', minPrice: 200, maxPrice: 3000 },
+  { id: 'fisherman', name: 'Рыбак', unlockLevel: 5, actionLabels: ['Забросить удочку', 'Подсечь', 'Вытянуть улов'], output: 'Рыба', minPrice: 200, maxPrice: 3000 },
+  { id: 'farmer', name: 'Фермер', unlockLevel: 7, actionLabels: ['Вспахать грядку', 'Полить росток', 'Собрать урожай'], output: 'Случайный урожай', minPrice: 200, maxPrice: 4000 },
+  { id: 'courier', name: 'Курьер', unlockLevel: 9, actionLabels: ['Принять заказ', 'Забрать посылку', 'Доставить'], output: 'Выплата за заказ', minPrice: 380, maxPrice: 500 },
+  { id: 'taxi', name: 'Таксист', unlockLevel: 12, actionLabels: ['Принять заказ', 'Начать поездку', 'Завершить поездку'], output: 'Тариф выбранной машины', minPrice: 350, maxPrice: 630 },
+] as const;
+
+export const PROFESSION_RARITIES = {
+  common: { name: 'Обычный', color: '#84908a' },
+  uncommon: { name: 'Необычный', color: '#3f9d65' },
+  rare: { name: 'Редкий', color: '#3d7ea6' },
+  epic: { name: 'Эпический', color: '#8b5cf6' },
+} as const;
+
+export const PROFESSION_LOOT: Record<string, { id: string; name: string; rarity: keyof typeof PROFESSION_RARITIES; price: number; icon: string }[]> = {
+  miner: [
+    { id: 'stone', name: 'Камень', rarity: 'common', price: 200, icon: '🪨' },
+    { id: 'coal', name: 'Уголь', rarity: 'uncommon', price: 400, icon: '⚫' },
+    { id: 'iron_ore', name: 'Железная руда', rarity: 'rare', price: 900, icon: '🧱' },
+    { id: 'emerald', name: 'Изумруд', rarity: 'epic', price: 3000, icon: '💎' },
+  ],
+  lumberjack: [
+    { id: 'branch', name: 'Ветка', rarity: 'common', price: 200, icon: '🌿' },
+    { id: 'softwood', name: 'Мягкая древесина', rarity: 'uncommon', price: 400, icon: '🪵' },
+    { id: 'hardwood', name: 'Твёрдая древесина', rarity: 'rare', price: 900, icon: '🪓' },
+    { id: 'amber_wood', name: 'Янтарное дерево', rarity: 'epic', price: 3000, icon: '🌳' },
+  ],
+  fisherman: [
+    { id: 'roach', name: 'Плотва', rarity: 'common', price: 200, icon: '🐟' },
+    { id: 'perch', name: 'Окунь', rarity: 'uncommon', price: 400, icon: '🐠' },
+    { id: 'pike', name: 'Щука', rarity: 'rare', price: 900, icon: '🐟' },
+    { id: 'sturgeon', name: 'Осётр', rarity: 'epic', price: 3000, icon: '🦈' },
+  ],
+  farmer: [
+    { id: 'potato', name: 'Картофель', rarity: 'common', price: 200, icon: '🥔' },
+    { id: 'carrot', name: 'Морковь', rarity: 'common', price: 300, icon: '🥕' },
+    { id: 'corn', name: 'Кукуруза', rarity: 'uncommon', price: 550, icon: '🌽' },
+    { id: 'strawberry', name: 'Клубника', rarity: 'rare', price: 1000, icon: '🍓' },
+    { id: 'watermelon', name: 'Арбуз', rarity: 'epic', price: 4000, icon: '🍉' },
+  ],
+};
 
 export const DAILY_REWARDS = [
   { type: 'money', amount: 500 },
@@ -130,6 +174,8 @@ export const BIZ_JOBS: Record<string, { role: string, salary: number, max: numbe
   ],
   salon: [{ role: 'Механик', salary: 10000, max: 2 }, { role: 'Продавец', salary: 15000, max: 1 }],
   phone_factory: [{ role: 'Сборщик', salary: 10000, max: 2 }, { role: 'Инженер', salary: 15000, max: 1 }],
+  minimarket: [{ role: 'Кассир', salary: 5, max: 1 }],
+  auto_repair: [{ role: 'Механик', salary: 3, max: 1 }],
   taxi: [{ role: 'Водитель', salary: 10, max: 2 }, { role: 'Механик', salary: 5, max: 1 }], // % от кассы
   construction: [{ role: 'Строитель', salary: 10000, max: 3 }, { role: 'Прораб', salary: 20000, max: 1 }]
 };

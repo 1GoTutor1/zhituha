@@ -17,6 +17,7 @@ type BankApp = {
   money: number;
   hasCar: boolean;
   carModel: string;
+  vehicleState?: { models?: { model_id: string; model_name: string; base_price: number }[] };
   hasHouse: boolean;
   myBizs: OwnedBusiness[];
   supabase: { rpc: (name: string, args: Record<string, unknown>) => Promise<RpcReply> };
@@ -286,7 +287,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
           {loan ? <div style={S.card}>
             <h3 style={{ margin: '0 0 8px' }}>Текущий кредит</h3>
             <p style={{ fontSize: 13, margin: '4px 0' }}>Остаток долга: <b>{money(loan.amount_due)}</b></p>
-            <p style={{ fontSize: 12, color: '#6b5f45', margin: '4px 0' }}>Залог: {loan.collateral_type === 'car' ? (loan.collateral_model === 'toyota' ? 'Тойота' : 'Лада') : loan.collateral_type === 'house' ? 'Квартира' : BUSINESS_NAMES[loan.collateral_model] || 'Бизнес'} · оценка {money(loan.collateral_value)}</p>
+            <p style={{ fontSize: 12, color: '#6b5f45', margin: '4px 0' }}>Залог: {loan.collateral_type === 'car' ? (app.vehicleState?.models?.find((model: any) => model.model_id === loan.collateral_model)?.model_name || (loan.collateral_model === 'toyota' ? 'Тойота' : 'Ока')) : loan.collateral_type === 'house' ? 'Квартира' : BUSINESS_NAMES[loan.collateral_model] || 'Бизнес'} · оценка {money(loan.collateral_value)}</p>
             <p style={{ fontSize: 12, color: '#6b5f45', margin: '4px 0 12px' }}>Срок {dateTime(loan.due_at)} · после него ещё сутки на погашение</p>
             <input type="number" min="1" step="1" value={repaymentAmount} onChange={event => setRepaymentAmount(event.target.value)} style={S.input} />
             <Btn variant="primary" disabled={busy || Number(bank?.balance) < 1} onClick={() => void run('bank_repay_loan_rpc', { p_loan_id: loan.id, p_amount: Number(repaymentAmount) }, 'Платёж по кредиту внесён')}>Погасить часть</Btn>
@@ -295,7 +296,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
             <h3 style={{ margin: '0 0 6px' }}>Кредит под залог</h3>
             <p style={{ color: '#6b5f45', fontSize: 12, margin: '0 0 10px' }}>Срок 72 часа · переплата 10% · после срока сутки на погашение. Залог изымется при невозврате.</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              {app.hasCar && <button type="button" onClick={() => setCollateral('car')} style={{ flex: 1, padding: 10, borderRadius: 8, cursor: 'pointer', background: collateral === 'car' ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: collateral === 'car' ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d' }}><Car size={16} /> {app.carModel === 'toyota' ? 'Тойота' : 'Лада'}<br/><small>до {money(Math.floor((app.carModel === 'toyota' ? 65000 : 28000) * .7))}</small></button>}
+              {app.hasCar && <button type="button" onClick={() => setCollateral('car')} style={{ flex: 1, padding: 10, borderRadius: 8, cursor: 'pointer', background: collateral === 'car' ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: collateral === 'car' ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d' }}><Car size={16} /> {app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'toyota' ? 'Тойота' : 'Ока')}<br/><small>до {money(Math.floor(Number(app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.base_price || (app.carModel === 'toyota' ? 65000 : 35000)) * .7))}</small></button>}
               {app.hasHouse && <button type="button" onClick={() => setCollateral('house')} style={{ flex: 1, padding: 10, borderRadius: 8, cursor: 'pointer', background: collateral === 'house' ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: collateral === 'house' ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d' }}><Building2 size={16} /> Квартира<br/><small>до {money(35000)}</small></button>}
             </div>
             {app.myBizs.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginBottom: 10 }}>

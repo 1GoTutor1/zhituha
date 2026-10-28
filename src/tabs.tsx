@@ -1,17 +1,38 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Sun, Moon } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Sun, Moon, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront } from 'lucide-react';
 import { 
-  getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
+  getAvatar, BUILDING_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
   BUTTON_BATCH_COST, SMARTPHONE_BATCH_COST, BUTTON_BATCH_SIZE, SMARTPHONE_BATCH_SIZE,
   DEFAULT_SELL_LADA, DEFAULT_SELL_TOYOTA, DEFAULT_SELL_APARTMENT, DEFAULT_SELL_PHONE,
-  DEFAULT_SELL_BUTTON, DEFAULT_SELL_SMARTPHONE, BIZ_JOBS, BUSINESS_PASSIVE_TIERS, getStock
+  DEFAULT_SELL_BUTTON, DEFAULT_SELL_SMARTPHONE, BIZ_JOBS, BUSINESS_PASSIVE_TIERS, getStock,
+  PLAYER_PROFESSIONS, PROFESSION_LOOT, PROFESSION_RARITIES
 } from './constants';
 import { Btn, Modal } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
+import { ItemArtwork } from './ItemArtwork';
 
 export const AppModals = ({ app }: { app: any }) => (
   <>
+    {app.career?.pending_reward?.item && <Modal open onClose={() => {}} contentStyle={{ maxWidth: 390, padding: 18, backgroundImage: 'none' }}>
+      {(() => {
+        const item = app.career.pending_reward.item;
+        const rarity = PROFESSION_RARITIES[item.rarity as keyof typeof PROFESSION_RARITIES] || PROFESSION_RARITIES.common;
+        return <div className={`profession-drop-reveal rarity-${item.rarity || 'common'}`}>
+          <div className="profession-drop-confetti" aria-hidden="true">✦　✧　✦</div>
+          <div className="profession-drop-icon" style={{ color: rarity.color }}><ItemArtwork item={item} size={120} /></div>
+          <div className="profession-drop-rarity" style={{ color: rarity.color }}>{rarity.name}</div>
+          <h2>{item.item_name}</h2>
+          <p>Находка готова. Выбери, что с ней сделать:</p>
+          <div className="profession-drop-value">Цена государства · {Number(item.sell_price).toLocaleString('ru-RU')} ₽</div>
+          <div className="profession-drop-actions">
+            <Btn variant="secondary" disabled={app.proc || (Number(app.career.inventory_slots) >= 200)} onClick={() => app.claimProfessionReward('inventory')}><Backpack size={18} /> В инвентарь</Btn>
+            <Btn variant="primary" disabled={app.proc} onClick={() => { if (['rare','epic'].includes(item.rarity) && !window.confirm('\u041F\u0440\u043E\u0434\u0430\u0442\u044C \u0440\u0435\u0434\u043A\u0443\u044E \u043D\u0430\u0445\u043E\u0434\u043A\u0443?')) return; app.claimProfessionReward('sell'); }}><Coins size={18} /> Продать</Btn>
+          </div>
+          {Number(app.career.inventory_slots) >= 200 && <small>Инвентарь 200/200 — продай находку или освободи слот.</small>}
+        </div>;
+      })()}
+    </Modal>}
     <Modal open={app.settingsOpen} onClose={() => app.setSettingsOpen(false)} contentStyle={{ maxWidth: 360 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
         <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><Settings size={20} /> Настройки</h3>
@@ -48,19 +69,21 @@ export const AppModals = ({ app }: { app: any }) => (
     </Modal>
 
     <Modal open={app.sellOpen} onClose={() => { app.setSellOpen(false); app.setSellSource(null); }}>
+      {(() => {
+        const model = app.sellSource === 'stock' && app.sellItemType === 'car'
+          ? app.vehicleState?.models?.find((item: any) => item.model_id === app.sellItemData) : null;
+        const min = model ? Math.ceil(Number(model.base_price) * 0.75) : null;
+        const max = model ? Math.floor(Number(model.base_price) * 1.25) : null;
+        const valid = min == null || (max != null && Number(app.sellPrice) >= min && Number(app.sellPrice) <= max);
+        return <>
       <h3>Продажа {app.sellItemType === 'phone' ? 'телефона' : app.sellItemType === 'car' ? 'машины' : 'квартиры'}</h3>
       <p style={{ color: '#6b5f45', fontSize: 12, marginBottom: 10 }}>{app.sellSource === 'personal' ? 'Из личного имущества' : 'Со склада бизнеса'}</p>
       <label style={{ display: 'block', textAlign: 'left', color: '#6b5f45', fontSize: 13, marginBottom: 6 }}>Цена продажи — назначаете сами, ₽</label>
       <input type="number" min="1" step="1" value={app.sellPrice} onChange={(e: any) => app.setSellPrice(e.target.value)} style={S.input} />
-      <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => { app.setSellOpen(false); app.setSellSource(null); }} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Отмена</Btn><Btn variant="purple" onClick={app.listItem}>Выставить</Btn></div>
-    </Modal>
-
-    <Modal open={app.buyingType !== null} onClose={() => app.setBuyingType(null)}>
-      <Store size={40} color="#5f43a0" style={{ marginBottom: 15 }} />
-      <h3>Название бизнеса</h3>
-      <p style={{ color: '#6b5f45', fontSize: 13, marginBottom: 15 }}>Только английские буквы и цифры</p>
-      <input type="text" value={app.bizNameInput} onChange={(e: any) => app.setBizNameInput(e.target.value)} placeholder="Speed Motors" style={S.input} />
-      <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => app.setBuyingType(null)} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Отмена</Btn><Btn variant="purple" onClick={app.submitBizName}>Купить</Btn></div>
+      {min != null && <small style={{ display: 'block', color: valid ? '#6b5f45' : '#c0453a', margin: '-10px 0 12px' }}>Для машины бизнеса: {min.toLocaleString('ru-RU')}–{max?.toLocaleString('ru-RU')} ₽</small>}
+      <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => { app.setSellOpen(false); app.setSellSource(null); }} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Отмена</Btn><Btn variant="purple" onClick={app.listItem} disabled={!valid || app.proc}>Выставить</Btn></div>
+        </>;
+      })()}
     </Modal>
 
     <Modal open={app.promoOpen} onClose={() => app.setPromoOpen(false)}>
@@ -127,8 +150,8 @@ export const TutorialCard = ({ app }: { app: any }) => {
   if (app.onboardStep >= 6) return null;
 
   const steps = [
-    `Тапни 'Подработка' (${app.tutorialWorkClicks || 0}/3)`,
-    "Энергия упала — тапни 'Отдых'",
+    `Выбери действие в карточке профессии и пройди 3 этапа`,
+    "Находка готова! Продай её государству или отправь в инвентарь",
     "Выпей кофе из туториала ☕",
     "Загляни в 'Бизнесы'",
     "Посмотри цены на Рынке",
@@ -149,23 +172,91 @@ export const TutorialCard = ({ app }: { app: any }) => {
   );
 };
 
+const PROFESSION_ICONS: Record<string, any> = { miner: Pickaxe, lumberjack: TreePine, fisherman: Fish, farmer: Sprout, courier: PackageCheck, taxi: CarFront };
+
+const ProfessionScene = ({ profession, stage }: { profession: string; stage: number }) => {
+  const Icon = PROFESSION_ICONS[profession] || Pickaxe;
+  return <div className={`profession-scene profession-scene-${profession}`} data-stage={stage}>
+    <div className="profession-scene-sun" />
+    {profession === 'fisherman' && <div className="profession-water"><i /><i /><i /></div>}
+    {profession === 'farmer' && <div className={`profession-sprout profession-sprout-${stage}`}><Sprout size={44} /></div>}
+    {profession === 'miner' && <div className={`profession-rock profession-rock-${stage}`}><span /><span /></div>}
+    {profession === 'lumberjack' && <div className={`profession-tree profession-tree-${stage}`}><TreePine size={70} /></div>}
+    {profession === 'courier' && <div className={`profession-package profession-package-${stage}`}><PackageCheck size={54} /></div>}
+    {profession === 'taxi' && <div className={`profession-taxi profession-taxi-${stage}`}><CarFront size={62} /></div>}
+    {profession !== 'farmer' && profession !== 'miner' && profession !== 'lumberjack' && profession !== 'courier' && profession !== 'taxi' && <Icon size={60} />}
+    <div className="profession-scene-caption">{PLAYER_PROFESSIONS.find(item => item.id === profession)?.name}</div>
+  </div>;
+};
+
+const ProfessionWorkCard = ({ app }: { app: any }) => {
+  const career = app.career || {};
+  const profession = PLAYER_PROFESSIONS.find(item => item.id === career.profession) || PLAYER_PROFESSIONS[0];
+  const Icon = PROFESSION_ICONS[profession.id] || Pickaxe;
+  const cycle = career.active_cycle;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(timer);
+  }, []);
+  const remaining = cycle ? Math.max(0, Math.ceil((Date.parse(cycle.completes_at) - now) / 1000)) : 0;
+  const progress = cycle ? Math.min(100, Math.max(0, ((now - Date.parse(cycle.started_at)) / 30_000) * 100)) : 0;
+  const unlocked = Array.isArray(career.unlocked) ? career.unlocked : ['miner'];
+  const drops = PROFESSION_LOOT[profession.id] || [];
+  const canDoStep = !!cycle && cycle.actions_done < 3 && !app.proc;
+  const full = Number(career.inventory_slots) >= Number(career.inventory_capacity || 200) && drops.length > 0;
+
+  return <section className="profession-work-card">
+    <div className="profession-card-head">
+      <div><span className="profession-eyebrow">ТВОЯ ПРОФЕССИЯ</span><h2>{profession.name}</h2></div>
+      <div className="profession-level-badge">УР. {career.level || 1}</div>
+    </div>
+    <div className="profession-xp-block">
+      <div className="profession-xp-label"><b>Уровень {career.level || 1}</b><span>{Number(career.xp || 0).toLocaleString('ru-RU')} / {Number(career.xp_to_next || 100).toLocaleString('ru-RU')} XP</span></div>
+      <div className="profession-xp-track"><span style={{ width: `${Math.min(100, Number(career.xp || 0) / Math.max(1, Number(career.xp_to_next || 100)) * 100)}%` }} /></div>
+    </div>
+    <label className="profession-select-label" htmlFor="profession-select">Выбрать профессию</label>
+    <div className="profession-select-wrap"><Icon size={19} /><select id="profession-select" value={profession.id} onChange={event => app.selectProfession(event.target.value)} disabled={!!cycle || app.proc}>
+      {PLAYER_PROFESSIONS.map(item => <option key={item.id} value={item.id} disabled={!unlocked.includes(item.id)}>{item.name}{unlocked.includes(item.id) ? '' : ` · с уровня ${item.unlockLevel}`}</option>)}
+    </select><ChevronRight size={17} /></div>
+    {profession.id === 'taxi' && <div className="profession-select-wrap taxi-shift-car">
+      <CarFront size={19} />
+      <select aria-label="Машина на смену" value={career.taxi_fleet?.selected_car_index ?? ''}
+        onChange={event => app.selectTaxiCar(Number(event.target.value))} disabled={!!cycle || app.proc || !(career.taxi_fleet?.cars?.length)}>
+        <option value="" disabled>Выбери машину на смену</option>
+        {(career.taxi_fleet?.cars || []).map((car: any) => <option key={car.car_index} value={car.car_index} disabled={car.busy || car.health <= 0}>
+          {car.model_name || app.vehicleState?.models?.find((item: any) => item.model_id === car.model)?.model_name || car.model} / {car.class === 'economy' ? 'эконом' : car.class === 'comfort' ? 'комфорт' : 'бизнес'} · {car.health}%{car.busy ? ' · занята' : ''}
+        </option>)}
+      </select><ChevronRight size={17} />
+    </div>}
+    <ProfessionScene profession={profession.id} stage={cycle?.actions_done || 0} />
+    <div className="profession-cycle-status">
+      {cycle ? <>
+        <div className="profession-stage-label"><b>{cycle.actions_done < 3 ? `Этап ${cycle.actions_done + 1} из 3` : remaining > 0 ? 'Работаем над заказом' : 'Результат готов'}</b>
+          <span>{cycle.actions_done < 3 ? profession.actionLabels[cycle.actions_done] : remaining > 0 ? `${remaining} сек.` : 'Можно забрать'}</span></div>
+        <div className="profession-cycle-track"><span style={{ width: `${progress}%` }} /></div>
+        {cycle.actions_done < 3
+          ? <button className="profession-action-button" disabled={!canDoStep} onClick={() => app.stepProfessionCycle(cycle.actions_done + 1)}><Icon size={20} /> {profession.actionLabels[cycle.actions_done]}</button>
+          : <button className="profession-action-button" disabled={remaining > 0 || app.proc} onClick={app.finishProfessionCycle}>{remaining > 0 ? `Завершение через ${remaining} сек.` : 'Забрать результат'}</button>}
+      </> : <>
+        <div className="profession-stage-label"><b>Один цикл — около 30 секунд</b><span>Три простых действия · +25 XP</span></div>
+        {full && <div className="profession-inventory-full">Инвентарь заполнен · {career.inventory_slots}/200 <button onClick={() => app.setTab('inventory')}>Открыть</button></div>}
+        <button className="profession-action-button" disabled={app.proc || full || (profession.id === 'taxi' && career.taxi_fleet?.selected_car_index == null)} onClick={app.startProfessionCycle}><Icon size={20} /> Начать работу</button>
+      </>}
+    </div>
+    <div className="profession-reward-preview">
+      <div className="profession-preview-title">{drops.length ? `Находки · ${profession.minPrice}–${profession.maxPrice} ₽` : `Выплата · ${profession.minPrice}–${profession.maxPrice} ₽`}</div>
+      {drops.length ? <div className="profession-drop-list">{drops.map(item => <span key={item.id} style={{ color: PROFESSION_RARITIES[item.rarity].color }} title={PROFESSION_RARITIES[item.rarity].name}>{item.icon} {item.name}</span>)}</div> : <div className="profession-cash-preview">{profession.output}</div>}
+      <small>Предмет появится после завершения. Редкости видны заранее, точные шансы — нет.</small>
+    </div>
+  </section>;
+};
+
 export const HomeTab = ({ app }: { app: any }) => {
   const av = getAvatar(app.avatarId);
   const maxEnergy = app.maxEnergy;
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
   const modifier = getDayModifier();
-  const [workReward, setWorkReward] = useState<{ id: number; amount: number } | null>(null);
-  useEffect(() => {
-    const onReward = (event: Event) => {
-      const id = Date.now();
-      setWorkReward({ id, amount: Number((event as CustomEvent<number>).detail) });
-      window.setTimeout(() => setWorkReward(current => current?.id === id ? null : current), 1200);
-    };
-    window.addEventListener('zhituha:work-reward', onReward);
-    return () => window.removeEventListener('zhituha:work-reward', onReward);
-  }, []);
-  const energyCost = app.hasCar ? 10 : 20;
-
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
@@ -202,6 +293,7 @@ export const HomeTab = ({ app }: { app: any }) => {
       </div>
 
       <TutorialCard app={app} />
+      <ProfessionWorkCard app={app} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
         <button onClick={() => app.setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 10, backgroundColor: '#fbf4e4', border: '1px solid rgba(192, 132, 252, 0.3)', color: '#2f2a1d', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -234,12 +326,6 @@ export const HomeTab = ({ app }: { app: any }) => {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Btn variant="purple" onClick={app.work} disabled={app.proc || app.energy < energyCost} style={{ position: 'relative', overflow: 'visible', background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: '#f6f2fc', padding: 20, fontSize: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Users size={24} /> Вкалывать (-{energyCost}⚡ +{app.workPay}💰)</div>
-          {app.bizBonusPercent > 0 && <div style={{ fontSize: 12, color: '#d9f2e2', display: 'flex', alignItems: 'center', gap: 4 }}><TrendingUp size={14}/> Бонус бизнесов: +{app.bizBonusPercent}%</div>}
-          {workReward && <span key={workReward.id} className="work-reward-float">+{workReward.amount} {'\u20bd'}</span>}
-        </Btn>
-        
         <Btn variant="secondary" onClick={app.rest} disabled={app.proc || app.tLeft > 0 || app.energy >= maxEnergy} style={{ background: '#fbf4e4', border: '1px solid rgba(90,70,40,0.22)', color: app.tLeft > 0 ? '#6b5f45' : '#2f2a1d', padding: 20, fontSize: 18 }}>
           <Zap size={24} color={app.tLeft > 0 ? '#6b5f45' : '#2c7a3c'} /> {app.tLeft > 0 ? `Отдыхаем ${app.tLeft} сек...` : `Отдых (${app.restTime / 1000} сек)`}
         </Btn>
@@ -254,7 +340,9 @@ export const MarketItem = ({ item, app, type }: any) => (
       <div style={{ fontSize: 16, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>
         {type === 'phone' ? (item.item_data === 'button' ? <Phone size={18} color="#6b5f45" /> : <Smartphone size={18} color="#6b5f45" />) 
         : type === 'car' ? <Car size={18} /> : <Building size={18} />} 
-        {type === 'car' ? (item.item_data === 'lada' ? 'Лада' : 'Тойота') : type === 'house' ? 'Квартира' : (item.item_data === 'button' ? 'Кнопочный тел.' : item.item_data === 'smartphone' ? 'Смартфон' : 'Телефон')}
+        {(() => { const itemKey = String(item.item_data || '').split(':').pop(); return type === 'car'
+          ? (app.vehicleState?.models?.find((model: any) => model.model_id === itemKey)?.model_name || (itemKey === 'lada' ? 'Ока' : 'Тойота'))
+          : type === 'house' ? 'Квартира' : (itemKey === 'button' ? 'Кнопочный тел.' : itemKey === 'smartphone' ? 'Смартфон' : 'Телефон'); })()}
       </div>
       <div style={{ fontSize: 12, color: '#6b5f45', marginTop: 4 }}>Продавец: {item.seller_name}</div>
     </div>
@@ -274,6 +362,8 @@ export const MarketTab = ({ app }: { app: any }) => {
   const [leaderboardMode, setLeaderboardMode] = useState<'money' | 'referrals'>('money');
   const [selectedPublicProfile, setSelectedPublicProfile] = useState<any>(null);
   const [publicProfileLoading, setPublicProfileLoading] = useState(false);
+  const [shopPurchase, setShopPurchase] = useState<any>(null);
+  const [shopQuantity, setShopQuantity] = useState(1);
   const myLots = app.market.filter((m: any) => m.seller_id === app.pid).length;
   const maxSlots = app.marketSlots;
   const topPlayers = leaderboardMode === 'money' ? app.players : app.referralLeaderboard;
@@ -328,6 +418,7 @@ export const MarketTab = ({ app }: { app: any }) => {
         <PublicProfileModal
           profile={selectedPublicProfile}
           loading={publicProfileLoading}
+          vehicleState={app.vehicleState}
           onClose={() => setSelectedPublicProfile(null)}
         />
       </div>
@@ -352,36 +443,100 @@ export const MarketTab = ({ app }: { app: any }) => {
       </div>
       
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#fbf4e4', padding: 5, borderRadius: 8 }}>
-        {['items', 'cars', 'realestate'].map((t: any) => (
-          <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, padding: 12, border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3d7ea6' : 'transparent', color: app.marketTab === t ? '#f0f7fb' : '#6b5f45', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
-            {t === 'items' ? '📱 Предметы' : t === 'cars' ? '🚗 Авто' : '🏠 Жильё'}
+        {['items', 'cars', 'realestate', 'shops'].map((t: any) => (
+          <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, minWidth: 0, padding: '8px 3px', fontSize: 11, whiteSpace: 'nowrap', border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3d7ea6' : 'transparent', color: app.marketTab === t ? '#f0f7fb' : '#6b5f45', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
+            {t === 'items' ? 'Предметы' : t === 'cars' ? 'Авто' : t === 'realestate' ? 'Жильё' : 'Магазины'}
           </button>
         ))}
       </div>
+
+      {app.marketTab === 'shops' ? <>
+        <h3 style={{ color: '#6b5f45', fontSize: 16, marginBottom: 10 }}>Магазины игроков</h3>
+        {(app.businessOffers?.shops || []).map((shop: any) => {
+          const own = String(shop.owner_id) === String(app.pid);
+          const status = shop.status === 'open' ? 'Открыт' : shop.status === 'closed_staff' ? 'Закрыт · нет сотрудника' : 'Закрыт · нет товара';
+          return <section key={shop.business_id} style={{ ...S.card, maxWidth: 'none', padding: 14, marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
+              <div style={{ textAlign: 'left' }}><b>{shop.business_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Владелец: {shop.owner_name || 'Государство'}</div></div>
+              <span style={{ fontSize: 11, color: shop.status === 'open' ? '#327b45' : '#a46b21', whiteSpace: 'nowrap' }}>{status}</span>
+            </div>
+            <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+              {(shop.products || []).map((product: any) => <div key={product.product_id} style={{ padding: 10, borderRadius: 9, background: 'rgba(90,70,40,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, textAlign: 'left' }}>
+                <div><b>{product.product_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>+{product.energy_restore} энергии · остаток {product.quantity}</div><strong>{Number(product.retail_price).toLocaleString('ru-RU')} ₽</strong></div>
+                <button type="button" disabled={app.proc || own || shop.status !== 'open' || product.quantity < 1} onClick={() => { setShopPurchase({ shop, product }); setShopQuantity(1); }} style={{ border: 0, borderRadius: 8, padding: '9px 12px', color: '#fff', background: own || shop.status !== 'open' ? '#a7a092' : '#3f9d55', fontWeight: 700, whiteSpace: 'nowrap' }}>{own ? 'Твой магазин' : 'Купить'}</button>
+              </div>)}
+            </div>
+          </section>;
+        })}
+        <h3 style={{ color: '#6b5f45', fontSize: 16, margin: '18px 0 10px' }}>Автомастерские</h3>
+        <div style={{ ...S.card, maxWidth: 'none', padding: 14, marginBottom: 12, textAlign: 'left' }}>
+          <b>Личная машина</b><div style={{ color: '#6b5f45', fontSize: 12, marginTop: 4 }}>{app.hasCar ? `${app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'lada' ? 'Ока' : 'Тойота')} · состояние ${app.carHealth}%` : 'Личной машины нет'}</div>
+          {(app.businessOffers?.repair_shops || []).map((shop: any) => <div key={shop.business_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderTop: '1px solid rgba(90,70,40,.12)', paddingTop: 8, marginTop: 8 }}>
+            <div><b>{shop.business_name}</b><small style={{ display: 'block', color: shop.status === 'open' ? '#327b45' : '#a46b21' }}>{shop.status === 'open' ? `Механик на месте · владелец ${shop.owner_name}` : 'Закрыта · нет механика'}</small></div>
+            {app.hasCar && <button type="button" disabled={app.proc || shop.status !== 'open' || app.carHealth >= 100 || String(shop.owner_id) === String(app.pid)} onClick={() => app.repairPersonalCarAtShop(shop.business_id)} style={{ border: 0, borderRadius: 8, padding: '8px 10px', color: '#fff', background: '#3d7ea6', whiteSpace: 'nowrap' }}>{app.carHealth >= 100 ? 'Исправна' : 'Починить'}</button>}
+          </div>)}
+          {!(app.businessOffers?.repair_shops || []).length && <small style={{ color: '#6b5f45' }}>Пока нет автомастерских.</small>}
+        </div>
+        {!(app.businessOffers?.shops || []).length && <p style={{ color: '#6b5f45' }}>Магазины появятся после покупки точек у государства.</p>}
+        <Modal open={!!shopPurchase} onClose={() => setShopPurchase(null)}>
+          {shopPurchase && <>
+            <h3 style={{ marginTop: 0 }}>{shopPurchase.product.product_name}</h3>
+            <p style={{ color: '#6b5f45' }}>{shopPurchase.shop.business_name} · {Number(shopPurchase.product.retail_price).toLocaleString('ru-RU')} ₽ за штуку</p>
+            <label htmlFor="shop-buy-quantity" style={{ display: 'block', textAlign: 'left', marginBottom: 6 }}>Количество</label>
+            <input id="shop-buy-quantity" type="number" min={1} max={Math.min(20, Number(shopPurchase.product.quantity))} value={shopQuantity} onChange={event => setShopQuantity(Math.max(1, Math.min(20, Number(event.target.value) || 1)))} style={S.input} />
+            <p style={{ margin: '0 0 12px', textAlign: 'left' }}>Итого: <b>{(Number(shopPurchase.product.retail_price) * shopQuantity).toLocaleString('ru-RU')} ₽</b> · восстановится энергии: <b>+{Math.max(0, Math.min(Number(app.maxEnergy) - Number(app.energy), Number(shopPurchase.product.energy_restore) * shopQuantity))}</b></p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn variant="secondary" onClick={() => setShopPurchase(null)}>Назад</Btn>
+              <Btn variant="primary" disabled={app.proc || app.money < Number(shopPurchase.product.retail_price) * shopQuantity || shopQuantity > Number(shopPurchase.product.quantity)} onClick={() => { app.buyBusinessProduct(shopPurchase.shop.business_id, shopPurchase.product.product_id, shopQuantity); setShopPurchase(null); }}>Подтвердить покупку</Btn>
+            </div>
+          </>}
+        </Modal>
+      </> : <>
 
       <h3 style={{ color: '#6b5f45', fontSize: 16, marginBottom: 10 }}>{app.marketTab === 'items' ? 'Лоты (Предметы)' : app.marketTab === 'cars' ? 'Лоты (Авто)' : 'Лоты (Жилье)'}</h3>
       {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).length === 0 && <p style={{ color: '#6b5f45' }}>Пусто...</p>}
       {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).map((item: any) => (
         <MarketItem key={item.id} item={item} app={app} type={item.item_type} />
       ))}
+      </>}
     </div>
   );
 };
 
+const BusinessAuctionEntry = ({ location, app }: any) => {
+  const [bid, setBid] = useState(String(Number(location.highest_bid || 0) + 1));
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const remaining = Math.max(0, Math.ceil((Date.parse(location.ends_at) - now) / 1000));
+  const countdown = `${Math.floor(remaining / 3600)}ч ${Math.floor((remaining % 3600) / 60)}м`;
+  const ownAuction = String(location.owner_id) === String(app.pid);
+  return <div className="business-auction-entry">
+    <small>Ставка: {Number(location.highest_bid).toLocaleString('ru-RU')} ₽ · {remaining ? countdown : 'завершение'}</small>
+    {!ownAuction && <div><input aria-label="Сумма ставки" type="number" min={Number(location.highest_bid) + 1} step="1000" value={bid} onChange={event => setBid(event.target.value)} />
+      <button disabled={app.proc || Number(bid) <= Number(location.highest_bid)} onClick={() => app.bidBusinessAuction(location.auction_id, Number(bid))}>Ставка</button></div>}
+  </div>;
+};
+
 export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   const [passiveNow, setPassiveNow] = useState(Date.now());
+  const [auctionOpen, setAuctionOpen] = useState(false);
+  const [auctionPrice, setAuctionPrice] = useState('');
+  const [cashAmount, setCashAmount] = useState('1000');
+  const [shopPriceDrafts, setShopPriceDrafts] = useState<Record<string, string>>({});
   useEffect(() => {
     const timer = setInterval(() => setPassiveNow(Date.now()), 10000);
     return () => clearInterval(timer);
   }, []);
 
-  const bizTypes = ['coffee', 'salon', 'taxi', 'phone_factory', 'construction'];
+  const bizTypes = ['coffee', 'salon', 'taxi', 'construction', 'minimarket', 'auto_repair'];
   const currentIndex = bizTypes.indexOf(app.activeBizType);
-  const prevType = bizTypes[(currentIndex - 1 + 5) % 5];
-  const nextType = bizTypes[(currentIndex + 1) % 5];
+  const prevType = bizTypes[(currentIndex - 1 + bizTypes.length) % bizTypes.length];
+  const nextType = bizTypes[(currentIndex + 1) % bizTypes.length];
 
-  const getPrice = (type: string) => type === 'coffee' ? COFFEE_BIZ_PRICE : type === 'salon' ? SALON_BIZ_PRICE : type === 'taxi' ? TAXI_BIZ_PRICE : type === 'phone_factory' ? PHONE_FACTORY_BIZ_PRICE : CONSTRUCTION_BIZ_PRICE;
-  const getBizName = (type: string) => type === 'coffee' ? 'Кофейня' : type === 'salon' ? 'Автосалон' : type === 'taxi' ? 'Таксопарк' : type === 'phone_factory' ? 'Телефонный цех' : 'Стройтрест';
+  const getBizName = (type: string) => ({ coffee: 'Кофейня', salon: 'Автосалон', taxi: 'Таксопарк', construction: 'Стройтрест', minimarket: 'Мини-маркет', auto_repair: 'Автомастерская' }[type] || 'Бизнес');
 
   const bizWorkers = app.allWorkers?.filter((w: any) => w.business_id === activeBiz?.id) || [];
   const salonHasSeller = bizWorkers.some((worker: any) => worker.role === 'Продавец');
@@ -389,6 +544,10 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
     const subtotal = price * amount;
     return salonHasSeller ? subtotal : subtotal + Math.floor(subtotal * 0.1);
   };
+  const salonClass = activeBiz?.location_key === 'salon_mid' ? 'mid' : activeBiz?.location_key === 'salon_high' ? 'high' : 'low';
+  const salonModels = (app.vehicleState?.models || []).filter((model: any) => model.salon_class === salonClass);
+  const vehicleName = (modelId: string) => app.vehicleState?.models?.find((model: any) => model.model_id === modelId)?.model_name || modelId;
+  const vehicleRepairPrice = (modelId: string) => Number(app.vehicleState?.models?.find((model: any) => model.model_id === modelId)?.repair_price || (modelId === 'lada' ? TAXI_REPAIR_LADA : TAXI_REPAIR_TOYOTA));
   const passiveTiers = activeBiz ? BUSINESS_PASSIVE_TIERS[activeBiz.biz_type as keyof typeof BUSINESS_PASSIVE_TIERS] : null;
   const passiveLevel = Math.max(-1, Math.min(3, Number(activeBiz?.passive_level ?? -1)));
   const nextPassiveTier = passiveTiers?.[passiveLevel + 1];
@@ -411,23 +570,63 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
         <button onClick={() => app.setActiveBizType(nextType)} style={{ background: 'rgba(90,70,40,0.08)', border: 'none', borderRadius: 12, padding: 10, cursor: 'pointer' }}><ChevronRight size={20} color="#2f2a1d" /></button>
       </div>
 
+      <section className="business-location-catalog">
+        <div className="business-catalog-heading"><div><h3>Точки бизнеса</h3><span>В собственности: {app.businessCatalog?.owned_count ?? app.myBizs.length} / 3</span></div><button onClick={app.loadBusinessCatalog} aria-label="Обновить список"><RefreshCw size={17} /></button></div>
+        {(app.businessCatalog?.locations || []).map((location: any) => {
+          const owned = location.status === 'owned';
+          const available = location.status === 'available';
+          const purchasable = ['coffee','salon','taxi','construction','minimarket','auto_repair'].includes(location.biz_type);
+          const price = location.price == null ? null : Number(location.price);
+          return <div key={location.location_key} className="business-location-row">
+            <div className="business-location-info"><b>{location.business_name}</b><small>{owned ? 'Твой бизнес' : available ? 'Свободно у государства' : `Владелец: ${location.owner_name || 'занято'}`}</small></div>
+            <div className="business-location-action">
+              {owned ? <button onClick={() => { app.setActiveBizType(location.biz_type); app.setActiveBizId(location.business_id); }}>Управлять</button>
+                : available && purchasable && price != null ? <button disabled={app.proc || app.businessCatalog?.owned_count >= 3 || app.money < price} onClick={() => app.purchaseBusinessLocation(location.location_key)}>{price.toLocaleString('ru-RU')} ₽ · Купить</button>
+                : location.status === 'auction' ? <BusinessAuctionEntry location={location} app={app} />
+                : <span>{price == null ? 'Цена не задана' : !purchasable ? 'Готовится' : 'Занято'}</span>}
+            </div>
+          </div>;
+        })}
+      </section>
+
+      <Modal open={auctionOpen} onClose={() => setAuctionOpen(false)} contentStyle={{ maxWidth: 360 }}>
+        <h3 style={{ marginTop: 0 }}>Выставить бизнес на торги</h3>
+        <p style={{ color: '#6b5f45', fontSize: 13 }}>Торги идут 24 часа. Ставка покупателя резервируется, а при перебивании возвращается.</p>
+        <label style={{ display: 'block', textAlign: 'left', fontSize: 12, marginBottom: 6 }}>Начальная цена, ₽</label>
+        <input type="number" min="1" step="1000" value={auctionPrice} onChange={event => setAuctionPrice(event.target.value)} style={S.input} />
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <Btn variant="secondary" onClick={() => setAuctionOpen(false)}>Отмена</Btn>
+          <Btn variant="primary" disabled={app.proc || Number(auctionPrice) < 1} onClick={() => { app.createBusinessAuction(activeBiz.id, Number(auctionPrice)); setAuctionOpen(false); }}>Начать торги</Btn>
+        </div>
+      </Modal>
+
       {activeBiz ? (
         <div style={S.card}>
+          <section style={{ marginBottom: 18, padding: 13, borderRadius: 10, background: 'rgba(61,126,166,.08)', textAlign: 'left' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><b>Касса бизнеса</b><strong>{Number(activeBiz.cash_balance || 0).toLocaleString('ru-RU')} ₽</strong></div>
+            <label htmlFor="business-cash-amount" style={{ display: 'block', fontSize: 12, margin: '10px 0 5px', color: '#6b5f45' }}>Сумма пополнения или снятия</label>
+            <input id="business-cash-amount" type="number" min="1" max="10000000" value={cashAmount} onChange={event => setCashAmount(event.target.value)} style={{ ...S.input, marginBottom: 8, padding: 10, fontSize: 16 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn variant="secondary" disabled={app.proc || Number(cashAmount) < 1 || app.money < Number(cashAmount)} onClick={() => app.transferBusinessCash(activeBiz.id, Number(cashAmount), 'deposit')}>Внести</Btn>
+              <Btn variant="secondary" disabled={app.proc || Number(cashAmount) < 1 || Number(activeBiz.cash_balance || 0) < Number(cashAmount)} onClick={() => app.transferBusinessCash(activeBiz.id, Number(cashAmount), 'withdraw')}>Снять</Btn>
+            </div>
+          </section>
+
           {app.activeBizType === 'salon' && (<>
-              <p style={{ color: '#6b5f45', fontSize: 15, margin: '5px 0 15px 0' }}>Склад: <b>Лада ({currentStock.lada || 0}) | Тойота ({currentStock.toyota || 0})</b></p>
-              {app.carOrderEnd > 0 ? (<div style={{ background: 'rgba(61,126,166,0.10)', padding: 15, borderRadius: 8, marginBottom: 15, border: '1px solid rgba(61,126,166,0.25)', textAlign: 'center' }}><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#3d7ea6' }}>Едут: <b>{currentStock.order_amount || 1} {currentStock.current_model === 'lada' ? 'Лад' : 'Тойот'}</b></p><p style={{ margin: 0, fontSize: 22, color: '#3d7ea6', fontWeight: 'bold', fontFamily: 'Russo One' }}>{app.carTimeLeft} сек.</p></div>)
-              : (<div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 15 }}>
-                  <p style={{ fontSize: 12, color: '#6b5f45', margin: 0 }}>Заказ Лады · {LADA_PRICE.toLocaleString('ru-RU')} ₽/шт. · 15 мин{!salonHasSeller ? ' · без продавца +10%' : ''}</p>
-                  <div style={{ display: 'flex', gap: 5 }}>
-                    {[1, 5, 10].map(n => <Btn key={n} variant="secondary" onClick={() => app.orderCar('lada', n)} disabled={app.proc || app.money < carOrderTotal(LADA_PRICE, n)} style={{ flex: 1, padding: '8px 3px', fontSize: 11, lineHeight: 1.25, background: 'rgba(61,126,166,0.10)', color: '#3d7ea6', border: '1px solid #3d7ea6' }}>×{n} · {carOrderTotal(LADA_PRICE, n).toLocaleString('ru-RU')} ₽</Btn>)}
-                  </div>
-                  <p style={{ fontSize: 12, color: '#6b5f45', margin: '10px 0 0 0' }}>Заказ Тойоты · {TOYOTA_PRICE.toLocaleString('ru-RU')} ₽/шт. · 45 мин{!salonHasSeller ? ' · без продавца +10%' : ''}</p>
-                  <div style={{ display: 'flex', gap: 5 }}>
-                    {[1, 5, 10].map(n => <Btn key={n} variant="secondary" onClick={() => app.orderCar('toyota', n)} disabled={app.proc || app.money < carOrderTotal(TOYOTA_PRICE, n)} style={{ flex: 1, padding: '8px 3px', fontSize: 11, lineHeight: 1.25, background: 'rgba(61,126,166,0.10)', color: '#3d7ea6', border: '1px solid #3d7ea6' }}>×{n} · {carOrderTotal(TOYOTA_PRICE, n).toLocaleString('ru-RU')} ₽</Btn>)}
-                  </div>
+              <p style={{ color: '#6b5f45', fontSize: 13, margin: '5px 0 12px' }}>Класс автосалона: <b>{salonClass === 'low' ? 'низкий' : salonClass === 'mid' ? 'средний' : 'высокий'}</b>. Заказы списываются из кассы бизнеса.</p>
+              {app.carOrderEnd > 0 ? (<div style={{ background: 'rgba(61,126,166,0.10)', padding: 15, borderRadius: 8, marginBottom: 15, border: '1px solid rgba(61,126,166,0.25)', textAlign: 'center' }}><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#3d7ea6' }}>Едут: <b>{vehicleName(currentStock.current_model || '')} ×{currentStock.order_amount || 1}</b></p><p style={{ margin: 0, fontSize: 22, color: '#3d7ea6', fontWeight: 'bold', fontFamily: 'Russo One' }}>{app.carTimeLeft} сек.</p></div>)
+              : (<div style={{ display: 'grid', gap: 8, marginBottom: 15 }}>
+                  {salonModels.map((model: any) => {
+                    const amount = Number(currentStock[model.model_id] || 0);
+                    const orderMinutes = Math.round(Number(model.order_ms) / 60000);
+                    return <div key={model.model_id} style={{ padding: 10, borderRadius: 10, background: 'rgba(90,70,40,.06)', textAlign: 'left' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><b>{model.model_name}</b><span>На складе: {amount}</span></div>
+                      <small style={{ color: '#6b5f45' }}>Закупка {Number(model.base_price).toLocaleString('ru-RU')} ₽ · поставка {orderMinutes} мин.</small>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>{[1, 5, 10].map(n => <Btn key={n} variant="secondary" onClick={() => app.orderCar(model.model_id, n)} disabled={app.proc || Number(activeBiz.cash_balance || 0) < carOrderTotal(Number(model.base_price), n)} style={{ flex: 1, padding: 7, fontSize: 11 }}>×{n} · {carOrderTotal(Number(model.base_price), n).toLocaleString('ru-RU')} ₽</Btn>)}</div>
+                      {amount > 0 && <Btn variant="primary" onClick={() => { app.setSellItemType('car'); app.setSellItemData(model.model_id); app.setSellPrice(String(Number(model.base_price))); app.setSellSource('stock'); app.setSellOpen(true); }} style={{ marginTop: 7, width: '100%' }}><Car size={16}/> Выставить на рынок</Btn>}
+                    </div>;
+                  })}
                 </div>)}
-              {currentStock.lada > 0 && <Btn variant="primary" onClick={() => { app.setSellItemType('car'); app.setSellItemData('lada'); app.setSellPrice(String(DEFAULT_SELL_LADA)); app.setSellSource('stock'); app.setSellOpen(true); }} style={{ marginBottom: 10 }}><Car size={18}/> Продать Ладу</Btn>}
-              {currentStock.toyota > 0 && <Btn variant="primary" onClick={() => { app.setSellItemType('car'); app.setSellItemData('toyota'); app.setSellPrice(String(DEFAULT_SELL_TOYOTA)); app.setSellSource('stock'); app.setSellOpen(true); }} style={{ marginBottom: 10 }}><Car size={18}/> Продать Тойоту</Btn>}
           </>)}
           
           {app.activeBizType === 'construction' && (<>
@@ -450,17 +649,25 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 15 }}>
                 {currentStock.taxi_cars?.map((car: any, i: number) => (
                   <div key={i} style={{ background: 'rgba(90,70,40,0.08)', padding: 10, borderRadius: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}><span style={{ fontWeight: 'bold' }}>{car.model === 'lada' ? 'Лада' : 'Тойота'}</span><span style={{ color: car.health > 50 ? '#3f9d55' : car.health > 0 ? '#b06a15' : '#c0453a' }}>{car.health}%</span></div>
-                    {car.health <= 0 && <Btn variant="danger" onClick={() => app.repairTaxiCar(i)} disabled={app.proc} style={{ padding: 8, fontSize: 12, marginTop: 5 }}><Wrench size={14}/> Ремонт ({car.model === 'lada' ? TAXI_REPAIR_LADA : TAXI_REPAIR_TOYOTA})</Btn>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}><span style={{ fontWeight: 'bold' }}>{car.model_name || vehicleName(car.model)}</span><span style={{ color: car.health > 50 ? '#3f9d55' : car.health > 0 ? '#b06a15' : '#c0453a' }}>{car.health}%</span></div>
+                    {car.health < 100 && <div style={{ marginTop: 7, display: 'grid', gap: 5 }}>
+                      {(app.businessOffers?.repair_shops || []).map((shop: any) => <button key={shop.business_id} type="button" disabled={app.proc || shop.status !== 'open' || Number(activeBiz.cash_balance || 0) < vehicleRepairPrice(car.model)} onClick={() => app.repairTaxiCarAtShop(shop.business_id, activeBiz.id, i)} style={{ border: '1px solid #3d7ea6', borderRadius: 8, padding: 8, background: 'rgba(61,126,166,.08)', color: '#2f6a94', textAlign: 'left' }}>В {shop.business_name} · ремонт {vehicleRepairPrice(car.model).toLocaleString('ru-RU')} ₽ {shop.status !== 'open' ? '· закрыта' : `· касса ${Number(activeBiz.cash_balance || 0).toLocaleString('ru-RU')} ₽`}</button>)}
+                      {!(app.businessOffers?.repair_shops || []).length && <small style={{ color: '#6b5f45' }}>Для ремонта нужна автомастерская с механиком.</small>}
+                    </div>}
                   </div>
                 ))}
               </div>
               <Btn variant="primary" onClick={app.collectTaxi} disabled={app.proc || !currentStock.taxi_cars?.length || !app.allWorkers?.some((w: any) => w.business_id === app.myBizs.find((b: any) => b.biz_type === 'taxi')?.id && w.role === 'Водитель')} style={{ marginBottom: 10 }}>{!currentStock.taxi_cars?.length ? 'Нет машин' : !app.allWorkers?.some((w: any) => w.role === 'Водитель' && w.business_id === app.myBizs.find((b: any) => b.biz_type === 'taxi')?.id) ? 'Нужен водитель' : 'Собрать доход'}</Btn>
-              <p style={{ fontSize: 12, color: '#6b5f45', marginBottom: 5 }}>Добавить машину в парк:</p>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <Btn variant="secondary" onClick={() => app.addTaxiCar('lada')} disabled={app.proc} style={{ padding: 10, fontSize: 12 }}>+ Лада</Btn>
-                <Btn variant="secondary" onClick={() => app.addTaxiCar('toyota')} disabled={app.proc} style={{ padding: 10, fontSize: 12 }}>+ Тойота</Btn>
-              </div>
+              <p style={{ fontSize: 12, color: '#6b5f45', marginBottom: 5 }}>Покупка машины у автосалона · оплачивается из кассы парка:</p>
+              {(app.vehicleState?.dealers || []).map((dealer: any) => {
+                const offers = (dealer.models || []).filter((model: any) => model.quantity > 0);
+                if (!offers.length) return null;
+                return <section key={dealer.business_id} style={{ padding: 10, marginBottom: 8, borderRadius: 10, background: 'rgba(90,70,40,.06)', textAlign: 'left' }}>
+                  <b>{dealer.business_name}</b><small style={{ display: 'block', color: '#6b5f45' }}>Владелец: {dealer.owner_name || 'игрок'} · класс {dealer.salon_class === 'low' ? 'низкий' : dealer.salon_class === 'mid' ? 'средний' : 'высокий'}</small>
+                  {offers.map((model: any) => <button key={model.model_id} type="button" disabled={app.proc || (currentStock.taxi_cars?.length || 0) >= 2 || Number(activeBiz.cash_balance || 0) < Number(model.base_price) || String(dealer.owner_id) === String(app.pid)} onClick={() => app.buyTaxiVehicle(dealer.business_id, model.model_id)} style={{ display: 'flex', width: '100%', justifyContent: 'space-between', gap: 8, marginTop: 6, padding: 8, border: '1px solid #3d7ea6', borderRadius: 8, background: '#fffaf0', color: '#2f2a1d', textAlign: 'left' }}><span>{model.model_name} · {model.quantity} шт.</span><b>{Number(model.base_price).toLocaleString('ru-RU')} ₽</b></button>)}
+                </section>;
+              })}
+              {(app.vehicleState?.dealers || []).length === 0 && <small style={{ color: '#6b5f45' }}>Нет автосалонов с машинами в наличии.</small>}
           </>)}
           
           {app.activeBizType === 'coffee' && (
@@ -469,6 +676,33 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
               <Btn variant="primary" onClick={app.collect} disabled={app.proc || !activeBiz.coffee_balance} style={{ marginBottom: 15 }}>Собрать кассу</Btn>
             </div>
           )}
+
+          {['coffee','minimarket'].includes(activeBiz.biz_type) && (() => {
+            const products = (app.businessOffers?.shops || []).find((shop: any) => shop.business_id === activeBiz.id)?.products || [];
+            return <section style={{ marginTop: 18, textAlign: 'left' }}>
+              <h3 style={{ margin: '0 0 8px' }}>Товары и склад</h3>
+              <p style={{ color: '#6b5f45', fontSize: 12, margin: '0 0 10px' }}>Закупка списывается из кассы. Цена для игроков — от 75% до 125% базовой.</p>
+              {products.map((product: any) => {
+                const draft = shopPriceDrafts[product.product_id] ?? String(product.retail_price);
+                const cost10 = Number(product.wholesale_price) * 10;
+                const cost50 = Number(product.wholesale_price) * 50;
+                return <div key={product.product_id} style={{ padding: 11, borderRadius: 10, background: 'rgba(90,70,40,.06)', marginBottom: 9 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><b>{product.product_name}</b><span>На складе: {product.quantity}</span></div>
+                  <small style={{ color: '#6b5f45' }}>Опт {Number(product.wholesale_price).toLocaleString('ru-RU')} ₽/шт. · энергия +{product.energy_restore}</small>
+                  <label style={{ display: 'block', fontSize: 12, margin: '8px 0 4px' }}>Цена игроку · {product.min_price}–{product.max_price} ₽</label>
+                  <input aria-label={`Цена ${product.product_name}`} type="range" min={product.min_price} max={product.max_price} value={Math.max(Number(product.min_price), Math.min(Number(product.max_price), Number(draft) || Number(product.retail_price)))} onChange={event => setShopPriceDrafts(current => ({ ...current, [product.product_id]: event.target.value }))} style={{ width: '100%', accentColor: '#3d7ea6' }} />
+                  <div style={{ display: 'flex', gap: 7 }}>
+                    <input type="number" min={product.min_price} max={product.max_price} value={draft} onChange={event => setShopPriceDrafts(current => ({ ...current, [product.product_id]: event.target.value }))} style={{ ...S.input, flex: 1, margin: 0, padding: 9, fontSize: 15 }} />
+                    <button type="button" disabled={app.proc || Number(draft) === Number(product.retail_price)} onClick={() => app.setBusinessProductPrice(activeBiz.id, product.product_id, Number(draft))} style={{ border: 0, borderRadius: 8, padding: '0 12px', color: '#fff', background: '#3d7ea6', fontWeight: 700 }}>Сохранить</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 7, marginTop: 8 }}>
+                    <button type="button" disabled={app.proc || Number(activeBiz.cash_balance || 0) < cost10} onClick={() => app.restockBusinessProduct(activeBiz.id, product.product_id, 10)} style={{ flex: 1, border: '1px solid #3d7ea6', borderRadius: 8, padding: 8, color: '#2f6a94', background: 'rgba(61,126,166,.08)' }}>Опт +10 · {cost10.toLocaleString('ru-RU')} ₽</button>
+                    <button type="button" disabled={app.proc || Number(activeBiz.cash_balance || 0) < cost50} onClick={() => app.restockBusinessProduct(activeBiz.id, product.product_id, 50)} style={{ flex: 1, border: '1px solid #3d7ea6', borderRadius: 8, padding: 8, color: '#2f6a94', background: 'rgba(61,126,166,.08)' }}>Опт +50 · {cost50.toLocaleString('ru-RU')} ₽</button>
+                  </div>
+                </div>;
+              })}
+            </section>;
+          })()}
 
           {passiveTiers && (
             <div style={{ marginTop: 20, padding: 15, borderRadius: 12, background: 'linear-gradient(145deg, rgba(40,32,20,0.96), rgba(24,24,28,0.94))', border: '1px solid rgba(214,177,103,0.35)', color: '#f8f0df', textAlign: 'left', boxShadow: '0 8px 24px rgba(0,0,0,0.16)' }}>
@@ -506,21 +740,22 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
             {bizWorkers.length === 0 && <p style={{ fontSize: 12, color: '#b06a15', margin: 0 }}>Нет сотрудников. Биржа труда ждет!</p>}
             {bizWorkers.map((w: any) => (
               <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(90,70,40,0.08)', padding: 10, borderRadius: 12, marginBottom: 8 }}>
-                <div style={{ fontSize: 13, textAlign: 'left' }}><b>{w.player_name}</b><br/><span style={{ color: '#6b5f45', fontSize: 11 }}>{w.role} (ЗП: {activeBiz.biz_type === 'salon' ? (w.role === 'Механик' ? '3% с продажи авто' : '5% с продажи авто') : `${w.salary} ₽`})</span></div>
+                <div style={{ fontSize: 13, textAlign: 'left' }}><b>{w.player_name}</b><br/><span style={{ color: '#6b5f45', fontSize: 11 }}>{w.role} (ЗП: {activeBiz.biz_type === 'salon' ? (w.role === 'Механик' ? '3% с продажи авто' : '5% с продажи авто') : activeBiz.biz_type === 'minimarket' ? '5% с продаж' : activeBiz.biz_type === 'auto_repair' ? '3% с ремонта' : `${w.salary} ₽`})</span></div>
                 <Btn variant="danger" onClick={() => app.fire(w.id)} disabled={app.proc} style={{ width: 'auto', padding: '6px 10px', fontSize: 11 }}>Уволить</Btn>
               </div>
             ))}
           </div>
 
           <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(90,70,40,0.22)' }}>
-            <Btn variant="danger" onClick={() => app.sellBusiness(activeBiz)} disabled={app.proc} style={{ background: 'transparent', border: '1px solid #c0453a', color: '#c0453a' }}>Продать бизнес (за 50%)</Btn>
+            <Btn variant="danger" onClick={() => app.sellBusiness(activeBiz)} disabled={app.proc} style={{ background: 'transparent', border: '1px solid #c0453a', color: '#c0453a', marginBottom: 8 }}>Продать государству · 50%</Btn>
+            <Btn variant="purple" onClick={() => { const point = app.businessCatalog?.locations?.find((location: any) => location.business_id === activeBiz.id); setAuctionPrice(String(Math.floor(Number(point?.price || 0) * 0.5))); setAuctionOpen(true); }} disabled={app.proc || !!app.businessCatalog?.locations?.some((location: any) => location.business_id === activeBiz.id && location.status === 'auction')}>Выставить на торги · 24 часа</Btn>
           </div>
         </div>
       ) : (
         <div style={{ ...S.card, textAlign: 'center' }}>
           <Store size={48} color="#5f43a0" style={{ marginBottom: 15 }} />
-          <h3>Купить {getBizName(app.activeBizType)}</h3>
-          <Btn variant="purple" onClick={() => app.setBuyingType(app.activeBizType)} disabled={app.proc || app.money < getPrice(app.activeBizType)} style={{ background: app.money < getPrice(app.activeBizType) ? '#e7d9b8' : 'linear-gradient(135deg, #7a5cb8 0%, #7a5cb8 100%)', color: '#f6f2fc' }}>{app.proc ? 'Обработка...' : `Купить за ${getPrice(app.activeBizType).toLocaleString('ru-RU')}`}</Btn>
+          <h3>Выбери точку бизнеса</h3>
+          <p style={{ color: '#6b5f45' }}>Покупка у государства доступна в каталоге выше. Свободные места ограничены.</p>
         </div>
       )}
     </div>
@@ -969,7 +1204,7 @@ export const JobsTab = ({ app }: { app: any }) => {
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>{job.role}</div>
                 <div style={{ fontSize: 12, color: '#6b5f45', marginTop: 4 }}>{job.biz.business_name} ({job.biz.owner_name})</div>
-                <div style={{ fontSize: 12, color: '#3d7ea6', marginTop: 2 }}>ЗП: {job.biz.biz_type === 'salon' ? (job.role === 'Механик' ? '3% с продажи авто' : '5% с продажи авто') : `${job.salary} ₽`}</div>
+                <div style={{ fontSize: 12, color: '#3d7ea6', marginTop: 2 }}>ЗП: {job.biz.biz_type === 'salon' ? (job.role === 'Механик' ? '3% с продажи авто' : '5% с продажи авто') : job.biz.biz_type === 'minimarket' ? '5% с продаж' : job.biz.biz_type === 'auto_repair' ? '3% с ремонта' : `${job.salary} ₽`}</div>
               </div>
               <Btn variant="secondary" onClick={() => app.hire(job.biz.id, job.role, job.salary)} disabled={app.proc || app.myJob !== null} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>{app.myJob ? 'Уже работаете' : 'Устроиться'}</Btn>
             </div>
@@ -1042,7 +1277,7 @@ const frameStyle = (frame: string) => frame === 'frame_test'
     ? { border: '3px solid #e69a32', boxShadow: '0 0 0 2px #6f3d0d, 0 0 14px rgba(230,154,50,.45)' }
     : { border: '3px solid rgba(90,70,40,.28)' };
 
-const PublicProfileModal = ({ profile, loading, onClose }: { profile: any, loading: boolean, onClose: () => void }) => {
+const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profile: any, loading: boolean, vehicleState?: any, onClose: () => void }) => {
   const frameNames: Record<string, string> = { frame_test: 'Рамка TEST', frame_amber: 'Янтарная рамка' };
   const backgroundNames: Record<string, string> = { background_concrete: 'Бетонный фон' };
   const businessNames: Record<string, string> = {
@@ -1065,10 +1300,12 @@ const PublicProfileModal = ({ profile, loading, onClose }: { profile: any, loadi
         <div style={{ ...S.card, padding: 15, textAlign: 'left' }}>
           <h4 style={{ margin: '0 0 10px' }}>Показатели</h4>
           <div>💰 Баланс: <b>{Number(profile.money || 0).toLocaleString('ru-RU')} ₽</b></div>
+          <div>Уровень: <b>{Number(profile.player_level || 1)}</b></div>
+          <div>Профессия: <b>{PLAYER_PROFESSIONS.find(item => item.id === profile.active_profession)?.name || 'Шахтёр'}</b></div>
           <div>👥 Приглашено: <b>{Number(profile.referral_count || 0)}</b></div>
           <div>🎁 Реферальный баланс: <b>{Number(profile.referral_balance || 0).toLocaleString('ru-RU')} ₽</b></div>
           <div>📱 Телефоны: <b>{Number(profile.phone_count || 0)}</b></div>
-          <div>🚗 Машина: <b>{profile.has_car ? (profile.car_model === 'lada' ? 'Лада' : 'Тойота') : 'Нет'}</b></div>
+          <div>🚗 Машина: <b>{profile.has_car ? (vehicleState?.models?.find((model: any) => model.model_id === profile.car_model)?.model_name || (profile.car_model === 'lada' ? 'Ока' : 'Тойота')) : 'Нет'}</b></div>
           <div>🏠 Жильё: <b>{profile.has_house ? (profile.house_type || 'Квартира') : 'Нет'}</b></div>
         </div>
         <div style={{ ...S.card, padding: 15, textAlign: 'left' }}>
@@ -1089,6 +1326,7 @@ const PublicProfileModal = ({ profile, loading, onClose }: { profile: any, loadi
 };
 
 export const ProfileTab = ({ app }: { app: any }) => {
+  const [section, setSection] = useState<'stats' | 'businesses' | 'cosmetics'>('stats');
   const avatar = getAvatar(app.avatarId);
   const background = app.profileBackground === 'background_concrete'
     ? 'linear-gradient(145deg, #d2d6d3, #a3aaa7)'
@@ -1102,38 +1340,51 @@ export const ProfileTab = ({ app }: { app: any }) => {
       <div style={{ fontSize: 23, fontFamily: 'Russo One' }}>{app.nick}</div>
       <div style={{ color: '#6b5f45', marginTop: 6 }}>ID: {app.tgId.slice(0, 6)} · имя нельзя менять</div>
       <div style={{ marginTop: 12, fontWeight: 700 }}>💰 {Number(app.money || 0).toLocaleString('ru-RU')} ₽</div>
+      <div style={{ marginTop: 12, textAlign: 'left' }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><b>Уровень {app.career?.level || 1} · {PLAYER_PROFESSIONS.find(item => item.id === app.career?.profession)?.name || 'Шахтёр'}</b><span>{Number(app.career?.xp || 0)} / {Number(app.career?.xp_to_next || 100)} XP</span></div><div className="profession-xp-track"><span style={{ width: `${Math.min(100, Number(app.career?.xp || 0) / Math.max(1, Number(app.career?.xp_to_next || 100)) * 100)}%` }} /></div></div>
       <div style={{ marginTop: 5, color: '#6b5f45' }}>🎨 {app.profileBackground === 'background_concrete' ? 'Бетонный фон' : 'Стандартный фон'}</div>
       <div style={{ marginTop: 12, fontWeight: 700, color: '#7656a8' }}>◆ {app.premiumBalance} жетонов</div>
     </div>
-    <div style={S.card}>
-      <h3 style={{ marginTop: 0 }}>Моя статистика</h3>
-      <p>👥 Приглашено: <b>{app.myRefs.length}</b></p>
-      <p>🎁 Реферальный баланс: <b>{Number(app.refBalance || 0).toLocaleString('ru-RU')} ₽</b></p>
-      <h4 style={{ margin: '14px 0 6px' }}>Мои бизнесы</h4>
-      {app.myBizs.length
-        ? app.myBizs.map((business: any) => <p key={business.id}>🏢 {business.business_name}</p>)
-        : <p style={{ color: '#6b5f45' }}>Пока нет бизнесов</p>}
-      <h4 style={{ margin: '14px 0 6px' }}>Применённая косметика</h4>
-      <p>🖼 {app.profileFrame === 'frame_test' ? 'Рамка TEST' : app.profileFrame === 'frame_amber' ? 'Янтарная рамка' : 'Стандартная рамка'}</p>
-      <p>🎨 {app.profileBackground === 'background_concrete' ? 'Бетонный фон' : 'Стандартный фон'}</p>
+    <div className="profile-section-tabs" role="tablist" aria-label="\u0420\u0430\u0437\u0434\u0435\u043B\u044B \u043F\u0440\u043E\u0444\u0438\u043B\u044F">
+      <button type="button" role="tab" aria-selected={section === 'stats'} className={section === 'stats' ? 'active' : ''} onClick={() => setSection('stats')}>{'\u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430'}</button>
+      <button type="button" role="tab" aria-selected={section === 'businesses'} className={section === 'businesses' ? 'active' : ''} onClick={() => setSection('businesses')}>{'\u0411\u0438\u0437\u043D\u0435\u0441\u044B'}</button>
+      <button type="button" role="tab" aria-selected={section === 'cosmetics'} className={section === 'cosmetics' ? 'active' : ''} onClick={() => setSection('cosmetics')}>{'\u041A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0430'}</button>
     </div>
-    <div style={S.card}>
-      <h3 style={{ marginTop: 0 }}>Моя косметика</h3>
-      {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).length === 0 && <p style={{ color: '#6b5f45' }}>Пока нет купленных рамок.</p>}
-      {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...frameStyle(id) }}>{id === 'frame_test' ? '🧪 Надеть рамку TEST' : '🟠 Надеть янтарную рамку'}</button>)}
-      {app.ownedCosmetics.includes('background_concrete') && <button onClick={() => app.donateAction('equip', { item_id: 'background_concrete' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8 }}>🏙️ Установить фон игры «Бетон»</button>}
-      <button onClick={() => app.donateAction('equip', { item_id: 'default' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%' }}>Вернуть стандартный вид</button>
-    </div>
-    <div style={S.card}>
-      <h3 style={{ marginTop: 0 }}>{'\u041C\u0430\u0433\u0430\u0437\u0438\u043D \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0438'}</h3>
-      {PREMIUM_ITEMS.filter(item => item.id !== 'market_slots_2').map(item => {
-        const owned = app.ownedCosmetics.includes(item.id);
-        return <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid rgba(90,70,40,.12)', textAlign: 'left' }}>
-          <span style={{ fontSize: 27 }}>{item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
-          <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || owned || app.premiumBalance < item.price} style={{ ...S.btnPurple, padding: '8px 10px', opacity: owned ? .55 : 1 }}>{owned ? '\u041A\u0443\u043F\u043B\u0435\u043D\u043E' : `${item.price} \u25C6`}</button>
-        </div>;
-      })}
-    </div>
+    {section === 'stats' && <div style={S.card}>
+      <h3 style={{ marginTop: 0 }}>{'\u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430'}</h3>
+      <p>{'\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u043E'}: <b>{app.myRefs.length}</b></p>
+      <p>{'\u0420\u0435\u0444\u0435\u0440\u0430\u043B\u044C\u043D\u044B\u0439 \u0431\u0430\u043B\u0430\u043D\u0441'}: <b>{Number(app.refBalance || 0).toLocaleString('ru-RU')} {'\u20BD'}</b></p>
+      <p>{'\u041E\u0442\u043A\u0440\u044B\u0442\u044B\u0445 \u043F\u0440\u043E\u0444\u0435\u0441\u0441\u0438\u0439'}: <b>{(app.career?.unlocked || ['miner']).length}</b> / {PLAYER_PROFESSIONS.length}</p>
+      <button onClick={() => app.setTab('inventory')} style={{ ...S.btnSecondary, width: '100%' }}>{'\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C'}</button>
+    </div>}
+    {section === 'businesses' && <div style={S.card}>
+      <h3 style={{ marginTop: 0 }}>{'\u041C\u043E\u0438 \u0431\u0438\u0437\u043D\u0435\u0441\u044B'} {'\u00B7'} {app.myBizs.length}/3</h3>
+      {app.myBizs.length ? app.myBizs.map((business: any) => <div key={business.id} className="profile-business-row">
+        <b>{'\uD83C\uDFE2'} {business.business_name}</b>
+        <button onClick={() => { app.setActiveBizType(business.biz_type); app.setActiveBizId(business.id); app.setTab('business'); }}>{'\u0423\u043F\u0440\u0430\u0432\u043B\u044F\u0442\u044C'}</button>
+      </div>) : <p style={{ color: '#6b5f45' }}>{'\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0431\u0438\u0437\u043D\u0435\u0441\u043E\u0432'}</p>}
+      <button onClick={() => { app.loadBusinessCatalog(); app.setTab('business'); }} style={{ ...S.btnSecondary, width: '100%', marginTop: 12 }}>{'\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u0442\u043E\u0447\u0435\u043A'}</button>
+    </div>}
+    {section === 'cosmetics' && <>
+      <div style={S.card}>
+        <h3 style={{ marginTop: 0 }}>{'\u041F\u0440\u0438\u043C\u0435\u043D\u0451\u043D\u043D\u0430\u044F \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0430'}</h3>
+        <p>{'\u0420\u0430\u043C\u043A\u0430'}: <b>{app.profileFrame === 'frame_test' ? 'TEST' : app.profileFrame === 'frame_amber' ? '\u042F\u043D\u0442\u0430\u0440\u043D\u0430\u044F' : '\u0421\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u0430\u044F'}</b></p>
+        <p>{'\u0424\u043E\u043D'}: <b>{app.profileBackground === 'background_concrete' ? '\u0411\u0435\u0442\u043E\u043D\u043D\u044B\u0439' : '\u0421\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u0439'}</b></p>
+        {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...frameStyle(id) }}>{id === 'frame_test' ? '\uD83E\uDDEA TEST' : '\uD83D\uDFE0'}</button>)}
+        {app.ownedCosmetics.includes('background_concrete') && <button onClick={() => app.donateAction('equip', { item_id: 'background_concrete' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8 }}>{'\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0431\u0435\u0442\u043E\u043D\u043D\u044B\u0439 \u0444\u043E\u043D'}</button>}
+        <button onClick={() => app.donateAction('equip', { item_id: 'default' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%' }}>{'\u0412\u0435\u0440\u043D\u0443\u0442\u044C \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u0439 \u0432\u0438\u0434'}</button>
+      </div>
+      <div style={S.card}>
+        <h3 style={{ marginTop: 0 }}>{'\u041C\u0430\u0433\u0430\u0437\u0438\u043D \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0438'}</h3>
+        {PREMIUM_ITEMS.filter(item => item.id !== 'market_slots_2').map(item => {
+          const owned = app.ownedCosmetics.includes(item.id);
+          return <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid rgba(90,70,40,.12)', textAlign: 'left' }}>
+            <span style={{ fontSize: 27 }}>{item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
+            <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || owned || app.premiumBalance < item.price} style={{ ...S.btnPurple, padding: '8px 10px', opacity: owned ? .55 : 1 }}>{owned ? '\u041A\u0443\u043F\u043B\u0435\u043D\u043E' : item.price + ' \u25C6'}</button>
+          </div>;
+        })}
+      </div>
+    </>}
+
   </div>;
 };
 
@@ -1167,12 +1418,49 @@ export const ShopTab = ({ app }: { app: any }) => {
   );
 };
 
-export const InventoryTab = ({ app }: { app: any }) => (
-  <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+export const InventoryTab = ({ app }: { app: any }) => {
+  const [selected, setSelected] = useState<any>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [confirmRareSale, setConfirmRareSale] = useState(false);
+  useEffect(() => {
+    try { localStorage.removeItem('zhituha_inventory_new'); } catch {}
+    window.dispatchEvent(new Event('zhituha:inventory-seen'));
+  }, []);
+  const inventory = Array.isArray(app.career?.inventory) ? app.career.inventory : [];
+  const rarityRank: Record<string, number> = { epic: 4, rare: 3, uncommon: 2, common: 1 };
+  const sorted = [...inventory].sort((a, b) => (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0) || a.item_name.localeCompare(b.item_name, 'ru'));
+  const openStack = (item: any) => { setSelected(item); setQuantity(1); setConfirmRareSale(false); };
+  const closeStack = () => { setSelected(null); setConfirmRareSale(false); };
+  const proceedSale = () => {
+    if (!selected) return;
+    if (['rare','epic'].includes(selected.rarity) && !confirmRareSale) { setConfirmRareSale(true); return; }
+    const amount = Math.max(1, Math.min(Number(selected.quantity) || 1, Math.floor(Number(quantity) || 1)));
+    app.sellInventory(selected.item_id, amount);
+    closeStack();
+  };
+  return <div style={{ maxWidth: 440, margin: '0 auto', animation: 'fadeIn 0.3s' }}>
     <h2>Инвентарь</h2>
+    <div className="inventory-capacity-card"><Backpack size={19} /><div><b>Материалы и находки</b><span>{Number(app.career?.inventory_slots || 0)} / 200 слотов</span></div><div className="inventory-capacity-track"><i style={{ width: `${Math.min(100, Number(app.career?.inventory_slots || 0) / 2)}%` }} /></div></div>
+    {sorted.length ? <div className="inventory-stack-grid">{sorted.map(item => {
+      const rarity = PROFESSION_RARITIES[item.rarity as keyof typeof PROFESSION_RARITIES] || PROFESSION_RARITIES.common;
+      return <button type="button" className="inventory-stack" key={item.item_id} onClick={() => openStack(item)} style={{ '--rarity-color': rarity.color } as React.CSSProperties}>
+        <span className="inventory-stack-icon"><ItemArtwork item={item} size={54} /></span><b>{item.item_name}</b><span className="inventory-stack-count">×{item.quantity}</span><small>{rarity.name}</small>
+      </button>;
+    })}</div> : <div className="inventory-empty"><Backpack size={38} /><b>Пока пусто</b><span>Предметы из профессий будут появляться здесь.</span></div>}
     {app.phone ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Smartphone size={32} color="#6b5f45" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div></div><Btn variant="purple" onClick={() => { app.setSellItemType('phone'); app.setSellItemData('phone'); app.setSellPrice(String(DEFAULT_SELL_PHONE)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить</Btn><Btn variant="primary" onClick={() => app.buyPhone(false)} disabled={app.proc}>Сдать (+1400)</Btn></div> : null}
-    {app.hasCar ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Car size={32} color="#3d7ea6" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>{app.carModel === 'lada' ? 'Лада' : app.carModel === 'toyota' ? 'Тойота' : 'Автомобиль'}</div><div style={{ fontSize: 12, color: '#3f9d55', marginTop: 4 }}>Отдых: {app.restTime / 1000} сек.</div></div></div><Btn variant="purple" onClick={() => { app.setSellItemType('car'); app.setSellItemData(app.carModel); app.setSellPrice(app.carModel === 'lada' ? String(DEFAULT_SELL_LADA) : String(DEFAULT_SELL_TOYOTA)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
+    {app.hasCar ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Car size={32} color="#3d7ea6" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>{app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'lada' ? 'Ока' : app.carModel === 'toyota' ? 'Тойота' : 'Автомобиль')}</div><div style={{ fontSize: 12, color: '#3f9d55', marginTop: 4 }}>Отдых: {app.restTime / 1000} сек. · состояние: {app.carHealth}%</div></div></div>{app.carHealth < 100 && <Btn variant="secondary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Найти автомастерскую</Btn>}<Btn variant="purple" onClick={() => { const base = Number(app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.base_price || 0); app.setSellItemType('car'); app.setSellItemData(app.carModel); app.setSellPrice(String(base || (app.carModel === 'lada' ? DEFAULT_SELL_LADA : DEFAULT_SELL_TOYOTA))); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
     {app.hasHouse ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Building size={32} color="#b06a15" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Квартира</div><div style={{ fontSize: 12, color: '#3f9d55', marginTop: 4 }}>Макс. энергия: {app.maxEnergy}</div></div></div><Btn variant="purple" onClick={() => { app.setSellItemType('house'); app.setSellItemData(app.houseType); app.setSellPrice(String(DEFAULT_SELL_APARTMENT)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
-    {!app.phone && !app.hasCar && !app.hasHouse && <div style={{ color: '#6b5f45', padding: 40, textAlign: 'center' }}><Backpack size={48} style={{ opacity: 0.5, marginBottom: 10 }} /><br />Пусто...</div>}
-  </div>
-);
+    <Modal open={!!selected} onClose={closeStack} contentStyle={{ maxWidth: 360 }}>
+      {selected && (() => { const rarity = PROFESSION_RARITIES[selected.rarity as keyof typeof PROFESSION_RARITIES] || PROFESSION_RARITIES.common; const amount = Math.max(1, Math.min(Number(selected.quantity) || 1, Number(quantity) || 1)); return <div className="inventory-item-detail">
+        <div className="inventory-item-model" style={{ '--rarity-color': rarity.color } as React.CSSProperties}><ItemArtwork item={selected} size={140} /></div>
+        <div className="inventory-item-rarity" style={{ color: rarity.color }}>{rarity.name}</div><h3>{selected.item_name}</h3>
+        <div className="inventory-item-quantity">В наличии: ×{selected.quantity}</div>
+        <label htmlFor="inventory-sell-quantity">Количество для продажи</label>
+        <input id="inventory-sell-quantity" type="number" min={1} max={selected.quantity} value={quantity} onChange={event => { setQuantity(Math.max(1, Math.min(Number(selected.quantity), Number(event.target.value) || 1))); setConfirmRareSale(false); }} />
+        <div className="inventory-item-total">Государство заплатит · {(amount * Number(selected.sell_price)).toLocaleString('ru-RU')} ₽</div>
+        {confirmRareSale && <p className="inventory-rare-confirm">Подтверди продажу редкой находки. Её нельзя будет вернуть.</p>}
+        <div className="inventory-detail-actions"><Btn variant={confirmRareSale ? 'danger' : 'primary'} disabled={app.proc} onClick={proceedSale}>{confirmRareSale ? 'Подтвердить продажу' : 'Продать государству'}</Btn><Btn variant="secondary" disabled={app.proc} onClick={closeStack}>Назад</Btn></div>
+      </div>; })()}
+    </Modal>
+  </div>;
+};

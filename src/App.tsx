@@ -7,9 +7,7 @@ import { getUiTheme, isUiVibrationEnabled, persistUiTheme, setUiVibrationEnabled
 import { 
   BOT_USERNAME, CHANNEL_LINK, POLL, 
   BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, getRestTime, AVATARS,
-  getStock, S, APARTMENTS_PER_BUILD, TAXI_BIZ_PRICE, 
-  COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, 
-  CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE, BUTTON_BATCH_SIZE,
+  getStock, S, APARTMENTS_PER_BUILD, BUTTON_BATCH_SIZE,
   SMARTPHONE_BATCH_SIZE, 
   JOB_WORK, getDayModifier
 } from './constants';
@@ -152,6 +150,7 @@ export default function App() {
   const [ownedCosmetics, setOwnedCosmetics] = useState<string[]>([]);
   const [profileFrame, setProfileFrame] = useState('');
   const [profileBackground, setProfileBackground] = useState('');
+  const [career, setCareer] = useState<any>({ level: 1, xp: 0, xp_to_next: 100, profession: 'miner', unlocked: ['miner'], active_cycle: null, pending_reward: null, inventory: [], inventory_slots: 0, inventory_capacity: 200 });
   // undefined = ещё не прочитали из БД; true/false — реальное значение.
   // Раньше стартовало с false → при каждом заходе на секунду мелькал экран
   // «Подпишись на канал», пока loadData не дочитает is_subscribed=true.
@@ -162,6 +161,7 @@ export default function App() {
   const [phone, setPhone] = useState(false);
   const [hasCar, setHasCar] = useState(false);
   const [carModel, setCarModel] = useState('none');
+  const [carHealth, setCarHealth] = useState(100);
   const [hasHouse, setHasHouse] = useState(false);
   const [houseType, setHouseType] = useState('none');
   const [refBalance, setRefBalance] = useState(0);
@@ -183,10 +183,13 @@ export default function App() {
   const [phoneProdTimeLeft, setPhoneProdTimeLeft] = useState(0);
 
   const [myBizs, setMyBizs] = useState<any[]>([]);
-  const [activeBizType, setActiveBizType] = useState<'coffee' | 'salon' | 'construction' | 'taxi' | 'phone_factory'>('coffee');
-  const [buyingType, setBuyingType] = useState<string | null>(null);
-  const [bizNameInput, setBizNameInput] = useState('');
-  const [marketTab, setMarketTab] = useState<'items' | 'cars' | 'realestate'>('items');
+  const [activeBizType, setActiveBizType] = useState<'coffee' | 'salon' | 'construction' | 'taxi' | 'minimarket' | 'auto_repair'>('coffee');
+  const [activeBizId, setActiveBizId] = useState<string | null>(null);
+  const [businessCatalog, setBusinessCatalog] = useState<any>({ owned_count: 0, limit: 3, locations: [] });
+  const [vehicleState, setVehicleState] = useState<any>({ models: [], dealers: [] });
+  const chooseBizType = (type: typeof activeBizType) => { setActiveBizType(type); setActiveBizId(null); };
+  const [marketTab, setMarketTab] = useState<'items' | 'cars' | 'realestate' | 'shops'>('items');
+  const [businessOffers, setBusinessOffers] = useState<any>({ products: [], shops: [], repair_shops: [] });
   const [players, setPlayers] = useState<any[]>([]);
   const [referralLeaderboard, setReferralLeaderboard] = useState<any[]>([]);
   const [referralLeaderboardUnavailable, setReferralLeaderboardUnavailable] = useState(false);
@@ -325,7 +328,7 @@ export default function App() {
   const pollMyBizs = async () => {
     if (!pid) return;
     const { data } = await supabase.from('businesses')
-      .select('id, owner_id, biz_type, business_name, stock, coffee_balance, build_end, car_order_end, last_collected, created_at, passive_level, passive_balance, passive_updated_at')
+      .select('id, owner_id, biz_type, business_name, location_key, cash_balance, taxi_owner_cut_percent, stock, coffee_balance, build_end, car_order_end, last_collected, created_at, passive_level, passive_balance, passive_updated_at')
       .eq('owner_id', pid);
     if (data) setMyBizs(data);
   };
@@ -372,7 +375,7 @@ export default function App() {
       
       setPid(d.id); setNick(d.nickname); setGender(d.gender); setAvatarId(d.avatar_id || 1);
       setRole(d.role || 'player'); setMoney(Number(d.money)); setEnergy(Number(d.energy)); 
-      setPhone(Number(d.phone_count) > 0); setHasCar(d.has_car || false); setCarModel(d.car_model || 'none');
+      setPhone(Number(d.phone_count) > 0); setHasCar(d.has_car || false); setCarModel(d.car_model || 'none'); setCarHealth(Number(d.car_health ?? 100));
       setHasHouse(d.has_house || false); setHouseType(d.house_type || 'none');
       setRefBalance(Number(d.referral_balance) || 0); setDailyStreak(Number(d.daily_streak) || 0);
       setBoostEnd(Number(d.boost_end) || 0); setOnboardStep(Number(d.onboarding_step) || 0);
@@ -381,6 +384,7 @@ export default function App() {
       setOwnedCosmetics(Array.isArray(d.owned_cosmetics) ? d.owned_cosmetics : []);
       setProfileFrame(d.profile_frame || '');
       setProfileBackground(d.profile_background || '');
+      if (profileResult.profession) setCareer(profileResult.profession);
       setBrewEnd(Number(d.brew_end) || 0);
       setTipBalance(Number(d.tip_balance) || 0);
       setIsSubscribed(d.is_subscribed !== false); // undefined -> true/false из БД, без мигания окна подписки
@@ -434,6 +438,14 @@ export default function App() {
     setReferralLeaderboardUnavailable(!referralsResponse.ok);
     if (referralsResponse.ok) setReferralLeaderboard(referrals.players || []);
     if (mRes.data) setMarket(mRes.data);
+    if (pid) {
+      const [shopState, vehicleData] = await Promise.all([
+        supabase.rpc('business_shop_state_rpc', { p_player_id: pid }),
+        supabase.rpc('business_vehicle_state_rpc', { p_player_id: pid }),
+      ]);
+      if (!shopState.error && shopState.data) { setBusinessOffers(shopState.data); setCarHealth(Number(shopState.data.personal_car_health ?? 100)); }
+      if (!vehicleData.error && vehicleData.data) setVehicleState(vehicleData.data);
+    }
   };
 
   useEffect(() => { 
@@ -449,6 +461,7 @@ export default function App() {
     const result = await response.json();
     const data = response.ok ? result.player : null;
     if (!data) return;
+    if (result.profession) setCareer(result.profession);
     if (data.is_banned) { setIsBanned(true); return; }
     setMoney(Number(data.money)); setEnergy(Number(data.energy));
     setRefBalance(Number(data.referral_balance) || 0); setTipBalance(Number(data.tip_balance) || 0);
@@ -456,7 +469,7 @@ export default function App() {
     // Имущество/слоты — чтобы после покупки/продажи телефона, машины, квартиры
     // цифры на экране сходились с БД без полного reload.
     setPhone(Number(data.phone_count) > 0);
-    setHasCar(!!data.has_car); setCarModel(data.car_model || 'none');
+    setHasCar(!!data.has_car); setCarModel(data.car_model || 'none'); setCarHealth(Number(data.car_health ?? 100));
     setHasHouse(!!data.has_house); setHouseType(data.house_type || 'none');
     setMarketSlots(Number(data.market_slots) || 3);
     setPremiumBalance(Number(data.premium_balance) || 0);
@@ -520,12 +533,19 @@ export default function App() {
     try { await Promise.all([refreshProfile(), pollMyBizs()]); } catch {}
   };
 
+  const loadBusinessCatalog = async () => {
+    const { data, error } = await supabase.rpc('business_catalog_rpc', { p_player_id: pid });
+    if (!error && data) setBusinessCatalog(data);
+  };
+
   useEffect(() => {
     if (tab === 'market') { loadMarket(); refreshProfile(); pollMyBizs(); }
+    if (tab === 'business') { refreshBusinessOffers(); refreshVehicleState(); }
     if (tab === 'shop' || tab === 'inventory') { refreshProfile(); pollMyBizs(); }
     if (['business', 'jobs', 'cafe'].includes(tab)) {
       refreshProfile(); pollMyBizs(); pollWorkers();
-      const int = setInterval(() => { refreshProfile(); pollMyBizs(); pollWorkers(); }, POLL);
+      if (tab === 'business') loadBusinessCatalog();
+      const int = setInterval(() => { refreshProfile(); pollMyBizs(); pollWorkers(); if (tab === 'business') loadBusinessCatalog(); }, POLL);
       return () => clearInterval(int);
     }
   }, [tab, pid]);
@@ -563,8 +583,9 @@ export default function App() {
           const salon = myBizs.find(b => b.biz_type === 'salon');
           if (salon) {
             const s = getStock(salon); const model = s.current_model || 'lada'; const amount = s.order_amount || 1;
+            const modelName = vehicleState.models.find((item: any) => item.model_id === model)?.model_name || model;
             finishOrder(salon,
-              'Машины приехали!', `🚗 В автосалон приехали ${amount} ${model === 'lada' ? 'Лада' : 'Тойота'}!`);
+              'Машины приехали!', `🚗 В автосалон приехали ${modelName} ×${amount}!`);
           }
         }
       } else { setCarTimeLeft(0); }
@@ -596,7 +617,7 @@ export default function App() {
       } else { setPhoneProdTimeLeft(0); }
     }, 1000);
     return () => clearInterval(int);
-  }, [restEnd, brewEnd, carOrderEnd, buildEnd, phoneProdEnd, pid, myBizs, hasHouse]);
+  }, [restEnd, brewEnd, carOrderEnd, buildEnd, phoneProdEnd, pid, myBizs, hasHouse, vehicleState]);
 
   const selectGender = (g: 'male' | 'female') => { setSelG(g); setAvatarId(AVATARS.find(a => a.gender === g)?.id || 1); hapticFeedback('light'); };
   
@@ -687,18 +708,6 @@ export default function App() {
     hapticFeedback('heavy');
     await afterAction();
   });
-  const addTaxiCar = (model: 'lada' | 'toyota') => action(async () => {
-    const taxi = myBizs.find(b => b.biz_type === 'taxi');
-    if (!taxi) return;
-
-    // Цену и списание денег считает сервер (taxi_add_car_rpc).
-    const { data, error } = await supabase.rpc('taxi_add_car_rpc', { p_biz_id: taxi.id, p_player_id: pid, p_model: model });
-    if (error) throw new Error(error.message);
-    if (data && data.error) throw new Error(data.error);
-    if (data) { setMoney(Number(data.money)); }
-    showMsg(`Машина добавлена в таксопарк!`); loadData(true);
-  });
-
   const collectTaxi = () => action(async () => {
     const taxi = myBizs.find(b => b.biz_type === 'taxi');
     if (!taxi) return;
@@ -710,23 +719,10 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) return showMsg(data.error, true);
     if (data) {
-      setMoney(Number(data.money));
       setMyBizs(prev => prev.map(b => b.id === taxi.id ? { ...b, stock: data.stock } : b));
       showMsg(`Собрано ${data.income} монет!`, false, 'reward');
       await afterAction();
     }
-  });
-
-  const repairTaxiCar = (index: number) => action(async () => {
-    const taxi = myBizs.find(b => b.biz_type === 'taxi');
-    if (!taxi) return;
-
-    // Стоимость ремонта и списание — на сервере (taxi_repair_rpc).
-    const { data, error } = await supabase.rpc('taxi_repair_rpc', { p_biz_id: taxi.id, p_player_id: pid, p_car_index: index });
-    if (error) throw new Error(error.message);
-    if (data && data.error) throw new Error(data.error);
-    if (data) setMoney(Number(data.money));
-    showMsg("Машина отремонтирована!"); loadData(true);
   });
 
   const orderPhones = (model: 'button' | 'smartphone') => action(async () => {
@@ -749,41 +745,138 @@ export default function App() {
     await afterAction();
   });
 
-  // Единый источник цены бизнеса (клиент = сервер: buy_business_rpc игнорирует цену клиента,
-  // цена зашита в SQL). Числа должны совпадать с константами в supabase_schema.sql.
-  const BIZ_PRICES: Record<string, number> = {
-    coffee: COFFEE_BIZ_PRICE, salon: SALON_BIZ_PRICE, construction: CONSTRUCTION_BIZ_PRICE,
-    taxi: TAXI_BIZ_PRICE, phone_factory: PHONE_FACTORY_BIZ_PRICE,
-  };
-
   // Сколько мест роли уже нанято в бизнесе (для проверки обязательных ролей на клиенте;
   // сервер всё равно перепроверяет в start_*_rpc).
   const roleCount = (bizId: string | undefined, role: string) =>
     allWorkers.filter(w => w.business_id === bizId && w.role === role).length;
 
-  const submitBizName = () => action(async () => {
-    if (!buyingType) return;
-    const name = bizNameInput.trim();
-    if (!/^[A-Za-z0-9 ]{3,20}$/.test(name)) return showMsg("Только англ. буквы и цифры (3-20)", true);
-    
-    const price = BIZ_PRICES[buyingType];
-    if (!price) return showMsg("Неизвестный тип бизнеса", true);
-    if (money < price) return showMsg("Не хватает денег", true);
-    
-    const { data, error } = await supabase.rpc('buy_business_rpc', { p_owner_id: pid, p_owner_name: nick, p_biz_type: buyingType, p_biz_name: name });
-    if (error) throw error;
-    if (data && data.error) throw new Error(data.error);
-    
-    setBuyingType(null); setBizNameInput('');
-    showMsg("Бизнес открыт!"); loadData(true); await afterAction();
+  const purchaseBusinessLocation = (locationKey: string) => action(async () => {
+    const { data, error } = await supabase.rpc('purchase_business_location_rpc', { p_player_id: pid, p_location_key: locationKey });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setMoney(Number(data.money));
+    setActiveBizType(data.biz_type);
+    setActiveBizId(data.business_id);
+    showMsg(`${data.business_name} куплен за ${Number(data.price).toLocaleString('ru-RU')} ₽`);
+    await Promise.all([loadData(true), loadBusinessCatalog()]);
+  });
+
+  const refreshBusinessOffers = async () => {
+    if (!pid) return;
+    const { data, error } = await supabase.rpc('business_shop_state_rpc', { p_player_id: pid });
+    if (!error && data) { setBusinessOffers(data); setCarHealth(Number(data.personal_car_health ?? 100)); }
+  };
+
+  const refreshVehicleState = async () => {
+    if (!pid) return;
+    const { data, error } = await supabase.rpc('business_vehicle_state_rpc', { p_player_id: pid });
+    if (!error && data) setVehicleState(data);
+  };
+
+  const buyTaxiVehicle = (dealerId: string, modelId: string) => action(async () => {
+    const taxi = myBizs.find(b => b.id === activeBizId && b.biz_type === 'taxi') || myBizs.find(b => b.biz_type === 'taxi');
+    if (!taxi) throw new Error('Таксопарк не найден');
+    const { data, error } = await supabase.rpc('taxi_purchase_vehicle_rpc', {
+      p_player_id: pid, p_taxi_business_id: taxi.id, p_dealer_id: dealerId, p_model_id: modelId,
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setMyBizs(current => current.map(b => b.id === taxi.id ? {
+      ...b, stock: { ...(b.stock || {}), taxi_cars: data.cars }, cash_balance: Number(data.taxi_cash),
+    } : b));
+    showMsg(`${data.model_name} куплен для автопарка за ${Number(data.price).toLocaleString('ru-RU')} ₽`);
+    await Promise.all([loadData(true), refreshVehicleState()]);
+  });
+
+  const transferBusinessCash = (businessId: string, amount: number, direction: 'deposit' | 'withdraw') => action(async () => {
+    if (!Number.isSafeInteger(amount) || amount < 1) throw new Error('Введи сумму целым числом больше нуля');
+    const { data, error } = await supabase.rpc('business_cash_transfer_rpc', {
+      p_player_id: pid, p_business_id: businessId, p_amount: amount, p_direction: direction,
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setMoney(Number(data.money));
+    setMyBizs(current => current.map(b => b.id === businessId ? { ...b, cash_balance: Number(data.cash_balance) } : b));
+    showMsg(direction === 'deposit' ? 'Деньги внесены в кассу бизнеса' : 'Деньги сняты из кассы бизнеса');
+  });
+
+  const buyBusinessProduct = (businessId: string, productId: string, quantity: number) => action(async () => {
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 20) throw new Error('Количество должно быть от 1 до 20');
+    const { data, error } = await supabase.rpc('business_shop_buy_rpc', {
+      p_player_id: pid, p_business_id: businessId, p_product_id: productId, p_quantity: quantity,
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setMoney(Number(data.money)); setEnergy(Number(data.energy));
+    showMsg(`${data.product_name} ×${data.quantity}: −${Number(data.total).toLocaleString('ru-RU')} ₽, +${data.energy_restored} энергии`);
+    await Promise.all([refreshBusinessOffers(), refreshProfile()]);
+  });
+
+  const restockBusinessProduct = (businessId: string, productId: string, quantity: number) => action(async () => {
+    const { data, error } = await supabase.rpc('business_shop_restock_rpc', {
+      p_player_id: pid, p_business_id: businessId, p_product_id: productId, p_quantity: quantity,
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setMyBizs(current => current.map(b => b.id === businessId ? { ...b, cash_balance: Number(data.cash_balance) } : b));
+    showMsg(`Закупка выполнена: осталось ${data.quantity} шт.`);
+    await Promise.all([refreshBusinessOffers(), pollMyBizs()]);
+  });
+
+  const setBusinessProductPrice = (businessId: string, productId: string, price: number) => action(async () => {
+    const { data, error } = await supabase.rpc('business_shop_set_price_rpc', {
+      p_player_id: pid, p_business_id: businessId, p_product_id: productId, p_price: price,
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    showMsg(`Цена сохранена: ${Number(data.retail_price).toLocaleString('ru-RU')} ₽`);
+    await refreshBusinessOffers();
+  });
+
+  const repairPersonalCarAtShop = (shopId: string) => action(async () => {
+    const { data, error } = await supabase.rpc('business_repair_personal_car_rpc', { p_player_id: pid, p_shop_id: shopId });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setMoney(Number(data.money)); setCarHealth(Number(data.car_health));
+    showMsg(`Машина отремонтирована за ${Number(data.cost).toLocaleString('ru-RU')} ₽`);
+    await refreshProfile();
+  });
+
+  const repairTaxiCarAtShop = (shopId: string, taxiBusinessId: string, carIndex: number) => action(async () => {
+    const { data, error } = await supabase.rpc('business_repair_taxi_car_rpc', {
+      p_player_id: pid, p_shop_id: shopId, p_taxi_business_id: taxiBusinessId, p_car_index: carIndex,
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setMyBizs(current => current.map(b => b.id === taxiBusinessId ? { ...b, stock: { ...(b.stock || {}), taxi_cars: data.cars }, cash_balance: Number(data.cash_balance) } : b));
+    showMsg(`Машина таксопарка отремонтирована за ${Number(data.cost).toLocaleString('ru-RU')} ₽`);
+    await refreshBusinessOffers();
+  });
+
+  const createBusinessAuction = (bizId: string, startingPrice: number) => action(async () => {
+    if (!Number.isSafeInteger(startingPrice) || startingPrice < 1) throw new Error('Укажи начальную цену целым числом');
+    const { data, error } = await supabase.rpc('create_business_auction_rpc', { p_player_id: pid, p_biz_id: bizId, p_starting_price: startingPrice });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    showMsg(`Бизнес выставлен на торги на 24 часа · от ${Number(data.starting_price).toLocaleString('ru-RU')} ₽`);
+    await loadBusinessCatalog();
+  });
+
+  const bidBusinessAuction = (auctionId: string, bid: number) => action(async () => {
+    if (!Number.isSafeInteger(bid) || bid < 1) throw new Error('Укажи ставку целым числом');
+    const { data, error } = await supabase.rpc('bid_business_auction_rpc', { p_player_id: pid, p_auction_id: auctionId, p_bid: bid });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    showMsg(`Ставка ${Number(data.highest_bid).toLocaleString('ru-RU')} ₽ принята`);
+    await Promise.all([refreshProfile(), loadBusinessCatalog()]);
   });
 
   const sellBusiness = (biz: any) => action(async () => {
     if (!window.confirm("Продать бизнес за 50%?")) return;
-    const { data, error } = await supabase.rpc('sell_business_rpc', { p_owner_id: pid, p_biz_id: biz.id });
+    const { data, error } = await supabase.rpc('sell_business_to_state_rpc', { p_player_id: pid, p_biz_id: biz.id });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
-    showMsg(`Бизнес продан за ${data?.refund ?? 0}!`); loadData(true); loadMarket(); await afterAction();
+    showMsg(`Бизнес продан государству за ${Number(data?.refund ?? 0).toLocaleString('ru-RU')} ₽`); loadData(true); loadBusinessCatalog(); loadMarket(); await afterAction();
   });
 
   const cancelLot = (item: any) => action(async () => {
@@ -810,8 +903,8 @@ export default function App() {
     loadData(true); loadMarket();
   });
 
-  const orderCar = (model: 'lada' | 'toyota', amount: number) => action(async () => {
-    const salon = myBizs.find(b => b.biz_type === 'salon');
+  const orderCar = (model: string, amount: number) => action(async () => {
+    const salon = myBizs.find(b => b.id === activeBizId && b.biz_type === 'salon') || myBizs.find(b => b.biz_type === 'salon');
     if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едут машины!", true);
     // По дизайн-доку без Механика заказ не оформить (сервер тоже проверяет).
     if (!roleCount(salon.id, 'Механик')) return showMsg("Нужен хотя бы один механик!", true);
@@ -821,12 +914,14 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
     if (data) {
-      setMoney(Number(data.money));
+      setMyBizs(prev => prev.map(b => b.id === salon.id ? { ...b, cash_balance: Number(data.cash_balance) } : b));
       setCarOrderEnd(Number(data.car_order_end));
       if (Number(data.fine) > 0) showMsg(`Нет продавца: x3 времени + ${data.fine}₽ таможни`, true);
     }
-    showMsg(`Заказ на ${amount} ${model === 'lada' ? 'Лад' : 'Тойот'} оформлен!`); hapticFeedback('heavy');
+    const modelName = vehicleState.models.find((item: any) => item.model_id === model)?.model_name || model;
+    showMsg(`Заказ: ${modelName} ×${amount}`); hapticFeedback('heavy');
     await afterAction();
+    await refreshVehicleState();
   });
 
   const startBuild = () => action(async () => {
@@ -860,6 +955,80 @@ export default function App() {
     hapticFeedback('medium');
     await afterAction(); // мгновенное обновление цифр с сервера
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }
+  });
+
+  const selectProfession = (profession: string) => action(async () => {
+    const { data, error } = await supabase.rpc('select_profession_rpc', { p_player_id: pid, p_profession: profession });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    setCareer((current: any) => ({ ...current, profession: data.profession }));
+    showMsg('Профессия выбрана');
+  });
+
+  const selectTaxiCar = (carIndex: number) => action(async () => {
+    const { data, error } = await supabase.rpc('select_taxi_car_rpc', { p_player_id: pid, p_car_index: carIndex });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    setCareer((current: any) => ({ ...current, taxi_fleet: data.fleet }));
+    showMsg('Машина выбрана для смены');
+  });
+
+  const startProfessionCycle = () => action(async () => {
+    const { data, error } = await supabase.rpc('start_profession_cycle_rpc', { p_player_id: pid });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    setCareer((current: any) => ({ ...current, active_cycle: data.active_cycle }));
+    hapticFeedback('medium');
+  });
+
+  const stepProfessionCycle = (step: number) => action(async () => {
+    const { data, error } = await supabase.rpc('profession_step_rpc', { p_player_id: pid, p_step: step });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    setCareer((current: any) => ({ ...current, active_cycle: { ...current.active_cycle, actions_done: data.actions_done } }));
+    const professionSounds: Record<string, UiSound> = { miner: 'mine', lumberjack: 'woodcut', fisherman: 'fishing', farmer: 'harvest', courier: 'delivery', taxi: 'taxi' };
+    playUiSound(professionSounds[career.profession] || 'tap');
+    hapticFeedback(step === 3 ? 'medium' : 'light');
+  });
+
+  const finishProfessionCycle = () => action(async () => {
+    const { data, error } = await supabase.rpc('finish_profession_cycle_rpc', { p_player_id: pid });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    await refreshProfile();
+    if (data.pending_reward) {
+      showMsg('Находка готова — выбери, что с ней сделать');
+      hapticFeedback('heavy');
+    } else {
+      showMsg(`+${data.cash_reward} ₽ и ${data.xp_gained} XP`, false, 'reward');
+      hapticFeedback('heavy');
+    }
+    if (onboardStep === 0) await advanceTutorial(1);
+  });
+
+  const claimProfessionReward = (choice: 'inventory' | 'sell') => action(async () => {
+    const { data, error } = await supabase.rpc('claim_profession_reward_rpc', { p_player_id: pid, p_choice: choice });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    await refreshProfile();
+    if (choice === 'sell') setMoney(Number(data.money));
+    if (choice === 'inventory') {
+      try { localStorage.setItem('zhituha_inventory_new', '1'); } catch {}
+      window.dispatchEvent(new Event('zhituha:inventory-new'));
+    }
+    const item = data.item;
+    showMsg(choice === 'sell' ? `${item?.item_name || 'Предмет'} продан за ${data.proceeds} ₽` : `${item?.item_name || 'Предмет'} отправлен в инвентарь`, false, 'reward');
+    hapticFeedback('heavy');
+    if (onboardStep === 1) await advanceTutorial(2);
+  });
+
+  const sellInventory = (itemId: string, quantity: number) => action(async () => {
+    const { data, error } = await supabase.rpc('sell_inventory_rpc', { p_player_id: pid, p_item_id: itemId, p_quantity: quantity });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    setMoney(Number(data.money));
+    await refreshProfile();
+    showMsg(`Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, false, 'reward');
   });
 
   const rest = () => action(async () => {
@@ -1070,24 +1239,21 @@ export default function App() {
     loadMarket();
   });
   
-    const quickBuyBiz = (type: 'coffee' | 'salon' | 'taxi' | 'phone_factory' | 'construction') => {
-    if (myBizs.some(b => b.biz_type === type)) { setActiveBizType(type); setTab('business'); return; }
-    const price = BIZ_PRICES[type];
-    if (!price) return showMsg("Неизвестный тип бизнеса", true);
-    if (money < price) return showMsg(`Нужно ${price.toLocaleString('ru-RU')}₽`, true);
-    setBuyingType(type); // открывает модалку ввода названия -> submitBizName делает покупку
+    const quickBuyBiz = (type: 'coffee' | 'salon' | 'taxi' | 'construction') => {
+    setActiveBizType(type); setActiveBizId(myBizs.find(b => b.biz_type === type)?.id || null); setTab('business');
   };
 
   const app = useMemo(() => ({
-    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData,
+    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
     maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance,
     settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, uiTheme, changeUiTheme,
-    bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive
+    bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, createBusinessAuction, bidBusinessAuction, activeBizId, setActiveBizId,
+    career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
   }), [
-    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, uiTheme, changeUiTheme
+    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, uiTheme, changeUiTheme, career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
   ]);
 
-  const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
+  const activeBiz = myBizs.find(b => b.id === activeBizId) || myBizs.find(b => b.biz_type === activeBizType);
   const currentStock = getStock(activeBiz);
 
   // Быстрая покупка бизнеса прямо с главной. Название спрашиваем в модалке (как в BusinessTab),

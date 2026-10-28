@@ -4,14 +4,22 @@ import { blockDuringMaintenance, readMaintenance } from './_maintenance.js';
 
 const CLIENT_RPCS = new Set([
   'update_profile_rpc', 'work_rpc', 'drink_tutorial_coffee_rpc', 'claim_tutorial_reward_rpc', 'claim_daily_reward_rpc', 'collect_coffee_energy_rpc', 'finish_business_timer_rpc',
-  'taxi_add_car_rpc', 'taxi_collect_rpc', 'taxi_repair_rpc', 'start_phone_order_rpc', 'buy_business_rpc',
-  'sell_business_rpc', 'cancel_lot_rpc', 'start_car_order_rpc', 'start_build_rpc', 'rest_rpc',
+  'taxi_collect_rpc', 'start_phone_order_rpc',
+  'cancel_lot_rpc', 'start_car_order_rpc', 'start_build_rpc', 'rest_rpc',
   'upgrade_business_passive_rpc', 'collect_business_passive_rpc',
   'buy_coffee_rpc', 'collect_coffee_cash_rpc', 'hire_worker_rpc', 'fire_worker_rpc', 'quit_job_rpc',
   'buy_phone_rpc', 'list_item_rpc', 'buy_market_item', 'collect_ref_bonus_rpc', 'collect_tips_rpc',
   'redeem_promo', 'reset_game_rpc', 'log_action_rpc', 'get_logs_rpc', 'cleanup_logs_rpc',
   'admin_give_money_rpc', 'admin_set_ban_rpc', 'admin_delete_biz_rpc', 'create_promo_rpc',
   'get_casino_round_rpc', 'place_bet_rpc',
+  'profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc',
+  'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc',
+  'sell_inventory_rpc', 'taxi_fleet_rpc', 'select_taxi_car_rpc',
+  'business_catalog_rpc', 'purchase_business_location_rpc', 'sell_business_to_state_rpc',
+  'create_business_auction_rpc', 'bid_business_auction_rpc',
+  'business_shop_state_rpc', 'business_cash_transfer_rpc', 'business_shop_restock_rpc', 'business_shop_set_price_rpc', 'business_shop_buy_rpc',
+  'business_repair_personal_car_rpc', 'business_repair_taxi_car_rpc',
+  'business_vehicle_state_rpc', 'taxi_purchase_vehicle_rpc',
   'bank_get_state_rpc', 'bank_move_cash_rpc', 'bank_transfer_rpc', 'bank_open_deposit_rpc',
   'bank_close_deposit_rpc', 'bank_buy_stock_rpc', 'bank_sell_stock_rpc', 'bank_apply_loan_rpc',
   'bank_repay_loan_rpc',
@@ -59,6 +67,18 @@ export default async function handler(req, res) {
     const { data, error } = await sb.rpc(name, safeArgs);
     if (error) {
       console.error('RPC failed:', name, error.code, error.message);
+      if (['business_catalog_rpc', 'purchase_business_location_rpc', 'sell_business_to_state_rpc', 'create_business_auction_rpc', 'bid_business_auction_rpc'].includes(name)
+          && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
+        return res.status(400).json({ error: 'Обновление каталога бизнесов ещё не установлено в Supabase. Примените миграцию профессий и инвентаря, затем BUSINESS_LOCATIONS_MIGRATION.sql.' });
+      }
+      if (['business_shop_state_rpc', 'business_cash_transfer_rpc', 'business_shop_restock_rpc', 'business_shop_set_price_rpc', 'business_shop_buy_rpc', 'business_repair_personal_car_rpc', 'business_repair_taxi_car_rpc', 'business_vehicle_state_rpc', 'taxi_purchase_vehicle_rpc', 'start_car_order_rpc', 'finish_business_timer_rpc', 'taxi_collect_rpc'].includes(name)
+          && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
+        return res.status(400).json({ error: 'Система бизнесов ещё не установлена полностью. Проверьте BUSINESS_COMMERCE_MIGRATION.sql и DEALERSHIP_FLEET_MIGRATION.sql.' });
+      }
+      if (['profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc', 'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc', 'sell_inventory_rpc', 'taxi_fleet_rpc', 'select_taxi_car_rpc'].includes(name)
+          && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
+        return res.status(400).json({ error: 'Обновление профессий ещё не установлено в Supabase. Проверьте миграцию PROFESSIONS_INVENTORY_MIGRATION.sql.' });
+      }
       if (name.startsWith('bank_')) {
         if (error.code === 'PGRST202' || error.code === '42883') {
           return res.status(400).json({ error: `Банковская функция ${name} не найдена в Supabase. Проверь, что применены SQL-миграции банка.` });
@@ -76,9 +96,6 @@ export default async function handler(req, res) {
       }
       if (name === 'list_item_rpc' && error.message?.includes('Заложенное имущество')) {
         return res.status(400).json({ error: 'Сначала погаси кредит, чтобы продать заложенное имущество' });
-      }
-      if (name === 'sell_business_rpc' && error.message?.includes('Заложенный бизнес')) {
-        return res.status(400).json({ error: 'Сначала погаси кредит, чтобы продать бизнес' });
       }
       return res.status(400).json({ error: 'RPC failed' });
     }

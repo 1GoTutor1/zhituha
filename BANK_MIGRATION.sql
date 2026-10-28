@@ -312,7 +312,7 @@ begin
   end if;
   if p_collateral_type='car' and coalesce(p.has_car,false) then
     collateral := coalesce(p.car_model,'lada');
-    collateral_value := case collateral when 'toyota' then 65000 else 28000 end;
+    collateral_value := coalesce((select v.base_price from public.business_vehicle_catalog v where v.model_id=collateral),case collateral when 'toyota' then 65000 else 35000 end);
   elsif p_collateral_type='house' and coalesce(p.has_house,false) then
     collateral := coalesce(p.house_type,'apartment'); collateral_value := 50000;
   else return jsonb_build_object('error','Выбранное имущество нельзя заложить');

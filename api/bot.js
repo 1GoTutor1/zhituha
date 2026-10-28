@@ -76,7 +76,7 @@ const getBalance = async (ctx) => {
     `🪙 Жетоны: *${player.premium_balance || 0}*\n` +
     `📅 Серия ежедневных наград: *${player.daily_streak || 0}* дн.\n` +
     `👥 Реферальный баланс: *${player.referral_balance || 0}*\n` +
-    `🚗 Машина: *${player.has_car ? (player.car_model === 'lada' ? 'Лада' : 'Тойота') : 'Нет'}*\n` +
+    `🚗 Машина: *${player.has_car ? (player.car_model === 'lada' ? 'Ока' : 'Тойота') : 'Нет'}*\n` +
     `🏠 Жильё: *${player.has_house ? (player.house_type || 'Квартира') : 'Нет'}*\n` +
     `📱 Телефоны: *${player.phone_count || 0}*` +
     (player.profile_frame ? `\n🖼 Рамка: *${player.profile_frame}*` : '') +
@@ -163,7 +163,9 @@ const getBiz = async (ctx) => {
     const s = getStockSafe(b);
     if (b.biz_type === 'coffee') text += `☕ *${b.business_name}*:\n   Касса: *${b.coffee_balance || 0}* монет\n`;
     else if (b.biz_type === 'salon') {
-      text += `🚗 *${b.business_name}*:\n   Склад: Лада (${s.lada || 0}), Тойота (${s.toyota || 0})\n`;
+      const models = { lada: 'Ока', matiz: 'Matiz', vaz_2107: 'ВАЗ-2107', renault_logan: 'Logan', volkswagen_polo: 'Polo', ford_focus: 'Focus', toyota: 'Corolla', skoda_octavia: 'Octavia', kia_optima: 'Optima', bmw_3: 'BMW 3', bmw_5: 'BMW 5', mercedes_e: 'Mercedes E', lexus_es: 'Lexus ES', porsche_panamera: 'Panamera', range_rover: 'Range Rover' };
+      const stock = Object.entries(models).filter(([id]) => Number(s[id]) > 0).map(([id, name]) => `${name} (${Number(s[id])})`).join(', ') || 'пусто';
+      text += `🚗 *${b.business_name}*:\n   Склад: ${stock}\n`;
       if (b.car_order_end > now) text += `   🚚 В пути: ${formatTime(b.car_order_end - now)}\n`;
     } else if (b.biz_type === 'construction') {
       text += `🏗 *${b.business_name}*:\n   Склад квартир: *${s.apartments || 0}*\n`;

@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Invalid player id' });
       }
       const { data: target, error: targetError } = await sb.from('players')
-        .select('id, telegram_id, nickname, gender, avatar_id, money, referral_balance, has_car, car_model, has_house, house_type, phone_count, profile_frame, profile_background, is_banned')
+        .select('id, telegram_id, nickname, gender, avatar_id, money, referral_balance, has_car, car_model, has_house, house_type, phone_count, profile_frame, profile_background, player_level, player_xp, active_profession, unlocked_professions, is_banned')
         .eq('id', targetId).maybeSingle();
       if (targetError) throw targetError;
       if (!target || target.is_banned) return res.status(404).json({ error: 'Player profile not found' });
@@ -67,6 +67,10 @@ export default async function handler(req, res) {
           phone_count: target.phone_count,
           profile_frame: target.profile_frame,
           profile_background: target.profile_background,
+          player_level: target.player_level,
+          player_xp: target.player_xp,
+          active_profession: target.active_profession,
+          unlocked_professions: target.unlocked_professions,
           referral_count: referralCountResult.count || 0,
           businesses: businessResult.data || [],
         },
@@ -77,7 +81,12 @@ export default async function handler(req, res) {
 
     if (action === 'me') {
       if (referralsResult.error) throw referralsResult.error;
-      return res.status(200).json({ player, referrals: referralsResult.data || [] });
+      const { data: professionState, error: professionError } = await sb.rpc('profession_state_rpc', { p_player_id: player.id });
+      if (professionError) throw professionError;
+      const { data: taxiFleet, error: taxiFleetError } = await sb.rpc('taxi_fleet_rpc', { p_player_id: player.id });
+      if (taxiFleetError) throw taxiFleetError;
+      if (professionState) professionState.taxi_fleet = taxiFleet;
+      return res.status(200).json({ player, referrals: referralsResult.data || [], profession: professionState });
     }
     if (action === 'admin_grant_cosmetic') {
       if (!['admin', 'superadmin'].includes(player.role)) return res.status(403).json({ error: 'Admin access required' });
