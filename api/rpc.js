@@ -12,6 +12,9 @@ const CLIENT_RPCS = new Set([
   'redeem_promo', 'reset_game_rpc', 'log_action_rpc', 'get_logs_rpc', 'cleanup_logs_rpc',
   'admin_give_money_rpc', 'admin_set_ban_rpc', 'admin_delete_biz_rpc', 'create_promo_rpc',
   'get_casino_round_rpc', 'place_bet_rpc',
+  'bank_get_state_rpc', 'bank_move_cash_rpc', 'bank_transfer_rpc', 'bank_open_deposit_rpc',
+  'bank_close_deposit_rpc', 'bank_buy_stock_rpc', 'bank_sell_stock_rpc', 'bank_apply_loan_rpc',
+  'bank_repay_loan_rpc',
 ]);
 
 export default async function handler(req, res) {
@@ -56,6 +59,9 @@ export default async function handler(req, res) {
     const { data, error } = await sb.rpc(name, safeArgs);
     if (error) {
       console.error('RPC failed:', name, error.message);
+      if (name === 'list_item_rpc' && error.message?.includes('Заложенное имущество')) {
+        return res.status(400).json({ error: 'Сначала погаси кредит, чтобы продать заложенное имущество' });
+      }
       return res.status(400).json({ error: 'RPC failed' });
     }
     return res.status(200).json({ data });

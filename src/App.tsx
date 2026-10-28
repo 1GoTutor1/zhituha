@@ -26,6 +26,7 @@ const ShopTab = lazy(() => loadTabs().then((module) => ({ default: module.ShopTa
 const InventoryTab = lazy(() => loadTabs().then((module) => ({ default: module.InventoryTab })));
 const ProfileTab = lazy(() => loadTabs().then((module) => ({ default: module.ProfileTab })));
 const CasinoTab = lazy(() => import('./casino').then((module) => ({ default: module.CasinoTab })));
+const BankTab = lazy(() => import('./BankTab').then((module) => ({ default: module.BankTab })));
 
 export default function App() {
   const { user, hapticFeedback, tg, startParam } = useTelegram();
@@ -104,7 +105,7 @@ export default function App() {
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
   const [toast, setToast] = useState<{ msg: string, err: boolean, id: number } | null>(null);
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'profile' | 'admin'>('home');
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'admin'>('home');
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
@@ -1120,6 +1121,7 @@ export default function App() {
         {tab === 'market' && <MarketTab app={app} />}
         {tab === 'inventory' && <InventoryTab app={app} />}
         {tab === 'casino' && <CasinoTab app={app} />}
+        {tab === 'bank' && <BankTab app={app} />}
         {tab === 'profile' && <ProfileTab app={app} />}
         {tab === 'admin' && <AdminTab app={app} />}
       </Suspense>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, Briefcase, Globe, Backpack, Dices } from 'lucide-react';
+import { Home, Briefcase, Globe, Backpack, Dices, Landmark } from 'lucide-react';
 import { S } from './constants';
 
 export const Btn = ({ variant = 'primary', onClick, disabled, children, style = {} }: any) => {
@@ -69,7 +69,8 @@ export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) =
 export const BottomNav = ({ app }: { app: any }) => {
   const items = [
     { id: 'home', icon: Home, text: 'Главная' }, { id: 'jobs', icon: Briefcase, text: 'Работа' },
-    { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'casino', icon: Dices, text: 'Казино' }, { id: 'inventory', icon: Backpack, text: 'Сумка' }
+    { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'casino', icon: Dices, text: 'Казино' }, { id: 'inventory', icon: Backpack, text: 'Сумка' },
+    { id: 'bank', icon: Landmark, text: 'Банк' }
   ];
   return (
     <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(251, 244, 228, 0.96)', backdropFilter: 'blur(10px)', borderTop: '2px solid rgba(90,70,40,0.25)', display: 'flex', justifyContent: 'space-around', padding: '12px 0 calc(20px + env(safe-area-inset-bottom, 20px)) 0', zIndex: 100 }}>
