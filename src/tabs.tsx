@@ -30,7 +30,8 @@ export const AppModals = ({ app }: { app: any }) => (
     <Modal open={app.sellOpen} onClose={() => { app.setSellOpen(false); app.setSellSource(null); }}>
       <h3>Продажа {app.sellItemType === 'phone' ? 'телефона' : app.sellItemType === 'car' ? 'машины' : 'квартиры'}</h3>
       <p style={{ color: '#6b5f45', fontSize: 12, marginBottom: 10 }}>{app.sellSource === 'personal' ? 'Из личного имущества' : 'Со склада бизнеса'}</p>
-      <input type="number" value={app.sellPrice} onChange={(e: any) => app.setSellPrice(e.target.value)} style={S.input} />
+      <label style={{ display: 'block', textAlign: 'left', color: '#6b5f45', fontSize: 13, marginBottom: 6 }}>Цена продажи — назначаете сами, ₽</label>
+      <input type="number" min="1" step="1" value={app.sellPrice} onChange={(e: any) => app.setSellPrice(e.target.value)} style={S.input} />
       <div style={{ display: 'flex', gap: 10 }}><Btn variant="secondary" onClick={() => { app.setSellOpen(false); app.setSellSource(null); }} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Отмена</Btn><Btn variant="purple" onClick={app.listItem}>Выставить</Btn></div>
     </Modal>
 
@@ -364,6 +365,11 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   const getBizName = (type: string) => type === 'coffee' ? 'Кофейня' : type === 'salon' ? 'Автосалон' : type === 'taxi' ? 'Таксопарк' : type === 'phone_factory' ? 'Телефонный цех' : 'Стройтрест';
 
   const bizWorkers = app.allWorkers?.filter((w: any) => w.business_id === activeBiz?.id) || [];
+  const salonHasSeller = bizWorkers.some((worker: any) => worker.role === 'Продавец');
+  const carOrderTotal = (price: number, amount: number) => {
+    const subtotal = price * amount;
+    return salonHasSeller ? subtotal : subtotal + Math.floor(subtotal * 0.1);
+  };
   const passiveTiers = activeBiz ? BUSINESS_PASSIVE_TIERS[activeBiz.biz_type as keyof typeof BUSINESS_PASSIVE_TIERS] : null;
   const passiveLevel = Math.max(-1, Math.min(3, Number(activeBiz?.passive_level ?? -1)));
   const nextPassiveTier = passiveTiers?.[passiveLevel + 1];
@@ -392,13 +398,13 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
               <p style={{ color: '#6b5f45', fontSize: 15, margin: '5px 0 15px 0' }}>Склад: <b>Лада ({currentStock.lada || 0}) | Тойота ({currentStock.toyota || 0})</b></p>
               {app.carOrderEnd > 0 ? (<div style={{ background: 'rgba(61,126,166,0.10)', padding: 15, borderRadius: 8, marginBottom: 15, border: '1px solid rgba(61,126,166,0.25)', textAlign: 'center' }}><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#3d7ea6' }}>Едут: <b>{currentStock.order_amount || 1} {currentStock.current_model === 'lada' ? 'Лад' : 'Тойот'}</b></p><p style={{ margin: 0, fontSize: 22, color: '#3d7ea6', fontWeight: 'bold', fontFamily: 'Russo One' }}>{app.carTimeLeft} сек.</p></div>)
               : (<div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 15 }}>
-                  <p style={{ fontSize: 12, color: '#6b5f45', margin: 0 }}>Заказ Лады (15 мин):</p>
+                  <p style={{ fontSize: 12, color: '#6b5f45', margin: 0 }}>Заказ Лады · {LADA_PRICE.toLocaleString('ru-RU')} ₽/шт. · 15 мин{!salonHasSeller ? ' · без продавца +10%' : ''}</p>
                   <div style={{ display: 'flex', gap: 5 }}>
-                    {[1, 5, 10].map(n => <Btn key={n} variant="secondary" onClick={() => app.orderCar('lada', n)} disabled={app.proc || app.money < LADA_PRICE * n} style={{ flex: 1, padding: 8, fontSize: 12, background: 'rgba(61,126,166,0.10)', color: '#3d7ea6', border: '1px solid #3d7ea6' }}>x{n}</Btn>)}
+                    {[1, 5, 10].map(n => <Btn key={n} variant="secondary" onClick={() => app.orderCar('lada', n)} disabled={app.proc || app.money < carOrderTotal(LADA_PRICE, n)} style={{ flex: 1, padding: '8px 3px', fontSize: 11, lineHeight: 1.25, background: 'rgba(61,126,166,0.10)', color: '#3d7ea6', border: '1px solid #3d7ea6' }}>×{n} · {carOrderTotal(LADA_PRICE, n).toLocaleString('ru-RU')} ₽</Btn>)}
                   </div>
-                  <p style={{ fontSize: 12, color: '#6b5f45', margin: '10px 0 0 0' }}>Заказ Тойоты (45 мин):</p>
+                  <p style={{ fontSize: 12, color: '#6b5f45', margin: '10px 0 0 0' }}>Заказ Тойоты · {TOYOTA_PRICE.toLocaleString('ru-RU')} ₽/шт. · 45 мин{!salonHasSeller ? ' · без продавца +10%' : ''}</p>
                   <div style={{ display: 'flex', gap: 5 }}>
-                    {[1, 5, 10].map(n => <Btn key={n} variant="secondary" onClick={() => app.orderCar('toyota', n)} disabled={app.proc || app.money < TOYOTA_PRICE * n} style={{ flex: 1, padding: 8, fontSize: 12, background: 'rgba(61,126,166,0.10)', color: '#3d7ea6', border: '1px solid #3d7ea6' }}>x{n}</Btn>)}
+                    {[1, 5, 10].map(n => <Btn key={n} variant="secondary" onClick={() => app.orderCar('toyota', n)} disabled={app.proc || app.money < carOrderTotal(TOYOTA_PRICE, n)} style={{ flex: 1, padding: '8px 3px', fontSize: 11, lineHeight: 1.25, background: 'rgba(61,126,166,0.10)', color: '#3d7ea6', border: '1px solid #3d7ea6' }}>×{n} · {carOrderTotal(TOYOTA_PRICE, n).toLocaleString('ru-RU')} ₽</Btn>)}
                   </div>
                 </div>)}
               {currentStock.lada > 0 && <Btn variant="primary" onClick={() => { app.setSellItemType('car'); app.setSellItemData('lada'); app.setSellPrice(String(DEFAULT_SELL_LADA)); app.setSellSource('stock'); app.setSellOpen(true); }} style={{ marginBottom: 10 }}><Car size={18}/> Продать Ладу</Btn>}

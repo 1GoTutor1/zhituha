@@ -297,6 +297,14 @@ export default function App() {
     if (data) setMyBizs(data);
   };
 
+  const pollWorkers = async () => {
+    if (!pid) return;
+    const { data, error } = await supabase.from('business_workers').select('*');
+    if (error || !data) return;
+    setAllWorkers(data);
+    setMyJob(data.find((worker: any) => worker.player_id === pid) || null);
+  };
+
   const loadData = async (silent = false) => {
     if (lock.current && !silent) return;
     if (!silent) setLoading(true);
@@ -483,8 +491,8 @@ export default function App() {
     if (tab === 'market') { loadMarket(); refreshProfile(); pollMyBizs(); }
     if (tab === 'shop' || tab === 'inventory') { refreshProfile(); pollMyBizs(); }
     if (['business', 'jobs', 'cafe'].includes(tab)) {
-      refreshProfile(); pollMyBizs();
-      const int = setInterval(() => { refreshProfile(); pollMyBizs(); }, POLL);
+      refreshProfile(); pollMyBizs(); pollWorkers();
+      const int = setInterval(() => { refreshProfile(); pollMyBizs(); pollWorkers(); }, POLL);
       return () => clearInterval(int);
     }
   }, [tab, pid]);
@@ -891,7 +899,8 @@ export default function App() {
     const hiredWorker = data?.workers?.find((worker: any) => worker.player_id === pid);
     if (hiredWorker) setMyJob(hiredWorker);
     if (Array.isArray(data?.workers)) setAllWorkers((current) => [...current.filter((worker) => worker.business_id !== bizId), ...data.workers]);
-    showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium'); loadData(true); await afterAction();
+    showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium');
+    await Promise.all([pollWorkers(), afterAction()]);
   });
 
   const fire = (workerId: string) => action(async () => {
