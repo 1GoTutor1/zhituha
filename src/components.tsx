@@ -7,9 +7,9 @@ export const Btn = ({ variant = 'primary', onClick, disabled, children, style = 
   return <button className="soviet-btn" onClick={onClick} disabled={disabled} style={{ ...baseStyle, opacity: disabled ? 0.45 : 1, filter: disabled ? 'saturate(0.4)' : undefined, ...style }}>{children}</button>;
 };
 
-export const Modal = ({ open, onClose, children }: any) => {
+export const Modal = ({ open, onClose, children, contentStyle = {} }: any) => {
   if (!open) return null;
-  return <div style={S.modalBg} onClick={onClose}><div style={S.modalBox} onClick={(e: any) => e.stopPropagation()}>{children}</div></div>;
+  return <div style={S.modalBg} onClick={onClose}><div style={{ ...S.modalBox, ...contentStyle }} onClick={(e: any) => e.stopPropagation()}>{children}</div></div>;
 };
 
 export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) => {

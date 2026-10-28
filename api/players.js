@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   const { action } = req.body || {};
   try {
     const [playerResult, maintenanceEnabled, referralsResult] = await Promise.all([
-      sb.from('players').select(action === 'leaderboard' ? 'id, role' : '*').eq('telegram_id', String(user.id)).maybeSingle(),
+      sb.from('players').select(['leaderboard', 'public_profile'].includes(action) ? 'id, role' : '*').eq('telegram_id', String(user.id)).maybeSingle(),
       readMaintenance(sb),
       action === 'me'
         ? sb.from('players').select('nickname').eq('referred_by', String(user.id))
@@ -28,9 +28,49 @@ export default async function handler(req, res) {
     if (await blockDuringMaintenance(sb, player, res, maintenanceEnabled)) return;
 
     if (action === 'leaderboard') {
-      const { data, error } = await sb.from('players').select('nickname, money').order('money', { ascending: false }).limit(10);
+      const { data, error } = await sb.from('players').select('id, nickname, money')
+        .or('is_banned.is.null,is_banned.eq.false').order('money', { ascending: false }).limit(10);
       if (error) throw error;
       return res.status(200).json({ players: data || [] });
+    }
+
+    if (action === 'public_profile') {
+      if (!player) return res.status(404).json({ error: 'Player profile not found' });
+      const targetId = typeof req.body?.target_player_id === 'string' ? req.body.target_player_id : '';
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetId)) {
+        return res.status(400).json({ error: 'Invalid player id' });
+      }
+      const { data: target, error: targetError } = await sb.from('players')
+        .select('id, telegram_id, nickname, gender, avatar_id, money, referral_balance, has_car, car_model, has_house, house_type, phone_count, profile_frame, profile_background, is_banned')
+        .eq('id', targetId).maybeSingle();
+      if (targetError) throw targetError;
+      if (!target || target.is_banned) return res.status(404).json({ error: 'Player profile not found' });
+
+      const [businessResult, referralCountResult] = await Promise.all([
+        sb.from('businesses').select('business_name, biz_type, passive_level').eq('owner_id', target.id).limit(20),
+        sb.from('players').select('id', { count: 'exact', head: true }).eq('referred_by', String(target.telegram_id)),
+      ]);
+      if (businessResult.error) throw businessResult.error;
+      if (referralCountResult.error) throw referralCountResult.error;
+      return res.status(200).json({
+        profile: {
+          id: target.id,
+          nickname: target.nickname,
+          gender: target.gender,
+          avatar_id: target.avatar_id,
+          money: target.money,
+          referral_balance: target.referral_balance,
+          has_car: target.has_car,
+          car_model: target.car_model,
+          has_house: target.has_house,
+          house_type: target.house_type,
+          phone_count: target.phone_count,
+          profile_frame: target.profile_frame,
+          profile_background: target.profile_background,
+          referral_count: referralCountResult.count || 0,
+          businesses: businessResult.data || [],
+        },
+      });
     }
 
     if (!player) return res.status(200).json({ player: null, referrals: [] });

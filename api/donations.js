@@ -31,15 +31,16 @@ export default async function handler(req, res) {
     if (action === 'create_invoice') {
       const pack = PACKAGES[packageId];
       if (!pack) return res.status(400).json({ error: 'Пакет не найден' });
-      await sb.from('donation_orders').update({ status: 'failed' })
+      const { error: expireError } = await sb.from('donation_orders').update({ status: 'failed' })
         .eq('player_id', player.id).eq('status', 'pending')
-        .lt('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString());
+        .lt('created_at', new Date(Date.now() - 20 * 1000).toISOString());
+      if (expireError) throw expireError;
       const orderId = crypto.randomUUID();
       const { error: insertError } = await sb.from('donation_orders').insert({
         id: orderId, player_id: player.id, telegram_id: String(user.id), package_id: packageId,
         stars_amount: pack.stars, credits_amount: pack.credits,
       });
-      if (insertError?.code === '23505') return res.status(409).json({ error: 'У тебя уже есть активный счёт. Заверши его или подожди 30 минут.' });
+      if (insertError?.code === '23505') return res.status(409).json({ error: 'Закрой окно оплаты или повтори через несколько секунд.' });
       if (insertError) throw insertError;
 
       const invoiceResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
@@ -58,7 +59,25 @@ export default async function handler(req, res) {
         console.error('Telegram invoice creation failed:', invoice?.description || invoiceResponse.status);
         return res.status(502).json({ error: 'Telegram не смог создать счёт. Попробуй ещё раз.' });
       }
-      return res.status(200).json({ invoice_url: invoice.result });
+      return res.status(200).json({ invoice_url: invoice.result, order_id: orderId });
+    }
+    if (action === 'close_invoice') {
+      const orderId = typeof req.body?.order_id === 'string' ? req.body.order_id : '';
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(orderId)) {
+        return res.status(400).json({ error: 'Некорректный счёт' });
+      }
+      const { data: order, error: orderError } = await sb.from('donation_orders')
+        .select('id, status').eq('id', orderId).eq('player_id', player.id).maybeSingle();
+      if (orderError) throw orderError;
+      if (!order) return res.status(404).json({ error: 'Счёт не найден' });
+      if (order.status === 'pending') {
+        // Release the one-pending-order lock. The Stars RPC still accepts a late
+        // successful payment for this order in case Telegram reports it afterward.
+        const { error: closeError } = await sb.from('donation_orders')
+          .update({ status: 'failed' }).eq('id', orderId).eq('player_id', player.id).eq('status', 'pending');
+        if (closeError) throw closeError;
+      }
+      return res.status(200).json({ closed: order.status !== 'paid' });
     }
 
     let rpcName;

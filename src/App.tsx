@@ -452,7 +452,11 @@ export default function App() {
           }
         }
         showMsg('Оплата прошла. Баланс синхронизируется, зайди в игру чуть позже.');
-      } else if (status === 'failed') showMsg('Платёж не прошёл', true);
+      } else if (status === 'failed' || status === 'cancelled') {
+        try { await donationAction('close_invoice', { order_id: result.order_id }); }
+        catch (error) { console.error('Не удалось закрыть неоплаченный счёт:', error); }
+        showMsg(status === 'failed' ? 'Платёж не прошёл. Новый счёт можно открыть сразу.' : 'Счёт закрыт. Новый можно открыть сразу.');
+      }
     });
   });
 

@@ -207,7 +207,9 @@ bot.on('pre_checkout_query', async (ctx) => {
     const { data: order, error } = await supabase.from('donation_orders')
       .select('id, telegram_id, stars_amount, status')
       .eq('id', query.invoice_payload).maybeSingle();
-    const valid = !error && order && order.status === 'pending'
+    // Closed invoice orders are released for a replacement invoice, but the
+    // original Telegram link can still be paid, so keep it payable and idempotent.
+    const valid = !error && order && ['pending', 'failed'].includes(order.status)
       && order.telegram_id === String(ctx.from.id)
       && query.currency === 'XTR' && Number(query.total_amount) === Number(order.stars_amount);
     await ctx.answerPreCheckoutQuery(Boolean(valid), valid ? undefined : 'Заказ не найден или сумма не совпадает. Создай новый счёт.');

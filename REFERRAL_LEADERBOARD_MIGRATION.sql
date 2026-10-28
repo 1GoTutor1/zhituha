@@ -8,7 +8,8 @@ with (security_invoker = true)
 as
 select
   inviter.nickname,
-  count(invited.id)::bigint as referral_count
+  count(invited.id)::bigint as referral_count,
+  inviter.id as player_id
 from public.players as invited
 join public.players as inviter
   on inviter.telegram_id::text = invited.referred_by

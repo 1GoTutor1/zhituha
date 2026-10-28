@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     if (playerError) throw playerError;
     if (await blockDuringMaintenance(sb, player, res)) return;
     const { data, error } = await sb.from('referral_leaderboard')
-      .select('nickname, referral_count')
+      .select('nickname, referral_count, player_id')
       .order('referral_count', { ascending: false })
       .order('nickname', { ascending: true })
       .limit(10);

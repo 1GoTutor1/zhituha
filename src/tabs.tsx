@@ -252,9 +252,37 @@ export const MarketItem = ({ item, app, type }: any) => (
 export const MarketTab = ({ app }: { app: any }) => {
   const [showTop, setShowTop] = useState(false);
   const [leaderboardMode, setLeaderboardMode] = useState<'money' | 'referrals'>('money');
+  const [selectedPublicProfile, setSelectedPublicProfile] = useState<any>(null);
+  const [publicProfileLoading, setPublicProfileLoading] = useState(false);
   const myLots = app.market.filter((m: any) => m.seller_id === app.pid).length;
   const maxSlots = app.marketSlots;
   const topPlayers = leaderboardMode === 'money' ? app.players : app.referralLeaderboard;
+
+  const openPlayerProfile = async (topPlayer: any) => {
+    const targetId = topPlayer.id || topPlayer.player_id;
+    if (!targetId) return app.showMsg('Не удалось открыть профиль игрока', true);
+    if (String(targetId) === String(app.pid)) return app.handleAvatar();
+    setSelectedPublicProfile(null);
+    setPublicProfileLoading(true);
+    try {
+      const response = await fetch('/api/players', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'public_profile',
+          target_player_id: targetId,
+          init_data: (window as any).Telegram?.WebApp?.initData || '',
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.profile) throw new Error(result.error || 'Не удалось загрузить профиль');
+      setSelectedPublicProfile(result.profile);
+    } catch (error) {
+      app.showMsg(error instanceof Error ? error.message : 'Не удалось загрузить профиль', true);
+    } finally {
+      setPublicProfileLoading(false);
+    }
+  };
 
   if (showTop) {
     return (
@@ -268,15 +296,20 @@ export const MarketTab = ({ app }: { app: any }) => {
         <div style={{ marginTop: 20 }}>
           {topPlayers.length === 0 && <p style={{ color: '#6b5f45' }}>{leaderboardMode === 'referrals' && app.referralLeaderboardUnavailable ? '\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'money' ? '\u041f\u043e\u043a\u0430 \u043d\u0438\u043a\u043e\u0433\u043e...' : '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</p>}
           {topPlayers.map((p: any, i: number) => (
-            <div key={`${p.nickname}-${i}`} style={{ backgroundColor: '#fbf4e4', padding: '12px 15px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', marginBottom: 8 }}>
+            <button key={p.id || p.player_id || `${p.nickname}-${i}`} type="button" disabled={publicProfileLoading} onClick={() => void openPlayerProfile(p)} title="Открыть профиль" style={{ width: '100%', backgroundColor: '#fbf4e4', padding: '12px 15px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', marginBottom: 8, color: '#2f2a1d', cursor: publicProfileLoading ? 'wait' : 'pointer', textAlign: 'left', opacity: publicProfileLoading ? 0.7 : 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#b06a15' : i === 1 ? '#5f43a0' : i === 2 ? '#3d7ea6' : '#6b5f45', minWidth: 26 }}>#{i + 1}</span>
                 <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
               </div>
               <span style={{ color: leaderboardMode === 'money' ? '#2c7a3c' : '#c0453a', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{leaderboardMode === 'money' ? <>{Number(p.money || 0).toLocaleString('ru-RU')} <Coins size={14} /></> : <>{Number(p.referral_count || 0).toLocaleString('ru-RU')} {'\u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</>}</span>
-            </div>
+            </button>
           ))}
         </div>
+        <PublicProfileModal
+          profile={selectedPublicProfile}
+          loading={publicProfileLoading}
+          onClose={() => setSelectedPublicProfile(null)}
+        />
       </div>
     );
   }
@@ -980,6 +1013,52 @@ const frameStyle = (frame: string) => frame === 'frame_test'
     ? { border: '3px solid #e69a32', boxShadow: '0 0 0 2px #6f3d0d, 0 0 14px rgba(230,154,50,.45)' }
     : { border: '3px solid rgba(90,70,40,.28)' };
 
+const PublicProfileModal = ({ profile, loading, onClose }: { profile: any, loading: boolean, onClose: () => void }) => {
+  const frameNames: Record<string, string> = { frame_test: 'Рамка TEST', frame_amber: 'Янтарная рамка' };
+  const backgroundNames: Record<string, string> = { background_concrete: 'Бетонный фон' };
+  const businessNames: Record<string, string> = {
+    coffee: 'Кофейня', salon: 'Автосалон', taxi: 'Таксопарк',
+    construction: 'Стройтрест', phone_factory: 'Телефонный цех',
+  };
+  const avatar = getAvatar(profile ? Number(profile.avatar_id) || 1 : 1);
+  const profileBackground = profile?.profile_background === 'background_concrete'
+    ? 'linear-gradient(145deg, #d2d6d3, #a3aaa7)'
+    : 'linear-gradient(145deg, #fbf4e4, #e7d9b8)';
+
+  return (
+    <Modal open={loading || !!profile} onClose={onClose} contentStyle={{ maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }}>
+      {loading ? <p style={{ color: '#6b5f45' }}>Загружаю профиль…</p> : profile && <>
+        <div style={{ ...S.card, textAlign: 'center', padding: 18, marginBottom: 12, background: profileBackground }}>
+          <div style={{ width: 76, height: 76, margin: '0 auto 10px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: avatar.bg, ...frameStyle(profile.profile_frame) }}>{avatar.emoji}</div>
+          {profile.profile_frame === 'frame_test' && <div style={{ display: 'inline-block', marginBottom: 6, padding: '3px 10px', borderRadius: 12, color: '#073b35', background: '#63e6be', fontFamily: 'Russo One', fontSize: 11, letterSpacing: 1 }}>TEST</div>}
+          <h3 style={{ margin: 0, fontFamily: 'Russo One' }}>{profile.nickname}</h3>
+        </div>
+        <div style={{ ...S.card, padding: 15, textAlign: 'left' }}>
+          <h4 style={{ margin: '0 0 10px' }}>Показатели</h4>
+          <div>💰 Баланс: <b>{Number(profile.money || 0).toLocaleString('ru-RU')} ₽</b></div>
+          <div>👥 Приглашено: <b>{Number(profile.referral_count || 0)}</b></div>
+          <div>🎁 Реферальный баланс: <b>{Number(profile.referral_balance || 0).toLocaleString('ru-RU')} ₽</b></div>
+          <div>📱 Телефоны: <b>{Number(profile.phone_count || 0)}</b></div>
+          <div>🚗 Машина: <b>{profile.has_car ? (profile.car_model === 'lada' ? 'Лада' : 'Тойота') : 'Нет'}</b></div>
+          <div>🏠 Жильё: <b>{profile.has_house ? (profile.house_type || 'Квартира') : 'Нет'}</b></div>
+        </div>
+        <div style={{ ...S.card, padding: 15, textAlign: 'left' }}>
+          <h4 style={{ margin: '0 0 8px' }}>Бизнесы</h4>
+          {profile.businesses?.length
+            ? profile.businesses.map((business: any) => <div key={`${business.biz_type}-${business.business_name}`} style={{ marginBottom: 5 }}>🏢 {business.business_name} · {businessNames[business.biz_type] || 'Бизнес'}</div>)
+            : <span style={{ color: '#6b5f45' }}>Пока нет бизнесов</span>}
+        </div>
+        <div style={{ ...S.card, padding: 15, textAlign: 'left' }}>
+          <h4 style={{ margin: '0 0 8px' }}>Надето</h4>
+          <div>🖼 Рамка: <b>{frameNames[profile.profile_frame] || 'Стандартная'}</b></div>
+          <div>🎨 Фон: <b>{backgroundNames[profile.profile_background] || 'Стандартный'}</b></div>
+        </div>
+        <Btn variant="secondary" onClick={onClose} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Закрыть</Btn>
+      </>}
+    </Modal>
+  );
+};
+
 export const ProfileTab = ({ app }: { app: any }) => {
   const avatar = getAvatar(app.avatarId);
   const background = app.profileBackground === 'background_concrete'
@@ -993,7 +1072,21 @@ export const ProfileTab = ({ app }: { app: any }) => {
       {app.profileFrame === 'frame_test' && <div style={{ display: 'inline-block', marginBottom: 8, padding: '3px 10px', borderRadius: 12, color: '#073b35', background: '#63e6be', fontFamily: 'Russo One', fontSize: 11, letterSpacing: 1 }}>TEST</div>}
       <div style={{ fontSize: 23, fontFamily: 'Russo One' }}>{app.nick}</div>
       <div style={{ color: '#6b5f45', marginTop: 6 }}>ID: {app.tgId.slice(0, 6)} · имя нельзя менять</div>
+      <div style={{ marginTop: 12, fontWeight: 700 }}>💰 {Number(app.money || 0).toLocaleString('ru-RU')} ₽</div>
+      <div style={{ marginTop: 5, color: '#6b5f45' }}>🎨 {app.profileBackground === 'background_concrete' ? 'Бетонный фон' : 'Стандартный фон'}</div>
       <div style={{ marginTop: 12, fontWeight: 700, color: '#7656a8' }}>◆ {app.premiumBalance} жетонов</div>
+    </div>
+    <div style={S.card}>
+      <h3 style={{ marginTop: 0 }}>Моя статистика</h3>
+      <p>👥 Приглашено: <b>{app.myRefs.length}</b></p>
+      <p>🎁 Реферальный баланс: <b>{Number(app.refBalance || 0).toLocaleString('ru-RU')} ₽</b></p>
+      <h4 style={{ margin: '14px 0 6px' }}>Мои бизнесы</h4>
+      {app.myBizs.length
+        ? app.myBizs.map((business: any) => <p key={business.id}>🏢 {business.business_name}</p>)
+        : <p style={{ color: '#6b5f45' }}>Пока нет бизнесов</p>}
+      <h4 style={{ margin: '14px 0 6px' }}>Применённая косметика</h4>
+      <p>🖼 {app.profileFrame === 'frame_test' ? 'Рамка TEST' : app.profileFrame === 'frame_amber' ? 'Янтарная рамка' : 'Стандартная рамка'}</p>
+      <p>🎨 {app.profileBackground === 'background_concrete' ? 'Бетонный фон' : 'Стандартный фон'}</p>
     </div>
     <div style={S.card}>
       <h3 style={{ marginTop: 0 }}>Моя косметика</h3>
