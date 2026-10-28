@@ -49,6 +49,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const [game, setGame] = useState<'roulette' | 'dice' | 'race'>('roulette');
   const [choice, setChoice] = useState<string | null>(null);
   const [betAmount, setBetAmount] = useState(1000);
+  const allInBet = Math.min(100000, Math.floor(Number(money) || 0));
   const [myBets, setMyBets] = useState<any[]>([]);
   const [rouletteHistory, setRouletteHistory] = useState<number[]>([]);
   const [diceHistory, setDiceHistory] = useState<number[]>([]);
@@ -478,6 +479,12 @@ export const CasinoTab = ({ app }: { app: any }) => {
               {v.toLocaleString('ru')}₽
             </button>
           ))}
+          <button type="button" onClick={() => { setBetAmount(allInBet); hapticFeedback('light'); }} disabled={!canBet || allInBet < 100}
+            title="Поставить весь доступный баланс, но не больше лимита 100 000 ₽"
+            style={{ padding: '6px 10px', borderRadius: 8, cursor: canBet && allInBet >= 100 ? 'pointer' : 'not-allowed', fontSize: 12, fontWeight: 'bold',
+              background: betAmount === allInBet && allInBet >= 100 ? '#c0453a' : '#fbf4e4', color: betAmount === allInBet && allInBet >= 100 ? '#fff' : '#5a4a2f', border: '2px solid rgba(90,70,40,0.25)', opacity: canBet && allInBet >= 100 ? 1 : 0.4 }}>
+            ALL IN{money > 100000 ? ' · 100 000 ₽ max' : ''}
+          </button>
         </div>
 
         <div style={{ marginTop: 12, fontSize: 14, fontFamily: "'Russo One', sans-serif" }}>
