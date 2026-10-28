@@ -859,6 +859,30 @@ export const CafeTab = ({ app }: { app: any }) => {
 };
 
 export const JobsTab = ({ app }: { app: any }) => {
+  const [boardLoading, setBoardLoading] = useState(false);
+  useEffect(() => {
+    if (!app.boardOpen) return;
+    let cancelled = false;
+    setBoardLoading(true);
+    Promise.all([
+      app.supabase.from('businesses').select('id, owner_id, owner_name, biz_type, business_name, worker_id, worker_name, coffee_balance, last_collected'),
+      app.supabase.from('business_workers').select('id, business_id, player_id, player_name, role, salary'),
+    ]).then(([businesses, workers]: any[]) => {
+      if (cancelled) return;
+      if (businesses.error || workers.error) {
+        app.showMsg(businesses.error?.message || workers.error?.message || 'Не удалось обновить вакансии', true);
+        return;
+      }
+      app.setAllBiz(businesses.data || []);
+      app.setAllWorkers(workers.data || []);
+    }).catch((error: any) => {
+      if (!cancelled) app.showMsg(error?.message || 'Не удалось обновить вакансии', true);
+    }).finally(() => {
+      if (!cancelled) setBoardLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [app.boardOpen]);
+
   if (app.boardOpen) {
     const availableJobs: any[] = [];
     app.allBiz.forEach((biz: any) => {
@@ -877,7 +901,8 @@ export const JobsTab = ({ app }: { app: any }) => {
         <button onClick={() => app.setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#6b5f45', marginBottom: 20, marginTop: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
         <h2>Вакансии</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {availableJobs.length === 0 && <p style={{ color: '#6b5f45' }}>Пока нет свободных мест...</p>}
+          {boardLoading && availableJobs.length === 0 && <p role="status" style={{ color: '#6b5f45' }}>Обновляем список вакансий...</p>}
+          {!boardLoading && availableJobs.length === 0 && <p style={{ color: '#6b5f45' }}>Пока нет свободных мест...</p>}
           {availableJobs.map((job, idx) => (
             <div key={idx} style={{ backgroundColor: '#fbf4e4', padding: 15, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)' }}>
               <div style={{ textAlign: 'left' }}>

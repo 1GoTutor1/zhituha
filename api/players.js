@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
-import { blockDuringMaintenance } from './_maintenance.js';
+import { blockDuringMaintenance, readMaintenance } from './_maintenance.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -16,10 +16,16 @@ export default async function handler(req, res) {
   const sb = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const { action } = req.body || {};
   try {
-    const { data: currentPlayer, error: currentPlayerError } = await sb.from('players')
-      .select('id, role').eq('telegram_id', String(user.id)).maybeSingle();
-    if (currentPlayerError) throw currentPlayerError;
-    if (await blockDuringMaintenance(sb, currentPlayer, res)) return;
+    const [playerResult, maintenanceEnabled, referralsResult] = await Promise.all([
+      sb.from('players').select(action === 'leaderboard' ? 'id, role' : '*').eq('telegram_id', String(user.id)).maybeSingle(),
+      readMaintenance(sb),
+      action === 'me'
+        ? sb.from('players').select('nickname').eq('referred_by', String(user.id))
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+    const { data: player, error: playerError } = playerResult;
+    if (playerError) throw playerError;
+    if (await blockDuringMaintenance(sb, player, res, maintenanceEnabled)) return;
 
     if (action === 'leaderboard') {
       const { data, error } = await sb.from('players').select('nickname, money').order('money', { ascending: false }).limit(10);
@@ -27,14 +33,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ players: data || [] });
     }
 
-    const { data: player, error: playerError } = await sb.from('players').select('*').eq('telegram_id', String(user.id)).maybeSingle();
-    if (playerError) throw playerError;
     if (!player) return res.status(200).json({ player: null, referrals: [] });
 
     if (action === 'me') {
-      const { data: referrals, error } = await sb.from('players').select('nickname').eq('referred_by', String(user.id));
-      if (error) throw error;
-      return res.status(200).json({ player, referrals: referrals || [] });
+      if (referralsResult.error) throw referralsResult.error;
+      return res.status(200).json({ player, referrals: referralsResult.data || [] });
     }
     if (action === 'admin_grant_cosmetic') {
       if (!['admin', 'superadmin'].includes(player.role)) return res.status(403).json({ error: 'Admin access required' });

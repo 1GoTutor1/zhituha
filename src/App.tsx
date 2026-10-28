@@ -74,7 +74,7 @@ export default function App() {
 
   useEffect(() => {
     void refreshMaintenance();
-    const timer = window.setInterval(() => { void refreshMaintenance(); }, 15_000);
+    const timer = window.setInterval(() => { void refreshMaintenance(); }, 60_000);
     return () => window.clearInterval(timer);
   }, [user]);
 
@@ -298,7 +298,7 @@ export default function App() {
   };
 
   const loadData = async (silent = false) => {
-    if (lock.current) return;
+    if (lock.current && !silent) return;
     if (!silent) setLoading(true);
     try {
       const uid = getUid(); setTgId(uid);
@@ -343,6 +343,9 @@ export default function App() {
       setBrewEnd(Number(d.brew_end) || 0);
       setTipBalance(Number(d.tip_balance) || 0);
       setIsSubscribed(d.is_subscribed !== false); // undefined -> true/false из БД, без мигания окна подписки
+
+      // Показываем основной экран сразу после профиля; бизнесы и вакансии дозагружаются параллельно.
+      if (!silent) setLoading(false);
 
       if (!silent) {
         const timeDiff = Date.now() - (Number(d.last_claim) || 0);
@@ -881,6 +884,9 @@ export default function App() {
     const { data, error } = await supabase.rpc('hire_worker_rpc', { p_player_id: pid, p_player_name: nick, p_business_id: bizId, p_role: roleName, p_salary: salary });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
+    const hiredWorker = data?.workers?.find((worker: any) => worker.player_id === pid);
+    if (hiredWorker) setMyJob(hiredWorker);
+    if (Array.isArray(data?.workers)) setAllWorkers((current) => [...current.filter((worker) => worker.business_id !== bizId), ...data.workers]);
     showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium'); loadData(true); await afterAction();
   });
 
@@ -899,6 +905,7 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
     setMyJob(null); 
+    setAllWorkers((current) => current.filter((worker) => worker.player_id !== pid));
     setQuitOpen(false); setBoardOpen(false); showMsg("Вы уволились."); hapticFeedback('heavy');
     await afterAction();
   });

@@ -16,11 +16,20 @@ export default async function handler(req, res) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   try {
-    const { data: player, error: playerError } = await sb.from('players')
+    const action = req.body?.action;
+    const playerQuery = sb.from('players')
       .select('id, role').eq('telegram_id', String(user.id)).maybeSingle();
+    if (action === 'status') {
+      const [{ data: player, error: playerError }, enabled] = await Promise.all([
+        playerQuery,
+        readMaintenance(sb),
+      ]);
+      if (playerError) throw playerError;
+      return res.status(200).json({ enabled, is_admin: isAdminRole(player?.role) });
+    }
+    const { data: player, error: playerError } = await playerQuery;
     if (playerError) throw playerError;
     const admin = isAdminRole(player?.role);
-    const action = req.body?.action;
     if (action === 'set') {
       if (!admin) return res.status(403).json({ error: 'Admin access required' });
       if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'Invalid maintenance state' });
@@ -31,8 +40,7 @@ export default async function handler(req, res) {
       if (error) throw error;
       return res.status(200).json({ enabled: req.body.enabled, is_admin: true });
     }
-    if (action !== 'status') return res.status(400).json({ error: 'Unsupported maintenance action' });
-    return res.status(200).json({ enabled: await readMaintenance(sb), is_admin: admin });
+    return res.status(400).json({ error: 'Unsupported maintenance action' });
   } catch (error) {
     console.error('Maintenance API failed:', error?.message || error);
     return res.status(500).json({ error: 'Maintenance service failed' });

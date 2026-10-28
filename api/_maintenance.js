@@ -14,8 +14,9 @@ export function isAdminRole(role) {
   return role === 'admin' || role === 'superadmin';
 }
 
-export async function blockDuringMaintenance(sb, player, res) {
-  if (!await readMaintenance(sb) || isAdminRole(player?.role)) return false;
+export async function blockDuringMaintenance(sb, player, res, maintenanceState) {
+  const enabled = typeof maintenanceState === 'boolean' ? maintenanceState : await readMaintenance(sb);
+  if (!enabled || isAdminRole(player?.role)) return false;
   res.status(503).json({ error: 'maintenance', maintenance: true });
   return true;
 }

@@ -160,11 +160,11 @@ end $$;
 -- Возвращает null если ок, иначе текст ошибки.
 create or replace function public.validate_worker_role(
   p_biz_id uuid, p_player_id uuid, p_role text, p_salary int)
-returns text language plpgsql security definer as $$
+returns text language plpgsql security definer set search_path = public, pg_temp as $$
 declare b businesses; need int; allowed int; cnt int;
 begin
   if p_role is null or p_salary is null then return 'Некорректная роль'; end if;
-  select biz_type into b.biz_type from businesses where id = p_biz_id and owner_id = p_player_id;
+  select biz_type into b.biz_type from businesses where id = p_biz_id and owner_id <> p_player_id;
   if not found then return 'бизнес не найден'; end if;
 
   -- один игрок = одна работа во всей игре
@@ -946,16 +946,20 @@ end $$;
 
 create or replace function public.hire_worker_rpc(
   p_player_id uuid, p_player_name text, p_business_id uuid, p_role text, p_salary int)
-returns jsonb language plpgsql security definer as $$
-declare vtext text;
+returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+declare vtext text; v_player_name text;
 begin
-  -- серверная проверка: роль/зарплата/места по дизайн-доку (клиенту не верим)
+  perform 1 from public.players where id = p_player_id for update;
+  if not found then return jsonb_build_object('error','player not found'); end if;
+  perform 1 from public.businesses where id = p_business_id for update;
+  if not found then return jsonb_build_object('error','business not found'); end if;
+  select nickname into v_player_name from public.players where id = p_player_id;
   vtext := public.validate_worker_role(p_business_id, p_player_id, p_role, p_salary);
   if vtext is not null then return jsonb_build_object('error', vtext); end if;
-  insert into business_workers (business_id, player_id, player_name, role, salary)
-  values (p_business_id, p_player_id, p_player_name, p_role, p_salary);
+  insert into public.business_workers (business_id, player_id, player_name, role, salary)
+  values (p_business_id, p_player_id, v_player_name, p_role, p_salary);
   return jsonb_build_object('workers',
-    (select jsonb_agg(w2) from business_workers w2 where w2.business_id = p_business_id));
+    (select jsonb_agg(w2) from public.business_workers w2 where w2.business_id = p_business_id));
 end $$;
 
 create or replace function public.fire_worker_rpc(p_worker_id uuid, p_player_id uuid)
