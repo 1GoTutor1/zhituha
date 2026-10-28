@@ -5,7 +5,7 @@ create or replace function public.bank_open_deposit_rpc(p_player_id uuid, p_amou
 returns jsonb language plpgsql security definer set search_path = pg_catalog, public, pg_temp as $$
 declare rate int; account public.bank_accounts; deposit_id uuid; maturity timestamptz; active_principal bigint;
 begin
-  rate := case p_term_hours when 1 then 2 when 6 then 8 when 12 then 15 when 24 then 30 when 72 then 100 when 168 then 300 else null end;
+  rate := case p_term_hours when 1 then 10 when 6 then 30 when 12 then 50 when 24 then 100 when 72 then 400 when 168 then 1000 else null end;
   if rate is null then return jsonb_build_object('error','Выберите срок от 1 часа: 1, 6, 12, 24, 72 или 168 часов'); end if;
   if p_amount is null or p_amount<1000 or p_amount>1000000 then return jsonb_build_object('error','Вклад должен быть от 1 000 до 1 000 000 ₽'); end if;
   insert into public.bank_accounts(player_id) values(p_player_id) on conflict (player_id) do nothing;
