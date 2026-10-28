@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const [playerResult, maintenanceEnabled] = await Promise.all([
-      sb.from('players').select('id, role').eq('telegram_id', String(user.id)).maybeSingle(),
+      sb.from('players').select('id, role, is_subscribed').eq('telegram_id', String(user.id)).maybeSingle(),
       readMaintenance(sb),
     ]);
     const { data: player, error: playerError } = playerResult;
