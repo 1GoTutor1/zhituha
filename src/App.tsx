@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { Send, ShieldAlert, Wrench } from 'lucide-react';
-import { playUiSound, type UiSound } from './sound';
+import { isUiSoundEnabled, playUiSound, setUiSoundEnabled, type UiSound } from './sound';
+import { getUiTheme, isUiVibrationEnabled, persistUiTheme, setUiVibrationEnabled, type UiTheme } from './preferences';
 import { 
   BOT_USERNAME, CHANNEL_LINK, POLL, 
   BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, getRestTime, AVATARS,
@@ -36,8 +37,37 @@ export default function App() {
   const [maintenanceChecked, setMaintenanceChecked] = useState(false);
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
   const [maintenanceAdmin, setMaintenanceAdmin] = useState(false);
+  const [maintenanceBypass, setMaintenanceBypass] = useState(false);
   const [maintenanceBusy, setMaintenanceBusy] = useState(false);
   const [maintenanceError, setMaintenanceError] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [soundEnabled, setSoundEnabledState] = useState(isUiSoundEnabled);
+  const [vibrationEnabled, setVibrationEnabledState] = useState(isUiVibrationEnabled);
+  const [uiTheme, setUiThemeState] = useState<UiTheme>(getUiTheme);
+
+  const changeSoundEnabled = (enabled: boolean) => {
+    setUiSoundEnabled(enabled);
+    setSoundEnabledState(enabled);
+  };
+  const changeVibrationEnabled = (enabled: boolean) => {
+    setUiVibrationEnabled(enabled);
+    setVibrationEnabledState(enabled);
+    if (enabled) hapticFeedback('light');
+  };
+  const changeUiTheme = (theme: UiTheme) => {
+    persistUiTheme(theme);
+    setUiThemeState(theme);
+  };
+
+  useEffect(() => {
+    document.documentElement.dataset.uiTheme = uiTheme;
+    document.body.dataset.uiTheme = uiTheme;
+    const themeColor = uiTheme === 'dark' ? '#171a18' : '#efe3c8';
+    try {
+      (window as any).Telegram?.WebApp?.setHeaderColor(themeColor);
+      (window as any).Telegram?.WebApp?.setBackgroundColor(themeColor);
+    } catch { /* CSS theme still works outside Telegram. */ }
+  }, [uiTheme]);
   useEffect(() => {
     const playButtonTap = (event: MouseEvent) => {
       if (!event.isTrusted || !(event.target instanceof Element)) return;
@@ -64,6 +94,7 @@ export default function App() {
       if (!response.ok) throw new Error(result.error || 'Не удалось проверить режим техработ');
       setMaintenanceEnabled(Boolean(result.enabled));
       setMaintenanceAdmin(Boolean(result.is_admin));
+      if (!result.enabled) setMaintenanceBypass(false);
       setMaintenanceChecked(true);
     } catch (error) {
       setMaintenanceError(error instanceof Error ? error.message : 'Не удалось проверить режим техработ');
@@ -91,6 +122,7 @@ export default function App() {
       if (!response.ok) throw new Error(result.error || 'Не удалось изменить режим техработ');
       setMaintenanceEnabled(Boolean(result.enabled));
       setMaintenanceAdmin(Boolean(result.is_admin));
+      if (!enabled) setMaintenanceBypass(false);
     } catch (error) {
       setMaintenanceError(error instanceof Error ? error.message : 'Не удалось изменить режим техработ');
     } finally { setMaintenanceBusy(false); }
@@ -1048,10 +1080,11 @@ export default function App() {
 
   const app = useMemo(() => ({
     user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, buyingType, setBuyingType, bizNameInput, setBizNameInput, submitBizName, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, addTaxiCar, collectTaxi, repairTaxiCar, orderPhones, loadData,
-    maintenanceEnabled, maintenanceAdmin, maintenanceBusy, maintenanceError, setMaintenance,
+    maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance,
+    settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, uiTheme, changeUiTheme,
     bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive
   }), [
-    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBusy, maintenanceError, setMaintenance
+    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, buyingType, bizNameInput, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, uiTheme, changeUiTheme
   ]);
 
   const activeBiz = myBizs.find(b => b.biz_type === activeBizType);
@@ -1066,7 +1099,7 @@ export default function App() {
 
   if (!maintenanceChecked) return <div style={authPageStyle}><ShieldAlert size={48} color="#3d7ea6" style={{ marginBottom: 18 }} /><h2>{maintenanceError ? 'Не удалось проверить доступ' : 'Проверяем доступ…'}</h2>{maintenanceError && <><p style={{ color: '#6b5f45', maxWidth: 320 }}>{maintenanceError}</p><Btn variant="primary" onClick={() => void refreshMaintenance()}>Повторить</Btn></>}</div>;
   if (maintenanceEnabled && !maintenanceAdmin) return <div style={authPageStyle}><Wrench size={56} color="#3d7ea6" style={{ marginBottom: 18 }} /><h1 style={{ marginBottom: 8 }}>Технические работы</h1><p style={{ color: '#6b5f45', maxWidth: 320 }}>Игра временно закрыта. Загляни чуть позже.</p></div>;
-  if (maintenanceEnabled && maintenanceAdmin) return <div style={authPageStyle}><Wrench size={56} color="#3d7ea6" style={{ marginBottom: 18 }} /><h1 style={{ marginBottom: 8 }}>Игра закрыта</h1><p style={{ color: '#6b5f45', maxWidth: 320 }}>Сейчас войти могут только администраторы.</p><Btn variant="primary" disabled={maintenanceBusy} onClick={() => void setMaintenance(false)}>{maintenanceBusy ? 'Открываем…' : 'Открыть игру'}</Btn>{maintenanceError && <p role="alert" style={{ color: '#c0453a' }}>{maintenanceError}</p>}</div>;
+  if (maintenanceEnabled && maintenanceAdmin && !maintenanceBypass) return <div style={authPageStyle}><Wrench size={56} color="#3d7ea6" style={{ marginBottom: 18 }} /><h1 style={{ marginBottom: 8 }}>Игра закрыта</h1><p style={{ color: '#6b5f45', maxWidth: 320 }}>Игроки не могут войти. Ты можешь зайти и проверить обновление, пока игра закрыта для остальных.</p><div style={{ display: 'flex', width: 'min(100%, 360px)', gap: 10, marginTop: 10 }}><Btn variant="secondary" onClick={() => setMaintenanceBypass(true)}>Войти для теста</Btn><Btn variant="primary" disabled={maintenanceBusy} onClick={() => void setMaintenance(false)}>{maintenanceBusy ? 'Открываем…' : 'Открыть всем'}</Btn></div>{maintenanceError && <p role="alert" style={{ color: '#c0453a', marginTop: 12 }}>{maintenanceError}</p>}</div>;
 
   if (loading) return <div style={{ color: '#2f2a1d', textAlign: 'center', marginTop: 'calc(100px + env(safe-area-inset-top, 20px))' }}>Загрузка...</div>;
   // Gate: в Telegram без успешно проверенной сервером подписи initData игру не показываем.
@@ -1102,6 +1135,7 @@ export default function App() {
 
   return (
     <div style={pageStyle}>
+      {maintenanceEnabled && maintenanceAdmin && maintenanceBypass && <div className="maintenance-testing-banner"><div><b>ТЕХРАБОТЫ · ТЕСТОВЫЙ ВХОД</b><span>Игра пока закрыта для остальных</span></div><Btn variant="primary" disabled={maintenanceBusy} onClick={() => void setMaintenance(false)}>{maintenanceBusy ? 'Открываем…' : 'Открыть для всех'}</Btn></div>}
       <Toast toast={toast} onClose={closeToast} />
       <Suspense fallback={null}><DailyRewardModal app={app} /><AppModals app={app} /></Suspense>
       <Modal open={modifierOpen} onClose={() => setModifierOpen(false)}>

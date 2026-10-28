@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isUiVibrationEnabled } from './preferences';
 
 export interface VerifiedUser {
   id: number;
@@ -20,8 +21,9 @@ export function useTelegram() {
       telegram.expand(); 
       
       try {
-        telegram.setHeaderColor('#efe3c8');
-        telegram.setBackgroundColor('#efe3c8');
+        const themeColor = document.documentElement.dataset.uiTheme === 'dark' ? '#171a18' : '#efe3c8';
+        telegram.setHeaderColor(themeColor);
+        telegram.setBackgroundColor(themeColor);
         if (telegram.requestFullscreen) telegram.requestFullscreen();
       } catch (e) {}
 
@@ -52,7 +54,14 @@ export function useTelegram() {
   }, []);
 
   const hapticFeedback = (style: 'light' | 'medium' | 'heavy' = 'light') => {
-    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred(style);
+    if (!isUiVibrationEnabled()) return;
+    if (tg?.HapticFeedback) {
+      tg.HapticFeedback.impactOccurred(style);
+      return;
+    }
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(style === 'heavy' ? 35 : style === 'medium' ? 22 : 12);
+    }
   };
 
   return { tg, user, hapticFeedback, startParam };

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy, Palette } from 'lucide-react';
+import { Coins, Zap, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronLeft, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, TrendingUp, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Sun, Moon } from 'lucide-react';
 import { 
   getAvatar, LADA_PRICE, TOYOTA_PRICE, BUILDING_PRICE, COFFEE_BIZ_PRICE, SALON_BIZ_PRICE, TAXI_BIZ_PRICE, CONSTRUCTION_BIZ_PRICE, PHONE_FACTORY_BIZ_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
@@ -9,10 +9,30 @@ import {
 } from './constants';
 import { Btn, Modal } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
-import { isUiSoundEnabled, toggleUiSound } from './sound';
 
 export const AppModals = ({ app }: { app: any }) => (
   <>
+    <Modal open={app.settingsOpen} onClose={() => app.setSettingsOpen(false)} contentStyle={{ maxWidth: 360 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+        <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><Settings size={20} /> Настройки</h3>
+        <button type="button" aria-label="Закрыть настройки" onClick={() => app.setSettingsOpen(false)} style={{ border: 0, background: 'transparent', color: '#6b5f45', padding: 5, cursor: 'pointer' }}><X size={20} /></button>
+      </div>
+      <div className="settings-list">
+        <button type="button" role="switch" aria-checked={app.soundEnabled} onClick={() => app.changeSoundEnabled(!app.soundEnabled)} className="settings-row">
+          <span><Volume2 size={19} /> Звуковые эффекты</span><b>{app.soundEnabled ? 'Вкл.' : 'Выкл.'} {app.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}</b>
+        </button>
+        <button type="button" role="switch" aria-checked={app.vibrationEnabled} onClick={() => app.changeVibrationEnabled(!app.vibrationEnabled)} className="settings-row">
+          <span><Vibrate size={19} /> Вибрация</span><b>{app.vibrationEnabled ? 'Вкл.' : 'Выкл.'}</b>
+        </button>
+      </div>
+      <div style={{ textAlign: 'left', fontSize: 13, fontWeight: 700, margin: '18px 0 8px' }}>Оформление</div>
+      <div className="settings-theme-options">
+        <button type="button" aria-pressed={app.uiTheme === 'light'} onClick={() => app.changeUiTheme('light')} className={`settings-theme-option${app.uiTheme === 'light' ? ' is-selected' : ''}`}><Sun size={18} /> Светлое</button>
+        <button type="button" aria-pressed={app.uiTheme === 'dark'} onClick={() => app.changeUiTheme('dark')} className={`settings-theme-option${app.uiTheme === 'dark' ? ' is-selected' : ''}`}><Moon size={18} /> Тёмное</button>
+      </div>
+      <Btn variant="secondary" onClick={() => app.setSettingsOpen(false)} style={{ marginTop: 18 }}>Готово</Btn>
+    </Modal>
+
     <Modal open={app.refOpen} onClose={() => app.setRefOpen(false)}>
       <Gift size={40} color="#c0453a" style={{ marginBottom: 15 }} /><h3 style={{ marginTop: 0, fontSize: 20 }}>Рефералка</h3>
       <Btn variant="purple" onClick={app.inviteFriend} style={{ background: 'linear-gradient(135deg, #c0453a 0%, #be185d 100%)', color: '#fdf1ec', marginBottom: 15, padding: 12 }}><UserPlus size={20} /> Пригласить друга</Btn>
@@ -134,7 +154,6 @@ export const HomeTab = ({ app }: { app: any }) => {
   const maxEnergy = app.maxEnergy;
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
   const modifier = getDayModifier();
-  const [soundEnabled, setSoundEnabled] = useState(isUiSoundEnabled);
   const [workReward, setWorkReward] = useState<{ id: number; amount: number } | null>(null);
   useEffect(() => {
     const onReward = (event: Event) => {
@@ -167,7 +186,7 @@ export const HomeTab = ({ app }: { app: any }) => {
           </div>
         </div>
         <div style={{ textAlign: 'right', fontWeight: 'bold' }}>
-          <button aria-label={soundEnabled ? 'Mute' : 'Unmute'} onClick={() => setSoundEnabled(toggleUiSound())} style={{ border: '1px solid rgba(90,70,40,.2)', borderRadius: 8, padding: 6, marginBottom: 8, background: 'rgba(90,70,40,.06)', color: '#6b5f45', cursor: 'pointer' }}>{soundEnabled ? '\u{1F50A}' : '\u{1F507}'}</button>
+          <button type="button" aria-label="Настройки" title="Настройки" onClick={() => app.setSettingsOpen(true)} style={{ border: '1px solid rgba(90,70,40,.2)', borderRadius: 8, padding: 6, marginBottom: 8, background: 'rgba(90,70,40,.06)', color: '#6b5f45', cursor: 'pointer' }}><Settings size={18} /></button>
           <div style={{ color: '#b06a15', marginBottom: 5, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontSize: 18, fontFamily: 'Russo One, Impact, sans-serif' }}><Coins size={18} /> <AnimatedNumber value={app.money} /></div>
           <div style={{ color: '#5f43a0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontSize: 14 }}><Zap size={16} /> <AnimatedNumber value={app.energy} format={(n) => `${n}/${maxEnergy}`} /></div>
         </div>

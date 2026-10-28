@@ -12,9 +12,13 @@ export function isUiSoundEnabled() {
 
 export function toggleUiSound() {
   const enabled = !isUiSoundEnabled();
+  setUiSoundEnabled(enabled);
+  return enabled;
+}
+
+export function setUiSoundEnabled(enabled: boolean) {
   try { localStorage.setItem('zhituha_sound', enabled ? 'on' : 'off'); } catch { /* Sound still works for this session. */ }
   if (enabled) playUiSound();
-  return enabled;
 }
 
 const SOUND_NOTES: Record<UiSound, { frequency: number; delay: number; duration: number; volume: number; wave?: OscillatorType }[]> = {
