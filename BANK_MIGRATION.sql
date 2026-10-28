@@ -225,8 +225,8 @@ create or replace function public.bank_open_deposit_rpc(p_player_id uuid, p_amou
 returns jsonb language plpgsql security definer set search_path = pg_catalog, public, pg_temp as $$
 declare rate int; account public.bank_accounts; deposit_id uuid; maturity timestamptz; active_principal bigint;
 begin
-  rate := case p_term_hours when 24 then 30 when 72 then 100 when 168 then 300 else null end;
-  if rate is null then return jsonb_build_object('error','Выберите срок 1, 3 или 7 дней'); end if;
+  rate := case p_term_hours when 1 then 2 when 6 then 8 when 12 then 15 when 24 then 30 when 72 then 100 when 168 then 300 else null end;
+  if rate is null then return jsonb_build_object('error','Выберите срок от 1 часа: 1, 6, 12, 24, 72 или 168 часов'); end if;
   if p_amount is null or p_amount<1000 or p_amount>1000000 then return jsonb_build_object('error','Вклад должен быть от 1 000 до 1 000 000 ₽'); end if;
   insert into public.bank_accounts(player_id) values(p_player_id) on conflict (player_id) do nothing;
   select * into account from public.bank_accounts where player_id=p_player_id for update;
@@ -361,8 +361,8 @@ begin
     select coalesce(sum(quantity),0) into previous from public.bank_sector_events
       where sector=q.symbol and created_at>=now()-interval '120 minutes' and created_at<now()-interval '60 minutes';
     signal := greatest(-0.40,least(0.40,((recent-previous)/greatest(previous,5))*0.20));
-    noise := (random()-0.5)*0.50;
-    move_pct := signal+noise;
+    noise := 0.20 + random()*49.80;
+    move_pct := noise * case when random() < 0.50 + signal then 1 else -1 end;
     next_price := greatest(100,round(q.price*(1+move_pct/100.0))::bigint);
     update public.bank_stock_quotes set previous_price=q.price,price=next_price,updated_at=now() where symbol=q.symbol;
     insert into public.bank_stock_ticks(symbol,price) values(q.symbol,next_price);

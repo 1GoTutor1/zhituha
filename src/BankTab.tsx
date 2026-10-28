@@ -40,6 +40,11 @@ const BUSINESS_UPGRADE_COSTS: Record<string, number[]> = {
   taxi: [100_000, 300_000, 700_000, 1_500_000], phone_factory: [100_000, 300_000, 800_000, 2_000_000],
   construction: [150_000, 500_000, 1_500_000, 3_000_000]
 };
+const DEPOSIT_TERMS: [number, string, number][] = [
+  [1, '1 час', 0.02], [6, '6 часов', 0.08], [12, '12 часов', 0.15],
+  [24, '1 день', 0.3], [72, '3 дня', 1], [168, '7 дней', 3]
+];
+const depositTermLabel = (hours: number) => hours < 24 ? `${hours} ч.` : `${hours / 24} дн.`;
 const businessCollateralValue = (business: OwnedBusiness) => {
   const level = Math.max(-1, Math.min(3, Number(business.passive_level ?? -1)));
   const upgrades = (BUSINESS_UPGRADE_COSTS[business.biz_type] || []).slice(0, level + 1).reduce((sum, cost) => sum + cost, 0);
@@ -205,7 +210,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
             <p style={{ color: '#6b5f45', fontSize: 12, margin: '0 0 12px' }}>Доход заранее известен. Досрочное закрытие вернёт сумму без процентов.</p>
             <input type="number" min="1000" step="100" value={depositAmount} onChange={event => setDepositAmount(event.target.value)} style={S.input} />
             <div style={{ display: 'grid', gap: 8 }}>
-              {[[24, '1 день', 0.3], [72, '3 дня', 1], [168, '7 дней', 3]].map(([hours, label, percent]) => {
+              {DEPOSIT_TERMS.map(([hours, label, percent]) => {
                 const principal = Math.max(0, Number(depositAmount) || 0);
                 const interest = Math.floor(principal * Number(percent) / 100);
                 return <Btn key={hours} variant="secondary" disabled={busy || principal < 1000 || principal > 1_000_000} onClick={() => void run('bank_open_deposit_rpc', { p_amount: principal, p_term_hours: hours }, 'Вклад открыт')} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: 10 }}><span>{label} · {percent}%</span><span>Вернётся {money(principal + interest)}</span></Btn>;
@@ -217,7 +222,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
           {deposits.map((deposit: Deposit) => {
             const due = new Date(deposit.maturity_at).getTime() <= new Date(bank?.server_now || 0).getTime();
             const total = Number(deposit.principal) + (due ? Math.floor(Number(deposit.principal) * Number(deposit.rate_bps) / 10000) : 0);
-            return <div key={deposit.id} style={{ ...S.card, marginTop: 8 }}><b>{money(deposit.principal)} · {deposit.term_hours / 24} дн.</b><p style={{ color: '#6b5f45', fontSize: 12, margin: '6px 0 10px' }}>{due ? `К выплате ${money(total)}` : `Окончание ${dateTime(deposit.maturity_at)} · ${Number(deposit.rate_bps) / 100}%`}</p><Btn variant={due ? 'primary' : 'secondary'} disabled={busy} onClick={() => void run('bank_close_deposit_rpc', { p_deposit_id: deposit.id }, due ? 'Вклад выплачен' : 'Вклад закрыт без процентов')}>{due ? 'Забрать с процентами' : 'Закрыть досрочно'}</Btn></div>;
+            return <div key={deposit.id} style={{ ...S.card, marginTop: 8 }}><b>{money(deposit.principal)} · {depositTermLabel(deposit.term_hours)}</b><p style={{ color: '#6b5f45', fontSize: 12, margin: '6px 0 10px' }}>{due ? `К выплате ${money(total)}` : `Окончание ${dateTime(deposit.maturity_at)} · ${Number(deposit.rate_bps) / 100}%`}</p><Btn variant={due ? 'primary' : 'secondary'} disabled={busy} onClick={() => void run('bank_close_deposit_rpc', { p_deposit_id: deposit.id }, due ? 'Вклад выплачен' : 'Вклад закрыт без процентов')}>{due ? 'Забрать с процентами' : 'Закрыть досрочно'}</Btn></div>;
           })}
         </>}
 
