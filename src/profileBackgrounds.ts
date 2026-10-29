@@ -22,10 +22,10 @@ export const getProfileBackground = (id?: string | null) => {
     case 'background_brick':
       return {
         backgroundColor: '#592f29',
-        backgroundImage: 'url("/brick-graffiti.svg"),url("/brick-grain.svg"),repeating-linear-gradient(0deg, transparent 0 30px, rgba(194,164,145,.55) 30px 34px),linear-gradient(90deg, transparent 0 68px, rgba(194,164,145,.55) 68px 72px, transparent 72px 140px),linear-gradient(90deg, transparent 0 68px, rgba(194,164,145,.55) 68px 72px, transparent 72px 140px),linear-gradient(145deg, #8b4937, #542a27 55%, #703a30)',
-        backgroundSize: '1150px 1350px,140px 68px,auto,140px 68px,140px 68px,auto',
-        backgroundPosition: '0 0,0 0,0 0,0 0,70px 34px,0 0',
-        backgroundBlendMode: 'normal,soft-light,normal,normal,normal,normal',
+        backgroundImage: 'repeating-linear-gradient(0deg, transparent 0 30px, rgba(194,164,145,.55) 30px 34px),linear-gradient(90deg, transparent 0 68px, rgba(194,164,145,.55) 68px 72px, transparent 72px 140px),linear-gradient(90deg, transparent 0 68px, rgba(194,164,145,.55) 68px 72px, transparent 72px 140px),url("/brick-wear.svg"),url("/brick-grain.svg"),linear-gradient(145deg, #8b4937, #542a27 55%, #703a30)',
+        backgroundSize: 'auto,140px 68px,140px 68px,840px 816px,140px 68px,auto',
+        backgroundPosition: '0 0,0 0,70px 34px,0 0,0 0,0 0',
+        backgroundBlendMode: 'normal,normal,normal,soft-light,soft-light,normal',
         backgroundRepeat: 'repeat',
       };
     case 'background_panelka':
