@@ -626,7 +626,7 @@ body[data-ui-theme="dark"] .game-content-backplate {
   background-image: linear-gradient(var(--rank-bg-overlay, rgba(255,250,238,.58)), var(--rank-bg-overlay, rgba(255,250,238,.58))), var(--rank-bg-image);
   background-size: auto, var(--rank-bg-size);
   background-position: 0 0, var(--rank-bg-position);
-  background-repeat: no-repeat, var(--rank-bg-repeat);
+  background-repeat: repeat;
 }
 body[data-ui-theme="dark"] .market-rank-row.has-profile-bg { background: transparent !important; }
 body[data-ui-theme="dark"] .market-rank-row.has-profile-bg::before { --rank-bg-overlay: rgba(24,28,26,.42); }
