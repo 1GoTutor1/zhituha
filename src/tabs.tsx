@@ -1406,9 +1406,9 @@ export const ProfileTab = ({ app }: { app: any }) => {
         <h3 style={{ marginTop: 0 }}>{'\u041C\u0430\u0433\u0430\u0437\u0438\u043D \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0438'}</h3>
         {PREMIUM_ITEMS.filter(item => item.id !== 'market_slots_2').map(item => {
           const owned = app.ownedCosmetics.includes(item.id);
-          return <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid rgba(90,70,40,.12)', textAlign: 'left' }}>
-            <span style={item.id.startsWith('background_') ? { width: 54, height: 40, flexShrink: 0, borderRadius: 8, border: '1px solid rgba(90,70,40,.3)', ...getProfileBackground(item.id) } : { fontSize: 27 }}>{item.id.startsWith('background_') ? null : item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
-            <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || owned || app.premiumBalance < item.price} style={{ ...S.btnPurple, padding: '8px 10px', opacity: owned ? .55 : 1 }}>{owned ? '\u041A\u0443\u043F\u043B\u0435\u043D\u043E' : item.price + ' \u25C6'}</button>
+          return <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '48px minmax(0, 1fr)', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid rgba(90,70,40,.12)', textAlign: 'left' }}>
+            <span style={item.id.startsWith('background_') ? { width: 48, height: 40, borderRadius: 8, border: '1px solid rgba(90,70,40,.3)', ...getProfileBackground(item.id) } : { fontSize: 27, textAlign: 'center' }}>{item.id.startsWith('background_') ? null : item.icon}</span><div style={{ minWidth: 0 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
+            <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || owned || app.premiumBalance < item.price} style={{ ...S.btnPurple, gridColumn: '1 / -1', padding: '10px 12px', opacity: owned ? .55 : 1 }}>{owned ? '\u041A\u0443\u043F\u043B\u0435\u043D\u043E' : `${item.price} жет.`}</button>
           </div>;
         })}
       </div>
@@ -1441,14 +1441,15 @@ export const ShopTab = ({ app }: { app: any }) => {
     <div style={S.card}>
       <h3 style={{ marginTop: 0 }}>{'\u0423\u043B\u0443\u0447\u0448\u0435\u043D\u0438\u044F \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430'}</h3>
       <div style={{ margin: '0 0 9px', color: '#7656a8', fontWeight: 700 }}>Баланс: {app.premiumBalance} жетонов</div>
-      <div className="premium-pass-card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 13, marginBottom: 14, border: '1px solid rgba(212,155,42,.48)', borderRadius: 14, textAlign: 'left' }}>
-        <Crown size={30} aria-hidden="true" style={{ color: '#bd8420', flexShrink: 0 }} />
-        <div style={{ flex: 1 }}><b style={{ fontSize: 17 }}>VIP Premium · 14 дней</b><div style={{ color: '#6b5f45', fontSize: 12, marginTop: 3 }}>×2 шанс редкой и эпической находки. Бонус складывается с удачей семьи. Покупки продлевают срок.</div>{premiumActive && <small style={{ display: 'block', marginTop: 5, color: '#328357' }}>Активен до {premiumExpiry}</small>}</div>
-        <button onClick={() => app.donateAction('purchase', { item_id: 'premium_14d' })} disabled={app.proc || app.premiumBalance < 499} style={{ ...S.btnPurple, padding: '9px 11px', whiteSpace: 'nowrap' }}>499 жет.</button>
+      <div className="premium-pass-card" style={{ display: 'grid', gridTemplateColumns: '34px minmax(0, 1fr)', alignItems: 'center', gap: '8px 11px', padding: 14, marginBottom: 14, border: '1px solid rgba(212,155,42,.48)', borderRadius: 14, textAlign: 'left' }}>
+        <Crown size={29} aria-hidden="true" style={{ color: '#bd8420', gridRow: '1 / span 2' }} />
+        <b style={{ fontSize: 17, lineHeight: 1.25 }}>VIP Premium · 14 дней</b>
+        <div style={{ gridColumn: '1 / -1', color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.4 }}>×2 шанс редкой и эпической находки. Бонус складывается с удачей семьи. Покупка продлевает срок на 14 дней.{premiumActive && <small style={{ display: 'block', marginTop: 5, color: '#328357' }}>Активен до {premiumExpiry}</small>}</div>
+        <button onClick={() => app.donateAction('purchase', { item_id: 'premium_14d' })} disabled={app.proc || app.premiumBalance < 499} style={{ ...S.btnPurple, gridColumn: '1 / -1', padding: '11px 12px' }}>499 жет.</button>
       </div>
-      {PREMIUM_ITEMS.filter(item => item.id === 'market_slots_2').map(item => <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}>
-        <span style={{ fontSize: 27 }}>{item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
-        <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || app.marketSlots >= 9 || app.premiumBalance < item.price} style={{ ...S.btnPurple, padding: '8px 10px' }}>{app.marketSlots >= 9 ? '\u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C' : `${item.price} \u25C6`}</button>
+      {PREMIUM_ITEMS.filter(item => item.id === 'market_slots_2').map(item => <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '34px minmax(0, 1fr)', alignItems: 'center', gap: '8px 11px', textAlign: 'left' }}>
+        <span style={{ fontSize: 26, textAlign: 'center' }}>{item.icon}</span><div style={{ minWidth: 0 }}><b>{item.name}</b><div style={{ color: 'var(--text-muted)', fontSize: 12, lineHeight: 1.4 }}>{item.description}</div></div>
+        <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || app.marketSlots >= 9 || app.premiumBalance < item.price} style={{ ...S.btnPurple, gridColumn: '1 / -1', padding: '11px 12px' }}>{app.marketSlots >= 9 ? '\u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C' : `${item.price} жет.`}</button>
       </div>)}
     </div>
   </div>
