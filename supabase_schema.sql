@@ -1243,6 +1243,11 @@ create or replace function public.log_action_rpc(
   p_money_delta integer default null, p_money_after integer default null)
 returns void language plpgsql security definer as $$
 begin
+  -- Casino activity has its own history tables and should not flood admin logs.
+  if p_action_type in ('casino_bet', 'casino_resolve') then
+    return;
+  end if;
+
   insert into action_logs (player_id, action_type, details, money_delta, money_after)
   values (p_player_id, left(coalesce(p_action_type,'unknown'), 64), coalesce(p_details,'{}'),
           p_money_delta, p_money_after);
@@ -1256,7 +1261,8 @@ begin
     (select jsonb_agg(l order by l.created_at desc)
      from (
        select l.* from action_logs l
-       where (p_action_type is null or l.action_type = p_action_type)
+       where l.action_type not in ('casino_bet', 'casino_resolve')
+         and (p_action_type is null or l.action_type = p_action_type)
        order by l.created_at desc limit least(coalesce(p_limit,200), 500)
      ) l));
 end $$;
