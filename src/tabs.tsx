@@ -1312,7 +1312,6 @@ const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profi
           <div style={{ width: 76, height: 76, margin: '0 auto 10px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: avatar.bg, ...frameStyle(profile.profile_frame) }}>{avatar.emoji}</div>
           {profile.profile_frame === 'frame_test' && <div style={{ display: 'inline-block', marginBottom: 6, padding: '3px 10px', borderRadius: 12, color: '#073b35', background: '#63e6be', fontFamily: 'Russo One', fontSize: 11, letterSpacing: 1 }}>TEST</div>}
           <h3 style={{ margin: 0, fontFamily: 'Russo One' }}>{profile.nickname}</h3>
-          {profile.family && <div style={{ marginTop: 7, color: '#3f9d65', fontWeight: 700 }}>[{profile.family.tag}] {profile.family.name}</div>}
           {(profile.family_awards || []).map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
         </div>
         <div style={{ ...S.card, padding: 15, textAlign: 'left' }}>
@@ -1320,6 +1319,7 @@ const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profi
           <div>💰 Баланс: <b>{Number(profile.money || 0).toLocaleString('ru-RU')} ₽</b></div>
           <div>Уровень: <b>{Number(profile.player_level || 1)}</b></div>
           <div>Профессия: <b>{PLAYER_PROFESSIONS.find(item => item.id === profile.active_profession)?.name || 'Шахтёр'}</b></div>
+          <div>Семья: <b>{profile.family ? `[${profile.family.tag}] ${profile.family.name}` : 'Не состоит в семье'}</b></div>
           <div>👥 Приглашено: <b>{Number(profile.referral_count || 0)}</b></div>
           <div>🎁 Реферальный баланс: <b>{Number(profile.referral_balance || 0).toLocaleString('ru-RU')} ₽</b></div>
           <div>📱 Телефоны: <b>{Number(profile.phone_count || 0)}</b></div>

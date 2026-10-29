@@ -63,11 +63,20 @@ export default async function handler(req, res) {
       const [businessResult, referralCountResult, familyMembershipResult, familyAwardsResult] = await Promise.all([
         sb.from('businesses').select('business_name, biz_type, passive_level').eq('owner_id', target.id).limit(20),
         sb.from('players').select('id', { count: 'exact', head: true }).eq('referred_by', String(target.telegram_id)),
-        sb.from('family_memberships').select('family_id, families(name, tag)').eq('player_id', target.id).is('left_at', null).maybeSingle(),
+        sb.from('family_memberships').select('family_id').eq('player_id', target.id).is('left_at', null).maybeSingle(),
         sb.from('family_member_awards').select('season_no, place, contribution').eq('player_id', target.id).order('season_no', { ascending: false }).limit(5),
       ]);
       if (businessResult.error) throw businessResult.error;
       if (referralCountResult.error) throw referralCountResult.error;
+      if (familyMembershipResult.error) throw familyMembershipResult.error;
+      let family = null;
+      if (familyMembershipResult.data?.family_id) {
+        const { data: familyData, error: familyError } = await sb.from('families')
+          .select('id, name, tag').eq('id', familyMembershipResult.data.family_id)
+          .is('disbanded_at', null).maybeSingle();
+        if (familyError) throw familyError;
+        family = familyData;
+      }
       return res.status(200).json({
         profile: {
           id: target.id,
@@ -89,7 +98,7 @@ export default async function handler(req, res) {
           unlocked_professions: target.unlocked_professions,
           referral_count: referralCountResult.count || 0,
           businesses: businessResult.data || [],
-          family: familyMembershipResult.error ? null : familyMembershipResult.data?.families || null,
+          family,
           family_awards: familyAwardsResult.error ? [] : familyAwardsResult.data || [],
         },
       });
