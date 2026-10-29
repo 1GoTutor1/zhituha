@@ -528,6 +528,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   const [auctionPrice, setAuctionPrice] = useState('');
   const [cashAmount, setCashAmount] = useState('1000');
   const [shopPriceDrafts, setShopPriceDrafts] = useState<Record<string, string>>({});
+  const [autostockDrafts, setAutostockDrafts] = useState<Record<string, { threshold: string; refill: string }>>({});
   useEffect(() => {
     const timer = setInterval(() => setPassiveNow(Date.now()), 10000);
     return () => clearInterval(timer);
@@ -684,11 +685,22 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
 
           {['coffee','minimarket'].includes(activeBiz.biz_type) && (() => {
             const products = (app.businessOffers?.shops || []).find((shop: any) => shop.business_id === activeBiz.id)?.products || [];
+            const autostock = (app.businessOffers?.autostock || []).find((item: any) => item.business_id === activeBiz.id) || { slots: 0, rules: [] };
+            const rules = autostock.rules || [];
+            const enabledRules = rules.filter((rule: any) => rule.enabled).length;
             return <section style={{ marginTop: 18, textAlign: 'left' }}>
               <h3 style={{ margin: '0 0 8px' }}>Товары и склад</h3>
               <p style={{ color: '#6b5f45', fontSize: 12, margin: '0 0 10px' }}>Закупка списывается из кассы. Цена для игроков — от 75% до 125% базовой.</p>
+              <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,153,36,.10)', border: '1px solid rgba(255,153,36,.35)', marginBottom: 12 }}>
+                <b>Автопополнение · {autostock.slots}/3 слота куплено</b>
+                <p style={{ margin: '5px 0 9px', color: '#6b5f45', fontSize: 12 }}>Раз в минуту проверяет остатки и закупает товар из кассы бизнеса, когда он опустится до порога.</p>
+                {autostock.slots < 3 && <button type="button" disabled={app.proc || app.premiumBalance < 99} onClick={() => app.donateAction('purchase_autostock', { business_id: activeBiz.id })} style={{ border: 0, borderRadius: 8, padding: '9px 12px', background: '#ff9824', fontWeight: 700 }}>Купить слот · 99 жетонов</button>}
+                {autostock.slots === 0 && <small style={{ display: 'block', marginTop: 6, color: '#6b5f45' }}>Один слот включает автопополнение одного товара. До трёх слотов на бизнес.</small>}
+              </div>
               {products.map((product: any) => {
                 const draft = shopPriceDrafts[product.product_id] ?? String(product.retail_price);
+                const rule = rules.find((item: any) => item.product_id === product.product_id && item.enabled);
+                const autoDraft = autostockDrafts[product.product_id] || { threshold: String(rule?.threshold ?? 200), refill: String(rule?.refill_quantity ?? 600) };
                 const cost10 = Number(product.wholesale_price) * 10;
                 const cost50 = Number(product.wholesale_price) * 50;
                 return <div key={product.product_id} style={{ padding: 11, borderRadius: 10, background: 'rgba(90,70,40,.06)', marginBottom: 9 }}>
@@ -703,6 +715,22 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
                   <div style={{ display: 'flex', gap: 7, marginTop: 8 }}>
                     <button type="button" disabled={app.proc || Number(activeBiz.cash_balance || 0) < cost10} onClick={() => app.restockBusinessProduct(activeBiz.id, product.product_id, 10)} style={{ flex: 1, border: '1px solid #3d7ea6', borderRadius: 8, padding: 8, color: '#2f6a94', background: 'rgba(61,126,166,.08)' }}>Опт +10 · {cost10.toLocaleString('ru-RU')} ₽</button>
                     <button type="button" disabled={app.proc || Number(activeBiz.cash_balance || 0) < cost50} onClick={() => app.restockBusinessProduct(activeBiz.id, product.product_id, 50)} style={{ flex: 1, border: '1px solid #3d7ea6', borderRadius: 8, padding: 8, color: '#2f6a94', background: 'rgba(61,126,166,.08)' }}>Опт +50 · {cost50.toLocaleString('ru-RU')} ₽</button>
+                  </div>
+                  <div style={{ marginTop: 10, paddingTop: 9, borderTop: '1px solid rgba(90,70,40,.12)' }}>
+                    <b style={{ fontSize: 13 }}>Автопополнение {rule ? '· включено' : ''}</b>
+                    <div style={{ display: 'flex', gap: 7, marginTop: 7 }}>
+                      <label style={{ flex: 1, fontSize: 11 }}>Порог
+                        <input type="number" min="0" value={autoDraft.threshold} onChange={event => setAutostockDrafts(current => ({ ...current, [product.product_id]: { ...autoDraft, threshold: event.target.value } }))} style={{ ...S.input, margin: '3px 0 0', padding: 8, fontSize: 14 }} />
+                      </label>
+                      <label style={{ flex: 1, fontSize: 11 }}>Закупить
+                        <input type="number" min="1" value={autoDraft.refill} onChange={event => setAutostockDrafts(current => ({ ...current, [product.product_id]: { ...autoDraft, refill: event.target.value } }))} style={{ ...S.input, margin: '3px 0 0', padding: 8, fontSize: 14 }} />
+                      </label>
+                    </div>
+                    <div style={{ display: 'flex', gap: 7, marginTop: 7 }}>
+                      <button type="button" disabled={app.proc || (!rule && enabledRules >= autostock.slots) || !Number.isSafeInteger(Number(autoDraft.threshold)) || !Number.isSafeInteger(Number(autoDraft.refill)) || Number(autoDraft.refill) <= Number(autoDraft.threshold)} onClick={() => app.configureBusinessAutostock(activeBiz.id, product.product_id, Number(autoDraft.threshold), Number(autoDraft.refill), true)} style={{ flex: 1, border: 0, borderRadius: 7, padding: 8, background: '#ff9824', fontWeight: 700 }}>{rule ? 'Сохранить' : 'Включить'}</button>
+                      {rule && <button type="button" disabled={app.proc} onClick={() => app.configureBusinessAutostock(activeBiz.id, product.product_id, 0, 1, false)} style={{ border: '1px solid #aaa', borderRadius: 7, padding: '8px 10px', background: 'transparent' }}>Отключить</button>}
+                    </div>
+                    {rule && <small style={{ display: 'block', marginTop: 5, color: '#6b5f45' }}>Закупка пойдёт из кассы: {(Number(product.wholesale_price) * Number(rule.refill_quantity)).toLocaleString('ru-RU')} ₽</small>}
                   </div>
                 </div>;
               })}
