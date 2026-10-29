@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import { Component, useState, useEffect, useRef, useMemo, lazy, Suspense, type ReactNode } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { Send, ShieldAlert, Wrench, LoaderCircle } from 'lucide-react';
@@ -28,6 +28,33 @@ const ProfileTab = lazy(() => loadTabs().then((module) => ({ default: module.Pro
 const CasinoTab = lazy(() => import('./casino').then((module) => ({ default: module.CasinoTab })));
 const BankTab = lazy(() => import('./BankTab').then((module) => ({ default: module.BankTab })));
 const FamilyTab = lazy(() => import('./FamilyTab').then((module) => ({ default: module.FamilyTab })));
+
+class TabErrorBoundary extends Component<{ tab: string; children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: { componentStack?: string }) {
+    console.error(`Tab render failed (${this.props.tab}):`, error, info.componentStack);
+  }
+
+  componentDidUpdate(previousProps: Readonly<{ tab: string; children: ReactNode }>) {
+    if (previousProps.tab !== this.props.tab && this.state.error) this.setState({ error: null });
+  }
+
+  render() {
+    if (this.state.error) {
+      return <div className="tab-error-screen" role="alert">
+        <b>Не удалось открыть вкладку</b>
+        <span>Попробуй перезагрузить игру. Если ошибка повторится, сообщи администратору.</span>
+        <button type="button" onClick={() => window.location.reload()}>Перезагрузить игру</button>
+      </div>;
+    }
+    return this.props.children;
+  }
+}
 
 const VerificationScreen = ({ title, description, error, onRetry }: { title: string; description: string; error?: string; onRetry?: () => void }) => (
   <main className={`access-screen${error ? ' has-error' : ''}`} role={error ? 'alert' : 'status'} aria-live="polite">
@@ -1323,6 +1350,7 @@ export default function App() {
         <Btn variant="secondary" onClick={() => setModifierOpen(false)} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Понятно</Btn>
       </Modal>
 
+      <TabErrorBoundary tab={tab}>
       <Suspense fallback={<div className="loading">Загрузка…</div>}>
         <main className="game-content-backplate">
         {tab === 'home' && <HomeTab app={app} />}
@@ -1339,6 +1367,7 @@ export default function App() {
         {tab === 'admin' && <AdminTab app={app} />}
         </main>
       </Suspense>
+      </TabErrorBoundary>
       {tab !== 'admin' && <BottomNav app={app} />}
     </div>
   );

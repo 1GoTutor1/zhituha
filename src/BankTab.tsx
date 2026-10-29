@@ -109,7 +109,8 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
       if (state.error) throw new Error(state.error);
       setBank(state);
       app.setMoney?.(Number(state.wallet) || 0);
-      const foreclosure = state.transactions.find(transaction => transaction.operation === 'loan_foreclosure');
+      const transactions = Array.isArray(state.transactions) ? state.transactions : [];
+      const foreclosure = transactions.find(transaction => transaction.operation === 'loan_foreclosure');
       if (foreclosure && foreclosure.id !== lastForeclosureSeen.current) {
         const hadSeenForeclosure = lastForeclosureSeen.current !== null;
         lastForeclosureSeen.current = foreclosure.id;

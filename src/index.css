@@ -314,6 +314,9 @@ body[data-ui-theme="dark"] .business-location-action span,
 body[data-ui-theme="dark"] .business-auction-entry small { color:#c3aa75; }
 body[data-ui-theme="dark"] .business-auction-entry input { background:#202522; color:#eceeea; border-color:rgba(220,230,222,.2); }
 .game-content-backplate { box-sizing:border-box; width:min(560px,100%); margin:0 auto; padding:10px; border:1px solid color-mix(in srgb,var(--border-color) 75%,transparent); border-radius:20px; background:color-mix(in srgb,var(--bg-card) 90%,transparent); box-shadow:0 8px 28px rgba(25,25,20,.12); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+.tab-error-screen { display:grid; justify-items:center; gap:10px; min-height:160px; align-content:center; padding:22px; border:1px solid var(--border-color); border-radius:14px; background:var(--bg-card); color:var(--text-main); text-align:center; }
+.tab-error-screen span { color:var(--text-muted); font-size:13px; }
+.tab-error-screen button { padding:11px 16px; border:0; border-radius:9px; background:#348b58; color:#fff; font-weight:800; }
 .profile-section-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:12px 0; padding:5px; border-radius:10px; background:rgba(90,70,40,.08); }
 .profile-hero-card { background:rgba(251,244,228,.92)!important; backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px); }
 .profile-section-tabs button { border:0; border-radius:7px; padding:9px 4px; background:transparent; color:#6b5f45; font-size:12px; font-weight:700; cursor:pointer; }
