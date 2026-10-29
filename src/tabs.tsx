@@ -1427,7 +1427,7 @@ export const ShopTab = ({ app }: { app: any }) => {
     <div style={{ ...S.card, border: '2px solid #8a6ac0' }}>
       <h3 style={{ marginTop: 0, color: '#7656a8' }}>◆ Донат-жетоны</h3>
       <p style={{ color: '#6b5f45', fontSize: 13 }}>Покупай жетоны за Telegram Stars. Все пакеты доступны в Telegram Mini App.</p>
-      {[{ id: 'starter', stars: 15, gems: 50 }, { id: 'popular', stars: 50, gems: 250 }, { id: 'big', stars: 100, gems: 650 }].map(pack => <button key={pack.id} onClick={() => app.buyStars(pack.id)} disabled={app.proc} style={{ ...S.btnPurple, width: '100%', marginTop: 8 }}>⭐ {pack.stars} Stars → {pack.gems} жетонов</button>)}
+      {[{ id: 'starter', stars: 15, gems: 50 }, { id: 'popular', stars: 50, gems: 250 }, { id: 'big', stars: 100, gems: 500 }].map(pack => <button key={pack.id} onClick={() => app.buyStars(pack.id)} disabled={app.proc} style={{ ...S.btnPurple, width: '100%', marginTop: 8 }}>⭐ {pack.stars} Stars → {pack.gems} жетонов</button>)}
       <div style={{ borderTop: '1px solid rgba(90,70,40,.15)', marginTop: 14, paddingTop: 12 }}>
         <b>Обмен игровой валюты</b>
         <p style={{ color: '#6b5f45', fontSize: 12, margin: '6px 0' }}>2 500 монет → 1 жетон · 1 жетон → 1 500 монет</p>

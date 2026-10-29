@@ -501,7 +501,7 @@ export default function App() {
     if (!tg?.openInvoice || !result.invoice_url) throw new Error('Открой игру в Telegram, чтобы оплатить Stars');
     tg.openInvoice(result.invoice_url, async (status: string) => {
       if (status === 'paid') {
-        const expectedCredits: Record<string, number> = { starter: 50, popular: 250, big: 650 };
+        const expectedCredits: Record<string, number> = { starter: 50, popular: 250, big: 500 };
         const expectedBalance = premiumBalance + (expectedCredits[packageId] || 0);
         for (let attempt = 0; attempt < 6; attempt++) {
           await new Promise(resolve => setTimeout(resolve, 1000));

@@ -5,7 +5,7 @@ import { verifyTelegramInitData } from './_telegram.js';
 const PACKAGES = Object.freeze({
   starter: { stars: 15, credits: 50, title: '50 жетонов' },
   popular: { stars: 50, credits: 250, title: '250 жетонов' },
-  big: { stars: 100, credits: 650, title: '650 жетонов' },
+  big: { stars: 100, credits: 500, title: '500 жетонов' },
 });
 
 export default async function handler(req, res) {
