@@ -118,23 +118,22 @@ export const getStock = (biz: any) => {
 };
 
 export const DAY_MODIFIERS = [
-  { id: 1, name: "День студентов", desc: "Смена в кафе x2", type: "shift", mult: 2, color: "#3f9d55" },
-  { id: 2, name: "Час пик", desc: "Таксопарк x2", type: "taxi", mult: 2, color: "#3d7ea6" },
-  { id: 3, name: "Хайп на телефоны", desc: "Производство телефонов +50% скорости", type: "phone_sell", mult: 1.5, color: "#5f43a0" },
-  { id: 5, name: "Ажиотаж", desc: "Слоты рынка +2, комиссия 0%", type: "market_slots", mult: 2, color: "#b0306a" },
-  { id: 7, name: "День друзей", desc: "Реферальные бонусы x2", type: "ref", mult: 2, color: "#c0453a" },
-  { id: 8, name: "Стройка века", desc: "Стройка дома +50% скорости", type: "build", mult: 1.5, color: "#96600d" },
-  { id: 9, name: "\u0422\u0438\u0445\u0438\u0439 \u0434\u0435\u043d\u044c", desc: "\u0420\u0430\u0431\u043e\u0442\u0430 \u043e\u043f\u043b\u0430\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u043f\u043e \u043e\u0431\u044b\u0447\u043d\u043e\u043c\u0443 \u0442\u0430\u0440\u0438\u0444\u0443", type: "work", mult: 1, color: "#5b5648" },
-  { id: 10, name: "Госзаказ", desc: "Производство телефонов +50% скорости", type: "factory", mult: 1.5, color: "#2563a8" },
+  { id: 1, icon: "⛏️", name: "Богатая жила", desc: "Шахтёрам на 20% чаще попадается редкая и эпическая руда", type: "miner_luck", mult: 1.2, color: "#b7791f" },
+  { id: 2, icon: "🌲", name: "Лесной завал", desc: "Лесорубам на 20% чаще попадается редкая древесина", type: "lumberjack_luck", mult: 1.2, color: "#328357" },
+  { id: 3, icon: "🎣", name: "Большой клёв", desc: "Рыбакам на 20% чаще попадается редкий улов", type: "fisherman_luck", mult: 1.2, color: "#337ca5" },
+  { id: 4, icon: "🌱", name: "Урожайный день", desc: "Фермерам на 20% чаще попадается редкий урожай", type: "farmer_luck", mult: 1.2, color: "#638c3d" },
+  { id: 5, icon: "📦", name: "Курьерский ажиотаж", desc: "Выплата за доставку сегодня на 20% выше", type: "courier_pay", mult: 1.2, color: "#a45b35" },
+  { id: 6, icon: "🚕", name: "Час пик", desc: "Выплата водителю такси сегодня на 20% выше", type: "taxi_pay", mult: 1.2, color: "#7956a8" },
+  { id: 7, icon: "🛒", name: "Большой рынок", desc: "На 2 дополнительных объявления и комиссия при покупке 0%", type: "market_slots", mult: 2, color: "#b0306a" },
 ];
 
 export const getDayModifier = () => {
   try {
-    const today = new Date().toISOString().slice(0, 10); 
-    let hash = 0;
-    for (let i = 0; i < today.length; i++) hash = today.charCodeAt(i) + ((hash << 5) - hash);
-    const index = Math.abs(hash) % DAY_MODIFIERS.length;
-    return DAY_MODIFIERS[index] || DAY_MODIFIERS[0]; 
+    // Единый календарный день с московской полуночью, совпадающий с SQL-модификатором.
+    const moscowNow = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    const dayNumber = Math.floor(Date.parse(`${moscowNow.toISOString().slice(0, 10)}T00:00:00Z`) / 86400000);
+    const index = ((dayNumber % DAY_MODIFIERS.length) + DAY_MODIFIERS.length) % DAY_MODIFIERS.length;
+    return DAY_MODIFIERS[index] || DAY_MODIFIERS[0];
   } catch (e) {
     return DAY_MODIFIERS[0];
   }

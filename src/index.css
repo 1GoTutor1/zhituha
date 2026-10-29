@@ -164,6 +164,11 @@ body[data-ui-theme="dark"] {
     repeating-linear-gradient(90deg, transparent 0 119px, rgba(220, 230, 222, .02) 119px 121px);
   color: #eceeea;
 }
+.premium-pass-card {
+  color: var(--text-main);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 82%, #e0b44f), var(--bg-card));
+}
+.vip-crown { color: #d49b2a; fill: rgba(212, 155, 42, .22); }
 body[data-ui-theme="dark"] .soviet-panel,
 body[data-ui-theme="dark"] [style*="#fbf4e4"],
 body[data-ui-theme="dark"] [style*="#fdf7e9"],

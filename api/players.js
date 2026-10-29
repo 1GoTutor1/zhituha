@@ -55,7 +55,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Invalid player id' });
       }
       const { data: target, error: targetError } = await sb.from('players')
-        .select('id, telegram_id, nickname, gender, avatar_id, money, referral_balance, has_car, car_model, has_house, house_type, phone_count, profile_frame, profile_background, player_level, player_xp, active_profession, unlocked_professions, is_banned')
+        .select('id, telegram_id, nickname, gender, avatar_id, money, referral_balance, has_car, car_model, has_house, house_type, phone_count, profile_frame, profile_background, premium_until, player_level, player_xp, active_profession, unlocked_professions, is_banned')
         .eq('id', targetId).maybeSingle();
       if (targetError) throw targetError;
       if (!target || target.is_banned) return res.status(404).json({ error: 'Player profile not found' });
@@ -92,6 +92,8 @@ export default async function handler(req, res) {
           phone_count: target.phone_count,
           profile_frame: target.profile_frame,
           profile_background: target.profile_background,
+          premium_until: target.premium_until,
+          premium_active: !!target.premium_until && new Date(target.premium_until).getTime() > Date.now(),
           player_level: target.player_level,
           player_xp: target.player_xp,
           active_profession: target.active_profession,

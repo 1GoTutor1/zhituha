@@ -96,7 +96,12 @@ export default async function handler(req, res) {
     if (error) throw error;
     if (data?.error) return res.status(400).json({ error: data.error });
     const updatedPlayer = data?.player || null;
-    return res.status(200).json({ player: updatedPlayer, message: action === 'equip' ? 'Профиль обновлён' : action === 'purchase' ? 'Покупка успешна' : 'Обмен успешен' });
+    const message = action === 'equip'
+      ? 'Профиль обновлён'
+      : action === 'purchase' && itemId === 'premium_14d'
+        ? 'VIP Premium продлён на 14 дней'
+        : action === 'purchase' ? 'Покупка успешна' : 'Обмен успешен';
+    return res.status(200).json({ player: updatedPlayer, message });
   } catch (error) {
     console.error('Donation request failed:', error?.message || error);
     return res.status(500).json({ error: 'Не удалось выполнить операцию' });

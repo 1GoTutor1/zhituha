@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Sun, Moon, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront } from 'lucide-react';
+import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Sun, Moon, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront, Crown } from 'lucide-react';
 import { 
   getAvatar, BUILDING_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier, COFFEE_CUP_PRICE,
@@ -260,6 +260,7 @@ export const HomeTab = ({ app }: { app: any }) => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'Russo One, Impact, sans-serif' }}>{app.nick}</div>
+              {Date.parse(app.premiumUntil || '') > Date.now() && <Crown size={17} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}
               <button onClick={() => app.setRefOpen(true)} style={{ background: 'rgba(192,69,58,0.12)', border: '1px solid #c0453a', color: '#c0453a', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><UserPlus size={16} /></button>
               <button onClick={() => app.setPromoOpen(true)} style={{ background: 'rgba(63,157,85,0.15)', border: '1px solid #3f9d55', color: '#3f9d55', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Gift size={16} /></button>
               <button onClick={() => app.setBugOpen(true)} style={{ background: 'rgba(192,69,58,0.12)', border: '1px solid #c0453a', color: '#c0453a', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Bug size={16} /></button>
@@ -267,7 +268,6 @@ export const HomeTab = ({ app }: { app: any }) => {
             <div style={{ fontSize: 13, color: '#6b5f45', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
               ID: {app.tgId.slice(0, 6)}
               {app.boostEnd > Date.now() && <span style={{ color: '#c0453a', fontWeight: 'bold', marginLeft: 5, fontSize: 11, border: '1px solid #c0453a', padding: '1px 4px', borderRadius: 4 }}>x1.1 БУСТ</span>}
-              {app.profileFrame === 'frame_test' && <span style={{ color: '#087f70', fontWeight: 'bold', marginLeft: 4, fontSize: 10, border: '1px solid #63e6be', padding: '1px 5px', borderRadius: 5 }}>TEST</span>}
             </div>
           </div>
         </div>
@@ -278,7 +278,7 @@ export const HomeTab = ({ app }: { app: any }) => {
       </div>
 
       <div className="home-event-card" onClick={() => app.setModifierOpen(true)} style={{ backgroundColor: 'rgba(90,70,40,0.08)', border: `1px solid ${modifier.color}`, borderRadius: 8, padding: 12, marginBottom: 15, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-        <div style={{ fontSize: 20 }}>🔥</div>
+        <div style={{ fontSize: 20 }}>{modifier.icon}</div>
         <div style={{ textAlign: 'left', flex: 1 }}>
           <div style={{ fontWeight: 'bold', color: modifier.color, fontSize: 14 }}>{modifier.name}</div>
           <div style={{ fontSize: 12, color: '#6b5f45' }}>{modifier.desc}</div>
@@ -1067,7 +1067,7 @@ export const AdminTab = ({ app }: { app: any }) => {
                 <h4 style={{ margin: '0 0 10px 0' }}>Выдать косметику</h4>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <select aria-label="Косметика для выдачи" value={grantCosmeticId} onChange={e => setGrantCosmeticId(e.target.value)} style={{ ...S.input, marginBottom: 0, flex: 1 }}>
-                    <option value="frame_test">Рамка TEST</option>
+                    <option value="frame_test">Мятная рамка</option>
                     <option value="frame_amber">Янтарная рамка</option>
                     <option value="background_concrete">Фон «Бетон»</option>
                     <option value="background_brick">Фон «Кирпич»</option>
@@ -1283,7 +1283,7 @@ export const JobsTab = ({ app }: { app: any }) => {
 };
 
 const PREMIUM_ITEMS = [
-  { id: 'frame_test', name: 'Рамка TEST', price: 120, icon: '🧪', description: 'Фирменная рамка TEST для твоего профиля' },
+  { id: 'frame_test', name: 'Мятная рамка', price: 120, icon: '🟢', description: 'Мятный контур вокруг аватара в профиле' },
   { id: 'frame_amber', name: 'Янтарная рамка', price: 60, icon: '🟠', description: 'Тёплый янтарный ободок вокруг аватара' },
   { id: 'background_concrete', name: 'Фон игры «Бетон»', price: 90, icon: '🏙️', description: 'Меняет фон всей игровой страницы' },
   { id: 'background_brick', name: 'Фон «Кирпичный дом»', price: 40, icon: '🧱', description: 'Тёплая кирпичная кладка на фоне всей игры' },
@@ -1298,7 +1298,7 @@ const frameStyle = (frame: string) => frame === 'frame_test'
     : { border: '3px solid rgba(90,70,40,.28)' };
 
 const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profile: any, loading: boolean, vehicleState?: any, onClose: () => void }) => {
-  const frameNames: Record<string, string> = { frame_test: 'Рамка TEST', frame_amber: 'Янтарная рамка' };
+  const frameNames: Record<string, string> = { frame_test: 'Мятная рамка', frame_amber: 'Янтарная рамка' };
   const backgroundNames: Record<string, string> = PROFILE_BACKGROUND_NAMES;
   const businessNames: Record<string, string> = {
     coffee: 'Кофейня', salon: 'Автосалон', taxi: 'Таксопарк',
@@ -1311,8 +1311,7 @@ const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profi
       {loading ? <p style={{ color: '#6b5f45' }}>Загружаю профиль…</p> : profile && <>
         <div className="profile-hero-card" style={{ ...S.card, textAlign: 'center', padding: 18, marginBottom: 12 }}>
           <div style={{ width: 76, height: 76, margin: '0 auto 10px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: avatar.bg, ...frameStyle(profile.profile_frame) }}>{avatar.emoji}</div>
-          {profile.profile_frame === 'frame_test' && <div style={{ display: 'inline-block', marginBottom: 6, padding: '3px 10px', borderRadius: 12, color: '#073b35', background: '#63e6be', fontFamily: 'Russo One', fontSize: 11, letterSpacing: 1 }}>TEST</div>}
-          <h3 style={{ margin: 0, fontFamily: 'Russo One' }}>{profile.nickname}</h3>
+          <h3 style={{ margin: 0, fontFamily: 'Russo One', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>{profile.nickname}{profile.premium_active && <Crown size={18} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}</h3>
           {(profile.family_awards || []).map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
         </div>
         <div style={{ ...S.card, padding: 15, textAlign: 'left' }}>
@@ -1365,8 +1364,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
     <h2>Профиль</h2>
     <div className="profile-hero-card" style={{ ...S.card, textAlign: 'center', padding: 24 }}>
       <div style={{ width: 92, height: 92, margin: '0 auto 12px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 48, background: avatar.bg, ...frameStyle(app.profileFrame) }}>{avatar.emoji}</div>
-      {app.profileFrame === 'frame_test' && <div style={{ display: 'inline-block', marginBottom: 8, padding: '3px 10px', borderRadius: 12, color: '#073b35', background: '#63e6be', fontFamily: 'Russo One', fontSize: 11, letterSpacing: 1 }}>TEST</div>}
-      <div style={{ fontSize: 23, fontFamily: 'Russo One' }}>{app.nick}</div>
+      <div style={{ fontSize: 23, fontFamily: 'Russo One', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>{app.nick}{Date.parse(app.premiumUntil || '') > Date.now() && <Crown size={20} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}</div>
       {familyProfile && <div style={{ marginTop: 6, color: '#3f9d65', fontWeight: 700 }}>[{familyProfile.tag}] {familyProfile.name}</div>}
       {familyAwards.map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
       <div style={{ color: '#6b5f45', marginTop: 6 }}>ID: {app.tgId.slice(0, 6)} · имя нельзя менять</div>
@@ -1398,9 +1396,9 @@ export const ProfileTab = ({ app }: { app: any }) => {
     {section === 'cosmetics' && <>
       <div className="profile-section-card" style={S.card}>
         <h3 style={{ marginTop: 0 }}>{'\u041F\u0440\u0438\u043C\u0435\u043D\u0451\u043D\u043D\u0430\u044F \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0430'}</h3>
-        <p>{'\u0420\u0430\u043C\u043A\u0430'}: <b>{app.profileFrame === 'frame_test' ? 'TEST' : app.profileFrame === 'frame_amber' ? '\u042F\u043D\u0442\u0430\u0440\u043D\u0430\u044F' : '\u0421\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u0430\u044F'}</b></p>
+        <p>{'\u0420\u0430\u043C\u043A\u0430'}: <b>{app.profileFrame === 'frame_test' ? 'Мятная' : app.profileFrame === 'frame_amber' ? '\u042F\u043D\u0442\u0430\u0440\u043D\u0430\u044F' : '\u0421\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u0430\u044F'}</b></p>
         <p>{'Фон'}: <b>{PROFILE_BACKGROUND_NAMES[app.profileBackground] || 'Стандартный'}</b></p>
-        {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...frameStyle(id) }}>{id === 'frame_test' ? '\uD83E\uDDEA TEST' : '\uD83D\uDFE0'}</button>)}
+        {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...frameStyle(id) }}>{id === 'frame_test' ? '🟢 Мятная рамка' : '🟠 Янтарная рамка'}</button>)}
         {['background_concrete', 'background_brick', 'background_panelka'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...getProfileBackground(id) }}>Установить: {PROFILE_BACKGROUND_NAMES[id]}</button>)}
         <button onClick={() => app.donateAction('equip', { item_id: 'default' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%' }}>{'\u0412\u0435\u0440\u043D\u0443\u0442\u044C \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u0439 \u0432\u0438\u0434'}</button>
       </div>
@@ -1422,6 +1420,8 @@ export const ProfileTab = ({ app }: { app: any }) => {
 export const ShopTab = ({ app }: { app: any }) => {
   const [moneyAmount, setMoneyAmount] = useState('2500');
   const [premiumAmount, setPremiumAmount] = useState('1');
+  const premiumActive = Date.parse(app.premiumUntil || '') > Date.now();
+  const premiumExpiry = premiumActive ? new Date(app.premiumUntil).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : '';
   return (
   <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h2>Донат</h2><button onClick={() => app.setTab('home')} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 12px', fontSize: 12 }}>На главную</button></div>
@@ -1440,6 +1440,12 @@ export const ShopTab = ({ app }: { app: any }) => {
     </div>
     <div style={S.card}>
       <h3 style={{ marginTop: 0 }}>{'\u0423\u043B\u0443\u0447\u0448\u0435\u043D\u0438\u044F \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430'}</h3>
+      <div style={{ margin: '0 0 9px', color: '#7656a8', fontWeight: 700 }}>Баланс: {app.premiumBalance} жетонов</div>
+      <div className="premium-pass-card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 13, marginBottom: 14, border: '1px solid rgba(212,155,42,.48)', borderRadius: 14, textAlign: 'left' }}>
+        <Crown size={30} aria-hidden="true" style={{ color: '#bd8420', flexShrink: 0 }} />
+        <div style={{ flex: 1 }}><b style={{ fontSize: 17 }}>VIP Premium · 14 дней</b><div style={{ color: '#6b5f45', fontSize: 12, marginTop: 3 }}>×2 шанс редкой и эпической находки. Бонус складывается с удачей семьи. Покупки продлевают срок.</div>{premiumActive && <small style={{ display: 'block', marginTop: 5, color: '#328357' }}>Активен до {premiumExpiry}</small>}</div>
+        <button onClick={() => app.donateAction('purchase', { item_id: 'premium_14d' })} disabled={app.proc || app.premiumBalance < 499} style={{ ...S.btnPurple, padding: '9px 11px', whiteSpace: 'nowrap' }}>499 жет.</button>
+      </div>
       {PREMIUM_ITEMS.filter(item => item.id === 'market_slots_2').map(item => <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}>
         <span style={{ fontSize: 27 }}>{item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
         <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || app.marketSlots >= 9 || app.premiumBalance < item.price} style={{ ...S.btnPurple, padding: '8px 10px' }}>{app.marketSlots >= 9 ? '\u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C' : `${item.price} \u25C6`}</button>
