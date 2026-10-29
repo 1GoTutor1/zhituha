@@ -235,18 +235,18 @@ export const CasinoTab = ({ app }: { app: any }) => {
   });
 
   const betBtn = (val: string, label: string, style?: any, disabled?: boolean) => (
-    <button key={val} onClick={() => { if (!disabled) { setChoice(val); hapticFeedback('light'); } }}
+    <button key={val} className={`casino-bet-option${choice === val ? ' is-selected' : ''}`} onClick={() => { if (!disabled) { setChoice(val); hapticFeedback('light'); } }}
       style={{ padding: '10px 6px', borderRadius: 8, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: "'Russo One', sans-serif", fontSize: 12, textTransform: 'uppercase',
         background: choice === val ? '#c98a10' : '#fbf4e4', color: choice === val ? '#fff8e6' : '#5a4a2f',
         border: choice === val ? '2px solid #8a5d0a' : '2px solid rgba(90,70,40,0.25)', opacity: disabled ? 0.4 : 1, ...style }}>{label}</button>
   );
 
   return (
-    <div style={{ textAlign: 'center' }}>
+    <div className="casino-page" style={{ textAlign: 'center' }}>
       <h2 style={{ fontFamily: "'Russo One', sans-serif", textTransform: 'uppercase', letterSpacing: 1 }}>🎰 Казино «Золотое дно»</h2>
 
       {/* Табло фазы — свой текст под каждую игру */}
-      <div style={{ background: '#2f2a1d', color: '#ffd23f', borderRadius: 10, padding: '12px 16px', margin: '10px 0', fontFamily: "'Russo One', sans-serif", boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.08), 0 4px 0 rgba(90,70,40,0.35)' }}>
+      <div className="casino-phase-panel" data-phase={round?.status || 'loading'} style={{ background: '#2f2a1d', color: '#ffd23f', borderRadius: 10, padding: '12px 16px', margin: '10px 0', fontFamily: "'Russo One', sans-serif", boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.08), 0 4px 0 rgba(90,70,40,0.35)' }}>
         {!round && <>{'\u23F3'} {syncIssue ? '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0440\u0430\u0443\u043d\u0434 \u00b7 \u0436\u0434\u0451\u043c \u043e\u0442\u0432\u0435\u0442\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0430' : syncAgeSeconds !== null ? '\u0420\u0430\u0443\u043d\u0434 \u0435\u0449\u0451 \u043d\u0435 \u0441\u043e\u0437\u0434\u0430\u043d \u00b7 \u0441\u0435\u0440\u0432\u0435\u0440 \u043e\u0442\u0432\u0435\u0447\u0430\u0435\u0442' : '\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0435\u043c\u0441\u044f \u043a \u0440\u0430\u0443\u043d\u0434\u0443\u2026'}</>}
         {round && phase === 'betting' && msLeft > 0 && <>{'\u23f1'} {'\u041f\u0440\u0438\u0451\u043c \u0441\u0442\u0430\u0432\u043e\u043a \u00b7 \u0434\u043e \u0441\u043f\u0438\u043d\u0430'} <span style={{ color: msLeft < 6000 ? '#ff9a8d' : '#ffd23f' }}>{msLeftInt}{'\u0441'}</span></>}
         {round && phase === 'betting' && msLeft <= 0 && <>{'\u23f3'} {'\u0421\u0442\u0430\u0432\u043a\u0438 \u0437\u0430\u043a\u0440\u044b\u0442\u044b \u00b7 \u0437\u0430\u043f\u0443\u0441\u043a \u0441\u043f\u0438\u043d\u0430 \u0437\u0430\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044f'} {phaseOverdueSeconds}{'\u0441'}</>}
@@ -254,13 +254,13 @@ export const CasinoTab = ({ app }: { app: any }) => {
         {round && phase === 'spinning' && spinDoneWaitingResult && <>{'\u23f3'} {'\u0421\u043f\u0438\u043d \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d \u00b7 \u0436\u0434\u0451\u043c \u0440\u0430\u0441\u0447\u0451\u0442 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430'} {phaseOverdueSeconds}{'\u0441'}</>}
         {round && phase === 'result' && <>{'\u2705'} {'\u0418\u0442\u043e\u0433\u0438 \u0440\u0430\u0443\u043d\u0434\u0430 \u00b7 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0447\u0435\u0440\u0435\u0437'} <span style={{ color: '#ffd23f' }}>{msLeftInt}{'\u0441'}</span></>}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', margin: '-3px 0 10px', color: '#6b5f45', fontSize: 12 }}>
+      <div className="casino-round-meta" style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', margin: '-3px 0 10px', color: '#6b5f45', fontSize: 12 }}>
         <span>👥 Ставок в раунде: <b>{round?.bet_count || 0}</b> · сумма: <b>{(round?.bet_total || 0).toLocaleString('ru-RU')}₽</b></span>
         <span style={{ color: syncColor }}>{'\u25CF'} {syncStatus}</span>
       </div>
 
       {/* Визуал текущей игры: крутится ТОЛЬКО активная вкладка */}
-      <div style={{ margin: '8px 0' }}>
+      <div className="casino-visual-stage" style={{ margin: '8px 0' }}>
         {game === 'roulette' && (
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
             {(() => {
@@ -384,7 +384,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
           </div>
         )}
         {game === 'race' && (
-          <div style={{ background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: '10px 12px', textAlign: 'left' }}>
+          <div className="casino-race-track" style={{ background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: '10px 12px', textAlign: 'left' }}>
             {phase === 'spinning' ? (
               RACE_CARS.map((c, idx) => {
                 // Позиции привязаны к серверному результату и общему времени раунда:
@@ -414,25 +414,25 @@ export const CasinoTab = ({ app }: { app: any }) => {
 
       {/* История выбранной игры */}
       {game === 'roulette' && rouletteHistory.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-          {rouletteHistory.map((n, i) => <span key={i} style={{ width: 22, height: 22, borderRadius: '50%', background: wheelColor(n), color: '#fff', fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{n}</span>)}
+        <div className="casino-history-row" style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+          {rouletteHistory.map((n, i) => <span className="casino-history-chip" key={i} style={{ width: 22, height: 22, borderRadius: '50%', background: wheelColor(n), color: '#fff', fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{n}</span>)}
         </div>
       )}
       {game === 'dice' && diceHistory.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-          {diceHistory.map((sum, i) => <span key={i} style={{ padding: '4px 8px', borderRadius: 7, background: '#fbf4e4', color: '#5a4a2f', border: '1px solid rgba(90,70,40,.25)', fontSize: 12, fontWeight: 'bold' }}>🎲 {sum}</span>)}
+        <div className="casino-history-row" style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+          {diceHistory.map((sum, i) => <span className="casino-history-chip" key={i} style={{ padding: '4px 8px', borderRadius: 7, background: '#fbf4e4', color: '#5a4a2f', border: '1px solid rgba(90,70,40,.25)', fontSize: 12, fontWeight: 'bold' }}>🎲 {sum}</span>)}
         </div>
       )}
       {game === 'race' && raceHistory.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-          {raceHistory.map((winner, i) => { const car = RACE_CARS.find(c => c.id === winner); return <span key={i} title={car?.name || winner} style={{ padding: '4px 8px', borderRadius: 7, background: '#fbf4e4', color: '#5a4a2f', border: '1px solid rgba(90,70,40,.25)', fontSize: 12, fontWeight: 'bold' }}>{car?.emoji || '🏁'} {car?.name || winner}</span>; })}
+        <div className="casino-history-row" style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+          {raceHistory.map((winner, i) => { const car = RACE_CARS.find(c => c.id === winner); return <span className="casino-history-chip" key={i} title={car?.name || winner} style={{ padding: '4px 8px', borderRadius: 7, background: '#fbf4e4', color: '#5a4a2f', border: '1px solid rgba(90,70,40,.25)', fontSize: 12, fontWeight: 'bold' }}>{car?.emoji || '🏁'} {car?.name || winner}</span>; })}
         </div>
       )}
 
       {/* Выбор игры */}
-      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 12 }}>
+      <div className="casino-game-tabs" style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 12 }}>
         {(['roulette', 'dice', 'race'] as const).map(g => (
-          <button key={g} onClick={() => { setGame(g); setChoice(null); }}
+          <button key={g} className={`casino-game-tab${game === g ? ' is-active' : ''}`} onClick={() => { setGame(g); setChoice(null); }}
             style={{ padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: "'Russo One', sans-serif", fontSize: 12, textTransform: 'uppercase',
               background: game === g ? '#3d7ea6' : '#fbf4e4', color: game === g ? '#fff' : '#5a4a2f', border: '2px solid rgba(90,70,40,0.25)' }}>
             {g === 'roulette' ? 'Рулетка' : g === 'dice' ? 'Кости' : 'Гонки'}
@@ -441,7 +441,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
       </div>
 
       {/* Ставки */}
-      <div style={{ background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: 14, boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.6)' }}>
+      <div className="casino-bet-panel" style={{ background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: 14, boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.6)' }}>
         {game === 'roulette' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
             {betBtn('red', 'Красное', { background: choice === 'red' ? '#c98a10' : '#c0453a', color: '#fff8e6', ...(choice === 'red' ? { textShadow: '0 1px 0 rgba(0,0,0,0.35)' } : {}) }, !canBet)}
@@ -471,15 +471,15 @@ export const CasinoTab = ({ app }: { app: any }) => {
         )}
 
         {/* Сумма ставки */}
-        <div style={{ marginTop: 12, display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div className="casino-stake-presets" style={{ marginTop: 12, display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
           {[100, 500, 1000, 5000, 25000].map(v => (
-            <button key={v} onClick={() => { setBetAmount(v); hapticFeedback('light'); }} disabled={!canBet}
+            <button key={v} className={`casino-stake-button${betAmount === v ? ' is-selected' : ''}`} onClick={() => { setBetAmount(v); hapticFeedback('light'); }} disabled={!canBet}
               style={{ padding: '6px 10px', borderRadius: 8, cursor: canBet ? 'pointer' : 'not-allowed', fontSize: 12, fontWeight: 'bold',
                 background: betAmount === v ? '#3d7ea6' : '#fbf4e4', color: betAmount === v ? '#fff' : '#5a4a2f', border: '2px solid rgba(90,70,40,0.25)', opacity: canBet ? 1 : 0.4 }}>
               {v.toLocaleString('ru')}₽
             </button>
           ))}
-          <button type="button" onClick={() => { setBetAmount(allInBet); hapticFeedback('light'); }} disabled={!canBet || allInBet < 100}
+          <button type="button" className={`casino-stake-button casino-all-in${betAmount === allInBet && allInBet >= 100 ? ' is-selected' : ''}`} onClick={() => { setBetAmount(allInBet); hapticFeedback('light'); }} disabled={!canBet || allInBet < 100}
             title="Поставить весь доступный баланс, но не больше лимита 100 000 ₽"
             style={{ padding: '6px 10px', borderRadius: 8, cursor: canBet && allInBet >= 100 ? 'pointer' : 'not-allowed', fontSize: 12, fontWeight: 'bold',
               background: betAmount === allInBet && allInBet >= 100 ? '#c0453a' : '#fbf4e4', color: betAmount === allInBet && allInBet >= 100 ? '#fff' : '#5a4a2f', border: '2px solid rgba(90,70,40,0.25)', opacity: canBet && allInBet >= 100 ? 1 : 0.4 }}>
@@ -487,7 +487,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
           </button>
         </div>
 
-        <div style={{ marginTop: 12, fontSize: 14, fontFamily: "'Russo One', sans-serif" }}>
+        <div className="casino-balance" style={{ marginTop: 12, fontSize: 14, fontFamily: "'Russo One', sans-serif" }}>
           Баланс: <AnimatedNumber value={money} format={(n) => n.toLocaleString('ru-RU') + '₽'} />
         </div>
         <Btn variant="primary" onClick={placeBet} disabled={!canBet || !choice} style={{ marginTop: 10, width: '100%' }}>
@@ -497,10 +497,10 @@ export const CasinoTab = ({ app }: { app: any }) => {
 
       {/* Мои ставки этого раунда */}
       {myBets.filter(b => b.game_type === game).length > 0 && (
-        <div style={{ marginTop: 12, background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: 10 }}>
+        <div className="casino-my-bets" style={{ marginTop: 12, background: '#efe4c8', border: '2px solid rgba(90,70,40,0.25)', borderRadius: 12, padding: 10 }}>
           <div style={{ fontFamily: "'Russo One', sans-serif", fontSize: 12, textTransform: 'uppercase', marginBottom: 6 }}>Мои ставки</div>
           {myBets.filter(b => b.game_type === game).map((b, i, visibleBets) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: i < visibleBets.length - 1 ? '1px dashed rgba(90,70,40,0.25)' : 'none' }}>
+            <div key={i} className="casino-bet-history-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '8px 0', borderBottom: i < visibleBets.length - 1 ? '1px dashed rgba(90,70,40,0.25)' : 'none' }}>
               <span>{b.game_type === 'roulette' ? '🎡' : b.game_type === 'dice' ? '🎲' : '🏁'} {b.bet_choice}</span>
               <span style={{ fontWeight: 'bold' }}>{b.amount.toLocaleString('ru')}₽</span>
               <span style={{ color: b.status === 'won' ? '#2c7a3c' : b.status === 'lost' ? '#c0453a' : '#6b5f45' }}>

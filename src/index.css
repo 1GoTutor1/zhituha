@@ -553,3 +553,267 @@ body[data-ui-theme="dark"] .family-treasury-balance b { color: #8bd3a4; }
   .family-rank-row,.family-history-row { align-items: flex-start; flex-direction: column; gap: 4px; }
 }
 @media (prefers-reduced-motion: reduce) { .access-spinner, .access-progress span { animation-duration: 8s; } }
+
+/* A calm, consistent surface layer that stays readable over cosmetic backgrounds. */
+:root {
+  --surface-raised: #fffaf0;
+  --surface-soft: #f4ecd9;
+  --surface-line: rgba(77, 69, 52, .15);
+  --surface-shadow: 0 8px 24px rgba(54, 45, 29, .09);
+  --surface-radius: 17px;
+}
+:root[data-ui-theme="dark"] {
+  --surface-raised: #252b27;
+  --surface-soft: #202522;
+  --surface-line: rgba(220, 230, 222, .13);
+  --surface-shadow: 0 10px 28px rgba(0, 0, 0, .25);
+}
+.game-content-backplate {
+  width: min(560px, 100%);
+  padding: clamp(13px, 3.5vw, 18px);
+  border: 1px solid var(--surface-line);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--bg-card) 98%, transparent);
+  box-shadow: 0 18px 44px rgba(36, 34, 26, .14);
+  backdrop-filter: blur(16px) saturate(1.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+}
+body[data-ui-theme="dark"] .game-content-backplate {
+  background: color-mix(in srgb, var(--bg-card) 98%, transparent);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .28);
+}
+.game-tab { width: 100%; text-align: left; }
+.game-tab h2 { margin: 2px 0 14px; font-size: clamp(20px, 5vw, 24px); line-height: 1.15; }
+.game-tab h3 { line-height: 1.25; }
+.game-content-backplate button:focus-visible,
+.game-content-backplate input:focus-visible,
+.game-content-backplate select:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent-blue) 58%, transparent); outline-offset: 2px; }
+.home-player-header {
+  align-items: center !important; gap: 10px; padding: 11px 12px;
+  border: 1px solid var(--surface-line); border-radius: 18px;
+  background: var(--surface-raised); box-shadow: var(--surface-shadow);
+}
+.home-player-header > div:first-child { min-width: 0; }
+.home-player-header > div:first-child > div:nth-child(2) > div:last-child { color: var(--text-muted) !important; }
+.home-player-header > div:first-child > div:nth-child(2) > div:first-child > div:first-child { overflow: hidden; max-width: 185px; text-overflow: ellipsis; white-space: nowrap; }
+.home-player-header > div:last-child { flex: 0 0 auto; }
+.home-player-header > div:last-child button { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px !important; background: var(--surface-soft) !important; color: var(--text-muted) !important; }
+.home-event-card { min-height: 64px; border-radius: 15px !important; background: var(--surface-raised) !important; box-shadow: var(--surface-shadow); }
+.home-event-card > div:nth-child(2) > div:last-child,.home-event-card > div:last-child { color: var(--text-muted) !important; }
+.home-shortcuts { gap: 10px; }
+.home-shortcut {
+  min-height: 86px; margin: 0 !important; border: 1px solid var(--surface-line) !important;
+  border-radius: 16px !important; background: var(--surface-raised) !important;
+  color: var(--text-main) !important; box-shadow: var(--surface-shadow);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.home-shortcut:active { transform: translateY(1px) scale(.985); }
+.home-premium-actions { gap: 10px; }
+.home-premium-actions .soviet-btn { min-height: 48px; border-radius: 13px !important; }
+.home-cash-card { border-radius: 16px !important; background: var(--surface-raised) !important; box-shadow: var(--surface-shadow); }
+.profession-work-card { border-radius: 20px; background: var(--surface-raised); box-shadow: var(--surface-shadow); }
+.profession-action-button { min-height: 52px; border-radius: 14px; box-shadow: 0 3px 0 rgba(36, 92, 56, .2); }
+.market-heading h2 { margin: 0; }
+.market-slot-summary {
+  justify-content: flex-start !important; width: fit-content; max-width: 100%; padding: 9px 12px;
+  border: 1px solid var(--surface-line); border-radius: 12px; background: var(--surface-soft); color: var(--text-muted) !important;
+}
+.market-slot-summary b { color: var(--text-main) !important; }
+.market-category-tabs,.market-rank-tabs {
+  gap: 4px !important; padding: 5px !important; border: 1px solid var(--surface-line);
+  border-radius: 14px !important; background: var(--surface-soft) !important;
+}
+.market-category-tabs button,.market-rank-tabs button { min-height: 38px; border-radius: 10px !important; font-size: 11px !important; }
+.market-item-card,.market-rank-row,.market-page > section,.job-vacancy-card,.job-current-card,.profile-section-card {
+  border: 1px solid var(--surface-line) !important; border-radius: var(--surface-radius) !important;
+  background: var(--surface-raised) !important; color: var(--text-main) !important; box-shadow: var(--surface-shadow);
+}
+.market-item-card { min-height: 82px; gap: 12px; padding: 13px !important; }
+.market-item-card > div:first-child { min-width: 0; }
+.market-item-card > div:first-child > div:first-child { line-height: 1.25; }
+.market-item-card > div:last-child { flex: 0 0 auto; }
+.market-item-card > div:first-child > div:last-child { color: var(--text-muted) !important; }
+.market-rank-row { min-height: 58px; transition: transform .15s ease, box-shadow .15s ease; }
+.market-rank-row:active { transform: scale(.99); }
+.job-vacancy-card { min-height: 90px; gap: 12px; padding: 14px !important; }
+.job-vacancy-card > div:first-child { min-width: 0; flex: 1; }
+.job-vacancy-card > button { flex: 0 0 auto; min-width: 106px; }
+.job-current-card { padding: 18px !important; }
+.profile-hero-card {
+  border: 1px solid var(--surface-line) !important; border-radius: 22px !important;
+  background: var(--surface-raised) !important; box-shadow: var(--surface-shadow);
+}
+.profile-hero-card > div:nth-last-child(2) { color: var(--text-muted) !important; }
+.profile-section-tabs { gap: 5px; padding: 5px; border: 1px solid var(--surface-line); border-radius: 14px; background: var(--surface-soft); }
+.profile-section-tabs button { min-height: 40px; border-radius: 10px; color: var(--text-muted); transition: background .16s ease, color .16s ease; }
+.profile-section-tabs button.active { background: var(--surface-raised); color: var(--text-main); box-shadow: 0 2px 7px rgba(25, 25, 20, .09); }
+.profile-section-card { max-width: none !important; padding: 17px !important; }
+.profile-business-row { gap: 12px; }
+.profile-business-row button { flex: 0 0 auto; border-radius: 10px; }
+@media (max-width: 390px) {
+  .game-content-backplate { padding: 11px; border-radius: 20px; }
+  .home-player-header { padding: 9px; }
+  .home-player-header > div:first-child > div:nth-child(2) > div:first-child > div:first-child { max-width: 126px; font-size: 16px !important; }
+  .job-vacancy-card { align-items: stretch !important; flex-direction: column; }
+  .job-vacancy-card > button { width: 100% !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-shortcut,.market-rank-row,.profile-section-tabs button { transition: none; }
+}
+
+/* Shared finish: calm surfaces, clear controls and compact mobile layout. */
+.game-content-backplate {
+  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
+}
+body[data-ui-theme="dark"] .game-content-backplate {
+  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
+}
+.soviet-btn {
+  min-height: 46px;
+  border: 1px solid rgba(60, 45, 20, .34) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 3px 8px rgba(40, 35, 25, .15), inset 0 1px 0 rgba(255, 255, 255, .42) !important;
+  transition: transform .15s ease, filter .15s ease, box-shadow .15s ease !important;
+}
+.soviet-btn:not(:disabled):hover {
+  filter: brightness(1.035);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 12px rgba(40, 35, 25, .18), inset 0 1px 0 rgba(255, 255, 255, .42) !important;
+}
+.soviet-btn:not(:disabled):active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 3px rgba(40, 35, 25, .16) !important;
+}
+.soviet-btn:disabled { cursor: not-allowed; }
+.app-modal-backdrop { overscroll-behavior: contain; }
+.app-modal-card {
+  max-height: min(86dvh, 760px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-blue) 62%, transparent);
+  outline-offset: 2px;
+}
+.home-avatar-button {
+  flex: 0 0 auto;
+  padding: 0;
+  color: inherit;
+  box-shadow: 0 4px 12px rgba(30, 35, 30, .14);
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.home-avatar-button:active { transform: scale(.96); }
+.profile-hero-card { padding: clamp(18px, 5vw, 26px) !important; }
+.profile-section-card h3 { margin-bottom: 12px; }
+.profile-section-card p { margin: 8px 0; line-height: 1.45; }
+.market-page > section { padding: 15px !important; }
+.market-page > section > div + div { margin-top: 12px; }
+.bottom-nav-bar {
+  gap: 5px;
+  padding: 8px max(8px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left));
+  border-top-color: var(--surface-line);
+  box-shadow: 0 -8px 24px rgba(30, 32, 28, .08);
+}
+.bottom-nav-item {
+  min-height: 52px;
+  gap: 4px;
+  padding: 6px 2px;
+  color: var(--text-muted);
+  transition: color .16s ease, background .16s ease, transform .16s ease;
+}
+.bottom-nav-item.is-active {
+  border: 1px solid color-mix(in srgb, var(--accent-yellow) 24%, transparent);
+  background: color-mix(in srgb, var(--accent-yellow) 15%, transparent);
+  color: var(--accent-orange);
+}
+.bottom-nav-item:active { transform: scale(.96); }
+.more-menu-sheet { box-shadow: 0 18px 46px rgba(0, 0, 0, .25); }
+body[data-ui-theme="dark"] .bottom-nav-item.is-active {
+  color: #f2c66a;
+  border-color: rgba(242, 198, 106, .2);
+}
+body[data-ui-theme="dark"] .soviet-btn {
+  border-color: rgba(225, 231, 224, .26) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .18) !important;
+}
+@media (max-width: 390px) {
+  .home-player-header { flex-wrap: wrap; }
+  .home-player-header > div:first-child { flex: 1 1 100%; }
+  .home-player-header > div:first-child > div:nth-child(2) > div:first-child { flex-wrap: wrap; row-gap: 3px; }
+  .home-player-header > div:first-child > div:nth-child(2) > div:first-child > button { padding: 5px !important; }
+  .home-player-header > div:last-child {
+    display: flex; width: 100%; align-items: center; justify-content: space-between;
+    margin-top: 7px; text-align: left !important;
+  }
+  .home-player-header > div:last-child button { order: 2; margin: 0 !important; }
+  .home-player-header > div:last-child > div { margin: 0 !important; }
+  .home-shortcuts { gap: 8px; }
+  .home-shortcut { min-height: 76px; }
+  .home-shortcut:first-child,.home-shortcut:last-child { margin: 0 !important; }
+  .bottom-nav-bar { gap: 2px; }
+  .bottom-nav-item { font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .soviet-btn,.home-avatar-button,.bottom-nav-item { transition: none !important; }
+}
+.casino-page > h2 { margin-bottom: 13px; }
+.casino-phase-panel {
+  display: flex; min-height: 54px; align-items: center; justify-content: center; gap: 5px;
+  border: 1px solid rgba(255, 210, 63, .25); border-left: 4px solid var(--accent-yellow);
+  border-radius: 14px !important; box-shadow: 0 8px 20px rgba(28, 24, 16, .18) !important;
+  line-height: 1.4;
+}
+.casino-phase-panel[data-phase="betting"] { border-left-color: var(--accent-green); }
+.casino-phase-panel[data-phase="spinning"] { border-left-color: var(--accent-blue); }
+.casino-phase-panel[data-phase="result"] { border-left-color: var(--accent-yellow); }
+.casino-round-meta { color: var(--text-muted) !important; font-weight: 600; }
+.casino-round-meta > span { padding: 6px 9px; border: 1px solid var(--surface-line); border-radius: 99px; background: var(--surface-raised); }
+.casino-visual-stage { display: grid; place-items: center; min-height: 250px; }
+.casino-race-track,.casino-bet-panel,.casino-my-bets {
+  border: 1px solid var(--surface-line) !important; border-radius: 17px !important;
+  background: linear-gradient(160deg, var(--surface-raised), var(--surface-soft)) !important;
+  box-shadow: var(--surface-shadow) !important; color: var(--text-main);
+}
+.casino-race-track { width: 100%; padding: 15px !important; }
+.casino-bet-panel { padding: clamp(12px, 3.5vw, 18px) !important; }
+.casino-my-bets { padding: 14px !important; text-align: left; }
+.casino-game-tabs { gap: 8px !important; }
+.casino-game-tab {
+  min-height: 45px; flex: 1; max-width: 160px; border: 1px solid var(--surface-line) !important;
+  border-radius: 12px !important; font-size: 12px !important; transition: transform .15s ease, filter .15s ease;
+}
+.casino-game-tab:not(.is-active) { background: var(--surface-raised) !important; color: var(--text-muted) !important; }
+.casino-game-tab.is-active { background: var(--accent-blue) !important; color: #fff !important; box-shadow: 0 4px 10px rgba(61, 126, 166, .24); }
+.casino-game-tab:active,.casino-bet-option:active,.casino-stake-button:active { transform: scale(.97); }
+.casino-bet-option {
+  min-height: 42px; border: 1px solid var(--surface-line) !important; border-radius: 10px !important;
+  font: 700 11px var(--font-body) !important; transition: transform .12s ease, filter .12s ease, background .12s ease;
+  touch-action: manipulation;
+}
+.casino-bet-option.is-selected { filter: brightness(1.04); border-color: color-mix(in srgb, var(--accent-orange) 72%, #54370d) !important; }
+.casino-stake-presets { gap: 7px !important; }
+.casino-stake-button {
+  min-height: 34px; border: 1px solid var(--surface-line) !important; border-radius: 10px !important;
+  background: var(--surface-raised) !important; color: var(--text-main) !important;
+  font: 700 11px var(--font-body) !important; transition: transform .12s ease, background .12s ease;
+}
+.casino-stake-button.is-selected { background: var(--accent-blue) !important; color: #fff !important; border-color: var(--accent-blue) !important; }
+.casino-stake-button.casino-all-in.is-selected { background: var(--accent-red) !important; border-color: var(--accent-red) !important; }
+.casino-stake-button:disabled,.casino-bet-option:disabled { cursor: not-allowed; }
+.casino-balance { padding-top: 12px; border-top: 1px solid var(--surface-line); color: var(--text-main); }
+.casino-history-row { margin: 2px 0 12px; }
+.casino-history-chip { box-shadow: 0 2px 5px rgba(25, 25, 20, .10); }
+.casino-bet-history-row { align-items: center; gap: 9px; border-color: var(--surface-line) !important; }
+.casino-bet-history-row > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 390px) {
+  .casino-visual-stage { min-height: 220px; }
+  .casino-game-tabs { gap: 6px !important; }
+  .casino-bet-history-row { flex-wrap: wrap; }
+  .casino-bet-history-row > span:last-child { flex-basis: 100%; text-align: right; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .casino-game-tab,.casino-bet-option,.casino-stake-button { transition: none; }
+}

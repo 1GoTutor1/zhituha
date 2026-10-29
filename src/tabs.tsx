@@ -253,10 +253,10 @@ export const HomeTab = ({ app }: { app: any }) => {
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
   const modifier = getDayModifier();
   return (
-    <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
+    <div className="game-tab game-tab-home" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+      <div className="home-player-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: '10px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, ...(app.profileFrame === 'frame_test' ? frameStyle('frame_test') : app.profileFrame === 'frame_amber' ? frameStyle('frame_amber') : { border: '2px solid rgba(90,70,40,0.22)' }), cursor: 'pointer', userSelect: 'none' }}>{av.emoji}</div>
+          <button type="button" className="home-avatar-button" aria-label="Открыть профиль" onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: '14px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, ...(app.profileFrame === 'frame_test' ? frameStyle('frame_test') : app.profileFrame === 'frame_amber' ? frameStyle('frame_amber') : { border: '2px solid rgba(90,70,40,0.22)' }), cursor: 'pointer', userSelect: 'none' }}>{av.emoji}</button>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'Russo One, Impact, sans-serif' }}>{app.nick}</div>
@@ -277,7 +277,7 @@ export const HomeTab = ({ app }: { app: any }) => {
         </div>
       </div>
 
-      <div onClick={() => app.setModifierOpen(true)} style={{ backgroundColor: 'rgba(90,70,40,0.08)', border: `1px solid ${modifier.color}`, borderRadius: 8, padding: 12, marginBottom: 15, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+      <div className="home-event-card" onClick={() => app.setModifierOpen(true)} style={{ backgroundColor: 'rgba(90,70,40,0.08)', border: `1px solid ${modifier.color}`, borderRadius: 8, padding: 12, marginBottom: 15, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
         <div style={{ fontSize: 20 }}>🔥</div>
         <div style={{ textAlign: 'left', flex: 1 }}>
           <div style={{ fontWeight: 'bold', color: modifier.color, fontSize: 14 }}>{modifier.name}</div>
@@ -289,11 +289,11 @@ export const HomeTab = ({ app }: { app: any }) => {
       <TutorialCard app={app} />
       <ProfessionWorkCard app={app} />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-        <button onClick={() => app.setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 10, backgroundColor: '#fbf4e4', border: '1px solid rgba(192, 132, 252, 0.3)', color: '#2f2a1d', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+      <div className="home-shortcuts" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <button className="home-shortcut" onClick={() => app.setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 10, backgroundColor: '#fbf4e4', border: '1px solid rgba(192, 132, 252, 0.3)', color: '#2f2a1d', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
           <Briefcase size={24} color="#5f43a0" /><span style={{ fontSize: 13 }}>Бизнесы</span>
         </button>
-        <button onClick={() => app.setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 10, backgroundColor: '#fbf4e4', border: '1px solid rgba(249, 115, 22, 0.3)', color: '#2f2a1d', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+        <button className="home-shortcut" onClick={() => app.setTab('cafe')} style={{ flex: 1, padding: '15px 10px', marginLeft: 10, borderRadius: 10, backgroundColor: '#fbf4e4', border: '1px solid rgba(249, 115, 22, 0.3)', color: '#2f2a1d', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
           <Coffee size={24} color="#b06a15" /><span style={{ fontSize: 13 }}>Пить кофе</span>
         </button>
       </div>
@@ -304,13 +304,13 @@ export const HomeTab = ({ app }: { app: any }) => {
         {app.maintenanceError && <p role="alert" style={{ color: '#c0453a' }}>{app.maintenanceError}</p>}
       </>}
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+      <div className="home-premium-actions" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <button onClick={() => app.setTab('shop')} style={{ ...S.btnPurple, flex: 1, width: 'auto', minWidth: 0, padding: '14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13 }}><Gift size={18} /> Донат</button>
         <button onClick={() => app.setTab('profile')} style={{ ...S.btnSecondary, flex: 1, width: 'auto', minWidth: 0, padding: '14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13 }}><Palette size={18} /> Косметика</button>
       </div>
 
       {myCoffee && (
-        <div style={{ backgroundColor: '#fbf4e4', border: '1px solid rgba(63,157,85,0.35)', borderRadius: 10, padding: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div className="home-cash-card" style={{ backgroundColor: '#fbf4e4', border: '1px solid rgba(63,157,85,0.35)', borderRadius: 10, padding: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ background: 'rgba(63,157,85,0.15)', padding: 10, borderRadius: 12 }}><Coins size={24} color="#2c7a3c" /></div>
             <div><div style={{ fontSize: 16, fontWeight: 'bold' }}>Касса: {myCoffee.business_name}</div><div style={{ fontSize: 12, color: '#6b5f45' }}>Доход: <span style={{ color: '#2c7a3c', fontWeight: 'bold'}}>{myCoffee.coffee_balance || 0}</span> монет</div></div>
@@ -324,7 +324,7 @@ export const HomeTab = ({ app }: { app: any }) => {
 };
 
 export const MarketItem = ({ item, app, type }: any) => (
-  <div style={{ backgroundColor: '#fbf4e4', padding: 15, borderRadius: 10, border: '1px solid rgba(90,70,40,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+  <div className="market-item-card" style={{ backgroundColor: '#fbf4e4', padding: 15, borderRadius: 10, border: '1px solid rgba(90,70,40,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
     <div style={{ textAlign: 'left' }}>
       <div style={{ fontSize: 16, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>
         {type === 'phone' ? (item.item_data === 'button' ? <Phone size={18} color="#6b5f45" /> : <Smartphone size={18} color="#6b5f45" />) 
@@ -385,17 +385,17 @@ export const MarketTab = ({ app }: { app: any }) => {
 
   if (showTop) {
     return (
-      <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+      <div className="game-tab market-page market-leaderboard" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
         <button onClick={() => setShowTop(false)} style={{ background: 'none', border: 'none', color: '#6b5f45', marginBottom: 20, marginTop: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Trophy size={22} color="#b06a15"/>{leaderboardMode === 'money' ? '\u0422\u043e\u043f \u0431\u043e\u0433\u0430\u0447\u0435\u0439' : '\u0422\u043e\u043f \u043f\u043e \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u0430\u043c'}</h2>
-        <div style={{ display: 'flex', gap: 8, marginTop: 14, background: '#fbf4e4', padding: 5, borderRadius: 8 }}>
+        <div className="market-rank-tabs" style={{ display: 'flex', gap: 8, marginTop: 14, background: '#fbf4e4', padding: 5, borderRadius: 8 }}>
           <button onClick={() => setLeaderboardMode('money')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, padding: 10, border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'money' ? '#b06a15' : 'transparent', color: leaderboardMode === 'money' ? '#fff' : '#6b5f45', fontWeight: 'bold' }}><Coins size={15} /> {'\u041f\u043e \u0434\u0435\u043d\u044c\u0433\u0430\u043c'}</button>
           <button onClick={() => setLeaderboardMode('referrals')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, padding: 10, border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'referrals' ? '#c0453a' : 'transparent', color: leaderboardMode === 'referrals' ? '#fff' : '#6b5f45', fontWeight: 'bold' }}><Users size={15} /> {'\u0420\u0435\u0444\u0435\u0440\u0430\u043b\u044b'}</button>
         </div>
         <div style={{ marginTop: 20 }}>
           {topPlayers.length === 0 && <p style={{ color: '#6b5f45' }}>{leaderboardMode === 'referrals' && app.referralLeaderboardUnavailable ? '\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'money' ? '\u041f\u043e\u043a\u0430 \u043d\u0438\u043a\u043e\u0433\u043e...' : '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</p>}
           {topPlayers.map((p: any, i: number) => (
-            <button key={p.id || p.player_id || `${p.nickname}-${i}`} type="button" disabled={publicProfileLoading} onClick={() => void openPlayerProfile(p)} title="Открыть профиль" style={{ width: '100%', backgroundColor: '#fbf4e4', padding: '12px 15px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', marginBottom: 8, color: '#2f2a1d', cursor: publicProfileLoading ? 'wait' : 'pointer', textAlign: 'left', opacity: publicProfileLoading ? 0.7 : 1 }}>
+            <button className="market-rank-row" key={p.id || p.player_id || `${p.nickname}-${i}`} type="button" disabled={publicProfileLoading} onClick={() => void openPlayerProfile(p)} title="Открыть профиль" style={{ width: '100%', backgroundColor: '#fbf4e4', padding: '12px 15px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', marginBottom: 8, color: '#2f2a1d', cursor: publicProfileLoading ? 'wait' : 'pointer', textAlign: 'left', opacity: publicProfileLoading ? 0.7 : 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#b06a15' : i === 1 ? '#5f43a0' : i === 2 ? '#3d7ea6' : '#6b5f45', minWidth: 26 }}>#{i + 1}</span>
                 <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
@@ -415,8 +415,8 @@ export const MarketTab = ({ app }: { app: any }) => {
   }
 
   return (
-    <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
+    <div className="game-tab market-page" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+      <div className="market-heading" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
         <button 
           onClick={() => setShowTop(true)} 
           title="Топ богачей"
@@ -427,11 +427,11 @@ export const MarketTab = ({ app }: { app: any }) => {
         <h2 style={{ margin: 0 }}>Рынок</h2>
       </div>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+      <div className="market-slot-summary" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
         <div style={{ fontSize: 14, color: '#6b5f45' }}>Твои слоты: <b style={{color: '#2f2a1d'}}>{myLots} / {maxSlots}</b></div>
       </div>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#fbf4e4', padding: 5, borderRadius: 8 }}>
+      <div className="market-category-tabs" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#fbf4e4', padding: 5, borderRadius: 8 }}>
         {['items', 'cars', 'realestate', 'shops'].map((t: any) => (
           <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, minWidth: 0, padding: '8px 3px', fontSize: 11, whiteSpace: 'nowrap', border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3d7ea6' : 'transparent', color: app.marketTab === t ? '#f0f7fb' : '#6b5f45', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
             {t === 'items' ? 'Предметы' : t === 'cars' ? 'Авто' : t === 'realestate' ? 'Жильё' : 'Магазины'}
@@ -1211,14 +1211,14 @@ export const JobsTab = ({ app }: { app: any }) => {
     });
 
     return (
-      <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+      <div className="game-tab game-tab-jobs" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
         <button onClick={() => app.setBoardOpen(false)} style={{ background: 'none', border: 'none', color: '#6b5f45', marginBottom: 20, marginTop: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
         <h2>Вакансии</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {boardLoading && availableJobs.length === 0 && <p role="status" style={{ color: '#6b5f45' }}>Обновляем список вакансий...</p>}
           {!boardLoading && availableJobs.length === 0 && <p style={{ color: '#6b5f45' }}>Пока нет свободных мест...</p>}
           {availableJobs.map((job, idx) => (
-            <div key={idx} style={{ backgroundColor: '#fbf4e4', padding: 15, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)' }}>
+            <div key={idx} className="job-vacancy-card" style={{ backgroundColor: '#fbf4e4', padding: 15, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)' }}>
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>{job.role}</div>
                 <div style={{ fontSize: 12, color: '#6b5f45', marginTop: 4 }}>{job.biz.business_name} ({job.biz.owner_name})</div>
@@ -1239,9 +1239,9 @@ export const JobsTab = ({ app }: { app: any }) => {
     const salonPayPercent = app.myJob.role === 'Механик' ? 3 : 5;
     
     return (
-      <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+      <div className="game-tab game-tab-jobs" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
         <h2>Моя работа</h2>
-        <div style={{ backgroundColor: '#fbf4e4', padding: 20, borderRadius: 10, border: '1px solid rgba(90,70,40,0.08)' }}>
+        <div className="job-current-card" style={{ backgroundColor: '#fbf4e4', padding: 20, borderRadius: 10, border: '1px solid rgba(90,70,40,0.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
             <span style={{ fontSize: 18, fontWeight: 'bold' }}>{app.myJob.role}</span>
           </div>
@@ -1272,7 +1272,7 @@ export const JobsTab = ({ app }: { app: any }) => {
   }
 
   return (
-    <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+    <div className="game-tab game-tab-jobs" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <h2>Работа</h2>
       <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}>
         <div style={{ fontSize: 50, marginBottom: 10 }}>📉</div><h3>Вы безработный</h3><p style={{ color: '#6b5f45', fontSize: 14, marginBottom: 20 }}>Пора найти работу!</p>
@@ -1360,7 +1360,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [app.pid, app.supabase]);
-  return <div style={{ maxWidth: 420, margin: '0 auto', animation: 'fadeIn .3s' }}>
+  return <div className="game-tab game-tab-profile" style={{ maxWidth: 420, margin: '0 auto', animation: 'fadeIn .3s' }}>
     <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 0, color: '#6b5f45', cursor: 'pointer', margin: '8px 0 16px' }}>← На главную</button>
     <h2>Профиль</h2>
     <div className="profile-hero-card" style={{ ...S.card, textAlign: 'center', padding: 24 }}>
@@ -1380,14 +1380,14 @@ export const ProfileTab = ({ app }: { app: any }) => {
       <button type="button" role="tab" aria-selected={section === 'businesses'} className={section === 'businesses' ? 'active' : ''} onClick={() => setSection('businesses')}>{'\u0411\u0438\u0437\u043D\u0435\u0441\u044B'}</button>
       <button type="button" role="tab" aria-selected={section === 'cosmetics'} className={section === 'cosmetics' ? 'active' : ''} onClick={() => setSection('cosmetics')}>{'\u041A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0430'}</button>
     </div>
-    {section === 'stats' && <div style={S.card}>
+    {section === 'stats' && <div className="profile-section-card" style={S.card}>
       <h3 style={{ marginTop: 0 }}>{'\u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430'}</h3>
       <p>{'\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u043E'}: <b>{app.myRefs.length}</b></p>
       <p>{'\u0420\u0435\u0444\u0435\u0440\u0430\u043B\u044C\u043D\u044B\u0439 \u0431\u0430\u043B\u0430\u043D\u0441'}: <b>{Number(app.refBalance || 0).toLocaleString('ru-RU')} {'\u20BD'}</b></p>
       <p>{'\u041E\u0442\u043A\u0440\u044B\u0442\u044B\u0445 \u043F\u0440\u043E\u0444\u0435\u0441\u0441\u0438\u0439'}: <b>{(app.career?.unlocked || ['miner']).length}</b> / {PLAYER_PROFESSIONS.length}</p>
       <button onClick={() => app.setTab('inventory')} style={{ ...S.btnSecondary, width: '100%' }}>{'\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C'}</button>
     </div>}
-    {section === 'businesses' && <div style={S.card}>
+    {section === 'businesses' && <div className="profile-section-card" style={S.card}>
       <h3 style={{ marginTop: 0 }}>{'\u041C\u043E\u0438 \u0431\u0438\u0437\u043D\u0435\u0441\u044B'} {'\u00B7'} {app.myBizs.length}/3</h3>
       {app.myBizs.length ? app.myBizs.map((business: any) => <div key={business.id} className="profile-business-row">
         <b>{'\uD83C\uDFE2'} {business.business_name}</b>
@@ -1396,7 +1396,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
       <button onClick={() => { app.loadBusinessCatalog(); app.setTab('business'); }} style={{ ...S.btnSecondary, width: '100%', marginTop: 12 }}>{'\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u0442\u043E\u0447\u0435\u043A'}</button>
     </div>}
     {section === 'cosmetics' && <>
-      <div style={S.card}>
+      <div className="profile-section-card" style={S.card}>
         <h3 style={{ marginTop: 0 }}>{'\u041F\u0440\u0438\u043C\u0435\u043D\u0451\u043D\u043D\u0430\u044F \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0430'}</h3>
         <p>{'\u0420\u0430\u043C\u043A\u0430'}: <b>{app.profileFrame === 'frame_test' ? 'TEST' : app.profileFrame === 'frame_amber' ? '\u042F\u043D\u0442\u0430\u0440\u043D\u0430\u044F' : '\u0421\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u0430\u044F'}</b></p>
         <p>{'Фон'}: <b>{PROFILE_BACKGROUND_NAMES[app.profileBackground] || 'Стандартный'}</b></p>
@@ -1404,7 +1404,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
         {['background_concrete', 'background_brick', 'background_panelka'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...getProfileBackground(id) }}>Установить: {PROFILE_BACKGROUND_NAMES[id]}</button>)}
         <button onClick={() => app.donateAction('equip', { item_id: 'default' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%' }}>{'\u0412\u0435\u0440\u043D\u0443\u0442\u044C \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u0439 \u0432\u0438\u0434'}</button>
       </div>
-      <div style={S.card}>
+      <div className="profile-section-card" style={S.card}>
         <h3 style={{ marginTop: 0 }}>{'\u041C\u0430\u0433\u0430\u0437\u0438\u043D \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0438'}</h3>
         {PREMIUM_ITEMS.filter(item => item.id !== 'market_slots_2').map(item => {
           const owned = app.ownedCosmetics.includes(item.id);

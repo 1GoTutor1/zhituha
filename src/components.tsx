@@ -9,7 +9,7 @@ export const Btn = ({ variant = 'primary', onClick, disabled, children, style = 
 
 export const Modal = ({ open, onClose, children, contentStyle = {} }: any) => {
   if (!open) return null;
-  return <div style={S.modalBg} onClick={onClose}><div style={{ ...S.modalBox, ...contentStyle }} onClick={(e: any) => e.stopPropagation()}>{children}</div></div>;
+  return <div className="app-modal-backdrop" style={S.modalBg} onClick={onClose}><div className="app-modal-card" style={{ ...S.modalBox, ...contentStyle }} onClick={(e: any) => e.stopPropagation()}>{children}</div></div>;
 };
 
 export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) => {
