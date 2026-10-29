@@ -900,7 +900,7 @@ export default function App() {
     setMoney(Number(data.money));
     if (data.coffee_bonus_until) setCoffeeBonusUntil(data.coffee_bonus_until);
     showMsg(data.coffee_bonus_until
-      ? `${data.product_name} ×${data.quantity}: −${Number(data.total).toLocaleString('ru-RU')} ₽ · +10% к заработку на 5 минут`
+      ? `${data.product_name} ×${data.quantity}: −${Number(data.total).toLocaleString('ru-RU')} ₽ · +10% к заработку ещё на ${Number(data.coffee_bonus_minutes)} мин`
       : `${data.product_name} ×${data.quantity}: −${Number(data.total).toLocaleString('ru-RU')} ₽`);
     await Promise.all([refreshBusinessOffers(), refreshProfile()]);
   });

@@ -5,7 +5,7 @@ alter table public.players
   add column if not exists coffee_bonus_until timestamptz;
 
 -- The owner-defined retail price remains the source of truth. This wrapper only
--- adds/refreshes a five-minute bonus after a successful coffee-shop purchase.
+-- adds time to the same +10% timer after each successful coffee-shop purchase.
 do $$
 begin
   if to_regprocedure('public.business_shop_buy_rpc_before_coffee_bonus(uuid,uuid,text,integer)') is null then
@@ -16,7 +16,7 @@ end $$;
 create or replace function public.business_shop_buy_rpc(
   p_player_id uuid,p_business_id uuid,p_product_id text,p_quantity integer)
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public,pg_temp as $$
-declare result_json jsonb; bonus_until timestamptz; purchase_time timestamptz;
+declare result_json jsonb; bonus_until timestamptz; purchase_time timestamptz; minutes_per_cup integer;
 begin
   result_json:=public.business_shop_buy_rpc_before_coffee_bonus(p_player_id,p_business_id,p_product_id,p_quantity);
   if result_json ? 'error' or coalesce((result_json->>'success')::boolean,false) is not true then
@@ -25,18 +25,19 @@ begin
 
   if exists(select 1 from public.business_shop_products
     where product_id=p_product_id and biz_type='coffee') then
-    -- One cup grants five minutes. Bulk purchases stack time instead of
-    -- refreshing the timer; cap banked duration at 24 hours.
+    -- Every coffee gives the same +10% effect; the drink determines its duration.
+    minutes_per_cup:=case p_product_id when 'coffee_small' then 5 when 'coffee_medium' then 7 when 'coffee_large' then 9 else 5 end;
+    -- Bulk purchases and different drinks add to the same timer, capped at 24 hours.
     select greatest(clock_timestamp(), coalesce(coffee_bonus_until, clock_timestamp()))
       into purchase_time
     from public.players where id=p_player_id for update;
-    bonus_until:=purchase_time + make_interval(mins => 5 * p_quantity);
+    bonus_until:=purchase_time + make_interval(mins => minutes_per_cup * p_quantity);
     bonus_until:=least(bonus_until, clock_timestamp()+interval '24 hours');
     update public.players set coffee_bonus_until=bonus_until where id=p_player_id;
     result_json:=result_json || jsonb_build_object(
       'coffee_bonus_until',bonus_until,
       'coffee_bonus_percent',10,
-      'coffee_bonus_minutes',5 * p_quantity
+      'coffee_bonus_minutes',minutes_per_cup * p_quantity
     );
   end if;
   return result_json;

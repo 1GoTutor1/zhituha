@@ -13,6 +13,8 @@ import { AnimatedNumber } from './AnimatedNumber';
 import { ItemArtwork } from './ItemArtwork';
 import { getProfileBackground, PROFILE_BACKGROUND_NAMES } from './profileBackgrounds';
 
+const coffeeBonusMinutes = (productId: string) => productId === 'coffee_small' ? 5 : productId === 'coffee_medium' ? 7 : 9;
+
 export const AppModals = ({ app }: { app: any }) => (
   <>
     {app.career?.pending_reward?.item && <Modal open onClose={() => {}} contentStyle={{ maxWidth: 390, padding: 18, backgroundImage: 'none' }}>
@@ -494,7 +496,7 @@ export const MarketTab = ({ app }: { app: any }) => {
             </div>
             <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
               {(shop.products || []).map((product: any) => <div key={product.product_id} style={{ padding: 10, borderRadius: 9, background: 'rgba(90,70,40,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, textAlign: 'left' }}>
-                <div><b>{product.product_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Остаток: {product.quantity}</div><strong>{Number(product.retail_price).toLocaleString('ru-RU')} ₽</strong>{String(product.product_id).startsWith('coffee_') && <div style={{ fontSize: 11, color: '#327b45', marginTop: 3 }}>Даёт +10% к заработку на 5 минут</div>}</div>
+                <div><b>{product.product_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Остаток: {product.quantity}</div><strong>{Number(product.retail_price).toLocaleString('ru-RU')} ₽</strong>{String(product.product_id).startsWith('coffee_') && <div style={{ fontSize: 11, color: '#327b45', marginTop: 3 }}>Даёт +10% к заработку на {coffeeBonusMinutes(product.product_id)} минут</div>}</div>
                 <button type="button" disabled={app.proc || own || shop.status !== 'open' || product.quantity < 1} onClick={() => { setShopPurchase({ shop, product }); setShopQuantity(1); }} style={{ border: 0, borderRadius: 8, padding: '9px 12px', color: '#fff', background: own || shop.status !== 'open' ? '#a7a092' : '#3f9d55', fontWeight: 700, whiteSpace: 'nowrap' }}>{own ? 'Твой магазин' : 'Купить'}</button>
               </div>)}
             </div>
@@ -514,7 +516,7 @@ export const MarketTab = ({ app }: { app: any }) => {
           {shopPurchase && <>
             <h3 style={{ marginTop: 0 }}>{shopPurchase.product.product_name}</h3>
             <p style={{ color: '#6b5f45' }}>{shopPurchase.shop.business_name} · {Number(shopPurchase.product.retail_price).toLocaleString('ru-RU')} ₽ за штуку</p>
-            {String(shopPurchase.product.product_id).startsWith('coffee_') && <p style={{ color: '#327b45', fontSize: 13, textAlign: 'left' }}>Кофе даёт +10% к заработку от профессий. Каждая чашка добавляет 5 минут к таймеру, до 24 часов. Цену задаёт владелец кофейни.</p>}
+            {String(shopPurchase.product.product_id).startsWith('coffee_') && <p style={{ color: '#327b45', fontSize: 13, textAlign: 'left' }}>Кофе даёт +10% к заработку от профессий. Эта чашка добавляет {coffeeBonusMinutes(shopPurchase.product.product_id)} минут к общему таймеру, покупки суммируются до 24 часов. Цену задаёт владелец кофейни.</p>}
             <label htmlFor="shop-buy-quantity" style={{ display: 'block', textAlign: 'left', marginBottom: 6 }}>Количество</label>
             <input id="shop-buy-quantity" type="number" min={1} max={Math.min(20, Number(shopPurchase.product.quantity))} value={shopQuantity} onChange={event => setShopQuantity(Math.max(1, Math.min(20, Number(event.target.value) || 1)))} style={S.input} />
             <p style={{ margin: '0 0 12px', textAlign: 'left' }}>Итого: <b>{(Number(shopPurchase.product.retail_price) * shopQuantity).toLocaleString('ru-RU')} ₽</b></p>
@@ -1246,7 +1248,7 @@ export const CafeTab = ({ app }: { app: any }) => {
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <h2>Кофейни</h2>
-      <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={42} color="#b06a15" /><h3>Кофе с бонусом</h3><p style={{ color: '#6b5f45' }}>Покупай напиток в кофейне игрока: цена назначена владельцем, а покупка даёт +10% к заработку профессий на 5 минут.</p><Btn variant="primary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Открыть кофейни в магазинах</Btn></div>
+      <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={42} color="#b06a15" /><h3>Кофе с бонусом</h3><p style={{ color: '#6b5f45' }}>Каждый напиток даёт +10% к заработку профессий: эспрессо на 5 минут, капучино на 7, большой латте на 9. Время разных чашек суммируется.</p><Btn variant="primary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Открыть кофейни в магазинах</Btn></div>
     </div>
   );
 };
