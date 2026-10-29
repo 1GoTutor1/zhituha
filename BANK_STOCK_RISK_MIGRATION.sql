@@ -42,7 +42,7 @@ begin
     -- a reliable upward bet. Baseline up chance is 35%, bounded to 25%-45%.
     signal := greatest(-0.40, least(0.40, ((recent - previous) / greatest(previous, 5)) * 0.20));
     up_probability := greatest(0.25, least(0.45, 0.35 + signal * 0.20));
-    noise := 1 + random() * 9;
+    noise := 1 + random() * 2;
     move_pct := noise * case when random() < up_probability then 1 else -1 end;
     next_price := greatest(100, round(q.price * (1 + move_pct / 100.0))::bigint);
     update public.bank_stock_quotes
