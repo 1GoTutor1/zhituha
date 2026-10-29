@@ -71,16 +71,24 @@ end $$;
 create or replace function public.finish_profession_cycle_rpc(p_player_id uuid)
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public,pg_temp as $$
 declare result_json jsonb; before_progress integer:=0; after_progress integer:=0;
+        before_work_progress integer:=0; after_work_progress integer:=0;
         today_utc date:=timezone('UTC',clock_timestamp())::date;
 begin
   select progress into before_progress from public.player_daily_missions
     where player_id=p_player_id and mission_date=today_utc and mission_id='profession_1';
+  select progress into before_work_progress from public.player_daily_missions
+    where player_id=p_player_id and mission_date=today_utc and mission_id='work_5';
   result_json:=public.finish_profession_cycle_rpc_before_daily_missions_sync_fix(p_player_id);
   if result_json ? 'error' then return result_json; end if;
   select progress into after_progress from public.player_daily_missions
     where player_id=p_player_id and mission_date=today_utc and mission_id='profession_1';
   if coalesce(after_progress,0)<=coalesce(before_progress,0) then
     perform public.daily_mission_add_progress(p_player_id,'profession_1',1);
+  end if;
+  select progress into after_work_progress from public.player_daily_missions
+    where player_id=p_player_id and mission_date=today_utc and mission_id='work_5';
+  if coalesce(after_work_progress,0)<=coalesce(before_work_progress,0) then
+    perform public.daily_mission_add_progress(p_player_id,'work_5',1);
   end if;
   return result_json;
 end $$;

@@ -1153,6 +1153,7 @@ export default function App() {
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
     advanceMissionProgress('profession_1');
+    advanceMissionProgress('work_5');
     await Promise.all([refreshProfile(), refreshDailyMissions()]);
     if (data.pending_reward) {
       showMsg('Находка готова — выбери, что с ней сделать');

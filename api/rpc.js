@@ -74,13 +74,18 @@ export default async function handler(req, res) {
     if (name === 'add_referral_balance') return res.status(400).json({ error: 'Unsupported RPC' });
     if (name === 'fire_worker_rpc') safeArgs.p_player_id = player.id;
 
-    const trackedMissionId = name === 'work_rpc' ? 'work_5'
-      : name === 'sell_inventory_rpc' ? 'sell_1' : null;
+    const trackedMissionIds = name === 'work_rpc' ? ['work_5']
+      : name === 'sell_inventory_rpc' ? ['sell_1']
+        : name === 'finish_profession_cycle_rpc' ? ['profession_1', 'work_5'] : [];
     let missionProgressBefore = null;
-    if (trackedMissionId && player) {
+    if (trackedMissionIds.length && player) {
       const { data: state } = await sb.rpc('daily_missions_state_rpc', { p_player_id: player.id });
-      const mission = state?.missions?.find((item) => item.id === trackedMissionId);
-      if (mission) missionProgressBefore = Number(mission.progress) || 0;
+      if (state?.missions) {
+        missionProgressBefore = Object.fromEntries(trackedMissionIds.map((id) => {
+          const mission = state.missions.find((item) => item.id === id);
+          return [id, mission ? Number(mission.progress) || 0 : null];
+        }));
+      }
     }
 
     let { data, error } = await sb.rpc(name, safeArgs);
@@ -139,23 +144,27 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'RPC failed' });
     }
 
-    if (trackedMissionId && missionProgressBefore !== null) {
+    if (trackedMissionIds.length && missionProgressBefore !== null) {
       const actionSucceeded = name === 'work_rpc'
         ? data && !data.error && !data.captcha_required && !data.ignored && !data.blocked && data.work_pay != null
-        : data?.success === true;
+        : name === 'sell_inventory_rpc' ? data?.success === true
+          : data && !data.error;
       if (actionSucceeded) {
         const { data: stateAfter, error: stateError } = await sb.rpc('daily_missions_state_rpc', { p_player_id: player.id });
-        const missionAfter = stateAfter?.missions?.find((item) => item.id === trackedMissionId);
-        const progressAfter = Number(missionAfter?.progress) || 0;
-        if (stateError || progressAfter <= missionProgressBefore) {
-          const { error: progressError } = await sb.rpc('daily_mission_add_progress', {
-            p_player_id: player.id,
-            p_mission_id: trackedMissionId,
-            p_amount: 1,
-          });
-          if (progressError) {
-            console.error('Daily mission progress sync failed:', trackedMissionId, progressError.message);
-            data = { ...(data || {}), daily_mission_sync_error: true };
+        for (const missionId of trackedMissionIds) {
+          const missionAfter = stateAfter?.missions?.find((item) => item.id === missionId);
+          const progressAfter = Number(missionAfter?.progress) || 0;
+          const progressBefore = missionProgressBefore[missionId];
+          if (progressBefore !== null && (stateError || progressAfter <= progressBefore)) {
+            const { error: progressError } = await sb.rpc('daily_mission_add_progress', {
+              p_player_id: player.id,
+              p_mission_id: missionId,
+              p_amount: 1,
+            });
+            if (progressError) {
+              console.error('Daily mission progress sync failed:', missionId, progressError.message);
+              data = { ...(data || {}), daily_mission_sync_error: true };
+            }
           }
         }
       }
