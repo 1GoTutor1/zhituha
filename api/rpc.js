@@ -73,7 +73,8 @@ export default async function handler(req, res) {
 
     const { data, error } = await sb.rpc(name, safeArgs);
     if (error) {
-      console.error('RPC failed:', name, error.code, error.message);
+      // This RPC is polled in the background; the client already exposes sync failures in the casino UI.
+      if (name !== 'get_casino_round_rpc') console.error('RPC failed:', name, error.code, error.message);
       if (['casino_slots_spin_rpc', 'casino_slots_history_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Персональные слоты ещё не установлены в Supabase. Выполни CASINO_PERSONAL_SLOTS_MIGRATION.sql.' });
