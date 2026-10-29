@@ -13,6 +13,10 @@ create table if not exists public.business_autostock_rules (
   updated_at timestamptz not null default clock_timestamp(),
   primary key (business_id, product_id)
 );
+comment on table public.business_autostock_licenses is
+  'License slots belong to the business_id and remain with the business when owner_id changes at auction.';
+comment on table public.business_autostock_rules is
+  'Restock thresholds belong to the business_id and remain with the business when owner_id changes at auction.';
 alter table public.business_autostock_licenses enable row level security;
 alter table public.business_autostock_rules enable row level security;
 revoke all on public.business_autostock_licenses, public.business_autostock_rules from public, anon, authenticated;

@@ -221,6 +221,7 @@ export default function App() {
   const [myRefs, setMyRefs] = useState<any[]>([]);
   const [isDailyOpen, setIsDailyOpen] = useState(false);
   const [dailyStreak, setDailyStreak] = useState(0);
+  const [dailyMissions, setDailyMissions] = useState<any[]>([]);
   const [boostEnd, setBoostEnd] = useState(0);
 
   const [brewEnd, setBrewEnd] = useState(0);
@@ -458,6 +459,8 @@ export default function App() {
         setAllWorkers(wRes.data);
         setMyJob(wRes.data.find((w: any) => w.player_id === d.id) || null);
       }
+      const { data: missionData } = await supabase.rpc('daily_missions_state_rpc', { p_player_id: d.id });
+      if (missionData && !missionData.error) setDailyMissions(missionData.missions || []);
     } catch (e) {
       console.error(e);
       if (!silent) showMsg(e instanceof Error ? e.message : 'Не удалось загрузить профиль. Проверьте настройки Vercel.', true);
@@ -481,8 +484,11 @@ export default function App() {
         supabase.rpc('business_vehicle_state_rpc', { p_player_id: pid }),
       ]);
       if (!shopState.error && shopState.data) {
-        const { data: autostock } = await supabase.rpc('business_autostock_state_rpc', { p_player_id: pid });
-        setBusinessOffers({ ...shopState.data, autostock: autostock?.businesses || [] });
+        const [{ data: autostock }, { data: casinoBusiness }] = await Promise.all([
+          supabase.rpc('business_autostock_state_rpc', { p_player_id: pid }),
+          supabase.rpc('casino_business_state_rpc', { p_player_id: pid }),
+        ]);
+        setBusinessOffers({ ...shopState.data, autostock: autostock?.businesses || [], casinoBusiness: casinoBusiness?.owned ? casinoBusiness : null });
         setCarHealth(Number(shopState.data.personal_car_health ?? 100));
       }
       if (!vehicleData.error && vehicleData.data) setVehicleState(vehicleData.data);
@@ -575,7 +581,13 @@ export default function App() {
   // После каждого успешного действия подтягиваем актуальные цифры с сервера,
   // чтобы интерфейс обновлялся мгновенно (деньги/энергия/таймеры/склады).
   const afterAction = async () => {
-    try { await Promise.all([refreshProfile(), pollMyBizs()]); } catch {}
+    try { await Promise.all([refreshProfile(), pollMyBizs(), refreshDailyMissions()]); } catch {}
+  };
+
+  const refreshDailyMissions = async () => {
+    if (!pid) return;
+    const { data, error } = await supabase.rpc('daily_missions_state_rpc', { p_player_id: pid });
+    if (!error && data && !data.error) setDailyMissions(data.missions || []);
   };
 
   const loadBusinessCatalog = async () => {
@@ -761,6 +773,15 @@ export default function App() {
     hapticFeedback('heavy');
     await afterAction();
   });
+
+  const claimDailyMission = (missionId: string) => action(async () => {
+    const { data, error } = await supabase.rpc('daily_mission_claim_rpc', { p_player_id: pid, p_mission_id: missionId });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    setMoney(Number(data.money));
+    showMsg(`Задание выполнено · +${Number(data.reward).toLocaleString('ru-RU')} ₽`, false, 'reward');
+    await refreshDailyMissions();
+  });
   const collectTaxi = () => action(async () => {
     const taxi = myBizs.find(b => b.biz_type === 'taxi');
     if (!taxi) return;
@@ -818,11 +839,23 @@ export default function App() {
     if (!pid) return;
     const { data, error } = await supabase.rpc('business_shop_state_rpc', { p_player_id: pid });
     if (!error && data) {
-      const { data: autostock } = await supabase.rpc('business_autostock_state_rpc', { p_player_id: pid });
-      setBusinessOffers({ ...data, autostock: autostock?.businesses || [] });
+      const [{ data: autostock }, { data: casinoBusiness }] = await Promise.all([
+        supabase.rpc('business_autostock_state_rpc', { p_player_id: pid }),
+        supabase.rpc('casino_business_state_rpc', { p_player_id: pid }),
+      ]);
+      setBusinessOffers({ ...data, autostock: autostock?.businesses || [], casinoBusiness: casinoBusiness?.owned ? casinoBusiness : null });
       setCarHealth(Number(data.personal_car_health ?? 100));
     }
   };
+
+  const upgradeCasinoBusiness = (businessId: string) => action(async () => {
+    const { data, error } = await supabase.rpc('casino_business_upgrade_rpc', { p_player_id: pid, p_business_id: businessId });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    showMsg(`Казино улучшено до уровня ${data.level} · доля ${data.share_percent}%`);
+    await refreshBusinessOffers();
+    await pollMyBizs();
+  });
 
   const refreshVehicleState = async () => {
     if (!pid) return;
@@ -1380,14 +1413,14 @@ export default function App() {
   };
 
   const app = useMemo(() => ({
-    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, setAllWorkers, allBiz, setAllBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, inviteFamily, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
+    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, setAllWorkers, allBiz, setAllBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, dailyMissions, boostEnd, claimDaily, claimDailyMission, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, inviteFamily, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
     maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance,
     settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled,
     bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, createBusinessAuction, bidBusinessAuction, activeBizId, setActiveBizId,
     career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory,
     adminDeleteMarketLot, loadMarket
   }), [
-    user, tg, startParam, proc, toast, tab, nick, money, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, career, selectProfession, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
+    user, tg, startParam, proc, toast, tab, nick, money, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, dailyMissions, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, career, selectProfession, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
   ]);
 
   const activeBiz = myBizs.find(b => b.id === activeBizId) || myBizs.find(b => b.biz_type === activeBizType);

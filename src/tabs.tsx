@@ -287,6 +287,38 @@ export const HomeTab = ({ app }: { app: any }) => {
         <div style={{ fontSize: 12, color: '#6b5f45' }}>Подробнее →</div>
       </div>
 
+      <section style={{ marginBottom: 15, padding: 13, borderRadius: 12, background: 'linear-gradient(145deg, rgba(38,25,55,.96), rgba(27,19,37,.98))', border: '1px solid rgba(183,142,255,.25)', color: '#f7f1ff', textAlign: 'left' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 }}>
+          <b>Задания на сегодня</b><small style={{ color: '#b9a6d0' }}>Обновятся в полночь UTC</small>
+        </div>
+        {(app.dailyMissions || []).map((mission: any) => {
+          const description = mission.id === 'work_5' ? 'Поработай 5 раз' : mission.id === 'sell_1' ? 'Продай предмет из инвентаря' : 'Заверши действие в профессии';
+          const complete = Number(mission.progress) >= Number(mission.target);
+          return <div key={mission.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: '1px solid rgba(255,255,255,.08)' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{description}</div>
+              <div style={{ fontSize: 11, color: '#b9a6d0', marginTop: 3 }}>{Math.min(Number(mission.progress), Number(mission.target))}/{mission.target} · награда {Number(mission.reward).toLocaleString('ru-RU')} ₽</div>
+              <div style={{ height: 4, marginTop: 5, borderRadius: 5, background: 'rgba(255,255,255,.12)' }}><div style={{ height: '100%', width: `${Math.min(100, Number(mission.progress) / Number(mission.target) * 100)}%`, borderRadius: 5, background: '#ff9824' }} /></div>
+            </div>
+            {mission.claimed ? <span style={{ color: '#73dc98', fontSize: 12 }}>Получено</span>
+              : complete ? <button type="button" disabled={app.proc} onClick={() => app.claimDailyMission(mission.id)} style={{ border: 0, borderRadius: 7, padding: '7px 9px', background: '#ff9824', fontWeight: 700 }}>Забрать</button>
+                : <span style={{ color: '#b9a6d0', fontSize: 12 }}>В процессе</span>}
+          </div>;
+        })}
+      </section>
+
+      <details style={{ marginBottom: 15, padding: '11px 13px', borderRadius: 10, background: 'rgba(61,126,166,.08)', border: '1px solid rgba(61,126,166,.22)', color: '#2f2a1d', textAlign: 'left' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Накопления и кассы · открыть</summary>
+        <div style={{ display: 'grid', gap: 8, marginTop: 10, fontSize: 13 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Деньги на руках</span><b>{Number(app.money || 0).toLocaleString('ru-RU')} ₽</b></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}><span>Накопленные чаевые</span><b>{Number(app.tipBalance || 0).toLocaleString('ru-RU')} ₽</b></div>
+          {Number(app.tipBalance || 0) > 0 && <button type="button" disabled={app.proc} onClick={app.collectTips} style={{ border: 0, borderRadius: 7, padding: 7, background: '#3f9d55', color: '#fff', fontWeight: 700 }}>Забрать чаевые</button>}
+          {Number(app.refBalance || 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Реферальные бонусы</span><b>{Number(app.refBalance).toLocaleString('ru-RU')} ₽</b></div>}
+          {(app.myBizs || []).map((biz: any) => <div key={biz.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, borderTop: '1px solid rgba(61,126,166,.14)', paddingTop: 6 }}><span>Касса · {biz.business_name}</span><b>{(Number(biz.cash_balance || 0) + Number(biz.coffee_balance || 0)).toLocaleString('ru-RU')} ₽</b></div>)}
+          <small style={{ color: '#6b5f45' }}>Если покупка или выплата не прошла, причина показывается сообщением в игре.</small>
+        </div>
+      </details>
+
       <TutorialCard app={app} />
       {coffeeBonusSeconds > 0 && <div role="status" style={{ background: 'rgba(63,157,85,.12)', border: '1px solid rgba(63,157,85,.35)', borderRadius: 9, padding: '9px 12px', marginBottom: 12, color: '#327b45', fontWeight: 700, fontSize: 13 }}>☕ +10% к заработку · ещё {Math.floor(coffeeBonusSeconds / 60)}:{String(coffeeBonusSeconds % 60).padStart(2, '0')}</div>}
       <ProfessionWorkCard app={app} />
@@ -618,6 +650,17 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
             </div>
           </section>
 
+          {activeBiz.biz_type === 'casino' && (() => {
+            const casino = app.businessOffers?.casinoBusiness || { level: 1, share_percent: 5, next_cost: 20000000 };
+            return <section style={{ marginBottom: 16, padding: 13, borderRadius: 10, background: 'linear-gradient(135deg, rgba(145,45,74,.13), rgba(255,170,40,.12))', border: '1px solid rgba(145,45,74,.25)', textAlign: 'left' }}>
+              <b>Доход казино · уровень {casino.level}/3</b>
+              <p style={{ margin: '6px 0 10px', color: '#6b5f45', fontSize: 13 }}>Получаешь {casino.share_percent}% с каждой принятой ставки. Твои собственные ставки комиссией не облагаются.</p>
+              {casino.next_cost != null
+                ? <button type="button" disabled={app.proc || Number(activeBiz.cash_balance || 0) < Number(casino.next_cost)} onClick={() => app.upgradeCasinoBusiness(activeBiz.id)} style={{ width: '100%', border: 0, borderRadius: 8, padding: 10, background: '#ff9824', fontWeight: 700 }}>Улучшить · {Number(casino.next_cost).toLocaleString('ru-RU')} ₽ из кассы</button>
+                : <b style={{ color: '#3f9d55' }}>Максимальный уровень</b>}
+            </section>;
+          })()}
+
           {app.activeBizType === 'salon' && (<>
               <p style={{ color: '#6b5f45', fontSize: 13, margin: '5px 0 12px' }}>Класс автосалона: <b>{salonClass === 'low' ? 'низкий' : salonClass === 'mid' ? 'средний' : 'высокий'}</b>. Заказы списываются из кассы бизнеса.</p>
               {app.carOrderEnd > 0 ? (<div style={{ background: 'rgba(61,126,166,0.10)', padding: 15, borderRadius: 8, marginBottom: 15, border: '1px solid rgba(61,126,166,0.25)', textAlign: 'center' }}><p style={{ margin: '0 0 5px 0', fontSize: 14, color: '#3d7ea6' }}>Едут: <b>{vehicleName(currentStock.current_model || '')} ×{currentStock.order_amount || 1}</b></p><p style={{ margin: 0, fontSize: 22, color: '#3d7ea6', fontWeight: 'bold', fontFamily: 'Russo One' }}>{app.carTimeLeft} сек.</p></div>)
@@ -693,7 +736,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
               <p style={{ color: '#6b5f45', fontSize: 12, margin: '0 0 10px' }}>Закупка списывается из кассы. Цена для игроков — от 75% до 125% базовой.</p>
               <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,153,36,.10)', border: '1px solid rgba(255,153,36,.35)', marginBottom: 12 }}>
                 <b>Автопополнение · {autostock.slots}/3 слота куплено</b>
-                <p style={{ margin: '5px 0 9px', color: '#6b5f45', fontSize: 12 }}>Раз в минуту проверяет остатки и закупает товар из кассы бизнеса, когда он опустится до порога.</p>
+                <p style={{ margin: '5px 0 9px', color: '#6b5f45', fontSize: 12 }}>Раз в минуту проверяет остатки и закупает товар из кассы бизнеса, когда он опустится до порога. Слоты и правила привязаны к бизнесу: при продаже на торгах они сохранятся у нового владельца.</p>
                 {autostock.slots < 3 && <button type="button" disabled={app.proc || app.premiumBalance < 99} onClick={() => app.donateAction('purchase_autostock', { business_id: activeBiz.id })} style={{ border: 0, borderRadius: 8, padding: '9px 12px', background: '#ff9824', fontWeight: 700 }}>Купить слот · 99 жетонов</button>}
                 {autostock.slots === 0 && <small style={{ display: 'block', marginTop: 6, color: '#6b5f45' }}>Один слот включает автопополнение одного товара. До трёх слотов на бизнес.</small>}
               </div>
