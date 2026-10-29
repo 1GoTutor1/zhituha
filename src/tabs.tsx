@@ -262,7 +262,7 @@ export const HomeTab = ({ app }: { app: any }) => {
     <div className="game-tab game-tab-home" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <div className="home-player-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button type="button" className={`home-avatar-button profile-avatar-frame${app.profileFrame === 'frame_test' ? ' has-exclamation-frame' : ''}`} aria-label="Открыть профиль" onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: '14px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, ...(app.profileFrame === 'frame_test' ? frameStyle('frame_test') : app.profileFrame === 'frame_amber' ? frameStyle('frame_amber') : { border: '2px solid rgba(90,70,40,0.22)' }), cursor: 'pointer', userSelect: 'none' }}>{app.profileFrame === 'frame_test' && <MintExclamationRing />}{av.emoji}</button>
+          <button type="button" className={`home-avatar-button profile-avatar-frame${app.profileFrame === 'frame_test' ? ' has-exclamation-frame' : ''}`} aria-label="Открыть профиль" onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: app.profileFrame === 'frame_test' ? '50%' : '14px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, ...(app.profileFrame === 'frame_test' ? frameStyle('frame_test') : app.profileFrame === 'frame_amber' ? frameStyle('frame_amber') : { border: '2px solid rgba(90,70,40,0.22)' }), cursor: 'pointer', userSelect: 'none' }}>{app.profileFrame === 'frame_test' && <MintExclamationRing />}{av.emoji}</button>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'Russo One, Impact, sans-serif' }}>{app.nick}</div>
@@ -1311,12 +1311,14 @@ const frameStyle = (frame: string) => frame === 'frame_test'
     : { border: '3px solid rgba(90,70,40,.28)' };
 
 const MintExclamationRing = () => (
-  <span className="avatar-exclamation-ring" aria-hidden="true">
-    {Array.from({ length: 8 }, (_, index) => {
-      const angle = index * 45;
-      return <i key={angle} style={{ transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-var(--avatar-mark-radius)) rotate(${-angle}deg)` }}>!</i>;
-    })}
-  </span>
+  <svg className="avatar-exclamation-ring" viewBox="0 0 100 100" aria-hidden="true">
+    <g fill="#63e6be" stroke="#132a28" strokeWidth="1.5" paintOrder="stroke">
+      <text x="50" y="12">!</text><text x="77" y="22">!</text>
+      <text x="89" y="54">!</text><text x="77" y="84">!</text>
+      <text x="50" y="96">!</text><text x="23" y="84">!</text>
+      <text x="11" y="54">!</text><text x="23" y="22">!</text>
+    </g>
+  </svg>
 );
 
 const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profile: any, loading: boolean, vehicleState?: any, onClose: () => void }) => {

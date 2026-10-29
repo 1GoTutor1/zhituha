@@ -1078,16 +1078,15 @@ body[data-ui-theme="dark"] .home-player-header [style*="#b06a15"] { color: #ff9a
 
 
 .profile-avatar-frame { position: relative; z-index: 1; overflow: visible; }
-.profile-avatar-frame.has-exclamation-frame { --avatar-mark-radius: 40px; }
 .profile-avatar-frame .avatar-exclamation-ring {
-  position: absolute; inset: 0; z-index: 5; overflow: visible; pointer-events: none;
+  position: absolute; top: -20px; left: -20px; z-index: 5;
+  display: block; width: calc(100% + 40px); height: calc(100% + 40px);
+  overflow: visible; pointer-events: none;
 }
-.profile-avatar-frame .avatar-exclamation-ring i {
-  position: absolute; top: 50%; left: 50%; display: block;
-  color: #63e6be; font: 900 19px/1 'Rubik', sans-serif; font-style: normal;
-  text-shadow: 0 0 5px rgba(18, 42, 38, .95), 0 0 12px rgba(99, 230, 190, .65);
+.profile-avatar-frame .avatar-exclamation-ring text {
+  text-anchor: middle; dominant-baseline: central;
+  font: 900 17px 'Rubik', sans-serif;
+  filter: drop-shadow(0 0 4px rgba(99, 230, 190, .58));
 }
-.profile-hero-card .profile-avatar-frame.has-exclamation-frame { --avatar-mark-radius: 51px; }
-.game-tab-profile .profile-avatar-frame.has-exclamation-frame { --avatar-mark-radius: 61px; }
 .home-avatar-button.profile-avatar-frame { overflow: visible; }
 body[data-ui-theme="dark"] .home-avatar-button.has-exclamation-frame { border: 3px solid #63e6be !important; }
