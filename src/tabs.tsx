@@ -1304,12 +1304,11 @@ const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profi
     construction: 'Стройтрест', phone_factory: 'Телефонный цех',
   };
   const avatar = getAvatar(profile ? Number(profile.avatar_id) || 1 : 1);
-  const profileBackground = getProfileBackground(profile?.profile_background);
 
   return (
     <Modal open={loading || !!profile} onClose={onClose} contentStyle={{ maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }}>
       {loading ? <p style={{ color: '#6b5f45' }}>Загружаю профиль…</p> : profile && <>
-        <div style={{ ...S.card, textAlign: 'center', padding: 18, marginBottom: 12, ...profileBackground }}>
+        <div className="profile-hero-card" style={{ ...S.card, textAlign: 'center', padding: 18, marginBottom: 12 }}>
           <div style={{ width: 76, height: 76, margin: '0 auto 10px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: avatar.bg, ...frameStyle(profile.profile_frame) }}>{avatar.emoji}</div>
           {profile.profile_frame === 'frame_test' && <div style={{ display: 'inline-block', marginBottom: 6, padding: '3px 10px', borderRadius: 12, color: '#073b35', background: '#63e6be', fontFamily: 'Russo One', fontSize: 11, letterSpacing: 1 }}>TEST</div>}
           <h3 style={{ margin: 0, fontFamily: 'Russo One' }}>{profile.nickname}</h3>
@@ -1349,7 +1348,6 @@ export const ProfileTab = ({ app }: { app: any }) => {
   const [familyProfile, setFamilyProfile] = useState<any>(null);
   const [familyAwards, setFamilyAwards] = useState<any[]>([]);
   const avatar = getAvatar(app.avatarId);
-  const background = getProfileBackground(app.profileBackground);
   useEffect(() => {
     let cancelled = false;
     if (!app.pid) return;
@@ -1364,7 +1362,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
   return <div style={{ maxWidth: 420, margin: '0 auto', animation: 'fadeIn .3s' }}>
     <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 0, color: '#6b5f45', cursor: 'pointer', margin: '8px 0 16px' }}>← На главную</button>
     <h2>Профиль</h2>
-    <div style={{ ...S.card, textAlign: 'center', padding: 24, ...background }}>
+    <div className="profile-hero-card" style={{ ...S.card, textAlign: 'center', padding: 24 }}>
       <div style={{ width: 92, height: 92, margin: '0 auto 12px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 48, background: avatar.bg, ...frameStyle(app.profileFrame) }}>{avatar.emoji}</div>
       {app.profileFrame === 'frame_test' && <div style={{ display: 'inline-block', marginBottom: 8, padding: '3px 10px', borderRadius: 12, color: '#073b35', background: '#63e6be', fontFamily: 'Russo One', fontSize: 11, letterSpacing: 1 }}>TEST</div>}
       <div style={{ fontSize: 23, fontFamily: 'Russo One' }}>{app.nick}</div>

@@ -31,16 +31,12 @@ export const getProfileBackground = (id?: string | null) => {
       };
     case 'background_panelka':
       return {
-        backgroundColor: '#8c9995',
-        backgroundImage: [
-          'radial-gradient(ellipse at 18% 14%, rgba(255,255,255,.18), transparent 28%)',
-          'linear-gradient(90deg, transparent 0 18px, rgba(238,226,196,.72) 18px 21px, #536c70 21px 49px, rgba(41,57,60,.72) 49px 52px, transparent 52px 68px, rgba(238,226,196,.7) 68px 71px, #61777a 71px 99px, rgba(41,57,60,.7) 99px 102px, transparent 102px 120px)',
-          'repeating-linear-gradient(0deg, transparent 0 57px, rgba(235,222,191,.8) 57px 62px, transparent 62px 120px)',
-          'repeating-linear-gradient(90deg, transparent 0 118px, rgba(69,85,83,.36) 118px 122px)',
-          'linear-gradient(145deg, #c1c0ad, #82918c 55%, #a6aaa0)',
-        ].join(','),
-        backgroundSize: 'auto, 120px 120px, auto, auto, auto',
-        backgroundPosition: '0 0, 0 0, 0 0, 0 0, 0 0',
+        backgroundColor: '#aeb4aa',
+        // A repeating facade: concrete panels, floor seams, windows and balcony rails.
+        backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="190" viewBox="0 0 240 190"><rect width="240" height="190" fill="#aeb4aa"/><path d="M0 1H240M0 94H240M0 189H240M80 0V190M160 0V190" stroke="#d8d4c3" stroke-width="4"/><path d="M4 4H76V90H4ZM84 4H156V90H84ZM164 4H236V90H164ZM4 98H76V186H4ZM84 98H156V186H84ZM164 98H236V186H164Z" fill="#a5ada5" stroke="#89948e" stroke-width="1"/><g fill="#526b70" stroke="#dedac9" stroke-width="5"><rect x="20" y="20" width="38" height="43"/><rect x="101" y="20" width="38" height="43"/><rect x="182" y="20" width="38" height="43"/><rect x="20" y="114" width="38" height="42"/><rect x="101" y="114" width="38" height="42"/><rect x="182" y="114" width="38" height="42"/></g><g fill="none" stroke="#e4dfce" stroke-width="3"><path d="M17 66H61M17 70H61M98 66H142M98 70H142M179 66H223M179 70H223M17 159H61M17 163H61M98 159H142M98 163H142M179 159H223M179 163H223"/></g><g stroke="#c8c5b6" stroke-width="2"><path d="M39 20V63M120 20V63M201 20V63M39 114V156M120 114V156M201 114V156"/></g></svg>'
+        )}")`,
+        backgroundSize: '240px 190px',
         backgroundRepeat: 'repeat',
       };
     default:
