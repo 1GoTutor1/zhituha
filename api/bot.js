@@ -60,7 +60,7 @@ const replyOrEdit = async (ctx, text, extra = {}) => {
 const getBalance = async (ctx) => {
   const tgId = ctx.from.id.toString();
   const { data: player, error } = await supabase.from('players')
-    .select('nickname, money, energy, has_house, house_type, has_car, car_model, phone_count, daily_streak, referral_balance, tip_balance, premium_balance, profile_frame, profile_background')
+    .select('nickname, money, has_house, house_type, has_car, phone_count, daily_streak, referral_balance, tip_balance, premium_balance, profile_frame, profile_background')
     .eq('telegram_id', tgId).maybeSingle();
   if (error) {
     console.error('Bot profile query failed:', error.message);
@@ -68,10 +68,8 @@ const getBalance = async (ctx) => {
   }
   if (!player) return replyOrEdit(ctx, '❌ Ты еще не зарегистрирован в игре! Нажми /start и создай персонажа.', { reply_markup: backKeyboard() });
 
-  const maxEnergy = player.has_house ? 150 : 100;
   const text = `👤 *${escapeMarkdown(player.nickname || 'Профиль игрока')}*\n\n` +
     `💰 Баланс: *${Number(player.money).toLocaleString('ru-RU')}* монет\n` +
-    `⚡ Энергия: *${player.energy}/${maxEnergy}*\n` +
     `💵 Чаевые: *${player.tip_balance || 0}*\n` +
     `🪙 Жетоны: *${player.premium_balance || 0}*\n` +
     `📅 Серия ежедневных наград: *${player.daily_streak || 0}* дн.\n` +
@@ -88,7 +86,7 @@ const getBalance = async (ctx) => {
 const getProgress = async (ctx) => {
   const tgId = String(ctx.from.id);
   const { data: player, error: playerError } = await supabase.from('players')
-    .select('id, nickname, daily_streak, phone_count, energy, has_house')
+    .select('id, nickname, daily_streak, phone_count')
     .eq('telegram_id', tgId).maybeSingle();
   if (playerError) {
     console.error('Bot progress query failed:', playerError.message);
@@ -128,7 +126,6 @@ const getProgress = async (ctx) => {
     `👥 Приглашено игроков: *${referralResult.count || 0}*`,
     `🏢 Бизнесов: *${bizLines.length}*`,
     `📱 Телефонов: *${player.phone_count || 0}*`,
-    `⚡ Энергия: *${player.energy}/${player.has_house ? 150 : 100}*`,
     '',
     bizLines.length ? `*Твои бизнесы:*\n${bizLines.join('\n')}` : '🏚 Пока нет бизнеса. Открой игру, чтобы начать.',
     activeTimers.length ? `\n\n*Активные таймеры:*\n${activeTimers.join('\n')}` : '',
@@ -339,7 +336,7 @@ bot.command('broadcast', async (ctx) => {
 // --- КОМАНДЫ В МЕНЮ TELEGRAM ---
 const setupCommands = async () => {
   await bot.telegram.setMyCommands([
-    { command: 'balance', description: '💰 Мой баланс и энергия' },
+    { command: 'balance', description: '\u041c\u043e\u0439 \u0431\u0430\u043b\u0430\u043d\u0441 \u0438 \u043f\u0440\u043e\u0444\u0438\u043b\u044c' },
     { command: 'profile', description: '👤 Профиль, активы и жетоны' },
     { command: 'progress', description: '📈 Прогресс, приглашения и таймеры' },
     { command: 'biz', description: '🏢 Мои бизнесы и таймеры' },

@@ -4,14 +4,6 @@ export const PHONE_PRICE = 2000, COFFEE_CUP_PRICE = 500;
 export const JOB_WORK = 150; 
 export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 5000;
 
-export const BASE_MAX_ENERGY = 100;
-export const HOUSE_MAX_ENERGY = 150;
-
-export const REST_CD = 90000; 
-export const BASE_REST_TIME = REST_CD; 
-export const LADA_REST_TIME = 80000; 
-export const TOYOTA_REST_TIME = 70000; 
-
 export const LADA_PRICE = 35000, LADA_TIME = 900000; // Ока, 15 минут
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 2700000; // 45 минут
 
@@ -101,11 +93,11 @@ export const PROFESSION_LOOT: Record<string, { id: string; name: string; rarity:
 
 export const DAILY_REWARDS = [
   { type: 'money', amount: 500 },
-  { type: 'coffee', amount: 1 },
+  { type: 'money', amount: 250 },
   { type: 'money', amount: 1000 },
-  { type: 'coffee', amount: 1 },
+  { type: 'money', amount: 250 },
   { type: 'money', amount: 1500 },
-  { type: 'coffee', amount: 1 },
+  { type: 'money', amount: 250 },
   { type: 'money', amount: 3500, boost: true } 
 ];
 
@@ -129,9 +121,7 @@ export const DAY_MODIFIERS = [
   { id: 1, name: "День студентов", desc: "Смена в кафе x2", type: "shift", mult: 2, color: "#3f9d55" },
   { id: 2, name: "Час пик", desc: "Таксопарк x2", type: "taxi", mult: 2, color: "#3d7ea6" },
   { id: 3, name: "Хайп на телефоны", desc: "Производство телефонов +50% скорости", type: "phone_sell", mult: 1.5, color: "#5f43a0" },
-  { id: 4, name: "Автошоу", desc: "Отдых на машинах +20% быстрее", type: "car_sell", mult: 1.2, color: "#b06a15" },
   { id: 5, name: "Ажиотаж", desc: "Слоты рынка +2, комиссия 0%", type: "market_slots", mult: 2, color: "#b0306a" },
-  { id: 6, name: "Кофейный бум", desc: "Кофе дает +30% энергии", type: "coffee_energy", mult: 1.3, color: "#b06a15" },
   { id: 7, name: "День друзей", desc: "Реферальные бонусы x2", type: "ref", mult: 2, color: "#c0453a" },
   { id: 8, name: "Стройка века", desc: "Стройка дома +50% скорости", type: "build", mult: 1.5, color: "#96600d" },
   { id: 9, name: "\u0422\u0438\u0445\u0438\u0439 \u0434\u0435\u043d\u044c", desc: "\u0420\u0430\u0431\u043e\u0442\u0430 \u043e\u043f\u043b\u0430\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u043f\u043e \u043e\u0431\u044b\u0447\u043d\u043e\u043c\u0443 \u0442\u0430\u0440\u0438\u0444\u0443", type: "work", mult: 1, color: "#5b5648" },
@@ -150,12 +140,6 @@ export const getDayModifier = () => {
   }
 };
 
-export const getRestTime = (hasCar: boolean, carModel: string, modifier = getDayModifier()) => {
-  const baseTime = hasCar
-    ? carModel === 'toyota' ? TOYOTA_REST_TIME : carModel === 'lada' ? LADA_REST_TIME : BASE_REST_TIME
-    : BASE_REST_TIME;
-  return hasCar && modifier?.type === 'car_sell' ? Math.floor(baseTime * 0.8) : baseTime;
-};
 
 // Экономика по дизайн-доку (сервер считает ЗП/штрафы, клиент только показывает):
 // COFFEE: чашка 500₽ -> Бариста 60 + Помощник 30 (если нет — 30 забирает владелец), владельцу 410.

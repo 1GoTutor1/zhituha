@@ -6,7 +6,7 @@ import { isUiSoundEnabled, playUiSound, setUiSoundEnabled, type UiSound } from '
 import { getUiTheme, isUiVibrationEnabled, persistUiTheme, setUiVibrationEnabled, type UiTheme } from './preferences';
 import { 
   BOT_USERNAME, CHANNEL_LINK, POLL, 
-  BASE_MAX_ENERGY, HOUSE_MAX_ENERGY, getRestTime, AVATARS,
+  AVATARS,
   getStock, S, APARTMENTS_PER_BUILD, BUTTON_BATCH_SIZE,
   SMARTPHONE_BATCH_SIZE, 
   JOB_WORK, getDayModifier
@@ -155,7 +155,6 @@ export default function App() {
   const [isSubscribed, setIsSubscribed] = useState<boolean | undefined>(undefined);
 
   const [money, setMoney] = useState(3500);
-  const [energy, setEnergy] = useState(80);
   const [phone, setPhone] = useState(false);
   const [hasCar, setHasCar] = useState(false);
   const [carModel, setCarModel] = useState('none');
@@ -169,9 +168,7 @@ export default function App() {
   const [dailyStreak, setDailyStreak] = useState(0);
   const [boostEnd, setBoostEnd] = useState(0);
 
-  const [restEnd, setRestEnd] = useState(0);
   const [brewEnd, setBrewEnd] = useState(0);
-  const [tLeft, setTLeft] = useState(0);
   const [bLeft, setBLeft] = useState(0);
   const [carOrderEnd, setCarOrderEnd] = useState(0);
   const [carTimeLeft, setCarTimeLeft] = useState(0);
@@ -216,9 +213,7 @@ export default function App() {
   const [refOpen, setRefOpen] = useState(false);
   const lock = useRef(false);
 
-  const maxEnergy = hasHouse ? HOUSE_MAX_ENERGY : BASE_MAX_ENERGY;
   const dayMod = getDayModifier();
-  const restTime = getRestTime(hasCar, carModel, dayMod);
   
   let bizBonusPercent = 0;
   myBizs.forEach(b => {
@@ -308,21 +303,12 @@ export default function App() {
   const skipTutorial = () => { advanceTutorial(onboardStep + 1); hapticFeedback('light'); };
 
   const checkCoffee = async () => {
-    if (!pid) return;
-    const { data, error } = await supabase.rpc('collect_coffee_energy_rpc', { p_player_id: pid });
-    if (error) return;
-    if (data && data.success) {
-      setEnergy(data.energy);
-      setBrewEnd(0);
-      showMsg("Кофе готов! Энергия восстановлена!", false, 'reward');
-      hapticFeedback('heavy');
-      loadData(true);
-    } else if (data && data.brew_end) {
-      setBrewEnd(data.brew_end);
-    }
+    if (!pid || !brewEnd || brewEnd > Date.now()) return;
+    setBrewEnd(0);
+    setBLeft(0);
+    showMsg('Кофе готов: можно пить!');
+    hapticFeedback('heavy');
   };
-
-  // Лёгкий поллинг своих бизнесов (без worker_id/name, без чужих складов).
   const pollMyBizs = async () => {
     if (!pid) return;
     const { data } = await supabase.from('businesses')
@@ -372,7 +358,7 @@ export default function App() {
       if (d.is_banned) { setIsBanned(true); setLoading(false); return; }
       
       setPid(d.id); setNick(d.nickname); setGender(d.gender); setAvatarId(d.avatar_id || 1);
-      setRole(d.role || 'player'); setMoney(Number(d.money)); setEnergy(Number(d.energy)); 
+      setRole(d.role || 'player'); setMoney(Number(d.money));
       setPhone(Number(d.phone_count) > 0); setHasCar(d.has_car || false); setCarModel(d.car_model || 'none'); setCarHealth(Number(d.car_health ?? 100));
       setHasHouse(d.has_house || false); setHouseType(d.house_type || 'none');
       setRefBalance(Number(d.referral_balance) || 0); setDailyStreak(Number(d.daily_streak) || 0);
@@ -400,11 +386,6 @@ export default function App() {
         }
       }
       
-      const last = Number(d.last_rest_time) || 0;
-      const cRestTime = getRestTime(Boolean(d.has_car), d.car_model || 'none');
-      const end = last + cRestTime > Date.now() ? last + cRestTime : 0;
-      setRestEnd(end); if (end > 0) setTLeft(Math.max(0, Math.ceil((end - Date.now()) / 1000)));
-
       if (profileResult.referrals) setMyRefs(profileResult.referrals);
       
       if (myBRes.data) {
@@ -461,7 +442,7 @@ export default function App() {
     if (!data) return;
     if (result.profession) setCareer(result.profession);
     if (data.is_banned) { setIsBanned(true); return; }
-    setMoney(Number(data.money)); setEnergy(Number(data.energy));
+    setMoney(Number(data.money));
     setRefBalance(Number(data.referral_balance) || 0); setTipBalance(Number(data.tip_balance) || 0);
     setBoostEnd(Number(data.boost_end) || 0); setBrewEnd(Number(data.brew_end) || 0);
     // Имущество/слоты — чтобы после покупки/продажи телефона, машины, квартиры
@@ -567,8 +548,6 @@ export default function App() {
   useEffect(() => {
     const int = setInterval(() => {
       const now = Date.now();
-      if (restEnd > 0) { const r = Math.max(0, Math.ceil((restEnd - now) / 1000)); setTLeft(r); if (r === 0) { setRestEnd(0); playUiSound('reward'); } }
-      
       if (brewEnd > 0) {
         const r = Math.max(0, Math.ceil((brewEnd - now) / 1000)); setBLeft(r);
         if (r === 0) checkCoffee();
@@ -615,7 +594,7 @@ export default function App() {
       } else { setPhoneProdTimeLeft(0); }
     }, 1000);
     return () => clearInterval(int);
-  }, [restEnd, brewEnd, carOrderEnd, buildEnd, phoneProdEnd, pid, myBizs, hasHouse, vehicleState]);
+  }, [brewEnd, carOrderEnd, buildEnd, phoneProdEnd, pid, myBizs, vehicleState]);
 
   const selectGender = (g: 'male' | 'female') => { setSelG(g); setAvatarId(AVATARS.find(a => a.gender === g)?.id || 1); hapticFeedback('light'); };
   
@@ -648,7 +627,7 @@ export default function App() {
     if (!response.ok || !result.player) throw new Error(result.error || 'Не удалось создать аккаунт');
     const data = result.player;
     setPid(data.id); setNick(data.nickname || final); setGender(data.gender || selG); setAvatarId(data.avatar_id || avatarId);
-    setMoney(Number(data.money) || 0); setEnergy(Number(data.energy) || 0);
+    setMoney(Number(data.money) || 0);
     window.setTimeout(() => { void loadData(true); }, 0);
     if (result.referred) showMsg("Бонус +1000 монет за приглашение!");
   });
@@ -688,12 +667,9 @@ export default function App() {
   };
 
   const drinkTutorialCoffee = () => action(async () => {
-    const { data, error } = await supabase.rpc('drink_tutorial_coffee_rpc', { p_player_id: pid });
-    if (error) throw error;
-    if (data?.error) return showMsg(data.error, true);
-    setEnergy(Number(data.energy)); setOnboardStep(3);
-    showMsg("Кофе выпит! Энергия восстановлена."); hapticFeedback('heavy');
-    await afterAction();
+    await advanceTutorial(3);
+    showMsg('Продолжаем обучение');
+    hapticFeedback('light');
   });
 
   const claimTutorialReward = () => action(async () => {
@@ -713,10 +689,9 @@ export default function App() {
     setDailyStreak(Number(data.daily_streak) || 0);
     setIsDailyOpen(false);
     if (typeof data.money === 'number') setMoney(data.money);
-    if (typeof data.energy === 'number') setEnergy(data.energy);
     if (typeof data.boost_end === 'number') setBoostEnd(data.boost_end);
     if (data.reward_type === 'money') showMsg(data.boost_awarded ? `Награда: +${data.reward_amount} монет и БУСТ x1.1!` : `Награда: +${data.reward_amount} монет!`, false, 'reward');
-    else showMsg('Награда: кофе! Энергия восстановлена!');
+    else showMsg(`Награда: +${data.reward_amount} монет!`, false, 'reward');
     hapticFeedback('heavy');
     await afterAction();
   });
@@ -819,8 +794,8 @@ export default function App() {
     });
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
-    setMoney(Number(data.money)); setEnergy(Number(data.energy));
-    showMsg(`${data.product_name} ×${data.quantity}: −${Number(data.total).toLocaleString('ru-RU')} ₽, +${data.energy_restored} энергии`);
+    setMoney(Number(data.money));
+    showMsg(`${data.product_name} ×${data.quantity}: −${Number(data.total).toLocaleString('ru-RU')} ₽`);
     await Promise.all([refreshBusinessOffers(), refreshProfile()]);
   });
 
@@ -969,12 +944,10 @@ export default function App() {
   });
 
   const work = () => action(async () => {
-    const energyCost = hasCar ? 10 : 20;
-    if (energy < energyCost) return showMsg("Ты слишком устал!", true);
     const { data, error } = await supabase.rpc('work_rpc', { p_player_id: pid });
     if (error) throw error;
     if (data?.error) return showMsg(data.error, true);
-    setMoney(Number(data.money)); setEnergy(Number(data.energy));
+    setMoney(Number(data.money));
     window.dispatchEvent(new CustomEvent('zhituha:work-reward', { detail: Number(data.work_pay) }));
     hapticFeedback('medium');
     await afterAction(); // мгновенное обновление цифр с сервера
@@ -998,12 +971,9 @@ export default function App() {
   });
 
   const startProfessionCycle = () => action(async () => {
-    const energyCost = hasCar ? 10 : 20;
-    if (energy < energyCost) return showMsg("Недостаточно энергии для работы", true);
     const { data, error } = await supabase.rpc('start_profession_cycle_rpc', { p_player_id: pid });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    setEnergy(Number(data.energy));
     setCareer((current: any) => ({ ...current, active_cycle: data.active_cycle }));
     hapticFeedback('medium');
   });
@@ -1058,22 +1028,6 @@ export default function App() {
     setMoney(Number(data.money));
     await refreshProfile();
     showMsg(`Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, false, 'reward');
-  });
-
-  const rest = () => action(async () => {
-    if (tLeft > 0 || energy >= maxEnergy) return;
-    const { data, error } = await supabase.rpc('rest_rpc', { p_player_id: pid });
-    if (error) throw error;
-    if (data && data.error) throw new Error(data.error);
-    
-    setEnergy(maxEnergy);
-    // Кулдаун отдыха считает СЕРВЕР (rest_end = now + реальный CD). Клиент просто
-    // показывает таймер до этой метки — раньше тут был рассинхрон (клиент 70с / сервер 90с).
-    setRestEnd(Number(data.rest_end) || (Date.now() + restTime));
-    setTLeft(Math.max(0, Math.ceil(((Number(data.rest_end) || Date.now() + restTime) - Date.now()) / 1000)));
-    showMsg(`Энергия восстановлена!`); hapticFeedback('light');
-    if (onboardStep === 1) await advanceTutorial(2);
-    await afterAction();
   });
 
   const buyCoffee = (cafe: any) => action(async () => {
@@ -1273,14 +1227,14 @@ export default function App() {
   };
 
   const app = useMemo(() => ({
-    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, setAllWorkers, allBiz, setAllBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, rest, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
+    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, setAllWorkers, allBiz, setAllBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, brewEnd, bLeft, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, boostEnd, claimDaily, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
     maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance,
     settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, uiTheme, changeUiTheme,
     bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, createBusinessAuction, bidBusinessAuction, activeBizId, setActiveBizId,
     career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory,
     adminDeleteMarketLot, loadMarket
   }), [
-    user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, uiTheme, changeUiTheme, career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
+    user, tg, startParam, proc, toast, tab, nick, money, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, brewEnd, bLeft, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, uiTheme, changeUiTheme, career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
   ]);
 
   const activeBiz = myBizs.find(b => b.id === activeBizId) || myBizs.find(b => b.biz_type === activeBizType);
