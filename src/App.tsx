@@ -105,7 +105,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.uiTheme = uiTheme;
     document.body.dataset.uiTheme = uiTheme;
-    const themeColor = uiTheme === 'dark' ? '#171a18' : '#efe3c8';
+    const themeColor = uiTheme === 'dark' ? '#100b18' : '#efe3c8';
     try {
       (window as any).Telegram?.WebApp?.setHeaderColor(themeColor);
       (window as any).Telegram?.WebApp?.setBackgroundColor(themeColor);

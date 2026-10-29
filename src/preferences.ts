@@ -22,7 +22,7 @@ export function setUiVibrationEnabled(enabled: boolean) {
 }
 
 export function getUiTheme(): UiTheme {
-  return readPreference('zhituha_theme', 'light') === 'dark' ? 'dark' : 'light';
+  return readPreference('zhituha_theme', 'dark') === 'light' ? 'light' : 'dark';
 }
 
 export function persistUiTheme(theme: UiTheme) {
