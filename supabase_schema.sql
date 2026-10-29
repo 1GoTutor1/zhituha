@@ -922,40 +922,70 @@ end $$;
 --   Бариста (обязателен, без него кнопка не работает) -> +60 чаевых;
 --   Помощник бариста (опционален) -> +30 чаевых, иначе эти 30 забирает владелец;
 --   Владелец -> 410 в кассу (+30 если помощника нет = 440).
+-- Fix coffee sale payouts. Each sold cup adds 60 to the barista's withdrawable tips.
 create or replace function public.buy_coffee_rpc(p_buyer_id uuid, p_cafe_id uuid)
-returns jsonb language plpgsql security definer as $$
-declare p players; c businesses; now_ms bigint := floor(extract(epoch from now())*1000);
-  barista record; helper record; owner_share int;
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, pg_temp
+as $$
+declare
+  buyer public.players%rowtype;
+  cafe public.businesses%rowtype;
+  barista public.business_workers%rowtype;
+  helper public.business_workers%rowtype;
+  now_ms bigint := floor(extract(epoch from clock_timestamp()) * 1000);
+  owner_share integer;
 begin
-  select * into p from players where id = p_buyer_id for update;
-  if not found then return jsonb_build_object('error','нет игрока'); end if;
-  if p.money < 500 then return jsonb_build_object('error','мало денег'); end if;
-  select * into c from businesses where id = p_cafe_id and biz_type = 'coffee' for update;
-  if not found then return jsonb_build_object('error','кафе не найдено'); end if;
-  if coalesce(p.brew_end,0) > now_ms then return jsonb_build_object('error','кофе уже варится'); end if;
-
-  -- бариста обязателен (по дизайн-доку)
-  select w.* into barista from business_workers w
-    where w.business_id = p_cafe_id and w.role = 'Бариста' limit 1;
-  if barista.player_id is null then return jsonb_build_object('error','В кафе нет бариста'); end if;
-  -- помощник опционален
-  select w.* into helper from business_workers w
-    where w.business_id = p_cafe_id and w.role = 'Помощник бариста' limit 1;
-
-  owner_share := case when helper.player_id is null then 440 else 410 end;
-
-  update players set money = money - 500, brew_end = now_ms + 15000 where id = p_buyer_id;
-  update businesses set coffee_balance = coalesce(coffee_balance,0) + owner_share where id = p_cafe_id;
-  -- ЗП работягам капает сразу в чаевые (tip_balance), забираются collect_tips_rpc
-  update players set tip_balance = coalesce(tip_balance,0) + 60 where id = barista.player_id;
-  if helper.player_id is not null then
-    update players set tip_balance = coalesce(tip_balance,0) + 30 where id = helper.player_id;
+  select * into buyer from public.players where id = p_buyer_id for update;
+  if not found then return jsonb_build_object('error', 'Игрок не найден'); end if;
+  if coalesce(buyer.money, 0) < 500 then
+    return jsonb_build_object('error', 'Недостаточно денег');
   end if;
-  -- ВАЖНО: владельцу кафе идёт ТОЛЬКО owner_share в кассу (410/440).
-  -- Никаких доп. бонусов — иначе экономика чашки ломается (было +25 сверху).
-  return jsonb_build_object('brew_end', now_ms + 15000, 'money', p.money - 500,
-                            'owner_share', owner_share, 'cafe_id', p_cafe_id);
-end $$;
+
+  select * into cafe from public.businesses
+  where id = p_cafe_id and biz_type = 'coffee' for update;
+  if not found then return jsonb_build_object('error', 'Кофейня не найдена'); end if;
+  if coalesce(buyer.brew_end, 0) > now_ms then
+    return jsonb_build_object('error', 'Кофе уже готовится');
+  end if;
+
+  select * into barista from public.business_workers
+  where business_id = p_cafe_id and role = 'Бариста' and player_id is not null
+  limit 1 for update;
+  if not found then return jsonb_build_object('error', 'В кафе нет бариста'); end if;
+
+  select * into helper from public.business_workers
+  where business_id = p_cafe_id and role = 'Помощник бариста' and player_id is not null
+  limit 1 for update;
+  owner_share := case when found then 410 else 440 end;
+
+  -- Accumulate every cup's wage; do not overwrite prior tips.
+  update public.players
+  set tip_balance = coalesce(tip_balance, 0) + 60
+  where id = barista.player_id;
+  if not found then return jsonb_build_object('error', 'Бариста не найден'); end if;
+
+  if helper.player_id is not null then
+    update public.players
+    set tip_balance = coalesce(tip_balance, 0) + 30
+    where id = helper.player_id;
+  end if;
+
+  update public.players set money = money - 500, brew_end = now_ms + 15000
+  where id = p_buyer_id;
+  update public.businesses
+  set coffee_balance = coalesce(coffee_balance, 0) + owner_share
+  where id = p_cafe_id;
+
+  return jsonb_build_object(
+    'brew_end', now_ms + 15000,
+    'money', buyer.money - 500,
+    'owner_share', owner_share,
+    'cafe_id', p_cafe_id
+  );
+end;
+$$;
 
 -- =================== 6. ТАКСОПАРК ===================
 
