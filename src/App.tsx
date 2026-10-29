@@ -590,6 +590,14 @@ export default function App() {
     if (!error && data && !data.error) setDailyMissions(data.missions || []);
   };
 
+  // Обновляем полосу сразу после подтверждённого сервером действия; затем
+  // afterAction сверяет оптимистичное значение с сохранённым прогрессом.
+  const advanceMissionProgress = (missionId: string, amount = 1) => {
+    setDailyMissions(current => current.map(mission => mission.id === missionId
+      ? { ...mission, progress: Math.min(Number(mission.target), Number(mission.progress) + amount) }
+      : mission));
+  };
+
   const loadBusinessCatalog = async () => {
     const { data, error } = await supabase.rpc('business_catalog_rpc', { p_player_id: pid });
     if (!error && data) setBusinessCatalog(data);
@@ -1078,6 +1086,7 @@ export default function App() {
     if (data?.error) return showMsg(data.error, true);
     setMoney(Number(data.money));
     window.dispatchEvent(new CustomEvent('zhituha:work-reward', { detail: Number(data.work_pay) }));
+    advanceMissionProgress('work_5');
     hapticFeedback('medium');
     await afterAction(); // мгновенное обновление цифр с сервера
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }
@@ -1142,7 +1151,7 @@ export default function App() {
     const { data, error } = await supabase.rpc('finish_profession_cycle_rpc', { p_player_id: pid });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    await refreshProfile();
+    await Promise.all([refreshProfile(), refreshDailyMissions()]);
     if (data.pending_reward) {
       showMsg('Находка готова — выбери, что с ней сделать');
       hapticFeedback('heavy');
@@ -1187,7 +1196,7 @@ export default function App() {
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
     setMoney(Number(data.money));
-    await refreshProfile();
+    await Promise.all([refreshProfile(), refreshDailyMissions()]);
     showMsg(`Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, false, 'reward');
   });
 
