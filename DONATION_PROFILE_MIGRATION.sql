@@ -5,6 +5,14 @@ alter table public.players
   add column if not exists profile_frame text not null default '',
   add column if not exists profile_background text not null default '';
 
+alter table public.players
+  add column if not exists referral_signup_rewarded_at timestamptz;
+
+-- Existing referrals predate this reward; only new referrals get the signup grant.
+update public.players
+set referral_signup_rewarded_at = coalesce(created_at, now())
+where referred_by is not null and referral_signup_rewarded_at is null;
+
 create table if not exists public.donation_orders (
   id uuid primary key,
   player_id uuid not null references public.players(id) on delete cascade,
@@ -24,10 +32,27 @@ grant usage on schema public to service_role;
 create unique index if not exists donation_one_pending_order_per_player
   on public.donation_orders(player_id) where status='pending';
 
+create or replace function public.award_referral_signup_bonus_rpc(p_new_player_id uuid)
+returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+declare referred_player public.players; referrer public.players;
+begin
+  select * into referred_player from public.players where id=p_new_player_id for update;
+  if not found then return jsonb_build_object('error','Игрок не найден'); end if;
+  if referred_player.referred_by is null then return jsonb_build_object('error','У игрока нет реферера'); end if;
+  if referred_player.referral_signup_rewarded_at is not null then
+    return jsonb_build_object('ok',true,'duplicate',true);
+  end if;
+  select * into referrer from public.players where telegram_id=referred_player.referred_by for update;
+  if not found then return jsonb_build_object('error','Пригласивший игрок не найден'); end if;
+  update public.players set premium_balance=coalesce(premium_balance,0)+10 where id=referrer.id returning * into referrer;
+  update public.players set referral_signup_rewarded_at=now() where id=p_new_player_id;
+  return jsonb_build_object('ok',true,'bonus',10,'premium_balance',referrer.premium_balance);
+end $$;
+
 create or replace function public.apply_stars_payment_rpc(
   p_order_id uuid, p_telegram_id text, p_charge_id text, p_stars_amount integer
 ) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
-declare o public.donation_orders; p public.players;
+declare o public.donation_orders; p public.players; referrer public.players; referral_bonus bigint := 0;
 begin
   if p_charge_id is null or length(p_charge_id) < 5 then return jsonb_build_object('error','invalid charge'); end if;
   select * into o from public.donation_orders where id = p_order_id for update;
@@ -40,8 +65,20 @@ begin
   end if;
   update public.players set premium_balance = premium_balance + o.credits_amount where id = o.player_id returning * into p;
   if not found then return jsonb_build_object('error','player not found'); end if;
+  if p.referred_by is not null then
+    referral_bonus := floor(o.credits_amount * 0.10)::bigint;
+    if referral_bonus > 0 then
+      update public.players set premium_balance=coalesce(premium_balance,0)+referral_bonus
+        where telegram_id=p.referred_by returning * into referrer;
+      if found then
+        update public.donation_orders set status='paid', telegram_charge_id=p_charge_id, paid_at=now() where id=o.id;
+        return jsonb_build_object('ok',true,'premium_balance',p.premium_balance,
+          'referral_bonus',referral_bonus,'referrer_premium_balance',referrer.premium_balance);
+      end if;
+    end if;
+  end if;
   update public.donation_orders set status='paid', telegram_charge_id=p_charge_id, paid_at=now() where id=o.id;
-  return jsonb_build_object('ok',true,'premium_balance',p.premium_balance);
+  return jsonb_build_object('ok',true,'premium_balance',p.premium_balance,'referral_bonus',0);
 end $$;
 
 create or replace function public.donation_exchange_rpc(
@@ -101,10 +138,12 @@ begin
 end $$;
 
 revoke execute on function public.apply_stars_payment_rpc(uuid,text,text,integer) from public, anon, authenticated;
+revoke execute on function public.award_referral_signup_bonus_rpc(uuid) from public, anon, authenticated;
 revoke execute on function public.donation_exchange_rpc(uuid,text,bigint) from public, anon, authenticated;
 revoke execute on function public.donation_purchase_rpc(uuid,text) from public, anon, authenticated;
 revoke execute on function public.donation_equip_rpc(uuid,text) from public, anon, authenticated;
 grant execute on function public.apply_stars_payment_rpc(uuid,text,text,integer) to service_role;
+grant execute on function public.award_referral_signup_bonus_rpc(uuid) to service_role;
 grant execute on function public.donation_exchange_rpc(uuid,text,bigint) to service_role;
 grant execute on function public.donation_purchase_rpc(uuid,text) to service_role;
 grant execute on function public.donation_equip_rpc(uuid,text) to service_role;

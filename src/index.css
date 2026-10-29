@@ -523,6 +523,8 @@ body[data-ui-theme="dark"] .access-card small { color: #aeb6af; }
 .family-member-actions button { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-main); color: #3d7ea6; }
 .family-member-actions button.kick { color: #c0453a; }
 .family-inline-form { display: flex; gap: 7px; margin-top: 10px; }
+.family-share-invite { display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; padding: 12px; border: 1px solid rgba(63,157,101,.42); border-radius: 10px; background: rgba(63,157,101,.14); color: #27804d; font: inherit; font-size: 13px; font-weight: 800; }
+.family-share-invite:disabled { opacity: .55; }
 .family-inline-form input,.family-text-input { min-width: 0; padding: 10px; border: 1px solid var(--border-color); border-radius: 9px; background: var(--bg-main); color: var(--text-main); font: inherit; font-size: 12px; }
 .family-inline-form input { flex: 1; }
 .family-inline-form button { max-width: none; white-space: nowrap; }
@@ -541,7 +543,7 @@ body[data-ui-theme="dark"] .access-card small { color: #aeb6af; }
 body[data-ui-theme="dark"] .family-tag { color: #79d39b; }
 body[data-ui-theme="dark"] .family-stake-presets button.selected { color: #83d4a1; }
 body[data-ui-theme="dark"] .family-territory-bottom > button,body[data-ui-theme="dark"] .family-catalog-row > button { color: #92dcae; }
-body[data-ui-theme="dark"] .family-public-heading button,body[data-ui-theme="dark"] .family-rank-row button,body[data-ui-theme="dark"] .family-action-link { color: #91c6ec; }
+body[data-ui-theme="dark"] .family-public-heading button,body[data-ui-theme="dark"] .family-rank-row button,body[data-ui-theme="dark"] .family-action-link,body[data-ui-theme="dark"] .family-share-invite { color: #91c6ec; }
 body[data-ui-theme="dark"] .family-profile-badge { color: #f0d18a; }
 body[data-ui-theme="dark"] .family-treasury-balance b { color: #8bd3a4; }
 @media (max-width: 390px) {

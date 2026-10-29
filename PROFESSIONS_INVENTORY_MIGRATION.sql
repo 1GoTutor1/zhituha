@@ -117,11 +117,11 @@ begin
     earned := earned - public.profession_xp_to_next(next_level);
     next_level := next_level + 1;
   end loop;
-  if next_level >= 3 then unlocks := unlocks || 'lumberjack'; end if;
-  if next_level >= 5 then unlocks := unlocks || 'fisherman'; end if;
-  if next_level >= 7 then unlocks := unlocks || 'farmer'; end if;
-  if next_level >= 9 then unlocks := unlocks || 'courier'; end if;
-  if next_level >= 12 then unlocks := unlocks || 'taxi'; end if;
+  if next_level >= 3 then unlocks := array_append(unlocks, 'lumberjack'); end if;
+  if next_level >= 5 then unlocks := array_append(unlocks, 'fisherman'); end if;
+  if next_level >= 7 then unlocks := array_append(unlocks, 'farmer'); end if;
+  if next_level >= 9 then unlocks := array_append(unlocks, 'courier'); end if;
+  if next_level >= 12 then unlocks := array_append(unlocks, 'taxi'); end if;
   update public.players set player_level = next_level, player_xp = earned,
     unlocked_professions = (array['miner']::text[] || unlocks)
     where id = p_player_id returning * into p;

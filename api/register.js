@@ -42,6 +42,10 @@ export default async function handler(req, res) {
         if (error) throw error;
         player = data;
       }
+      if (player.referred_by) {
+        const { data, error } = await sb.rpc('award_referral_signup_bonus_rpc', { p_new_player_id: player.id });
+        if (error || data?.error) console.error('Referral token reward retry failed:', error?.message || data?.error);
+      }
       return res.status(200).json({ player, referred: false, recovered: true });
     }
 
@@ -78,6 +82,8 @@ export default async function handler(req, res) {
     if (referrerId) {
       const { error } = await sb.rpc('change_stats', { p_player_id: referrerId, p_money_diff: 500, p_energy_diff: 0 });
       if (error) console.error('Referral reward failed:', error.message);
+      const { data, error: tokenRewardError } = await sb.rpc('award_referral_signup_bonus_rpc', { p_new_player_id: player.id });
+      if (tokenRewardError || data?.error) console.error('Referral token reward failed:', tokenRewardError?.message || data?.error);
     }
     return res.status(201).json({ player, referred: !!referrerId });
   } catch (error) {

@@ -91,7 +91,11 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: `Ошибка профессии (${error.code || 'без кода'}): ${detail || 'не удалось выполнить действие'}` });
       }
       if (name.startsWith('family_') && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
-        return res.status(400).json({ error: 'Система семей ещё не установлена. Выполните FAMILY_SYSTEM_MIGRATION.sql в Supabase.' });
+        const detail = String(error.message || '').replace(/[\r\n]+/g, ' ').slice(0, 180);
+        const hint = ['PGRST202', '42883'].includes(error.code)
+          ? 'Проверьте наличие функции в Supabase и обновление кеша схемы API.'
+          : 'Проверьте указанную таблицу или колонку в FAMILY_SYSTEM_MIGRATION.sql.';
+        return res.status(400).json({ error: `Ошибка ${name} (${error.code}): ${detail || 'семейная функция или поле не найдены'}. ${hint}` });
       }
       if (name.startsWith('family_')) {
         const detail = String(error.message || '').replace(/[\r\n]+/g, ' ').slice(0, 180);
