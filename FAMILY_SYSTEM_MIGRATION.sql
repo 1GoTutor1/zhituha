@@ -634,7 +634,7 @@ begin
   end if;
   if coalesce(f.cash_balance,0)<p_stake then return jsonb_build_object('error','В кассе семьи недостаточно денег для этой ставки'); end if;
   chance := least(85::numeric, round(100.0*p_stake/(p_stake+greatest(territory.defense_value,territory.base_value)),2));
-  roll := round(random()*100.0,4);
+  roll := round((random()*100.0)::numeric,4);
   success := roll<chance;
   update public.families set cash_balance=cash_balance-p_stake
     where id=member.family_id returning * into f;

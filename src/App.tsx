@@ -955,7 +955,11 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
     setMarket((current: any[]) => current.filter((lot) => lot.id !== item.id));
-    showMsg('Лот удалён, вещь возвращена владельцу');
+    if (data.item_returned === false) {
+      showMsg(data.warning || 'Лот удалён, но товар не удалось вернуть: склад продавца больше не существует.', true);
+    } else {
+      showMsg('Лот удалён, вещь возвращена продавцу');
+    }
   });
 
   const orderCar = (model: string, amount: number) => action(async () => {
