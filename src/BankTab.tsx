@@ -87,6 +87,8 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  const [serverClockOffset, setServerClockOffset] = useState(0);
   const [cashAmount, setCashAmount] = useState('1000');
   const [recipient, setRecipient] = useState('');
   const [transferAmount, setTransferAmount] = useState('1000');
@@ -108,6 +110,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
       const state = data as BankState & { error?: string };
       if (state.error) throw new Error(state.error);
       setBank(state);
+      if (state.server_now) setServerClockOffset(new Date(state.server_now).getTime() - Date.now());
       app.setMoney?.(Number(state.wallet) || 0);
       const transactions = Array.isArray(state.transactions) ? state.transactions : [];
       const foreclosure = transactions.find(transaction => transaction.operation === 'loan_foreclosure');
@@ -129,6 +132,11 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
     const timer = window.setInterval(() => { void loadBank(true); }, 30_000);
     return () => { window.clearTimeout(initialLoad); window.clearInterval(timer); };
   }, [loadBank]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const run = async (rpcName: string, args: Record<string, unknown>, successText: string) => {
     if (busy) return;
@@ -158,6 +166,10 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const loan = bank?.loan || null;
   const sharesToTrade = Math.max(1, Math.floor(Number(sharesAmount) || 1));
   const stockPortfolio = bank?.holdings || [];
+  const serverNowMs = clockNow + serverClockOffset;
+  const nextMarketTickMs = (Math.floor(serverNowMs / 300_000) + 1) * 300_000;
+  const marketTickSeconds = Math.max(0, Math.ceil((nextMarketTickMs - serverNowMs) / 1000));
+  const marketTickCountdown = `${Math.floor(marketTickSeconds / 60)}:${String(marketTickSeconds % 60).padStart(2, '0')}`;
   const stockInvested = stockPortfolio.reduce((sum, holding) => sum + Number(holding.cost_basis || 0), 0);
   const stockLiquidationValue = stockPortfolio.reduce((sum, holding) => sum + Number(holding.liquidation_value ?? Math.floor(holding.shares * holding.price * 0.99)), 0);
   const stockRealizedProfit = stockPortfolio.reduce((sum, holding) => sum + Number(holding.realized_profit || 0), 0);
@@ -276,7 +288,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
                 <div><b>{STOCK_LABELS[stock.symbol] || stock.title}</b><div style={{ fontSize: 11, color: '#6b5f45', marginTop: 3 }}>У тебя: {shares.toLocaleString('ru-RU')} шт.</div></div>
                 <div style={{ textAlign: 'right' }}><b style={{ fontSize: 17 }}>{money(stock.price)}</b><div style={{ color, fontSize: 11 }}>{change >= 0 ? '+' : ''}{change.toFixed(2)}% за 5 мин.</div></div>
               </div>
-              <div style={{ margin: '10px 0' }}><StockChart history={stock.history || []} color={color} /><div style={{ display: 'flex', justifyContent: 'space-between', color: '#8a806c', fontSize: 10 }}><span>−5 ч</span><span>Сейчас</span></div></div>
+              <div style={{ margin: '10px 0' }}><StockChart history={stock.history || []} color={color} /><div style={{ display: 'flex', justifyContent: 'space-between', color: '#8a806c', fontSize: 10 }}><span>−5 ч</span><span>Сейчас</span></div><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7, padding: '7px 9px', borderRadius: 7, background: 'rgba(61,126,166,.07)', fontSize: 11 }}><span style={{ color: '#6b5f45' }}>Следующее обновление котировки</span><b style={{ color: '#3d7ea6', fontVariantNumeric: 'tabular-nums' }}>{marketTickCountdown}</b></div></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, marginBottom: 8, color: activityChange >= 0 ? '#2c7a3c' : '#b83229' }}><span>Спрос в отрасли за последний час</span><b>{activityChange >= 0 ? '+' : ''}{activityChange.toFixed(0)}%</b></div>
               <div style={{ padding: 9, borderRadius: 8, background: 'rgba(63,157,85,.07)', color: '#2c7a3c', fontSize: 11, marginBottom: 9 }}>Последний дивиденд: {money(Number(stock.last_dividend_per_share || 0))} на акцию · {lastDividendYield.toFixed(2)}% от цены за день</div>
               <div style={{ padding: 10, borderRadius: 9, background: openProfit >= 0 ? 'rgba(63,157,85,.08)' : 'rgba(192,69,58,.08)', marginBottom: 9 }}>
