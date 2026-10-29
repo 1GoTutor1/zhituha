@@ -534,7 +534,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
     return () => clearInterval(timer);
   }, []);
 
-  const getBizName = (type: string) => ({ coffee: 'Кофейня', salon: 'Автосалон', taxi: 'Таксопарк', construction: 'Стройтрест', minimarket: 'Мини-маркет', auto_repair: 'Автомастерская' }[type] || 'Бизнес');
+  const getBizName = (type: string) => ({ coffee: 'Кофейня', salon: 'Автосалон', taxi: 'Таксопарк', construction: 'Стройтрест', minimarket: 'Мини-маркет', auto_repair: 'Автомастерская', casino: 'Казино' }[type] || 'Бизнес');
 
   const bizWorkers = app.allWorkers?.filter((w: any) => w.business_id === activeBiz?.id) || [];
   const salonHasSeller = bizWorkers.some((worker: any) => worker.role === 'Продавец');
@@ -581,7 +581,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
         {(app.businessCatalog?.locations || []).map((location: any) => {
           const owned = location.status === 'owned';
           const available = location.status === 'available';
-          const purchasable = ['coffee','salon','taxi','construction','minimarket','auto_repair'].includes(location.biz_type);
+          const purchasable = ['coffee','salon','taxi','construction','minimarket','auto_repair','casino'].includes(location.biz_type);
           const price = location.price == null ? null : Number(location.price);
           return <div key={location.location_key} className="business-location-row">
             <div className="business-location-info"><b>{location.business_name}</b><small>{owned ? 'Твой бизнес' : available ? 'Свободно у государства' : `Владелец: ${location.owner_name || 'занято'}`}</small></div>

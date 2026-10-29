@@ -111,7 +111,7 @@ begin
   if not found then return jsonb_build_object('error','Такая точка не найдена'); end if;
   if l.business_id is not null then return jsonb_build_object('error','Эта точка уже занята'); end if;
   if l.purchase_price is null then return jsonb_build_object('error','Цена этой точки ещё не установлена'); end if;
-  if l.biz_type not in ('coffee','salon','taxi','construction','minimarket','auto_repair') then
+  if l.biz_type not in ('coffee','salon','taxi','construction','minimarket','auto_repair','casino') then
     return jsonb_build_object('error','Этот тип бизнеса откроется после подключения его игровых систем'); end if;
   select count(*) into total from public.businesses where owner_id=p_player_id;
   if total>=3 then return jsonb_build_object('error','У одного игрока может быть не больше трёх бизнесов'); end if;
