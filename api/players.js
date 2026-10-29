@@ -42,10 +42,17 @@ export default async function handler(req, res) {
     }
 
     if (action === 'leaderboard') {
-      const { data, error } = await sb.from('players').select('id, nickname, money')
+      const { data, error } = await sb.from('players').select('id, nickname, money, profile_background, owned_cosmetics')
         .or('is_banned.is.null,is_banned.eq.false').order('money', { ascending: false }).limit(10);
       if (error) throw error;
-      return res.status(200).json({ players: data || [] });
+      const allowedBackgrounds = new Set(['background_panelka', 'background_brick', 'background_concrete']);
+      const players = (data || []).map(({ owned_cosmetics, ...rankedPlayer }) => ({
+        ...rankedPlayer,
+        profile_background: allowedBackgrounds.has(rankedPlayer.profile_background)
+          && Array.isArray(owned_cosmetics) && owned_cosmetics.includes(rankedPlayer.profile_background)
+          ? rankedPlayer.profile_background : null,
+      }));
+      return res.status(200).json({ players });
     }
 
     if (action === 'public_profile') {

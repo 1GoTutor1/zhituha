@@ -401,15 +401,24 @@ export const MarketTab = ({ app }: { app: any }) => {
         </div>
         <div style={{ marginTop: 20 }}>
           {topPlayers.length === 0 && <p style={{ color: '#6b5f45' }}>{leaderboardMode === 'referrals' && app.referralLeaderboardUnavailable ? '\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'money' ? '\u041f\u043e\u043a\u0430 \u043d\u0438\u043a\u043e\u0433\u043e...' : '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</p>}
-          {topPlayers.map((p: any, i: number) => (
-            <button className="market-rank-row" key={p.id || p.player_id || `${p.nickname}-${i}`} type="button" disabled={publicProfileLoading} onClick={() => void openPlayerProfile(p)} title="Открыть профиль" style={{ width: '100%', backgroundColor: '#fbf4e4', padding: '12px 15px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', marginBottom: 8, color: '#2f2a1d', cursor: publicProfileLoading ? 'wait' : 'pointer', textAlign: 'left', opacity: publicProfileLoading ? 0.7 : 1 }}>
+          {topPlayers.map((p: any, i: number) => {
+            const purchasedBackground = ['background_panelka', 'background_brick', 'background_concrete'].includes(p.profile_background)
+              ? getProfileBackground(p.profile_background) : null;
+            const rankBackgroundVars = purchasedBackground ? {
+              '--rank-bg-color': purchasedBackground.backgroundColor,
+              '--rank-bg-image': purchasedBackground.backgroundImage,
+              '--rank-bg-size': purchasedBackground.backgroundSize || 'auto',
+              '--rank-bg-position': purchasedBackground.backgroundPosition || '0 0',
+              '--rank-bg-repeat': purchasedBackground.backgroundRepeat || 'repeat',
+            } : {};
+            return <button className={`market-rank-row${purchasedBackground ? ' has-profile-bg' : ''}`} key={p.id || p.player_id || `${p.nickname}-${i}`} type="button" disabled={publicProfileLoading} onClick={() => void openPlayerProfile(p)} title="Открыть профиль" style={{ width: '100%', backgroundColor: '#fbf4e4', ...rankBackgroundVars, padding: '12px 15px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', marginBottom: 8, color: '#2f2a1d', cursor: publicProfileLoading ? 'wait' : 'pointer', textAlign: 'left', opacity: publicProfileLoading ? 0.7 : 1 } as any}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#b06a15' : i === 1 ? '#5f43a0' : i === 2 ? '#3d7ea6' : '#6b5f45', minWidth: 26 }}>#{i + 1}</span>
                 <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
               </div>
               <span style={{ color: leaderboardMode === 'money' ? '#2c7a3c' : '#c0453a', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{leaderboardMode === 'money' ? <>{Number(p.money || 0).toLocaleString('ru-RU')} <Coins size={14} /></> : <>{Number(p.referral_count || 0).toLocaleString('ru-RU')} {'\u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</>}</span>
-            </button>
-          ))}
+            </button>;
+          })}
         </div>
         <PublicProfileModal
           profile={selectedPublicProfile}

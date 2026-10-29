@@ -624,6 +624,19 @@ body[data-ui-theme="dark"] .game-content-backplate {
 .market-item-card > div:last-child { flex: 0 0 auto; }
 .market-item-card > div:first-child > div:last-child { color: var(--text-muted) !important; }
 .market-rank-row { min-height: 58px; transition: transform .15s ease, box-shadow .15s ease; }
+.market-rank-row.has-profile-bg {
+  position: relative; isolation: isolate; overflow: hidden; background: transparent !important;
+}
+.market-rank-row.has-profile-bg::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background-color: var(--rank-bg-color);
+  background-image: linear-gradient(var(--rank-bg-overlay, rgba(255,250,238,.58)), var(--rank-bg-overlay, rgba(255,250,238,.58))), var(--rank-bg-image);
+  background-size: auto, var(--rank-bg-size);
+  background-position: 0 0, var(--rank-bg-position);
+  background-repeat: no-repeat, var(--rank-bg-repeat);
+}
+body[data-ui-theme="dark"] .market-rank-row.has-profile-bg { background: transparent !important; }
+body[data-ui-theme="dark"] .market-rank-row.has-profile-bg::before { --rank-bg-overlay: rgba(24,28,26,.42); }
 .market-rank-row:active { transform: scale(.99); }
 .job-vacancy-card { min-height: 90px; gap: 12px; padding: 14px !important; }
 .job-vacancy-card > div:first-child { min-width: 0; flex: 1; }
