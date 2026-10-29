@@ -23,8 +23,8 @@ export const getProfileBackground = (id?: string | null) => {
       };
     case 'background_brick':
       return {
-        backgroundColor: '#954b37',
-        backgroundImage: 'url("/brick-graffiti.svg"),url("/brick-grain.svg"),repeating-linear-gradient(0deg, transparent 0 30px, rgba(231,194,155,.72) 30px 34px),linear-gradient(90deg, transparent 0 68px, rgba(231,194,155,.72) 68px 72px, transparent 72px 140px),linear-gradient(90deg, transparent 0 68px, rgba(231,194,155,.72) 68px 72px, transparent 72px 140px),linear-gradient(145deg, #bd7455, #874434 55%, #a65f47)',
+        backgroundColor: '#592f29',
+        backgroundImage: 'url("/brick-graffiti.svg"),url("/brick-grain.svg"),repeating-linear-gradient(0deg, transparent 0 30px, rgba(194,164,145,.55) 30px 34px),linear-gradient(90deg, transparent 0 68px, rgba(194,164,145,.55) 68px 72px, transparent 72px 140px),linear-gradient(90deg, transparent 0 68px, rgba(194,164,145,.55) 68px 72px, transparent 72px 140px),linear-gradient(145deg, #8b4937, #542a27 55%, #703a30)',
         backgroundSize: '420px 360px,140px 68px,auto,140px 68px,140px 68px,auto',
         backgroundPosition: '0 0,0 0,0 0,0 0,70px 34px,0 0',
         backgroundBlendMode: 'normal,soft-light,normal,normal,normal,normal',
