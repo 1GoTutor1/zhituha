@@ -1084,6 +1084,7 @@ export default function App() {
     if (data?.ignored) return;
     if (data?.blocked) return showMsg('Слишком много неверных ответов. Подожди минуту.', true);
     if (data?.error) return showMsg(data.error, true);
+    if (data?.daily_mission_sync_error) showMsg('Работа засчитана, но квест не синхронизировался. Проверь DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
     setMoney(Number(data.money));
     window.dispatchEvent(new CustomEvent('zhituha:work-reward', { detail: Number(data.work_pay) }));
     advanceMissionProgress('work_5');
@@ -1196,10 +1197,13 @@ export default function App() {
     const { data, error } = await supabase.rpc('sell_inventory_rpc', { p_player_id: pid, p_item_id: itemId, p_quantity: quantity });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
+    if (data?.daily_mission_sync_error) showMsg('Продажа прошла, но квест не синхронизировался. Проверь DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
     setMoney(Number(data.money));
     advanceMissionProgress('sell_1');
     await Promise.all([refreshProfile(), refreshDailyMissions()]);
-    showMsg(`Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, false, 'reward');
+    showMsg(data?.daily_mission_sync_error
+      ? 'Продажа прошла, но квест не синхронизировался. Проверь DAILY_MISSIONS_SYNC_FIX.sql в Supabase.'
+      : `Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, Boolean(data?.daily_mission_sync_error), data?.daily_mission_sync_error ? undefined : 'reward');
   });
 
   const buyCoffee = (cafe: any) => action(async () => {

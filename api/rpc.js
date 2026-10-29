@@ -74,7 +74,16 @@ export default async function handler(req, res) {
     if (name === 'add_referral_balance') return res.status(400).json({ error: 'Unsupported RPC' });
     if (name === 'fire_worker_rpc') safeArgs.p_player_id = player.id;
 
-    const { data, error } = await sb.rpc(name, safeArgs);
+    const trackedMissionId = name === 'work_rpc' ? 'work_5'
+      : name === 'sell_inventory_rpc' ? 'sell_1' : null;
+    let missionProgressBefore = null;
+    if (trackedMissionId && player) {
+      const { data: state } = await sb.rpc('daily_missions_state_rpc', { p_player_id: player.id });
+      const mission = state?.missions?.find((item) => item.id === trackedMissionId);
+      if (mission) missionProgressBefore = Number(mission.progress) || 0;
+    }
+
+    let { data, error } = await sb.rpc(name, safeArgs);
     if (error) {
       // This RPC is polled in the background; the client already exposes sync failures in the casino UI.
       if (name !== 'get_casino_round_rpc') console.error('RPC failed:', name, error.code, error.message);
@@ -128,6 +137,28 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Сначала погаси кредит, чтобы продать заложенное имущество' });
       }
       return res.status(400).json({ error: 'RPC failed' });
+    }
+
+    if (trackedMissionId && missionProgressBefore !== null) {
+      const actionSucceeded = name === 'work_rpc'
+        ? data && !data.error && !data.captcha_required && !data.ignored && !data.blocked && data.work_pay != null
+        : data?.success === true;
+      if (actionSucceeded) {
+        const { data: stateAfter, error: stateError } = await sb.rpc('daily_missions_state_rpc', { p_player_id: player.id });
+        const missionAfter = stateAfter?.missions?.find((item) => item.id === trackedMissionId);
+        const progressAfter = Number(missionAfter?.progress) || 0;
+        if (stateError || progressAfter <= missionProgressBefore) {
+          const { error: progressError } = await sb.rpc('daily_mission_add_progress', {
+            p_player_id: player.id,
+            p_mission_id: trackedMissionId,
+            p_amount: 1,
+          });
+          if (progressError) {
+            console.error('Daily mission progress sync failed:', trackedMissionId, progressError.message);
+            data = { ...(data || {}), daily_mission_sync_error: true };
+          }
+        }
+      }
     }
     return res.status(200).json({ data });
   } catch (error) {

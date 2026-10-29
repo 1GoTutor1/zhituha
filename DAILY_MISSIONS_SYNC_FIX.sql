@@ -92,5 +92,6 @@ revoke all on function public.daily_mission_add_progress(uuid,text,integer),
   public.work_rpc(uuid),public.sell_inventory_rpc(uuid,text,integer),
   public.finish_profession_cycle_rpc(uuid) from public,anon,authenticated;
 grant execute on function public.work_rpc(uuid),public.sell_inventory_rpc(uuid,text,integer),
-  public.finish_profession_cycle_rpc(uuid) to service_role;
+  public.finish_profession_cycle_rpc(uuid),
+  public.daily_mission_add_progress(uuid,text,integer) to service_role;
 notify pgrst,'reload schema';
