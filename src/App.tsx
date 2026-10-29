@@ -166,6 +166,9 @@ export default function App() {
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
   const [toast, setToast] = useState<{ msg: string, err: boolean, id: number } | null>(null);
+  const [workCaptchaCode, setWorkCaptchaCode] = useState('');
+  const [workCaptchaInput, setWorkCaptchaInput] = useState('');
+  const [workCaptchaError, setWorkCaptchaError] = useState('');
   const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'admin'>('home');
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
@@ -1011,12 +1014,51 @@ export default function App() {
   const work = () => action(async () => {
     const { data, error } = await supabase.rpc('work_rpc', { p_player_id: pid });
     if (error) throw error;
+    if (data?.captcha_required) {
+      setWorkCaptchaCode(String(data.captcha_code || ''));
+      setWorkCaptchaInput('');
+      setWorkCaptchaError('');
+      return;
+    }
+    if (data?.ignored) return;
+    if (data?.blocked) return showMsg('Слишком много неверных ответов. Подожди минуту.', true);
     if (data?.error) return showMsg(data.error, true);
     setMoney(Number(data.money));
     window.dispatchEvent(new CustomEvent('zhituha:work-reward', { detail: Number(data.work_pay) }));
     hapticFeedback('medium');
     await afterAction(); // мгновенное обновление цифр с сервера
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }
+  });
+
+  const verifyWorkCaptcha = () => action(async () => {
+    const { data, error } = await supabase.rpc('verify_work_captcha_rpc', {
+      p_player_id: pid,
+      p_code: workCaptchaInput,
+    });
+    if (error) throw error;
+    if (data?.captcha_required && data?.captcha_code) {
+      setWorkCaptchaCode(String(data.captcha_code));
+      setWorkCaptchaInput('');
+      setWorkCaptchaError('Код неверный или истёк. Введи новый.');
+      return;
+    }
+    if (data?.blocked) {
+      setWorkCaptchaCode('');
+      setWorkCaptchaInput('');
+      setWorkCaptchaError('');
+      showMsg('Слишком много неверных ответов. Подожди минуту.', true);
+      return;
+    }
+    if (data?.error || !data?.success) {
+      setWorkCaptchaCode('');
+      setWorkCaptchaError('');
+      showMsg('Проверка истекла. Нажми «Работать» ещё раз.', true);
+      return;
+    }
+    setWorkCaptchaCode('');
+    setWorkCaptchaInput('');
+    setWorkCaptchaError('');
+    window.setTimeout(() => work(), 0);
   });
 
   const selectProfession = (profession: string) => action(async () => {
@@ -1391,6 +1433,30 @@ export default function App() {
         <p style={{ fontSize: 16 }}>{dayMod?.desc || 'Описание'}</p>
         <p style={{ color: '#6b5f45', fontSize: 12, marginBottom: 20 }}>Событие действует до полуночи по Москве.</p>
         <Btn variant="secondary" onClick={() => setModifierOpen(false)} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Понятно</Btn>
+      </Modal>
+
+      <Modal open={Boolean(workCaptchaCode)} onClose={() => {}} contentStyle={{ maxWidth: 360, textAlign: 'center' }}>
+        <h3 style={{ margin: '0 0 8px' }}>Проверка активности</h3>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 14 }}>Введи цифры в том же порядке:</p>
+        <div aria-label={`Код ${workCaptchaCode.split('').join(' ')}`} style={{ padding: '14px 18px', marginBottom: 12, borderRadius: 12, background: '#100b18', color: '#f7f3fb', fontSize: 30, fontWeight: 800, letterSpacing: 10, fontFamily: 'monospace' }}>
+          {workCaptchaCode.split('').join(' ')}
+        </div>
+        <input
+          aria-label="Код проверки"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={5}
+          value={workCaptchaInput}
+          onChange={event => setWorkCaptchaInput(event.target.value.replace(/[^1-5]/g, '').slice(0, 5))}
+          onKeyDown={event => { if (event.key === 'Enter' && workCaptchaInput.length === 5 && !proc) void verifyWorkCaptcha(); }}
+          placeholder="Пять цифр"
+          style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid var(--surface-line)', background: 'var(--surface-soft)', color: 'var(--text-main)', fontSize: 18, textAlign: 'center', letterSpacing: 6, marginBottom: 10 }}
+        />
+        {workCaptchaError && <p role="alert" style={{ color: '#ff7187', fontSize: 13, marginBottom: 10 }}>{workCaptchaError}</p>}
+        <Btn variant="primary" disabled={proc || workCaptchaInput.length !== 5} onClick={() => void verifyWorkCaptcha()} style={{ width: '100%' }}>
+          {proc ? 'Проверяем…' : 'Подтвердить'}
+        </Btn>
       </Modal>
 
       <TabErrorBoundary tab={tab}>

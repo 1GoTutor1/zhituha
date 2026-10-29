@@ -3,7 +3,7 @@ import { verifyTelegramInitData } from './_telegram.js';
 import { blockDuringMaintenance, readMaintenance } from './_maintenance.js';
 
 const CLIENT_RPCS = new Set([
-  'update_profile_rpc', 'work_rpc', 'drink_tutorial_coffee_rpc', 'claim_tutorial_reward_rpc', 'claim_daily_reward_rpc', 'finish_business_timer_rpc',
+  'update_profile_rpc', 'work_rpc', 'verify_work_captcha_rpc', 'drink_tutorial_coffee_rpc', 'claim_tutorial_reward_rpc', 'claim_daily_reward_rpc', 'finish_business_timer_rpc',
   'taxi_collect_rpc', 'start_phone_order_rpc',
   'cancel_lot_rpc', 'start_car_order_rpc', 'start_build_rpc',
   'upgrade_business_passive_rpc', 'collect_business_passive_rpc',
