@@ -1029,3 +1029,65 @@ body[data-ui-theme="dark"] .home-player-header [style*="#b06a15"] { color: #ff9a
   body[data-ui-theme="dark"] .soviet-btn,
   body[data-ui-theme="dark"] .bottom-nav-item { transition: none !important; }
 }
+
+.game-topbar {
+  position: fixed;
+  z-index: 90;
+  top: calc(env(safe-area-inset-top, 0px) + 62px);
+  left: 50%;
+  display: flex;
+  width: min(560px, calc(100vw - 24px));
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px 8px 13px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(201, 173, 224, .14);
+  border-radius: 19px;
+  background: linear-gradient(105deg, rgba(31, 21, 43, .96), rgba(25, 17, 35, .96));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .26);
+  color: #f7f3fb;
+  text-align: left;
+  backdrop-filter: blur(18px) saturate(1.15);
+}
+.game-topbar-brand,.game-topbar-actions { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.game-topbar-mark {
+  display: grid; width: 37px; height: 37px; flex: 0 0 auto; place-items: center;
+  border-radius: 12px; background: linear-gradient(145deg, #ff9c21, #ff7619);
+  color: #25120a; font: 900 22px 'Rubik', sans-serif; box-shadow: 0 5px 14px rgba(255, 126, 23, .26);
+}
+.game-topbar-brand > span:last-child { display: grid; gap: 1px; }
+.game-topbar-brand b { font: 800 15px 'Rubik', sans-serif; letter-spacing: -.3px; }
+.game-topbar-brand small { color: #a99eb6; font: 600 8px 'Rubik', sans-serif; letter-spacing: .65px; }
+.game-topbar-balance {
+  display: inline-flex; min-height: 36px; align-items: center; justify-content: center; gap: 6px;
+  padding: 0 11px; border: 1px solid rgba(255, 151, 35, .3); border-radius: 99px;
+  background: rgba(255, 141, 31, .1); color: #ffad38; font: 800 12px 'Rubik', sans-serif; white-space: nowrap;
+}
+.game-topbar-actions > button {
+  display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid rgba(201,173,224,.15);
+  border-radius: 12px; background: rgba(255,255,255,.04); color: #d5c9df; cursor: pointer;
+}
+.game-topbar-actions > button:active { transform: scale(.95); }
+@media (max-width: 390px) {
+  .game-topbar { top: calc(env(safe-area-inset-top, 0px) + 58px); min-height: 54px; }
+  .game-topbar-brand small { font-size: 7px; }
+  .game-topbar-balance { min-height: 34px; padding-inline: 8px; font-size: 11px; }
+}
+
+
+.profile-avatar-frame { position: relative; z-index: 1; overflow: visible; }
+.profile-avatar-frame.has-exclamation-frame { --avatar-mark-radius: 40px; }
+.profile-avatar-frame .avatar-exclamation-ring {
+  position: absolute; inset: 0; z-index: 5; overflow: visible; pointer-events: none;
+}
+.profile-avatar-frame .avatar-exclamation-ring i {
+  position: absolute; top: 50%; left: 50%; display: block;
+  color: #63e6be; font: 900 19px/1 'Rubik', sans-serif; font-style: normal;
+  text-shadow: 0 0 5px rgba(18, 42, 38, .95), 0 0 12px rgba(99, 230, 190, .65);
+}
+.profile-hero-card .profile-avatar-frame.has-exclamation-frame { --avatar-mark-radius: 51px; }
+.game-tab-profile .profile-avatar-frame.has-exclamation-frame { --avatar-mark-radius: 61px; }
+.home-avatar-button.profile-avatar-frame { overflow: visible; }
+body[data-ui-theme="dark"] .home-avatar-button.has-exclamation-frame { border: 3px solid #63e6be !important; }

@@ -22,10 +22,10 @@ export function setUiVibrationEnabled(enabled: boolean) {
 }
 
 export function getUiTheme(): UiTheme {
-  return readPreference('zhituha_theme', 'dark') === 'light' ? 'light' : 'dark';
+  return readPreference('zhituha_theme_v2', 'dark') === 'light' ? 'light' : 'dark';
 }
 
 export function persistUiTheme(theme: UiTheme) {
-  writePreference('zhituha_theme', theme);
+  writePreference('zhituha_theme_v2', theme);
   return theme;
 }

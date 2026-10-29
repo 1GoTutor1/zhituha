@@ -262,7 +262,7 @@ export const HomeTab = ({ app }: { app: any }) => {
     <div className="game-tab game-tab-home" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <div className="home-player-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button type="button" className="home-avatar-button" aria-label="Открыть профиль" onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: '14px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, ...(app.profileFrame === 'frame_test' ? frameStyle('frame_test') : app.profileFrame === 'frame_amber' ? frameStyle('frame_amber') : { border: '2px solid rgba(90,70,40,0.22)' }), cursor: 'pointer', userSelect: 'none' }}>{av.emoji}</button>
+          <button type="button" className={`home-avatar-button profile-avatar-frame${app.profileFrame === 'frame_test' ? ' has-exclamation-frame' : ''}`} aria-label="Открыть профиль" onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: '14px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, ...(app.profileFrame === 'frame_test' ? frameStyle('frame_test') : app.profileFrame === 'frame_amber' ? frameStyle('frame_amber') : { border: '2px solid rgba(90,70,40,0.22)' }), cursor: 'pointer', userSelect: 'none' }}>{app.profileFrame === 'frame_test' && <MintExclamationRing />}{av.emoji}</button>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'Russo One, Impact, sans-serif' }}>{app.nick}</div>
@@ -1310,6 +1310,15 @@ const frameStyle = (frame: string) => frame === 'frame_test'
     ? { border: '3px solid #e69a32', boxShadow: '0 0 0 2px #6f3d0d, 0 0 14px rgba(230,154,50,.45)' }
     : { border: '3px solid rgba(90,70,40,.28)' };
 
+const MintExclamationRing = () => (
+  <span className="avatar-exclamation-ring" aria-hidden="true">
+    {Array.from({ length: 8 }, (_, index) => {
+      const angle = index * 45;
+      return <i key={angle} style={{ transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-var(--avatar-mark-radius)) rotate(${-angle}deg)` }}>!</i>;
+    })}
+  </span>
+);
+
 const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profile: any, loading: boolean, vehicleState?: any, onClose: () => void }) => {
   const frameNames: Record<string, string> = { frame_test: 'Мятная рамка', frame_amber: 'Янтарная рамка' };
   const backgroundNames: Record<string, string> = PROFILE_BACKGROUND_NAMES;
@@ -1323,7 +1332,7 @@ const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profi
     <Modal open={loading || !!profile} onClose={onClose} contentStyle={{ maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }}>
       {loading ? <p style={{ color: '#6b5f45' }}>Загружаю профиль…</p> : profile && <>
         <div className="profile-hero-card" style={{ ...S.card, textAlign: 'center', padding: 18, marginBottom: 12 }}>
-          <div style={{ width: 76, height: 76, margin: '0 auto 10px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: avatar.bg, ...frameStyle(profile.profile_frame) }}>{avatar.emoji}</div>
+          <div className={`profile-avatar-frame${profile.profile_frame === 'frame_test' ? ' has-exclamation-frame' : ''}`} style={{ width: 76, height: 76, margin: '0 auto 10px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: avatar.bg, ...frameStyle(profile.profile_frame) }}>{profile.profile_frame === 'frame_test' && <MintExclamationRing />}{avatar.emoji}</div>
           <h3 style={{ margin: 0, fontFamily: 'Russo One', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>{profile.nickname}{profile.premium_active && <Crown size={18} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}</h3>
           {(profile.family_awards || []).map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
         </div>
@@ -1376,7 +1385,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
     <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 0, color: '#6b5f45', cursor: 'pointer', margin: '8px 0 16px' }}>← На главную</button>
     <h2>Профиль</h2>
     <div className="profile-hero-card" style={{ ...S.card, textAlign: 'center', padding: 24 }}>
-      <div style={{ width: 92, height: 92, margin: '0 auto 12px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 48, background: avatar.bg, ...frameStyle(app.profileFrame) }}>{avatar.emoji}</div>
+      <div className={`profile-avatar-frame${app.profileFrame === 'frame_test' ? ' has-exclamation-frame' : ''}`} style={{ width: 92, height: 92, margin: '0 auto 12px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 48, background: avatar.bg, ...frameStyle(app.profileFrame) }}>{app.profileFrame === 'frame_test' && <MintExclamationRing />}{avatar.emoji}</div>
       <div style={{ fontSize: 23, fontFamily: 'Russo One', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>{app.nick}{Date.parse(app.premiumUntil || '') > Date.now() && <Crown size={20} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}</div>
       {familyProfile && <div style={{ marginTop: 6, color: '#3f9d65', fontWeight: 700 }}>[{familyProfile.tag}] {familyProfile.name}</div>}
       {familyAwards.map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}

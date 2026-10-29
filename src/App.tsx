@@ -1,7 +1,7 @@
 import { Component, useState, useEffect, useRef, useMemo, lazy, Suspense, type ReactNode } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-import { Send, ShieldAlert, Wrench, LoaderCircle } from 'lucide-react';
+import { Send, ShieldAlert, Wrench, LoaderCircle, Settings, Coins } from 'lucide-react';
 import { isUiSoundEnabled, playUiSound, setUiSoundEnabled, type UiSound } from './sound';
 import { getUiTheme, isUiVibrationEnabled, persistUiTheme, setUiVibrationEnabled, type UiTheme } from './preferences';
 import { 
@@ -13,6 +13,7 @@ import {
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
 import { getProfileBackground } from './profileBackgrounds';
+import { AnimatedNumber } from './AnimatedNumber';
 const loadTabs = () => import('./tabs');
 const HomeTab = lazy(() => loadTabs().then((module) => ({ default: module.HomeTab })));
 const MarketTab = lazy(() => loadTabs().then((module) => ({ default: module.MarketTab })));
@@ -1340,7 +1341,7 @@ export default function App() {
   // чтобы не вставлять пустую строку и не падать на NOT NULL / уникальности имени.
 
 
-  const pageStyle: any = { padding: 'calc(100px + env(safe-area-inset-top, 20px)) 20px calc(90px + env(safe-area-inset-bottom, 20px))', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', ...(profileBackground ? getProfileBackground(profileBackground) : {}), transition: 'background 0.35s ease', color: 'var(--text-main)' };
+  const pageStyle: any = { padding: 'calc(140px + env(safe-area-inset-top, 20px)) 20px calc(100px + env(safe-area-inset-bottom, 20px))', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', ...(profileBackground ? getProfileBackground(profileBackground) : {}), transition: 'background 0.35s ease', color: 'var(--text-main)' };
   const authPageStyle: any = { ...pageStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' };
 
   if (isTgEnv && authStatus === 'checking') return <VerificationScreen title="Проверяем Telegram" description="Подтверждаем подпись и аккаунт." />;
@@ -1382,6 +1383,13 @@ export default function App() {
     <div style={pageStyle}>
       {maintenanceEnabled && maintenanceAdmin && maintenanceBypass && <div className="maintenance-testing-banner"><div><b>ТЕХРАБОТЫ · ТЕСТОВЫЙ ВХОД</b><span>Игра пока закрыта для остальных</span></div><Btn variant="primary" disabled={maintenanceBusy} onClick={() => void setMaintenance(false)}>{maintenanceBusy ? 'Открываем…' : 'Открыть для всех'}</Btn></div>}
       <Toast toast={toast} onClose={closeToast} />
+      <header className="game-topbar">
+        <div className="game-topbar-brand"><span className="game-topbar-mark">Ж</span><span><b>Житуха</b><small>ИГРА ПРО БОЛЬШУЮ ЖИЗНЬ</small></span></div>
+        <div className="game-topbar-actions">
+          <div className="game-topbar-balance"><Coins size={16} /><AnimatedNumber value={money} /></div>
+          <button type="button" aria-label="Настройки" onClick={() => setSettingsOpen(true)}><Settings size={18} /></button>
+        </div>
+      </header>
       <Suspense fallback={null}><DailyRewardModal app={app} /><AppModals app={app} /></Suspense>
       <Modal open={modifierOpen} onClose={() => setModifierOpen(false)}>
         <div style={{ fontSize: 40, marginBottom: 10 }}>{dayMod?.icon || '🔥'}</div>
