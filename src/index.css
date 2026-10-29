@@ -474,6 +474,16 @@ body[data-ui-theme="dark"] .access-card small { color: #aeb6af; }
 .family-identity h3 { margin: 0 0 4px; }
 .family-identity-main span,.family-personal-score { color: var(--text-muted); font-size: 12px; }
 .family-luck { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; padding: 10px; border-radius: 10px; background: color-mix(in srgb, var(--bg-main) 78%, #3f9d65); font-size: 12px; }
+.family-treasury-card { border-color: rgba(63,157,101,.35); }
+.family-treasury-balance { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0; padding: 13px; border: 1px solid var(--border-color); border-radius: 11px; background: color-mix(in srgb, var(--bg-main) 72%, #3f9d65); }
+.family-treasury-balance span { color: var(--text-muted); font-size: 12px; }
+.family-treasury-balance b { color: #27804d; font-size: 19px; }
+.family-deposit-form { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 7px; margin-top: 10px; }
+.family-deposit-form > label { grid-column: 1 / -1; color: var(--text-muted); font-size: 12px; }
+.family-deposit-form > div { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 10px; border: 1px solid var(--border-color); border-radius: 9px; background: var(--bg-main); color: var(--text-muted); }
+.family-deposit-form input { width: 100%; min-width: 0; padding: 10px 0; border: 0; outline: 0; background: transparent; color: var(--text-main); font: inherit; }
+.family-deposit-form button { padding: 10px 12px; border: 1px solid rgba(63,157,101,.42); border-radius: 9px; background: #348b58; color: #fff; font: inherit; font-size: 12px; font-weight: 800; }
+.family-deposit-form button:disabled { opacity: .5; }
 .family-luck span { color: var(--text-muted); }
 .family-luck b { color: #3f9d65; text-align: right; }
 .family-personal-score { margin-top: 10px; }
@@ -527,6 +537,7 @@ body[data-ui-theme="dark"] .family-stake-presets button.selected { color: #83d4a
 body[data-ui-theme="dark"] .family-territory-bottom > button,body[data-ui-theme="dark"] .family-catalog-row > button { color: #92dcae; }
 body[data-ui-theme="dark"] .family-public-heading button,body[data-ui-theme="dark"] .family-rank-row button,body[data-ui-theme="dark"] .family-action-link { color: #91c6ec; }
 body[data-ui-theme="dark"] .family-profile-badge { color: #f0d18a; }
+body[data-ui-theme="dark"] .family-treasury-balance b { color: #8bd3a4; }
 @media (max-width: 390px) {
   .family-card { padding: 12px; }
   .family-territory-bottom { align-items: flex-start; flex-direction: column; }

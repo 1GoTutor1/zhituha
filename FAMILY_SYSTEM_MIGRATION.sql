@@ -10,9 +10,12 @@ create table if not exists public.families (
   tag text not null,
   leader_id uuid references public.players(id) on delete set null,
   deputy_id uuid references public.players(id) on delete set null,
+  cash_balance bigint not null default 0 check (cash_balance >= 0),
   created_at timestamptz not null default clock_timestamp(),
   disbanded_at timestamptz
 );
+alter table public.families
+  add column if not exists cash_balance bigint not null default 0 check (cash_balance >= 0);
 create unique index if not exists families_active_name_uq on public.families (lower(name)) where disbanded_at is null;
 create unique index if not exists families_active_tag_uq on public.families (upper(tag)) where disbanded_at is null;
 
@@ -274,6 +277,7 @@ begin
     select jsonb_build_object(
       'id',f.id,'name',f.name,'tag',f.tag,'leader_id',f.leader_id,'deputy_id',f.deputy_id,
       'role',member.member_role,'score',public.family_current_score(f.id,v_season_no),
+      'cash_balance',coalesce(f.cash_balance,0),
       'my_points',(select coalesce(sum(cp.points),0)::integer from public.family_cycle_points cp where cp.membership_id=member.id and cp.season_no=v_season_no),
       'today_points',(select count(*)::integer from public.family_cycle_points cp where cp.membership_id=member.id and cp.season_no=v_season_no and cp.point_day=day_msk),
       'territory_attempted_today',exists(select 1 from public.family_territory_attempts a where a.family_id=f.id and a.attempt_day=day_msk),
@@ -423,23 +427,59 @@ end $$;
 
 create or replace function public.family_invite_rpc(p_player_id uuid, p_target_nickname text)
 returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
-declare member public.family_memberships; target public.players; family_row public.families;
+declare
+  member public.family_memberships;
+  target_player public.players;
+  family_row public.families;
+  clean_nickname text := regexp_replace(btrim(coalesce(p_target_nickname,'')), '^@+', '');
 begin
   select * into member from public.family_memberships where player_id=p_player_id and left_at is null for update;
   if not found or member.member_role not in ('leader','deputy') then return jsonb_build_object('error','Приглашать могут лидер и заместитель'); end if;
   select * into family_row from public.families where id=member.family_id and disbanded_at is null for update;
+  if not found then return jsonb_build_object('error','Семья уже закрыта'); end if;
   if (select count(*) from public.family_memberships where family_id=member.family_id and left_at is null)>=10 then return jsonb_build_object('error','В семье уже 10 участников'); end if;
-  select * into target from public.players where lower(nickname)=lower(btrim(coalesce(p_target_nickname,''))) and coalesce(is_banned,false)=false limit 1;
-  if not found then return jsonb_build_object('error','Игрок с таким ником не найден'); end if;
-  if target.id=p_player_id then return jsonb_build_object('error','Нельзя пригласить самого себя'); end if;
-  if exists(select 1 from public.family_memberships where player_id=target.id and left_at is null) then return jsonb_build_object('error','Этот игрок уже состоит в семье'); end if;
-  if target.family_switch_until>clock_timestamp() then return jsonb_build_object('error','Игрок сможет вступить после окончания задержки смены семьи'); end if;
-  update public.family_requests set status='expired' where player_id=target.id and status='pending' and expires_at<=clock_timestamp();
+  if clean_nickname='' then return jsonb_build_object('error','Введи игровой ник игрока'); end if;
+  select * into target_player from public.players
+    where lower(btrim(nickname))=lower(clean_nickname) and coalesce(is_banned,false)=false
+    order by created_at limit 1;
+  if not found then return jsonb_build_object('error','Игрок не найден. Введи точный игровой ник из его профиля'); end if;
+  if target_player.id=p_player_id then return jsonb_build_object('error','Нельзя пригласить самого себя'); end if;
+  if exists(select 1 from public.family_memberships where player_id=target_player.id and left_at is null) then return jsonb_build_object('error','Этот игрок уже состоит в семье'); end if;
+  if target_player.family_switch_until>clock_timestamp() then return jsonb_build_object('error','Игрок сможет вступить после окончания задержки смены семьи'); end if;
+  update public.family_requests set status='expired' where player_id=target_player.id and status='pending' and expires_at<=clock_timestamp();
   begin
     insert into public.family_requests(family_id,player_id,created_by,request_type,expires_at)
-    values(member.family_id,target.id,p_player_id,'invite',clock_timestamp()+interval '48 hours');
-  exception when unique_violation then return jsonb_build_object('error','У игрока уже есть активное приглашение или заявка'); end;
-  return jsonb_build_object('success',true,'nickname',target.nickname);
+    values(member.family_id,target_player.id,p_player_id,'invite',clock_timestamp()+interval '48 hours');
+  exception when unique_violation then return jsonb_build_object('error','У игрока уже есть активное приглашение или заявка. Пусть он примет её либо дождётся окончания'); end;
+  return jsonb_build_object('success',true,'nickname',target_player.nickname,'expires_in_hours',48);
+end $$;
+
+create or replace function public.family_cash_deposit_rpc(p_player_id uuid, p_amount bigint)
+returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  member public.family_memberships;
+  family_row public.families;
+  player_row public.players;
+begin
+  if p_amount is null or p_amount < 1000 then
+    return jsonb_build_object('error','Минимальное пополнение кассы — 1 000 ₽');
+  end if;
+  select * into member from public.family_memberships
+    where player_id=p_player_id and left_at is null for update;
+  if not found then return jsonb_build_object('error','Сначала вступи в семью'); end if;
+  select * into family_row from public.families
+    where id=member.family_id and disbanded_at is null for update;
+  if not found then return jsonb_build_object('error','Семья уже закрыта'); end if;
+  select * into player_row from public.players where id=p_player_id for update;
+  if not found then return jsonb_build_object('error','Игрок не найден'); end if;
+  if coalesce(player_row.money,0)<p_amount then
+    return jsonb_build_object('error','В личном кошельке недостаточно денег');
+  end if;
+  update public.players set money=coalesce(money,0)-p_amount
+    where id=p_player_id returning * into player_row;
+  update public.families set cash_balance=cash_balance+p_amount
+    where id=member.family_id returning * into family_row;
+  return jsonb_build_object('success',true,'money',player_row.money,'cash_balance',family_row.cash_balance);
 end $$;
 
 create or replace function public.family_respond_rpc(p_player_id uuid, p_request_id uuid, p_accept boolean)
@@ -576,7 +616,6 @@ declare
   member public.family_memberships;
   f public.families;
   territory public.family_territories;
-  p public.players;
   day_msk date := timezone('Europe/Moscow', clock_timestamp())::date;
   chance numeric(5,2);
   roll numeric(7,4);
@@ -593,12 +632,12 @@ begin
   if exists(select 1 from public.family_territory_attempts where family_id=member.family_id and attempt_day=day_msk) then
     return jsonb_build_object('error','Семья уже пробовала захватить территорию сегодня');
   end if;
-  select * into p from public.players where id=p_player_id for update;
-  if coalesce(p.money,0)<p_stake then return jsonb_build_object('error','В кошельке недостаточно денег для ставки'); end if;
+  if coalesce(f.cash_balance,0)<p_stake then return jsonb_build_object('error','В кассе семьи недостаточно денег для этой ставки'); end if;
   chance := least(85::numeric, round(100.0*p_stake/(p_stake+greatest(territory.defense_value,territory.base_value)),2));
   roll := round(random()*100.0,4);
   success := roll<chance;
-  update public.players set money=money-p_stake where id=p_player_id returning * into p;
+  update public.families set cash_balance=cash_balance-p_stake
+    where id=member.family_id returning * into f;
   insert into public.family_territory_attempts(family_id,player_id,territory_key,attempt_day,stake,defense_value,chance_percent,roll_percent,succeeded)
     values(member.family_id,p_player_id,p_territory_key,day_msk,p_stake,territory.defense_value,chance,roll,success);
   if success then
@@ -607,7 +646,7 @@ begin
       captured_at=clock_timestamp(),updated_at=clock_timestamp() where territory_key=p_territory_key;
   end if;
   return jsonb_build_object('success',true,'captured',success,'territory',p_territory_key,
-    'stake',p_stake,'chance_percent',chance,'roll_percent',roll,'money',p.money,
+    'stake',p_stake,'chance_percent',chance,'roll_percent',roll,'cash_balance',f.cash_balance,
     'message',case when success then 'Территория захвачена!' else 'Попытка не удалась. Ставка потрачена.' end);
 end $$;
 
@@ -716,6 +755,7 @@ revoke all on function public.family_state_rpc(uuid) from public, anon, authenti
 revoke all on function public.family_create_rpc(uuid,text,text) from public, anon, authenticated;
 revoke all on function public.family_apply_rpc(uuid,uuid) from public, anon, authenticated;
 revoke all on function public.family_invite_rpc(uuid,text) from public, anon, authenticated;
+revoke all on function public.family_cash_deposit_rpc(uuid,bigint) from public, anon, authenticated;
 revoke all on function public.family_respond_rpc(uuid,uuid,boolean) from public, anon, authenticated;
 revoke all on function public.family_leave_rpc(uuid) from public, anon, authenticated;
 revoke all on function public.family_kick_rpc(uuid,uuid) from public, anon, authenticated;
@@ -728,6 +768,7 @@ revoke all on function public.finish_profession_cycle_rpc(uuid) from public, ano
 revoke all on function public.finish_profession_cycle_rpc_before_family(uuid) from public, anon, authenticated, service_role;
 grant execute on function public.family_state_rpc(uuid), public.family_create_rpc(uuid,text,text),
   public.family_apply_rpc(uuid,uuid), public.family_invite_rpc(uuid,text), public.family_respond_rpc(uuid,uuid,boolean),
+  public.family_cash_deposit_rpc(uuid,bigint),
   public.family_leave_rpc(uuid), public.family_kick_rpc(uuid,uuid), public.family_set_deputy_rpc(uuid,uuid),
   public.family_claim_leadership_rpc(uuid), public.family_touch_rpc(uuid),
   public.family_territory_attack_rpc(uuid,text,bigint), public.family_public_rpc(uuid,uuid),

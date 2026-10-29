@@ -13,6 +13,7 @@ export const FamilyTab = ({ app }: { app: any }) => {
   const [familyName, setFamilyName] = useState('');
   const [familyTag, setFamilyTag] = useState('');
   const [inviteNickname, setInviteNickname] = useState('');
+  const [depositAmount, setDepositAmount] = useState('25000');
   const [stake, setStake] = useState(100000);
   const [publicFamily, setPublicFamily] = useState<any>(null);
   const [publicLoading, setPublicLoading] = useState(false);
@@ -52,7 +53,7 @@ export const FamilyTab = ({ app }: { app: any }) => {
       if (data?.success === false) throw new Error(resultText(data));
       if (data?.money != null) app.setMoney?.(Number(data.money));
       if (data?.captured !== undefined) {
-        app.showMsg(`${data.captured ? 'Территория захвачена' : 'Попытка не удалась'} · шанс ${Number(data.chance_percent).toFixed(1)}% · ставка ${fmt(data.stake)} ₽ сгорела`);
+        app.showMsg(`${data.captured ? 'Территория захвачена' : 'Попытка не удалась'} · шанс ${Number(data.chance_percent).toFixed(1)}% · из семейной кассы списано ${fmt(data.stake)} ₽`);
       } else if (successMessage) app.showMsg(successMessage);
       await refresh();
       return data;
@@ -68,6 +69,7 @@ export const FamilyTab = ({ app }: { app: any }) => {
   const isOfficer = ['leader', 'deputy'].includes(family?.role);
   const canCreate = Number(state?.player_level || app.career?.level || 1) >= 5;
   const seasonSeconds = Number(state?.season?.seconds_left || 0);
+  const depositValue = Number(depositAmount);
   const chanceFor = (territory: any) => Math.min(85, stake / (stake + Number(territory?.defense_value || territory?.base_value || 100000)) * 100);
   const openPublicFamily = async (familyId: string) => {
     setPublicLoading(true);
@@ -112,9 +114,21 @@ export const FamilyTab = ({ app }: { app: any }) => {
         {family.role === 'deputy' && <button className="family-action-link" disabled={busy} onClick={() => void run('family_claim_leadership_rpc', {}, 'Ты стал лидером семьи')}>Забрать лидерство, если лидер не заходил 14 дней</button>}
       </section>
 
+      <section className="family-card family-treasury-card">
+        <h3><Users size={18} /> Касса семьи</h3>
+        <div className="family-treasury-balance"><span>Общий баланс</span><b>{fmt(family.cash_balance)} ₽</b></div>
+        <p>Пополнять кассу могут все участники. Деньги идут на захват территорий; вывести их нельзя.</p>
+        <div className="family-deposit-form">
+          <label htmlFor="family-deposit-amount">Пополнение семейной кассы</label>
+          <div><input id="family-deposit-amount" type="number" min="1000" step="1000" inputMode="numeric" value={depositAmount} onChange={event => setDepositAmount(event.target.value)} /><span>₽</span></div>
+          <button type="button" disabled={busy || !Number.isSafeInteger(depositValue) || depositValue < 1000 || depositValue > Number(state?.money ?? app.money)} onClick={() => { if (window.confirm(`Внести ${fmt(depositValue)} ₽ в семейную кассу? Эти деньги нельзя будет вывести.`)) void run('family_cash_deposit_rpc', { p_amount: depositValue }, `В кассу семьи внесено ${fmt(depositValue)} ₽`); }}>Пополнить кассу</button>
+        </div>
+        <small>Твой кошелёк: {fmt(state?.money ?? app.money)} ₽ · минимум 1 000 ₽</small>
+      </section>
+
       <section className="family-card">
         <h3><MapPin size={18} /> Территории A / B / C</h3>
-        <p className="family-section-note">Попытка захвата одна на семью в день по Москве. Ставка берётся из твоего кошелька и сгорает при любом исходе.</p>
+        <p className="family-section-note">Попытка захвата одна на семью в день по Москве. Ставка списывается из общей кассы семьи при любом исходе.</p>
         <label className="family-stake-label">Ставка: <b>{fmt(stake)} ₽</b><input type="range" min="25000" max="500000" step="5000" value={stake} onChange={event => setStake(Number(event.target.value))} /></label>
         <div className="family-stake-presets">{[25000,100000,250000,500000].map(value => <button key={value} className={stake === value ? 'selected' : ''} onClick={() => setStake(value)}>{fmt(value)}</button>)}</div>
         <div className="family-territory-list">{(state.territories || []).map((territory: any) => {
@@ -124,7 +138,7 @@ export const FamilyTab = ({ app }: { app: any }) => {
             <div className="family-territory-heading"><strong>{territory.name || `Поле ${territory.key}`}</strong><span className={territory.owner_family_id ? 'occupied' : 'free'}>{owns ? 'Ваша семья' : territory.owner_family_id ? `[${territory.owner_tag}] ${territory.owner_name}` : 'Свободна'}</span></div>
             <div className="family-territory-details">Цена базы: {fmt(territory.base_value)} ₽ · защита: {fmt(territory.defense_value)} ₽</div>
             {territory.last_attempt && <small>Последняя попытка: {territory.last_attempt.family_name} · шанс {Number(territory.last_attempt.chance_percent).toFixed(1)}% · {territory.last_attempt.succeeded ? 'успех' : 'неудача'}</small>}
-            <div className="family-territory-bottom"><span>Твой шанс сейчас: <b>{chanceFor(territory).toFixed(1)}%</b></span><button disabled={!isOfficer || owns || attempted || busy || Number(state.money) < stake} onClick={() => void run('family_territory_attack_rpc', { p_territory_key: territory.key, p_stake: stake })}>{owns ? 'Уже ваша' : attempted ? 'Попытка сегодня использована' : 'Попробовать захватить'}</button></div>
+            <div className="family-territory-bottom"><span>Шанс: <b>{chanceFor(territory).toFixed(1)}%</b></span><button disabled={!isOfficer || owns || attempted || busy || Number(family.cash_balance) < stake} onClick={() => void run('family_territory_attack_rpc', { p_territory_key: territory.key, p_stake: stake })}>{owns ? 'Уже ваша' : attempted ? 'Попытка сегодня использована' : Number(family.cash_balance) < stake ? 'Пополните семейную кассу' : 'Попробовать захватить'}</button></div>
           </article>;
         })}</div>
         <div className="family-territory-rules">Свободное поле защищено на 100 000 ₽: ставка 100 000 ₽ даёт 50% шанса. Захват укрепляет поле, но не выше 200 000 ₽ защиты. Каждая территория добавляет всем участникам семьи +0,5 процентного пункта к редким и эпическим находкам.</div>
@@ -138,7 +152,8 @@ export const FamilyTab = ({ app }: { app: any }) => {
           <div className="family-member-actions">{family.role === 'leader' && member.role === 'member' && <button title="Назначить заместителем" disabled={busy} onClick={() => void run('family_set_deputy_rpc', { p_target_player_id: member.player_id }, 'Назначен заместитель')}><Shield size={15} /></button>}{isOfficer && member.role !== 'leader' && (family.role === 'leader' || member.role === 'member') && <button className="kick" title="Исключить из семьи" disabled={busy} onClick={() => { if (window.confirm(`Исключить ${member.nickname}? Его очки уйдут из счёта семьи.`)) void run('family_kick_rpc', { p_target_player_id: member.player_id }, 'Игрок исключён'); }}><LogOut size={15} /></button>}</div>
         </div>)}
         {family.role === 'leader' && <button className="family-action-link" disabled={busy} onClick={() => void run('family_set_deputy_rpc', { p_target_player_id: null }, 'Заместитель снят')}>Снять заместителя</button>}
-        {isOfficer && <div className="family-inline-form"><input value={inviteNickname} onChange={event => setInviteNickname(event.target.value)} placeholder="Ник игрока для приглашения" maxLength={32} /><button disabled={busy || !inviteNickname.trim() || family.members.length >= 10} onClick={async () => { const done = await run('family_invite_rpc', { p_target_nickname: inviteNickname.trim() }, 'Приглашение отправлено на 48 часов'); if (done) setInviteNickname(''); }}>Пригласить</button></div>}
+        {isOfficer && <div className="family-inline-form"><input value={inviteNickname} onChange={event => setInviteNickname(event.target.value)} placeholder="Точный игровой ник из профиля" maxLength={32} aria-label="Точный игровой ник игрока" /><button type="button" disabled={busy || !inviteNickname.trim() || family.members.length >= 10} onClick={async () => { const done = await run('family_invite_rpc', { p_target_nickname: inviteNickname.trim().replace(/^@+/, '') }, 'Приглашение отправлено на 48 часов'); if (done) setInviteNickname(''); }}>Пригласить</button></div>}
+        {isOfficer && <small>Введи точный игровой ник, не Telegram username. Можно вставить ник с символом @ в начале.</small>}
         {(family.requests || []).length > 0 && <div className="family-requests"><h4>Заявки</h4>{family.requests.map((request: any) => <div className="family-member-row" key={request.id}><div><b>{request.nickname}</b><small>Уровень {request.level}</small></div><div className="family-request-actions"><button disabled={busy} onClick={() => void run('family_respond_rpc', { p_request_id: request.id, p_accept: true }, 'Игрок принят в семью')}>Принять</button><button disabled={busy} onClick={() => void run('family_respond_rpc', { p_request_id: request.id, p_accept: false }, 'Заявка отклонена')}>Отклонить</button></div></div>)}</div>}
         {(family.sent_invites || []).length > 0 && <div className="family-requests"><h4>Ожидают ответа</h4>{family.sent_invites.map((invitation: any) => <div className="family-member-row" key={invitation.id}><div><b>{invitation.nickname}</b><small>Приглашение до {dateTime(invitation.expires_at)}</small></div><span>Ожидает</span></div>)}</div>}
       </section>
