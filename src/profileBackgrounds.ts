@@ -24,9 +24,10 @@ export const getProfileBackground = (id?: string | null) => {
     case 'background_brick':
       return {
         backgroundColor: '#954b37',
-        backgroundImage: 'repeating-linear-gradient(0deg, transparent 0 30px, rgba(231,194,155,.72) 30px 34px),linear-gradient(90deg, transparent 0 68px, rgba(231,194,155,.72) 68px 72px, transparent 72px 140px),linear-gradient(90deg, transparent 0 68px, rgba(231,194,155,.72) 68px 72px, transparent 72px 140px),linear-gradient(145deg, #bd7455, #874434 55%, #a65f47)',
-        backgroundSize: 'auto,140px 68px,140px 68px,auto',
-        backgroundPosition: '0 0,0 0,70px 34px,0 0',
+        backgroundImage: 'url("/brick-grain.svg"),repeating-linear-gradient(0deg, transparent 0 30px, rgba(231,194,155,.72) 30px 34px),linear-gradient(90deg, transparent 0 68px, rgba(231,194,155,.72) 68px 72px, transparent 72px 140px),linear-gradient(90deg, transparent 0 68px, rgba(231,194,155,.72) 68px 72px, transparent 72px 140px),linear-gradient(145deg, #bd7455, #874434 55%, #a65f47)',
+        backgroundSize: '140px 68px,auto,140px 68px,140px 68px,auto',
+        backgroundPosition: '0 0,0 0,0 0,70px 34px,0 0',
+        backgroundBlendMode: 'soft-light,normal,normal,normal,normal',
         backgroundRepeat: 'repeat',
       };
     case 'background_panelka':

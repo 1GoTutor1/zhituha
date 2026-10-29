@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="68" viewBox="0 0 140 68">
+  <filter id="brick-grain" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.19" numOctaves="4" seed="29" stitchTiles="stitch" />
+    <feColorMatrix type="saturate" values="0" />
+  </filter>
+  <rect width="140" height="68" filter="url(#brick-grain)" opacity="0.72" />
+</svg>
