@@ -142,7 +142,9 @@ export const CasinoTab = ({ app }: { app: any }) => {
         if (mountedRef.current) setRealtimeReady(status === 'SUBSCRIBED');
         if (status === 'SUBSCRIBED' && mountedRef.current) void loadRound();
       });
-    const poll = window.setInterval(loadRound, 15000);
+    const poll = window.setInterval(() => {
+      if (!realtimeReady) void loadRound();
+    }, 60000);
     return () => {
       mountedRef.current = false;
       window.clearInterval(poll);
@@ -150,7 +152,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
       realtimeRefreshRef.current = null;
       void supabase.removeChannel(channel);
     };
-  }, [pid, loadRound, game]);
+  }, [pid, loadRound, game, realtimeReady]);
 
   useEffect(() => {
     if (game !== 'slots' || !pid) return;
