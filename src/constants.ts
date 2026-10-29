@@ -2,7 +2,7 @@ export const BOT_USERNAME = "zhituha_bot";
 export const CHANNEL_LINK = "https://t.me/zhituha_news";
 export const PHONE_PRICE = 2000, COFFEE_CUP_PRICE = 500;
 export const JOB_WORK = 150; 
-export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 5000;
+export const ADMIN_CODE = "admin2026", BREW_TIME = 15000, POLL = 30000;
 
 export const LADA_PRICE = 35000, LADA_TIME = 900000; // Ока, 15 минут
 export const TOYOTA_PRICE = 50000, TOYOTA_TIME = 2700000; // 45 минут

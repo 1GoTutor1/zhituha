@@ -582,7 +582,7 @@ export default function App() {
     if (['business', 'jobs', 'cafe'].includes(tab)) {
       refreshProfile(); pollMyBizs(); pollWorkers();
       if (tab === 'business') loadBusinessCatalog();
-      const int = setInterval(() => { refreshProfile(); pollMyBizs(); pollWorkers(); if (tab === 'business') loadBusinessCatalog(); }, POLL);
+      const int = setInterval(() => { refreshProfile(); pollMyBizs(); pollWorkers(); }, POLL);
       return () => clearInterval(int);
     }
   }, [tab, pid]);
