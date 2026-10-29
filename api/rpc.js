@@ -24,6 +24,9 @@ const CLIENT_RPCS = new Set([
   'bank_get_state_rpc', 'bank_move_cash_rpc', 'bank_transfer_rpc', 'bank_open_deposit_rpc',
   'bank_close_deposit_rpc', 'bank_buy_stock_rpc', 'bank_sell_stock_rpc', 'bank_apply_loan_rpc',
   'bank_repay_loan_rpc',
+  'family_state_rpc', 'family_create_rpc', 'family_apply_rpc', 'family_invite_rpc',
+  'family_respond_rpc', 'family_leave_rpc', 'family_kick_rpc', 'family_set_deputy_rpc',
+  'family_claim_leadership_rpc', 'family_touch_rpc', 'family_territory_attack_rpc', 'family_public_rpc',
 ]);
 
 export default async function handler(req, res) {
@@ -86,6 +89,9 @@ export default async function handler(req, res) {
       if (['profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc', 'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc', 'sell_inventory_rpc', 'taxi_fleet_rpc', 'select_taxi_car_rpc'].includes(name)) {
         const detail = String(error.message || '').replace(/[\r\n]+/g, ' ').slice(0, 180);
         return res.status(400).json({ error: `Ошибка профессии (${error.code || 'без кода'}): ${detail || 'не удалось выполнить действие'}` });
+      }
+      if (name.startsWith('family_') && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
+        return res.status(400).json({ error: 'Система семей ещё не установлена. Выполните FAMILY_SYSTEM_MIGRATION.sql в Supabase.' });
       }
       if (name.startsWith('bank_')) {
         if (error.code === 'PGRST202' || error.code === '42883') {

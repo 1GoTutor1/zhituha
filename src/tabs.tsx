@@ -11,6 +11,7 @@ import {
 import { Btn, Modal } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import { ItemArtwork } from './ItemArtwork';
+import { getProfileBackground, PROFILE_BACKGROUND_NAMES } from './profileBackgrounds';
 
 export const AppModals = ({ app }: { app: any }) => (
   <>
@@ -1068,6 +1069,8 @@ export const AdminTab = ({ app }: { app: any }) => {
                     <option value="frame_test">Рамка TEST</option>
                     <option value="frame_amber">Янтарная рамка</option>
                     <option value="background_concrete">Фон «Бетон»</option>
+                    <option value="background_brick">Фон «Кирпич»</option>
+                    <option value="background_panelka">Фон «Панелька»</option>
                   </select>
                   <Btn variant="purple" onClick={handleGrantCosmetic} style={{ width: 'auto', padding: '8px 12px' }}>Выдать</Btn>
                 </div>
@@ -1282,6 +1285,8 @@ const PREMIUM_ITEMS = [
   { id: 'frame_test', name: 'Рамка TEST', price: 120, icon: '🧪', description: 'Фирменная рамка TEST для твоего профиля' },
   { id: 'frame_amber', name: 'Янтарная рамка', price: 60, icon: '🟠', description: 'Тёплый янтарный ободок вокруг аватара' },
   { id: 'background_concrete', name: 'Фон игры «Бетон»', price: 90, icon: '🏙️', description: 'Меняет фон всей игровой страницы' },
+  { id: 'background_brick', name: 'Фон «Кирпичный дом»', price: 40, icon: '🧱', description: 'Тёплая кирпичная кладка на фоне всей игры' },
+  { id: 'background_panelka', name: 'Фон «Панелька»', price: 80, icon: '🏢', description: 'Фасад панельного дома на фоне всей игры' },
   { id: 'market_slots_2', name: '+2 слота рынка', price: 80, icon: '🛒', description: 'Постоянно увеличивает число объявлений; максимум 9 слотов' },
 ];
 
@@ -1293,23 +1298,23 @@ const frameStyle = (frame: string) => frame === 'frame_test'
 
 const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profile: any, loading: boolean, vehicleState?: any, onClose: () => void }) => {
   const frameNames: Record<string, string> = { frame_test: 'Рамка TEST', frame_amber: 'Янтарная рамка' };
-  const backgroundNames: Record<string, string> = { background_concrete: 'Бетонный фон' };
+  const backgroundNames: Record<string, string> = PROFILE_BACKGROUND_NAMES;
   const businessNames: Record<string, string> = {
     coffee: 'Кофейня', salon: 'Автосалон', taxi: 'Таксопарк',
     construction: 'Стройтрест', phone_factory: 'Телефонный цех',
   };
   const avatar = getAvatar(profile ? Number(profile.avatar_id) || 1 : 1);
-  const profileBackground = profile?.profile_background === 'background_concrete'
-    ? 'linear-gradient(145deg, #d2d6d3, #a3aaa7)'
-    : 'linear-gradient(145deg, #fbf4e4, #e7d9b8)';
+  const profileBackground = getProfileBackground(profile?.profile_background);
 
   return (
     <Modal open={loading || !!profile} onClose={onClose} contentStyle={{ maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }}>
       {loading ? <p style={{ color: '#6b5f45' }}>Загружаю профиль…</p> : profile && <>
-        <div style={{ ...S.card, textAlign: 'center', padding: 18, marginBottom: 12, background: profileBackground }}>
+        <div style={{ ...S.card, textAlign: 'center', padding: 18, marginBottom: 12, ...profileBackground }}>
           <div style={{ width: 76, height: 76, margin: '0 auto 10px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: avatar.bg, ...frameStyle(profile.profile_frame) }}>{avatar.emoji}</div>
           {profile.profile_frame === 'frame_test' && <div style={{ display: 'inline-block', marginBottom: 6, padding: '3px 10px', borderRadius: 12, color: '#073b35', background: '#63e6be', fontFamily: 'Russo One', fontSize: 11, letterSpacing: 1 }}>TEST</div>}
           <h3 style={{ margin: 0, fontFamily: 'Russo One' }}>{profile.nickname}</h3>
+          {profile.family && <div style={{ marginTop: 7, color: '#3f9d65', fontWeight: 700 }}>[{profile.family.tag}] {profile.family.name}</div>}
+          {(profile.family_awards || []).map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
         </div>
         <div style={{ ...S.card, padding: 15, textAlign: 'left' }}>
           <h4 style={{ margin: '0 0 10px' }}>Показатели</h4>
@@ -1341,21 +1346,34 @@ const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profi
 
 export const ProfileTab = ({ app }: { app: any }) => {
   const [section, setSection] = useState<'stats' | 'businesses' | 'cosmetics'>('stats');
+  const [familyProfile, setFamilyProfile] = useState<any>(null);
+  const [familyAwards, setFamilyAwards] = useState<any[]>([]);
   const avatar = getAvatar(app.avatarId);
-  const background = app.profileBackground === 'background_concrete'
-    ? 'linear-gradient(145deg, #d2d6d3, #a3aaa7)'
-    : 'linear-gradient(145deg, #fbf4e4, #e7d9b8)';
+  const background = getProfileBackground(app.profileBackground);
+  useEffect(() => {
+    let cancelled = false;
+    if (!app.pid) return;
+    void app.supabase.rpc('family_state_rpc', { p_player_id: app.pid }).then(({ data, error }: any) => {
+      if (!cancelled && !error && !data?.error) {
+        setFamilyProfile(data.family || null);
+        setFamilyAwards(data.awards || []);
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [app.pid, app.supabase]);
   return <div style={{ maxWidth: 420, margin: '0 auto', animation: 'fadeIn .3s' }}>
     <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 0, color: '#6b5f45', cursor: 'pointer', margin: '8px 0 16px' }}>← На главную</button>
     <h2>Профиль</h2>
-    <div style={{ ...S.card, textAlign: 'center', padding: 24, background }}>
+    <div style={{ ...S.card, textAlign: 'center', padding: 24, ...background }}>
       <div style={{ width: 92, height: 92, margin: '0 auto 12px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 48, background: avatar.bg, ...frameStyle(app.profileFrame) }}>{avatar.emoji}</div>
       {app.profileFrame === 'frame_test' && <div style={{ display: 'inline-block', marginBottom: 8, padding: '3px 10px', borderRadius: 12, color: '#073b35', background: '#63e6be', fontFamily: 'Russo One', fontSize: 11, letterSpacing: 1 }}>TEST</div>}
       <div style={{ fontSize: 23, fontFamily: 'Russo One' }}>{app.nick}</div>
+      {familyProfile && <div style={{ marginTop: 6, color: '#3f9d65', fontWeight: 700 }}>[{familyProfile.tag}] {familyProfile.name}</div>}
+      {familyAwards.map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
       <div style={{ color: '#6b5f45', marginTop: 6 }}>ID: {app.tgId.slice(0, 6)} · имя нельзя менять</div>
       <div style={{ marginTop: 12, fontWeight: 700 }}>💰 {Number(app.money || 0).toLocaleString('ru-RU')} ₽</div>
       <div style={{ marginTop: 12, textAlign: 'left' }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><b>Уровень {app.career?.level || 1} · {PLAYER_PROFESSIONS.find(item => item.id === app.career?.profession)?.name || 'Шахтёр'}</b><span>{Number(app.career?.xp || 0)} / {Number(app.career?.xp_to_next || 100)} XP</span></div><div className="profession-xp-track"><span style={{ width: `${Math.min(100, Number(app.career?.xp || 0) / Math.max(1, Number(app.career?.xp_to_next || 100)) * 100)}%` }} /></div></div>
-      <div style={{ marginTop: 5, color: '#6b5f45' }}>🎨 {app.profileBackground === 'background_concrete' ? 'Бетонный фон' : 'Стандартный фон'}</div>
+      <div style={{ marginTop: 5, color: '#6b5f45' }}>🎨 {PROFILE_BACKGROUND_NAMES[app.profileBackground] || 'Стандартный фон'}</div>
       <div style={{ marginTop: 12, fontWeight: 700, color: '#7656a8' }}>◆ {app.premiumBalance} жетонов</div>
     </div>
     <div className="profile-section-tabs" role="tablist" aria-label="\u0420\u0430\u0437\u0434\u0435\u043B\u044B \u043F\u0440\u043E\u0444\u0438\u043B\u044F">
@@ -1382,9 +1400,9 @@ export const ProfileTab = ({ app }: { app: any }) => {
       <div style={S.card}>
         <h3 style={{ marginTop: 0 }}>{'\u041F\u0440\u0438\u043C\u0435\u043D\u0451\u043D\u043D\u0430\u044F \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0430'}</h3>
         <p>{'\u0420\u0430\u043C\u043A\u0430'}: <b>{app.profileFrame === 'frame_test' ? 'TEST' : app.profileFrame === 'frame_amber' ? '\u042F\u043D\u0442\u0430\u0440\u043D\u0430\u044F' : '\u0421\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u0430\u044F'}</b></p>
-        <p>{'\u0424\u043E\u043D'}: <b>{app.profileBackground === 'background_concrete' ? '\u0411\u0435\u0442\u043E\u043D\u043D\u044B\u0439' : '\u0421\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u0439'}</b></p>
+        <p>{'Фон'}: <b>{PROFILE_BACKGROUND_NAMES[app.profileBackground] || 'Стандартный'}</b></p>
         {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...frameStyle(id) }}>{id === 'frame_test' ? '\uD83E\uDDEA TEST' : '\uD83D\uDFE0'}</button>)}
-        {app.ownedCosmetics.includes('background_concrete') && <button onClick={() => app.donateAction('equip', { item_id: 'background_concrete' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8 }}>{'\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0431\u0435\u0442\u043E\u043D\u043D\u044B\u0439 \u0444\u043E\u043D'}</button>}
+        {['background_concrete', 'background_brick', 'background_panelka'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...getProfileBackground(id) }}>Установить: {PROFILE_BACKGROUND_NAMES[id]}</button>)}
         <button onClick={() => app.donateAction('equip', { item_id: 'default' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%' }}>{'\u0412\u0435\u0440\u043D\u0443\u0442\u044C \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u0439 \u0432\u0438\u0434'}</button>
       </div>
       <div style={S.card}>
@@ -1392,7 +1410,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
         {PREMIUM_ITEMS.filter(item => item.id !== 'market_slots_2').map(item => {
           const owned = app.ownedCosmetics.includes(item.id);
           return <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid rgba(90,70,40,.12)', textAlign: 'left' }}>
-            <span style={{ fontSize: 27 }}>{item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
+            <span style={item.id.startsWith('background_') ? { width: 54, height: 40, flexShrink: 0, borderRadius: 8, border: '1px solid rgba(90,70,40,.3)', ...getProfileBackground(item.id) } : { fontSize: 27 }}>{item.id.startsWith('background_') ? null : item.icon}</span><div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#6b5f45', fontSize: 12 }}>{item.description}</div></div>
             <button onClick={() => app.donateAction('purchase', { item_id: item.id })} disabled={app.proc || owned || app.premiumBalance < item.price} style={{ ...S.btnPurple, padding: '8px 10px', opacity: owned ? .55 : 1 }}>{owned ? '\u041A\u0443\u043F\u043B\u0435\u043D\u043E' : item.price + ' \u25C6'}</button>
           </div>;
         })}

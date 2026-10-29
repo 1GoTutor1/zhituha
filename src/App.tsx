@@ -12,6 +12,7 @@ import {
   JOB_WORK, getDayModifier
 } from './constants';
 import { Btn, Toast, BottomNav, Modal } from './components';
+import { getProfileBackground } from './profileBackgrounds';
 const loadTabs = () => import('./tabs');
 const HomeTab = lazy(() => loadTabs().then((module) => ({ default: module.HomeTab })));
 const MarketTab = lazy(() => loadTabs().then((module) => ({ default: module.MarketTab })));
@@ -26,6 +27,7 @@ const InventoryTab = lazy(() => loadTabs().then((module) => ({ default: module.I
 const ProfileTab = lazy(() => loadTabs().then((module) => ({ default: module.ProfileTab })));
 const CasinoTab = lazy(() => import('./casino').then((module) => ({ default: module.CasinoTab })));
 const BankTab = lazy(() => import('./BankTab').then((module) => ({ default: module.BankTab })));
+const FamilyTab = lazy(() => import('./FamilyTab').then((module) => ({ default: module.FamilyTab })));
 
 const VerificationScreen = ({ title, description, error, onRetry }: { title: string; description: string; error?: string; onRetry?: () => void }) => (
   <main className={`access-screen${error ? ' has-error' : ''}`} role={error ? 'alert' : 'status'} aria-live="polite">
@@ -142,7 +144,7 @@ export default function App() {
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
   const [toast, setToast] = useState<{ msg: string, err: boolean, id: number } | null>(null);
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'admin'>('home');
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'admin'>('home');
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
@@ -158,6 +160,23 @@ export default function App() {
   const [profileFrame, setProfileFrame] = useState('');
   const [profileBackground, setProfileBackground] = useState('');
   const [career, setCareer] = useState<any>({ level: 1, xp: 0, xp_to_next: 100, profession: 'miner', unlocked: ['miner'], active_cycle: null, pending_reward: null, inventory: [], inventory_slots: 0, inventory_capacity: 200 });
+
+  useEffect(() => {
+    if (!pid) return;
+    let lastTouch = 0;
+    const touchFamily = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - lastTouch < 4 * 60_000) return;
+      lastTouch = Date.now();
+      void (async () => { try { await supabase.rpc('family_touch_rpc', { p_player_id: pid }); } catch { /* Presence is best-effort. */ } })();
+    };
+    touchFamily();
+    const timer = window.setInterval(touchFamily, 60_000);
+    document.addEventListener('visibilitychange', touchFamily);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', touchFamily);
+    };
+  }, [pid]);
   // undefined = ещё не прочитали из БД; true/false — реальное значение.
   // Раньше стартовало с false → при каждом заходе на секунду мелькал экран
   // «Подпишись на канал», пока loadData не дочитает is_subscribed=true.
@@ -1253,7 +1272,7 @@ export default function App() {
   // чтобы не вставлять пустую строку и не падать на NOT NULL / уникальности имени.
 
 
-  const pageStyle: any = { padding: 'calc(100px + env(safe-area-inset-top, 20px)) 20px calc(90px + env(safe-area-inset-bottom, 20px))', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: profileBackground === 'background_concrete' ? 'linear-gradient(145deg, #d2d6d3, #a3aaa7)' : 'transparent', transition: 'background 0.35s ease', color: '#2f2a1d' };
+  const pageStyle: any = { padding: 'calc(100px + env(safe-area-inset-top, 20px)) 20px calc(90px + env(safe-area-inset-bottom, 20px))', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', ...(profileBackground ? getProfileBackground(profileBackground) : {}), transition: 'background 0.35s ease', color: 'var(--text-main)' };
   const authPageStyle: any = { ...pageStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' };
 
   if (isTgEnv && authStatus === 'checking') return <VerificationScreen title="Проверяем Telegram" description="Подтверждаем подпись и аккаунт." />;
@@ -1315,6 +1334,7 @@ export default function App() {
         {tab === 'casino' && <CasinoTab app={app} />}
         {tab === 'bank' && <BankTab app={app} />}
         {tab === 'profile' && <ProfileTab app={app} />}
+        {tab === 'family' && <FamilyTab app={app} />}
         {tab === 'admin' && <AdminTab app={app} />}
       </Suspense>
       {tab !== 'admin' && <BottomNav app={app} />}

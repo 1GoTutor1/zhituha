@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, Briefcase, Globe, Backpack, Dices, Landmark, MoreHorizontal, X } from 'lucide-react';
+import { Home, Briefcase, Globe, Backpack, Dices, Landmark, MoreHorizontal, X, Users } from 'lucide-react';
 import { S } from './constants';
 
 export const Btn = ({ variant = 'primary', onClick, disabled, children, style = {} }: any) => {
@@ -89,6 +89,7 @@ export const BottomNav = ({ app }: { app: any }) => {
       {moreOpen && <><button className="more-menu-scrim" aria-label="Закрыть меню" onClick={() => setMoreOpen(false)} /><div className="more-menu-sheet"><div className="more-menu-heading"><b>Ещё</b><button aria-label="Закрыть" onClick={() => setMoreOpen(false)}><X size={18} /></button></div>
         <button onClick={() => navigate('inventory')}><Backpack size={20} /> Инвентарь {inventoryNew && <i className="inventory-new-dot" />}</button>
         <button onClick={() => navigate('bank')}><Landmark size={20} /> Банк</button>
+        <button onClick={() => navigate('family')}><Users size={20} /> Семья</button>
       </div></>}
       <div className="bottom-nav-bar">
         {items.map(t => (
@@ -96,7 +97,7 @@ export const BottomNav = ({ app }: { app: any }) => {
             <t.icon size={22} /><span>{t.text}</span>
           </button>
         ))}
-        <button onClick={() => setMoreOpen(current => !current)} className={`bottom-nav-item${moreOpen || ['inventory','bank'].includes(app.tab) ? ' is-active' : ''}`} aria-expanded={moreOpen}>
+        <button onClick={() => setMoreOpen(current => !current)} className={`bottom-nav-item${moreOpen || ['inventory','bank','family'].includes(app.tab) ? ' is-active' : ''}`} aria-expanded={moreOpen}>
           <span className="bottom-nav-more-icon"><MoreHorizontal size={22} />{inventoryNew && <i className="inventory-new-dot" />}</span><span>Ещё</span>
         </button>
       </div>

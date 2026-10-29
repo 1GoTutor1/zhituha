@@ -60,9 +60,11 @@ export default async function handler(req, res) {
       if (targetError) throw targetError;
       if (!target || target.is_banned) return res.status(404).json({ error: 'Player profile not found' });
 
-      const [businessResult, referralCountResult] = await Promise.all([
+      const [businessResult, referralCountResult, familyMembershipResult, familyAwardsResult] = await Promise.all([
         sb.from('businesses').select('business_name, biz_type, passive_level').eq('owner_id', target.id).limit(20),
         sb.from('players').select('id', { count: 'exact', head: true }).eq('referred_by', String(target.telegram_id)),
+        sb.from('family_memberships').select('family_id, families(name, tag)').eq('player_id', target.id).is('left_at', null).maybeSingle(),
+        sb.from('family_member_awards').select('season_no, place, contribution').eq('player_id', target.id).order('season_no', { ascending: false }).limit(5),
       ]);
       if (businessResult.error) throw businessResult.error;
       if (referralCountResult.error) throw referralCountResult.error;
@@ -87,6 +89,8 @@ export default async function handler(req, res) {
           unlocked_professions: target.unlocked_professions,
           referral_count: referralCountResult.count || 0,
           businesses: businessResult.data || [],
+          family: familyMembershipResult.error ? null : familyMembershipResult.data?.families || null,
+          family_awards: familyAwardsResult.error ? [] : familyAwardsResult.data || [],
         },
       });
     }
@@ -106,7 +110,9 @@ export default async function handler(req, res) {
       if (!['admin', 'superadmin'].includes(player.role)) return res.status(403).json({ error: 'Admin access required' });
       const targetId = typeof req.body?.target_player_id === 'string' ? req.body.target_player_id : '';
       const itemId = typeof req.body?.item_id === 'string' ? req.body.item_id : '';
-      const allowedItems = new Set(['frame_test', 'frame_amber', 'background_concrete']);
+      const allowedItems = new Set([
+        'frame_test', 'frame_amber', 'background_concrete', 'background_brick', 'background_panelka',
+      ]);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetId) || !allowedItems.has(itemId)) {
         return res.status(400).json({ error: 'Invalid player or cosmetic item' });
       }
