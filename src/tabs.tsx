@@ -558,6 +558,9 @@ const BusinessAuctionEntry = ({ location, app }: any) => {
 export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   const [businessView, setBusinessView] = useState<'all' | 'mine'>('all');
   const [passiveNow, setPassiveNow] = useState(Date.now());
+  const [salesHistory, setSalesHistory] = useState<any>(null);
+  const [salesHistoryLoading, setSalesHistoryLoading] = useState(false);
+  const [salesHistoryError, setSalesHistoryError] = useState('');
   const [auctionOpen, setAuctionOpen] = useState(false);
   const [auctionPrice, setAuctionPrice] = useState('');
   const [cashAmount, setCashAmount] = useState('1000');
@@ -567,6 +570,28 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
     const timer = setInterval(() => setPassiveNow(Date.now()), 10000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    if (!activeBiz || activeBiz.biz_type === 'casino' || !app.pid) {
+      setSalesHistory(null);
+      setSalesHistoryError('');
+      return;
+    }
+    const refreshSalesHistory = async (showLoading = false) => {
+      if (showLoading) setSalesHistoryLoading(true);
+      const { data, error } = await app.supabase.rpc('business_sales_history_rpc', {
+        p_player_id: app.pid, p_business_id: activeBiz.id, p_limit: 30,
+      });
+      if (disposed) return;
+      if (error || data?.error) setSalesHistoryError(error?.message || data?.error || 'Не удалось загрузить историю');
+      else { setSalesHistory(data); setSalesHistoryError(''); }
+      if (showLoading) setSalesHistoryLoading(false);
+    };
+    void refreshSalesHistory(true);
+    const timer = window.setInterval(() => { void refreshSalesHistory(); }, 30_000);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [activeBiz?.id, activeBiz?.biz_type, app.pid, app.supabase]);
 
   const getBizName = (type: string) => ({ coffee: 'Кофейня', salon: 'Автосалон', taxi: 'Таксопарк', construction: 'Стройтрест', minimarket: 'Мини-маркет', auto_repair: 'Автомастерская', casino: 'Казино' }[type] || 'Бизнес');
 
@@ -651,6 +676,25 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
               <Btn variant="secondary" disabled={app.proc || Number(cashAmount) < 1 || Number(activeBiz.cash_balance || 0) < Number(cashAmount)} onClick={() => app.transferBusinessCash(activeBiz.id, Number(cashAmount), 'withdraw')}>Снять</Btn>
             </div>
           </section>
+
+          {activeBiz.biz_type !== 'casino' && <section style={{ marginBottom: 16, padding: 13, borderRadius: 10, background: 'rgba(63,157,85,.07)', border: '1px solid rgba(63,157,85,.18)', textAlign: 'left' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <b>История продаж</b>
+              {!salesHistoryLoading && salesHistory && <small style={{ color: '#2c7a3c' }}>{Number(salesHistory.sales_count || 0)} продаж</small>}
+            </div>
+            {salesHistoryLoading ? <p style={{ margin: '9px 0 0', color: '#6b5f45', fontSize: 12 }}>Загружаю историю…</p>
+              : salesHistoryError ? <p style={{ margin: '9px 0 0', color: '#b83229', fontSize: 12 }}>{salesHistoryError}</p>
+                : <>
+                  <div style={{ marginTop: 6, fontSize: 20, fontWeight: 800, color: '#2c7a3c' }}>{Number(salesHistory?.total_sales || 0).toLocaleString('ru-RU')} ₽ <small style={{ fontSize: 11, fontWeight: 500, color: '#6b5f45' }}>выручка всего</small></div>
+                  <small style={{ display: 'block', marginTop: 3, color: '#6b5f45' }}>Записи ведутся с момента установки истории продаж.</small>
+                  {salesHistory?.sales?.length ? <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+                    {salesHistory.sales.slice(0, 10).map((sale: any) => <div key={sale.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '7px 0', borderTop: '1px solid rgba(47,122,60,.12)' }}>
+                      <div><b style={{ display: 'block', fontSize: 12 }}>{({ coffee_sale: 'Продажа кофе', retail_sale: 'Продажа товара', vehicle_sale: 'Продажа автомобиля', repair_sale: 'Ремонт автомобиля', taxi_sale: 'Поездка такси', taxi_fleet_income: 'Доход автопарка', business_sale: 'Продажа' } as Record<string,string>)[sale.event_type] || 'Продажа'}</b><small style={{ color: '#6b5f45', fontSize: 10 }}>{new Date(sale.created_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small></div>
+                      <b style={{ color: '#2c7a3c', whiteSpace: 'nowrap' }}>+{Number(sale.amount).toLocaleString('ru-RU')} ₽</b>
+                    </div>)}
+                  </div> : <p style={{ margin: '9px 0 0', color: '#6b5f45', fontSize: 12 }}>Продаж пока нет — записи появятся после первых поступлений от клиентов.</p>}
+                </>}
+          </section>}
 
           {activeBiz.biz_type === 'casino' && (() => {
             const casino = app.businessOffers?.casinoBusiness || { level: 1, share_percent: 5, next_cost: 20000000 };

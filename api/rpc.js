@@ -20,6 +20,7 @@ const CLIENT_RPCS = new Set([
   'create_business_auction_rpc', 'bid_business_auction_rpc',
   'business_shop_state_rpc', 'business_cash_transfer_rpc', 'business_shop_restock_rpc', 'business_shop_set_price_rpc', 'business_shop_buy_rpc',
   'business_autostock_state_rpc', 'business_autostock_configure_rpc',
+  'business_sales_history_rpc',
   'casino_business_state_rpc', 'casino_business_upgrade_rpc',
   'daily_missions_state_rpc', 'daily_mission_claim_rpc',
   'business_repair_personal_car_rpc', 'business_repair_taxi_car_rpc',
