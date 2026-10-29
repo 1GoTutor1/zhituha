@@ -31,7 +31,7 @@ export function useTelegram() {
     try {
       telegram.ready();
       telegram.expand();
-      const themeColor = document.documentElement.dataset.uiTheme === 'dark' ? '#171a18' : '#efe3c8';
+      const themeColor = '#100b18';
       telegram.setHeaderColor(themeColor);
       telegram.setBackgroundColor(themeColor);
       if (telegram.requestFullscreen) telegram.requestFullscreen();

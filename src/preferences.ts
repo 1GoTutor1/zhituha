@@ -1,5 +1,3 @@
-export type UiTheme = 'light' | 'dark';
-
 function readPreference(key: string, fallback: string) {
   try {
     return typeof window === 'undefined' ? fallback : window.localStorage.getItem(key) || fallback;
@@ -19,13 +17,4 @@ export function isUiVibrationEnabled() {
 export function setUiVibrationEnabled(enabled: boolean) {
   writePreference('zhituha_vibration', enabled ? 'on' : 'off');
   return enabled;
-}
-
-export function getUiTheme(): UiTheme {
-  return readPreference('zhituha_theme_v2', 'dark') === 'light' ? 'light' : 'dark';
-}
-
-export function persistUiTheme(theme: UiTheme) {
-  writePreference('zhituha_theme_v2', theme);
-  return theme;
 }

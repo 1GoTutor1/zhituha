@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Sun, Moon, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront, Crown } from 'lucide-react';
+import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront, Crown } from 'lucide-react';
 import { 
   getAvatar, BUILDING_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier,
@@ -46,11 +46,6 @@ export const AppModals = ({ app }: { app: any }) => (
         <button type="button" role="switch" aria-checked={app.vibrationEnabled} onClick={() => app.changeVibrationEnabled(!app.vibrationEnabled)} className="settings-row">
           <span><Vibrate size={19} /> Вибрация</span><b>{app.vibrationEnabled ? 'Вкл.' : 'Выкл.'}</b>
         </button>
-      </div>
-      <div style={{ textAlign: 'left', fontSize: 13, fontWeight: 700, margin: '18px 0 8px' }}>Оформление</div>
-      <div className="settings-theme-options">
-        <button type="button" aria-pressed={app.uiTheme === 'light'} onClick={() => app.changeUiTheme('light')} className={`settings-theme-option${app.uiTheme === 'light' ? ' is-selected' : ''}`}><Sun size={18} /> Светлое</button>
-        <button type="button" aria-pressed={app.uiTheme === 'dark'} onClick={() => app.changeUiTheme('dark')} className={`settings-theme-option${app.uiTheme === 'dark' ? ' is-selected' : ''}`}><Moon size={18} /> Тёмное</button>
       </div>
       <Btn variant="secondary" onClick={() => app.setSettingsOpen(false)} style={{ marginTop: 18 }}>Готово</Btn>
     </Modal>
