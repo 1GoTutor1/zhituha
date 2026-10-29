@@ -263,6 +263,189 @@ body[data-ui-theme="dark"] .maintenance-testing-banner { background: rgba(34, 39
 .profession-taxi-2 { transform: translateX(12px); }
 .profession-taxi-3 { transform: translateX(35px); }
 
+/* Profession scenes: each click now has a readable, distinct visual response. */
+.profession-scene {
+  isolation: isolate;
+  height: 158px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.42);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.36), 0 5px 14px rgba(56,72,57,.1);
+  transition: background .35s ease;
+}
+.profession-scene::before {
+  position: absolute; z-index: 0; inset: 0;
+  background: radial-gradient(circle at 50% 47%, rgba(255,255,255,.48), transparent 39%);
+  content: '';
+}
+.profession-scene::after { z-index: 0; height: 72px; bottom: -43px; background: rgba(102,129,87,.21); }
+.profession-scene-sun { z-index: 1; animation: professionSun 4.5s ease-in-out infinite alternate; }
+.profession-rock, .profession-tree, .profession-package, .profession-taxi, .profession-sprout,
+.profession-water, .profession-fisher-icon, .profession-fishing-rod, .profession-fishing-fish,
+.profession-stump, .profession-woodland, .profession-wood-chips, .profession-impact,
+.profession-mineral-glint, .profession-furrows, .profession-harvest, .profession-route,
+.profession-delivery-check, .profession-road, .profession-speed-lines { position: absolute; z-index: 1; }
+.profession-scene-caption { z-index: 3; }
+
+/* Miner: the stone recoils, cracks open and throws off small sparks. */
+.profession-scene-miner { background: linear-gradient(180deg,#c9d7cd 0%,#e6e9d7 67%,#b8c59d 100%); }
+.profession-rock { top: 34px; left: calc(50% - 44px); z-index: 2; border-color: #76877e; background: linear-gradient(145deg,#c5cec7 2%,#8d9b93 57%,#718179); box-shadow: inset 5px 4px 0 rgba(255,255,255,.24), 0 9px 0 rgba(54,73,62,.18), 0 14px 21px rgba(51,63,54,.16); }
+.profession-rock::before { position:absolute; top:8px; left:18px; width:23px; height:10px; border-radius:50%; background:rgba(255,255,255,.22); content:''; transform:rotate(-28deg); }
+.profession-rock i { position:absolute; top:44px; left:47px; width:13px; height:2px; background:#505e57; transform:rotate(-52deg); }
+.profession-rock-0 { animation: minerRockIdle 3.4s ease-in-out infinite; }
+.profession-impact { top:48px; left:50%; width:2px; height:2px; color:#f3c65d; opacity:0; }
+.profession-impact i { position:absolute; width:5px; height:5px; border-radius:50%; background:currentColor; box-shadow:0 0 8px currentColor; }
+.profession-impact i:nth-child(1) { --spark-x:-31px; --spark-y:-17px; }
+.profession-impact i:nth-child(2) { --spark-x:31px; --spark-y:-18px; }
+.profession-impact i:nth-child(3) { --spark-x:-28px; --spark-y:24px; }
+.profession-impact i:nth-child(4) { --spark-x:30px; --spark-y:22px; }
+.profession-mineral-glint { top:53px; left:calc(50% + 6px); color:#6bd7d4; font-size:16px; opacity:0; text-shadow:0 0 12px #fff; }
+.profession-scene-miner[data-stage="1"] .profession-rock { animation: minerHit .48s cubic-bezier(.3,.8,.3,1); }
+.profession-scene-miner[data-stage="2"] .profession-rock { animation: minerCrack .55s ease-out; }
+.profession-scene-miner[data-stage="3"] .profession-rock { animation: minerBreak .62s cubic-bezier(.15,.75,.35,1) both; }
+.profession-scene-miner[data-stage="1"] .profession-impact,
+.profession-scene-miner[data-stage="2"] .profession-impact,
+.profession-scene-miner[data-stage="3"] .profession-impact { animation: minerSparks .52s ease-out; }
+.profession-scene-miner[data-stage="1"] .profession-impact i,
+.profession-scene-miner[data-stage="2"] .profession-impact i,
+.profession-scene-miner[data-stage="3"] .profession-impact i { animation: minerSpark .52s ease-out both; }
+.profession-scene-miner[data-stage="3"] .profession-mineral-glint { animation: mineralReveal .7s .14s ease-out both; }
+
+/* Lumberjack: the tree bends toward the cut and lands beside the stump. */
+.profession-scene-lumberjack { background: linear-gradient(180deg,#c9dfd5 0%,#e7ead5 64%,#a7bd8a 100%); }
+.profession-woodland { right:12px; bottom:43px; display:flex; gap:8px; align-items:flex-end; opacity:.28; }
+.profession-woodland i { width:17px; height:30px; border-radius:70% 70% 25% 25%; background:#4d8762; clip-path:polygon(50% 0,100% 55%,76% 55%,100% 100%,0 100%,24% 55%,0 55%); }
+.profession-woodland i:nth-child(2) { height:42px; }
+.profession-tree { top:20px; left:calc(50% - 38px); transform-origin:50% 100%; color:#2f8053; filter:drop-shadow(0 7px 0 rgba(45,83,52,.17)); }
+.profession-tree-0 { animation: treeSway 3.8s ease-in-out infinite; }
+.profession-stump { bottom:29px; left:calc(50% - 17px); width:34px; height:17px; border:3px solid #845a32; border-radius:8px 8px 3px 3px; background:linear-gradient(#d4a361,#a96f3b); opacity:0; }
+.profession-stump i { position:absolute; inset:2px 6px; border:1px solid rgba(100,59,31,.52); border-radius:50%; }
+.profession-wood-chips { top:55px; left:50%; opacity:0; }
+.profession-wood-chips i { position:absolute; width:8px; height:4px; border-radius:2px; background:#c78749; }
+.profession-wood-chips i:nth-child(1) { --chip-x:-35px; --chip-y:-12px; }
+.profession-wood-chips i:nth-child(2) { --chip-x:33px; --chip-y:-16px; }
+.profession-wood-chips i:nth-child(3) { --chip-x:25px; --chip-y:19px; }
+.profession-scene-lumberjack[data-stage="1"] .profession-tree { animation: treeWindup .48s ease-in-out; }
+.profession-scene-lumberjack[data-stage="2"] .profession-tree { animation: treeChop .55s ease-in-out; }
+.profession-scene-lumberjack[data-stage="3"] .profession-tree { animation: treeFall .86s cubic-bezier(.25,.75,.25,1) both; }
+.profession-scene-lumberjack[data-stage="3"] .profession-stump { animation: stumpShow .3s .48s ease-out both; }
+.profession-scene-lumberjack[data-stage="1"] .profession-wood-chips,
+.profession-scene-lumberjack[data-stage="2"] .profession-wood-chips,
+.profession-scene-lumberjack[data-stage="3"] .profession-wood-chips { animation: woodChips .5s ease-out; }
+.profession-scene-lumberjack[data-stage="1"] .profession-wood-chips i,
+.profession-scene-lumberjack[data-stage="2"] .profession-wood-chips i,
+.profession-scene-lumberjack[data-stage="3"] .profession-wood-chips i { animation: woodChipFly .5s ease-out both; }
+
+/* Fisherman: cast, bite and pull are visible in the rod, float and fish. */
+.profession-scene-fisherman { background:linear-gradient(180deg,#cfdfdc 0%,#e7eddf 43%,#83bfd0 44%,#67aebe 100%); }
+.profession-scene-fisherman::after { bottom:-57px; background:rgba(35,112,137,.22); }
+.profession-water { z-index:2; bottom:19px; height:35px; align-items:flex-start; overflow:hidden; }
+.profession-water i { width:30%; height:14px; border-top:2px solid rgba(242,255,248,.65); animation: waterRipple 2.1s ease-in-out infinite; }
+.profession-water i:nth-child(2) { animation-delay:-.7s; }
+.profession-water i:nth-child(3) { animation-delay:-1.4s; }
+.profession-fisher-icon { top:65px; left:calc(50% - 21px); z-index:2; margin:0 !important; color:#e88c42; filter:drop-shadow(0 3px 0 rgba(38,91,109,.18)); animation: fishSwim 2.8s ease-in-out infinite; }
+.profession-fishing-rod { top:37px; left:calc(50% - 42px); width:88px; height:2px; transform:rotate(-1deg); transform-origin:left center; }
+.profession-fishing-rod::before { position:absolute; top:0; left:0; width:72px; height:4px; border-radius:4px; background:#765638; transform:rotate(-49deg); transform-origin:left center; content:''; }
+.profession-fishing-rod::after { position:absolute; top:-8px; left:48px; width:1px; height:58px; background:rgba(52,77,70,.66); content:''; transform:rotate(0deg); transform-origin:top; }
+.profession-fishing-rod i { position:absolute; z-index:2; top:68px; left:47px; width:7px; height:15px; border-radius:4px 4px 5px 5px; background:#f36f62; box-shadow:0 0 0 2px rgba(255,255,255,.45); }
+.profession-fishing-rod b { position:absolute; top:82px; left:49px; width:1px; height:10px; background:#edf7ef; }
+.profession-fishing-fish { right:18%; bottom:34px; color:#f7d46f; opacity:0; }
+.profession-scene-fisherman[data-stage="1"] .profession-fishing-rod { animation: fishingCast .55s ease-out; }
+.profession-scene-fisherman[data-stage="1"] .profession-fishing-rod i { animation: floatLand .65s ease-out; }
+.profession-scene-fisherman[data-stage="2"] .profession-fishing-rod i { animation: floatBite .52s ease-in-out 2; }
+.profession-scene-fisherman[data-stage="2"] .profession-water i { animation-duration:.55s; }
+.profession-scene-fisherman[data-stage="3"] .profession-fishing-rod { animation: fishingPull .6s ease-out; }
+.profession-scene-fisherman[data-stage="3"] .profession-fishing-fish { animation: fishCaught .72s ease-out both; }
+
+/* Farmer: seed, sprout and ripe crop grow in three clear beats. */
+.profession-scene-farmer { background:linear-gradient(180deg,#d7e8d2 0%,#edf0d8 53%,#b98c58 54%,#8f633e 100%); }
+.profession-scene-farmer::after { bottom:-48px; height:62px; background:repeating-linear-gradient(0deg,rgba(76,48,28,.2) 0 3px,transparent 3px 12px),rgba(94,64,38,.15); }
+.profession-furrows { right:10%; bottom:24px; left:10%; display:flex; justify-content:space-between; height:29px; opacity:.35; }
+.profession-furrows i { width:18%; border-top:2px solid #f1c48b; border-radius:50%; transform:rotate(-8deg); }
+.profession-sprout { top:43px; left:calc(50% - 24px); z-index:2; color:#328650; filter:drop-shadow(0 4px 0 rgba(37,92,49,.18)); transform-origin:50% 100%; }
+.profession-sprout-0 { transform:scale(.42); opacity:.65; }
+.profession-sprout-1 { animation: seedPlant .52s ease-out both; }
+.profession-sprout-2 { animation: cropGrow .62s cubic-bezier(.2,.8,.25,1) both; }
+.profession-sprout-3 { animation: cropHarvest .62s cubic-bezier(.2,.8,.25,1) both; color:#54933e; }
+.profession-harvest { top:39px; left:calc(50% + 19px); color:#f5bf46; font-size:20px; opacity:0; }
+.profession-scene-farmer[data-stage="3"] .profession-harvest { animation: harvestGlint .8s .15s ease-out both; }
+
+/* Courier and taxi: a moving route makes the delivery/ride feel immediate. */
+.profession-scene-courier { background:linear-gradient(180deg,#c9dfdf 0%,#e9ead9 62%,#c4b58d 63%,#a99b76 100%); }
+.profession-route { right:15%; bottom:31px; left:15%; height:2px; border-top:2px dashed rgba(255,255,255,.8); opacity:.8; }
+.profession-route i { position:absolute; top:-6px; width:10px; height:10px; border:2px solid #fff; border-radius:50%; background:#e0a643; }
+.profession-route i:nth-child(1) { left:0; }.profession-route i:nth-child(2) { left:48%; }.profession-route i:nth-child(3) { right:0; }
+.profession-package { top:43px; left:calc(50% - 29px); color:#b66b17; filter:drop-shadow(0 5px 0 rgba(104,69,31,.17)); }
+.profession-package-0 { animation: packageIdle 2.6s ease-in-out infinite; }
+.profession-package-1 { animation: packagePickup .54s cubic-bezier(.2,1.2,.4,1); }
+.profession-package-2 { animation: packageCarry .5s ease-in-out; }
+.profession-package-3 { animation: packageDeliver .7s cubic-bezier(.2,.8,.3,1) both; }
+.profession-delivery-check { top:37px; right:calc(50% - 49px); display:grid; place-items:center; width:26px; height:26px; border-radius:50%; background:#45a86d; color:#fff; font-size:17px; font-weight:900; opacity:0; transform:scale(.4); }
+.profession-scene-courier[data-stage="3"] .profession-delivery-check { animation: checkPop .42s .25s cubic-bezier(.2,1.4,.4,1) both; }
+.profession-scene-taxi { background:linear-gradient(180deg,#d4e3e0 0%,#f1ead3 57%,#657477 58%,#49565a 100%); }
+.profession-scene-taxi::after { display:none; }
+.profession-road { right:-8%; bottom:20px; left:-8%; height:45px; border-radius:50% 50% 0 0; background:linear-gradient(180deg,#616d70,#39464a); transform:perspective(70px) rotateX(12deg); }
+.profession-road i { position:absolute; top:22px; width:28px; height:3px; border-radius:4px; background:#f9e4a0; animation: roadDash 1s linear infinite; }
+.profession-road i:nth-child(1) { left:7%; }.profession-road i:nth-child(2) { left:44%; animation-delay:-.35s; }.profession-road i:nth-child(3) { right:7%; animation-delay:-.7s; }
+.profession-taxi { top:50px; left:calc(50% - 34px); color:#3280a0; filter:drop-shadow(0 7px 0 rgba(20,44,49,.24)); }
+.profession-taxi-0 { animation: taxiIdle 2.4s ease-in-out infinite; }
+.profession-taxi-1 { animation: taxiStart .56s ease-out; }
+.profession-taxi-2 { animation: taxiCruise .65s ease-in-out; }
+.profession-taxi-3 { animation: taxiStop .62s cubic-bezier(.2,.8,.3,1); }
+.profession-speed-lines { top:76px; left:15%; display:grid; gap:6px; opacity:0; }
+.profession-speed-lines i { width:25px; height:2px; border-radius:3px; background:rgba(255,255,255,.85); }
+.profession-speed-lines i:nth-child(2) { width:17px; margin-left:6px; }
+.profession-scene-taxi[data-stage="1"] .profession-speed-lines,
+.profession-scene-taxi[data-stage="2"] .profession-speed-lines { animation: speedLines .6s ease-out; }
+
+@keyframes professionSun { to { transform:translateY(-3px); opacity:.78; } }
+@keyframes minerRockIdle { 50% { transform:translateY(-2px) rotate(1.5deg); } }
+@keyframes minerHit { 20%,60% { transform:translateX(-7px) rotate(-7deg) scale(.98); } 40%,80% { transform:translateX(6px) rotate(6deg); } }
+@keyframes minerCrack { 20%,55% { transform:scale(1.07) rotate(4deg); filter:brightness(1.12); } 40%,75% { transform:scale(.97) rotate(-4deg); } }
+@keyframes minerBreak { 20% { transform:scale(1.08) rotate(-5deg); } 100% { transform:translateY(15px) scale(.78) rotate(8deg); opacity:.72; } }
+@keyframes minerSparks { 0% { opacity:0; } 18% { opacity:1; } 100% { opacity:0; } }
+@keyframes minerSpark { 0% { transform:translate(0,0) scale(.3); } 28% { opacity:1; } 100% { transform:translate(var(--spark-x),var(--spark-y)) scale(0); opacity:0; } }
+@keyframes mineralReveal { 0% { opacity:0; transform:scale(.2) rotate(-30deg); } 45% { opacity:1; transform:scale(1.35) rotate(18deg); } 100% { opacity:.65; transform:scale(1) rotate(0); } }
+@keyframes treeSway { 50% { transform:rotate(2deg); } }
+@keyframes treeWindup { 45% { transform:rotate(-8deg) translateX(-3px); } 100% { transform:rotate(0); } }
+@keyframes treeChop { 20%,60% { transform:rotate(-7deg) translateX(-3px); } 40%,80% { transform:rotate(5deg) translateX(3px); } }
+@keyframes treeFall { 0% { transform:rotate(0) translateY(0); } 55% { transform:rotate(48deg) translate(17px,4px); } 100% { transform:rotate(76deg) translate(28px,14px); opacity:.85; } }
+@keyframes stumpShow { to { opacity:1; transform:translateY(-2px); } }
+@keyframes woodChips { 0% { opacity:0; } 20% { opacity:1; } 100% { opacity:0; } }
+@keyframes woodChipFly { 0% { transform:translate(0,0) rotate(0); } 100% { transform:translate(var(--chip-x),var(--chip-y)) rotate(140deg); opacity:0; } }
+@keyframes waterRipple { 50% { transform:translateY(5px) scaleX(.82); opacity:.5; } }
+@keyframes fishSwim { 50% { transform:translate(9px,4px) rotate(7deg); } }
+@keyframes fishingCast { 30% { transform:rotate(-12deg); } 70% { transform:rotate(8deg); } }
+@keyframes floatLand { 50% { transform:translate(13px,11px); } 100% { transform:translate(8px,4px); } }
+@keyframes floatBite { 35% { transform:translateY(17px) scale(.82); } 70% { transform:translateY(3px); } }
+@keyframes fishingPull { 35% { transform:rotate(-13deg) translateY(-6px); } 100% { transform:rotate(-5deg); } }
+@keyframes fishCaught { 0% { opacity:0; transform:translateY(12px) scale(.5); } 40% { opacity:1; } 100% { opacity:1; transform:translate(-47px,-42px) rotate(-18deg) scale(1.2); } }
+@keyframes seedPlant { 0% { transform:scale(.1) translateY(17px); opacity:0; } 65% { transform:scale(.58) translateY(-2px); opacity:1; } 100% { transform:scale(.5); opacity:.85; } }
+@keyframes cropGrow { 0% { transform:scale(.5); } 60% { transform:scale(1.18) translateY(-7px); } 100% { transform:scale(1); } }
+@keyframes cropHarvest { 0% { transform:scale(1) rotate(0); } 48% { transform:scale(1.2) translateY(-8px); } 100% { transform:scale(1.06) rotate(-5deg); } }
+@keyframes harvestGlint { 0% { opacity:0; transform:scale(.25) rotate(-45deg); } 45% { opacity:1; transform:scale(1.25) rotate(20deg); } 100% { opacity:.9; transform:scale(1); } }
+@keyframes packageIdle { 50% { transform:translateY(-3px) rotate(2deg); } }
+@keyframes packagePickup { 45% { transform:translateY(-13px) rotate(-8deg) scale(1.08); } }
+@keyframes packageCarry { 20%,70% { transform:translateX(10px) rotate(8deg); } 45% { transform:translateX(-5px) rotate(-6deg); } }
+@keyframes packageDeliver { 35% { transform:translate(21px,-10px) scale(1.08); } 100% { transform:translate(30px,8px) scale(.72); opacity:.35; } }
+@keyframes checkPop { to { opacity:1; transform:scale(1); } }
+@keyframes roadDash { from { transform:translateX(-18px); } to { transform:translateX(38px); } }
+@keyframes taxiIdle { 50% { transform:translateY(-2px); } }
+@keyframes taxiStart { 35% { transform:translateX(-9px) rotate(-2deg); } 100% { transform:translateX(5px); } }
+@keyframes taxiCruise { 25% { transform:translateX(-10px); } 75% { transform:translateX(10px); } }
+@keyframes taxiStop { 25% { transform:translateX(18px) rotate(2deg); } 65% { transform:translateX(-4px); } }
+@keyframes speedLines { 0% { opacity:0; transform:translateX(13px); } 35% { opacity:.85; } 100% { opacity:0; transform:translateX(-15px); } }
+body[data-ui-theme="dark"] .profession-scene { filter:none; border-color:rgba(255,255,255,.1); box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 5px 14px rgba(0,0,0,.18); }
+body[data-ui-theme="dark"] .profession-scene-miner { background:linear-gradient(180deg,#53645d 0%,#66736a 67%,#4a5d49 100%); }
+body[data-ui-theme="dark"] .profession-scene-lumberjack { background:linear-gradient(180deg,#405d50 0%,#68715d 64%,#4d6949 100%); }
+body[data-ui-theme="dark"] .profession-scene-fisherman { background:linear-gradient(180deg,#415d60 0%,#65736c 43%,#37798c 44%,#285f72 100%); }
+body[data-ui-theme="dark"] .profession-scene-farmer { background:linear-gradient(180deg,#52624c 0%,#77745a 53%,#805c3c 54%,#64442f 100%); }
+body[data-ui-theme="dark"] .profession-scene-courier { background:linear-gradient(180deg,#435d5e 0%,#77745d 62%,#746547 63%,#544c39 100%); }
+body[data-ui-theme="dark"] .profession-scene-taxi { background:linear-gradient(180deg,#4a5f61 0%,#777765 57%,#485558 58%,#303b3e 100%); }
+@media (prefers-reduced-motion: reduce) {
+  .profession-scene *, .profession-scene::before, .profession-scene::after,
+  .profession-action-button { animation:none !important; transition:none !important; }
+}
+
 .business-location-catalog { margin: 0 0 18px; padding: 14px; border-radius: 12px; background: var(--bg-card, #fbf4e4); border: 1px solid var(--border-color, rgba(90,70,40,.16)); color: var(--text-main, #2f2a1d); text-align: left; }
 .business-catalog-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
 .business-catalog-heading h3 { margin:0; font-size:16px; }
@@ -334,7 +517,7 @@ body[data-ui-theme="dark"] .business-auction-entry input { background:#202522; c
 body[data-ui-theme="dark"] .profession-work-card { background: linear-gradient(155deg, #242a26, #1c211e); border-color: rgba(220, 230, 222, .12); box-shadow: 0 8px 22px rgba(0,0,0,.2); }
 body[data-ui-theme="dark"] .profession-select-wrap { background: rgba(0,0,0,.16); border-color: rgba(220, 230, 222, .14); }
 body[data-ui-theme="dark"] .profession-select-wrap select { color: #eceeea; }
-body[data-ui-theme="dark"] .profession-scene { filter: saturate(.8) brightness(.84); }
+body[data-ui-theme="dark"] .profession-scene { filter: none; }
 body[data-ui-theme="dark"] .profession-drop-list span { background: rgba(0,0,0,.18); }
 body[data-ui-theme="dark"] .profession-drop-reveal p,
 body[data-ui-theme="dark"] .profession-stage-label span,

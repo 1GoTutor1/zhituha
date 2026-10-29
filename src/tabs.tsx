@@ -177,13 +177,39 @@ const ProfessionScene = ({ profession, stage }: { profession: string; stage: num
   const Icon = PROFESSION_ICONS[profession] || Pickaxe;
   return <div className={`profession-scene profession-scene-${profession}`} data-stage={stage}>
     <div className="profession-scene-sun" />
-    {profession === 'fisherman' && <div className="profession-water"><i /><i /><i /></div>}
-    {profession === 'farmer' && <div className={`profession-sprout profession-sprout-${stage}`}><Sprout size={44} /></div>}
-    {profession === 'miner' && <div className={`profession-rock profession-rock-${stage}`}><span /><span /></div>}
-    {profession === 'lumberjack' && <div className={`profession-tree profession-tree-${stage}`}><TreePine size={70} /></div>}
-    {profession === 'courier' && <div className={`profession-package profession-package-${stage}`}><PackageCheck size={54} /></div>}
-    {profession === 'taxi' && <div className={`profession-taxi profession-taxi-${stage}`}><CarFront size={62} /></div>}
-    {profession !== 'farmer' && profession !== 'miner' && profession !== 'lumberjack' && profession !== 'courier' && profession !== 'taxi' && <Icon size={60} />}
+    {profession === 'miner' && <>
+      <div className={`profession-rock profession-rock-${stage}`}><span /><span /><i /></div>
+      <div className="profession-impact" aria-hidden="true"><i /><i /><i /><i /></div>
+      <div className="profession-mineral-glint" aria-hidden="true">✦</div>
+    </>}
+    {profession === 'lumberjack' && <>
+      <div className="profession-woodland" aria-hidden="true"><i /><i /><i /></div>
+      <div className={`profession-tree profession-tree-${stage}`}><TreePine size={76} strokeWidth={2.3} /></div>
+      <div className="profession-stump" aria-hidden="true"><i /></div>
+      <div className="profession-wood-chips" aria-hidden="true"><i /><i /><i /></div>
+    </>}
+    {profession === 'fisherman' && <>
+      <div className="profession-water"><i /><i /><i /></div>
+      <div className="profession-fishing-rod" aria-hidden="true"><i /><b /></div>
+      <div className="profession-fishing-fish" aria-hidden="true"><Fish size={23} /></div>
+      <Icon className="profession-fisher-icon" size={40} />
+    </>}
+    {profession === 'farmer' && <>
+      <div className="profession-furrows" aria-hidden="true"><i /><i /><i /><i /></div>
+      <div className={`profession-sprout profession-sprout-${stage}`}><Sprout size={48} strokeWidth={2.5} /></div>
+      <div className="profession-harvest" aria-hidden="true">✦</div>
+    </>}
+    {profession === 'courier' && <>
+      <div className="profession-route" aria-hidden="true"><i /><i /><i /></div>
+      <div className={`profession-package profession-package-${stage}`}><PackageCheck size={58} strokeWidth={2.2} /></div>
+      <div className="profession-delivery-check" aria-hidden="true">✓</div>
+    </>}
+    {profession === 'taxi' && <>
+      <div className="profession-road" aria-hidden="true"><i /><i /><i /></div>
+      <div className="profession-speed-lines" aria-hidden="true"><i /><i /><i /></div>
+      <div className={`profession-taxi profession-taxi-${stage}`}><CarFront size={68} strokeWidth={2.2} /></div>
+    </>}
+    {!['farmer', 'miner', 'lumberjack', 'fisherman', 'courier', 'taxi'].includes(profession) && <Icon size={60} />}
     <div className="profession-scene-caption">{PLAYER_PROFESSIONS.find(item => item.id === profession)?.name}</div>
   </div>;
 };
