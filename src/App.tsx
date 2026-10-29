@@ -1151,6 +1151,7 @@ export default function App() {
     const { data, error } = await supabase.rpc('finish_profession_cycle_rpc', { p_player_id: pid });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
+    advanceMissionProgress('profession_1');
     await Promise.all([refreshProfile(), refreshDailyMissions()]);
     if (data.pending_reward) {
       showMsg('Находка готова — выбери, что с ней сделать');
@@ -1196,6 +1197,7 @@ export default function App() {
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
     setMoney(Number(data.money));
+    advanceMissionProgress('sell_1');
     await Promise.all([refreshProfile(), refreshDailyMissions()]);
     showMsg(`Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, false, 'reward');
   });
