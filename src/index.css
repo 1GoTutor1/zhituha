@@ -125,21 +125,6 @@ button { user-select: none; -webkit-tap-highlight-color: transparent; }
   74% { transform: translateY(-13px) rotateX(305deg) rotateY(285deg) rotateZ(24deg); }
   100% { transform: translateY(0) rotateX(360deg) rotateY(360deg) rotateZ(0deg); }
 }
-@keyframes casinoRaceRattle {
-  from { transform: translateY(0) rotate(-2deg); }
-  to { transform: translateY(-3px) rotate(2deg); }
-}
-/* Гонки: машины едут по полосе с лёгкой тряской, старт -> финиш */
-@keyframes casinoRaceDrive {
-  0%   { transform: translateX(-10%) rotate(-1deg); }
-  10%  { transform: translateX(2%) rotate(1deg); }
-  25%  { transform: translateX(18%) rotate(-1deg); }
-  40%  { transform: translateX(32%) rotate(1deg); }
-  55%  { transform: translateX(48%) rotate(-1deg); }
-  70%  { transform: translateX(62%) rotate(1deg); }
-  85%  { transform: translateX(78%) rotate(0deg); }
-  100% { transform: translateX(92%) rotate(0deg); }
-}
 
 .soviet-btn { transition: transform .14s ease, filter .14s ease, box-shadow .14s ease; }
 .soviet-btn:not(:disabled):active { filter: brightness(1.12); }
@@ -777,13 +762,14 @@ body[data-ui-theme="dark"] .soviet-btn {
 .casino-round-meta { color: var(--text-muted) !important; font-weight: 600; }
 .casino-round-meta > span { padding: 6px 9px; border: 1px solid var(--surface-line); border-radius: 99px; background: var(--surface-raised); }
 .casino-visual-stage { display: grid; place-items: center; min-height: 250px; }
-.casino-race-track,.casino-bet-panel,.casino-my-bets {
+.casino-bet-panel,.casino-my-bets {
   border: 1px solid var(--surface-line) !important; border-radius: 17px !important;
   background: linear-gradient(160deg, var(--surface-raised), var(--surface-soft)) !important;
   box-shadow: var(--surface-shadow) !important; color: var(--text-main);
 }
-.casino-race-track { width: 100%; padding: 15px !important; }
 .casino-bet-panel { padding: clamp(12px, 3.5vw, 18px) !important; }
+.casino-slot-reel.is-spinning { animation: casinoSlotPulse .18s ease-in-out infinite alternate; filter: blur(.4px); }
+@keyframes casinoSlotPulse { from { transform: translateY(-2px); opacity: .82; } to { transform: translateY(2px); opacity: 1; } }
 .casino-my-bets { padding: 14px !important; text-align: left; }
 .casino-game-tabs { gap: 8px !important; }
 .casino-game-tab {
