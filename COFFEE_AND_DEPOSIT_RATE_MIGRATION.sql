@@ -16,7 +16,7 @@ end $$;
 create or replace function public.business_shop_buy_rpc(
   p_player_id uuid,p_business_id uuid,p_product_id text,p_quantity integer)
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public,pg_temp as $$
-declare result_json jsonb; bonus_until timestamptz;
+declare result_json jsonb; bonus_until timestamptz; purchase_time timestamptz;
 begin
   result_json:=public.business_shop_buy_rpc_before_coffee_bonus(p_player_id,p_business_id,p_product_id,p_quantity);
   if result_json ? 'error' or coalesce((result_json->>'success')::boolean,false) is not true then
@@ -25,12 +25,18 @@ begin
 
   if exists(select 1 from public.business_shop_products
     where product_id=p_product_id and biz_type='coffee') then
-    bonus_until:=clock_timestamp()+interval '5 minutes';
+    -- One cup grants five minutes. Bulk purchases stack time instead of
+    -- refreshing the timer; cap banked duration at 24 hours.
+    select greatest(clock_timestamp(), coalesce(coffee_bonus_until, clock_timestamp()))
+      into purchase_time
+    from public.players where id=p_player_id for update;
+    bonus_until:=purchase_time + make_interval(mins => 5 * p_quantity);
+    bonus_until:=least(bonus_until, clock_timestamp()+interval '24 hours');
     update public.players set coffee_bonus_until=bonus_until where id=p_player_id;
     result_json:=result_json || jsonb_build_object(
       'coffee_bonus_until',bonus_until,
       'coffee_bonus_percent',10,
-      'coffee_bonus_minutes',5
+      'coffee_bonus_minutes',5 * p_quantity
     );
   end if;
   return result_json;

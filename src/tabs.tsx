@@ -482,7 +482,7 @@ export const MarketTab = ({ app }: { app: any }) => {
           {shopPurchase && <>
             <h3 style={{ marginTop: 0 }}>{shopPurchase.product.product_name}</h3>
             <p style={{ color: '#6b5f45' }}>{shopPurchase.shop.business_name} · {Number(shopPurchase.product.retail_price).toLocaleString('ru-RU')} ₽ за штуку</p>
-            {String(shopPurchase.product.product_id).startsWith('coffee_') && <p style={{ color: '#327b45', fontSize: 13, textAlign: 'left' }}>Кофе даёт +10% к заработку от профессий на 5 минут. Повторная покупка обновит таймер, но не добавит время сверх 5 минут. Цену задаёт владелец кофейни.</p>}
+            {String(shopPurchase.product.product_id).startsWith('coffee_') && <p style={{ color: '#327b45', fontSize: 13, textAlign: 'left' }}>Кофе даёт +10% к заработку от профессий. Каждая чашка добавляет 5 минут к таймеру, до 24 часов. Цену задаёт владелец кофейни.</p>}
             <label htmlFor="shop-buy-quantity" style={{ display: 'block', textAlign: 'left', marginBottom: 6 }}>Количество</label>
             <input id="shop-buy-quantity" type="number" min={1} max={Math.min(20, Number(shopPurchase.product.quantity))} value={shopQuantity} onChange={event => setShopQuantity(Math.max(1, Math.min(20, Number(event.target.value) || 1)))} style={S.input} />
             <p style={{ margin: '0 0 12px', textAlign: 'left' }}>Итого: <b>{(Number(shopPurchase.product.retail_price) * shopQuantity).toLocaleString('ru-RU')} ₽</b></p>
