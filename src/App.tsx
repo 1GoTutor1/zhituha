@@ -1324,6 +1324,7 @@ export default function App() {
       </Modal>
 
       <Suspense fallback={<div className="loading">Загрузка…</div>}>
+        <main className="game-content-backplate">
         {tab === 'home' && <HomeTab app={app} />}
         {tab === 'cafe' && <CafeTab app={app} />}
         {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}
@@ -1336,6 +1337,7 @@ export default function App() {
         {tab === 'profile' && <ProfileTab app={app} />}
         {tab === 'family' && <FamilyTab app={app} />}
         {tab === 'admin' && <AdminTab app={app} />}
+        </main>
       </Suspense>
       {tab !== 'admin' && <BottomNav app={app} />}
     </div>
