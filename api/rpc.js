@@ -11,6 +11,7 @@ const CLIENT_RPCS = new Set([
   'buy_phone_rpc', 'list_item_rpc', 'buy_market_item', 'collect_ref_bonus_rpc', 'collect_tips_rpc',
   'redeem_promo', 'reset_game_rpc', 'log_action_rpc', 'get_logs_rpc', 'cleanup_logs_rpc',
   'admin_give_money_rpc', 'admin_set_ban_rpc', 'admin_delete_biz_rpc', 'create_promo_rpc',
+  'admin_delete_market_lot_rpc',
   'get_casino_round_rpc', 'place_bet_rpc',
   'profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc',
   'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc',

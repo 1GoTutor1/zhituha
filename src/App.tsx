@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
-import { Send, ShieldAlert, Wrench } from 'lucide-react';
+import { Send, ShieldAlert, Wrench, LoaderCircle } from 'lucide-react';
 import { isUiSoundEnabled, playUiSound, setUiSoundEnabled, type UiSound } from './sound';
 import { getUiTheme, isUiVibrationEnabled, persistUiTheme, setUiVibrationEnabled, type UiTheme } from './preferences';
 import { 
@@ -27,11 +27,27 @@ const ProfileTab = lazy(() => loadTabs().then((module) => ({ default: module.Pro
 const CasinoTab = lazy(() => import('./casino').then((module) => ({ default: module.CasinoTab })));
 const BankTab = lazy(() => import('./BankTab').then((module) => ({ default: module.BankTab })));
 
-export default function App() {
-  const { user, hapticFeedback, tg, startParam } = useTelegram();
+const VerificationScreen = ({ title, description, error, onRetry }: { title: string; description: string; error?: string; onRetry?: () => void }) => (
+  <main className={`access-screen${error ? ' has-error' : ''}`} role={error ? 'alert' : 'status'} aria-live="polite">
+    <div className="access-card">
+      <div className="access-brand">Ж</div>
+      <div className={`access-emblem${error ? ' is-error' : ''}`}>
+        {error ? <ShieldAlert size={27} /> : <LoaderCircle size={27} className="access-spinner" />}
+      </div>
+      <span className="access-kicker">ЖИТУХА · БЕЗОПАСНЫЙ ВХОД</span>
+      <h1>{error ? 'Не удалось проверить доступ' : title}</h1>
+      <p>{error || description}</p>
+      {!error && <div className="access-progress"><span /></div>}
+      {error && onRetry && <button type="button" className="access-retry" onClick={onRetry}>Повторить проверку</button>}
+      <small>{error ? 'Игра останется закрытой, пока проверка не пройдёт.' : 'Игра откроется после успешной проверки.'}</small>
+    </div>
+  </main>
+);
 
-  // Ждём ответа /api/auth (серверная проверка подписи initData), но не дольше 5 сек.
-  const [authChecked, setAuthChecked] = useState(false);
+export default function App() {
+  const { user, hapticFeedback, tg, startParam, authStatus, authError, retryAuth } = useTelegram();
+
+  // Не загружаем игровой интерфейс, пока сервер не подтвердит Telegram initData.
   const [maintenanceChecked, setMaintenanceChecked] = useState(false);
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
   const [maintenanceAdmin, setMaintenanceAdmin] = useState(false);
@@ -74,13 +90,6 @@ export default function App() {
     document.addEventListener('click', playButtonTap, true);
     return () => document.removeEventListener('click', playButtonTap, true);
   }, []);
-  useEffect(() => {
-    if (!user) return;
-    if (user.verified) { setAuthChecked(true); return; }
-    const to = setTimeout(() => setAuthChecked(true), 5000);
-    return () => clearTimeout(to);
-  }, [user]);
-
   const refreshMaintenance = async () => {
     setMaintenanceError('');
     try {
@@ -234,7 +243,7 @@ export default function App() {
   const closeToast = () => setToast(null);
   // Идентификатор игрока = Telegram id. В браузере вне Telegram (dev-режим) разрешаем
   // локальную заглушку, но в самом Telegram — только реальный id из initDataUnsafe.
-  const isTgEnv = typeof window !== 'undefined' && !!(window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+  const isTgEnv = typeof window !== 'undefined' && !!(window as any).Telegram?.WebApp;
   const getUid = () => {
     if (user?.id) return user.id.toString();
     if (isTgEnv) return ''; // без настоящего TG-id работать нельзя (см. gate ниже)
@@ -428,8 +437,8 @@ export default function App() {
   };
 
   useEffect(() => { 
-    if (user) loadData(); 
-    else setLoading(false); 
+    if (user && (!isTgEnv || user.verified)) loadData();
+    else if (!isTgEnv) setLoading(false);
   }, [user]);
 
   // Обновление профиля игрока (деньги/энергия/таймеры) — отдельный лёгкий запрос,
@@ -654,8 +663,8 @@ export default function App() {
   };
 
   useEffect(() => { 
-    if (user) checkSubOnLoad(); 
-    else { setIsCheckingSub(false); setIsSubscribed(undefined); setSubscriptionError(''); }
+    if (user && (!isTgEnv || user.verified)) checkSubOnLoad();
+    else if (!isTgEnv) { setIsCheckingSub(false); setIsSubscribed(undefined); setSubscriptionError(''); }
   }, [user]);
 
   const verifySubscription = async () => {
@@ -1247,17 +1256,15 @@ export default function App() {
   const pageStyle: any = { padding: 'calc(100px + env(safe-area-inset-top, 20px)) 20px calc(90px + env(safe-area-inset-bottom, 20px))', textAlign: 'center', minHeight: '100vh', width: '100vw', overflowX: 'hidden', background: profileBackground === 'background_concrete' ? 'linear-gradient(145deg, #d2d6d3, #a3aaa7)' : 'transparent', transition: 'background 0.35s ease', color: '#2f2a1d' };
   const authPageStyle: any = { ...pageStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' };
 
-  if (!maintenanceChecked) return <div style={authPageStyle}><ShieldAlert size={48} color="#3d7ea6" style={{ marginBottom: 18 }} /><h2>{maintenanceError ? 'Не удалось проверить доступ' : 'Проверяем доступ…'}</h2>{maintenanceError && <><p style={{ color: '#6b5f45', maxWidth: 320 }}>{maintenanceError}</p><Btn variant="primary" onClick={() => void refreshMaintenance()}>Повторить</Btn></>}</div>;
+  if (isTgEnv && authStatus === 'checking') return <VerificationScreen title="Проверяем Telegram" description="Подтверждаем подпись и аккаунт." />;
+  if (isTgEnv && authStatus !== 'verified') return <VerificationScreen title="Проверка входа" description="Игра закрыта, пока аккаунт Telegram не будет подтверждён." error={authError || 'Не удалось проверить Telegram.'} onRetry={retryAuth} />;
+  if (!maintenanceChecked) return <VerificationScreen title="Проверяем доступ" description="Проверяем, открыта ли игра." error={maintenanceError || undefined} onRetry={maintenanceError ? () => void refreshMaintenance() : undefined} />;
   if (maintenanceEnabled && !maintenanceAdmin) return <div style={authPageStyle}><Wrench size={56} color="#3d7ea6" style={{ marginBottom: 18 }} /><h1 style={{ marginBottom: 8 }}>Технические работы</h1><p style={{ color: '#6b5f45', maxWidth: 320 }}>Игра временно закрыта. Загляни чуть позже.</p></div>;
   if (maintenanceEnabled && maintenanceAdmin && !maintenanceBypass) return <div style={authPageStyle}><Wrench size={56} color="#3d7ea6" style={{ marginBottom: 18 }} /><h1 style={{ marginBottom: 8 }}>Игра закрыта</h1><p style={{ color: '#6b5f45', maxWidth: 320 }}>Игроки не могут войти. Ты можешь зайти и проверить обновление, пока игра закрыта для остальных.</p><div style={{ display: 'flex', width: 'min(100%, 360px)', gap: 10, marginTop: 10 }}><Btn variant="secondary" onClick={() => setMaintenanceBypass(true)}>Войти для теста</Btn><Btn variant="primary" disabled={maintenanceBusy} onClick={() => void setMaintenance(false)}>{maintenanceBusy ? 'Открываем…' : 'Открыть всем'}</Btn></div>{maintenanceError && <p role="alert" style={{ color: '#c0453a', marginTop: 12 }}>{maintenanceError}</p>}</div>;
-
-  if (loading) return <div style={{ color: '#2f2a1d', textAlign: 'center', marginTop: 'calc(100px + env(safe-area-inset-top, 20px))' }}>Загрузка...</div>;
-  // Gate: в Telegram без успешно проверенной сервером подписи initData игру не показываем.
-  if (isTgEnv && user && !authChecked) {
-    return <div style={authPageStyle}><ShieldAlert size={50} color="#3d7ea6" style={{ marginBottom: 20 }} /><h2>Проверка аккаунта…</h2><p style={{ color: '#6b5f45', maxWidth: 300 }}>Telegram-безопасность: подтверждаем подпись.</p></div>;
-  }
-  if (isCheckingSub) return <div style={authPageStyle}><Send size={50} color="#3d7ea6" style={{ marginBottom: 20, animation: 'pulse 1.5s infinite' }} /><h2>Проверяем подписку...</h2></div>;
-  if (user && subscriptionError) return <div style={authPageStyle}><ShieldAlert size={50} color="#3d7ea6" style={{ marginBottom: 20 }} /><h2>Не удалось проверить подписку</h2><p style={{ color: '#6b5f45', maxWidth: 320 }}>{subscriptionError}</p><Btn variant="primary" onClick={verifySubscription}>Повторить</Btn></div>;
+  if (isTgEnv && isCheckingSub) return <VerificationScreen title="Проверяем подписку" description="Подписка на канал проверяется перед входом." />;
+  if (isTgEnv && subscriptionError) return <VerificationScreen title="Проверка подписки" description="Повтори проверку, чтобы войти в игру." error={subscriptionError} onRetry={verifySubscription} />;
+  if (isTgEnv && isSubscribed !== true && isSubscribed !== false) return <VerificationScreen title="Доступ ещё не подтверждён" description="Игра остаётся закрытой, пока сервер не подтвердит подписку." error="Подписку пока не удалось проверить." onRetry={verifySubscription} />;
+  if (loading) return <VerificationScreen title="Загружаем игру" description="Всё проверено. Подготавливаем профиль." />;
   if (isBanned) return <div style={authPageStyle}><ShieldAlert size={80} color="#c0453a" style={{ marginBottom: 20 }} /><h1>Вы забанены!</h1><p style={{ color: '#6b5f45', maxWidth: '300px' }}>Администрация заблокировала ваш аккаунт.</p></div>;
   
   // Окно подписки показываем ТОЛЬКО когда точно знаем (из БД), что не подписан.

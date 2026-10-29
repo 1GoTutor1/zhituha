@@ -403,3 +403,51 @@ body[data-ui-theme="dark"] .more-menu-heading { color: #aeb6af; }
   .profession-work-card { padding: 13px; }
   .profession-drop-actions { grid-template-columns: 1fr; }
 }
+
+/* Full-screen fail-closed access gate for Telegram, subscription and maintenance checks. */
+.access-screen {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: max(22px, env(safe-area-inset-top)) 18px max(22px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at 50% 12%, rgba(66, 153, 105, .15), transparent 52%),
+    #efe3c8;
+  color: #27251f;
+  font-family: 'Rubik', sans-serif;
+}
+.access-card {
+  display: flex;
+  width: min(100%, 390px);
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 24px 24px;
+  border: 1px solid rgba(94, 81, 55, .2);
+  border-radius: 24px;
+  background: rgba(255, 250, 238, .94);
+  box-shadow: 0 18px 55px rgba(55, 44, 24, .2);
+  text-align: center;
+}
+.access-brand { color: #33855a; font: 900 19px 'Russo One', sans-serif; letter-spacing: 1.5px; }
+.access-emblem { display: grid; width: 62px; height: 62px; place-items: center; margin: 17px 0 15px; border: 1px solid rgba(51, 133, 90, .2); border-radius: 20px; background: rgba(51, 133, 90, .1); color: #33855a; }
+.access-emblem.is-error { border-color: rgba(192, 69, 58, .24); background: rgba(192, 69, 58, .1); color: #b73d34; }
+.access-spinner { animation: access-spin 1s linear infinite; }
+@keyframes access-spin { to { transform: rotate(360deg); } }
+.access-kicker { color: #798176; font-size: 10px; font-weight: 800; letter-spacing: 1.3px; }
+.access-card h1 { margin: 10px 0 6px; font: 22px 'Russo One', sans-serif; }
+.access-card p { margin: 0; color: #73796f; font-size: 14px; line-height: 1.5; }
+.access-progress { width: 100%; height: 5px; margin: 23px 0 3px; overflow: hidden; border-radius: 99px; background: rgba(85, 91, 77, .12); }
+.access-progress span { display: block; width: 38%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #43a66b, #468cb4); animation: access-progress 1.6s ease-in-out infinite; }
+@keyframes access-progress { 0% { transform: translateX(-110%); } 100% { transform: translateX(370%); } }
+.access-retry { margin-top: 20px; padding: 12px 18px; border: 0; border-radius: 11px; background: #358b5b; color: #fff; font: 800 14px 'Rubik', sans-serif; cursor: pointer; }
+.access-card small { margin-top: 17px; color: #95988f; font-size: 11px; line-height: 1.4; }
+body[data-ui-theme="dark"] .access-screen { background: radial-gradient(ellipse at 50% 12%, rgba(66, 153, 105, .12), transparent 52%), #171a18; color: #edf0eb; }
+body[data-ui-theme="dark"] .access-card { border-color: rgba(220, 230, 222, .14); background: #222724; box-shadow: 0 18px 55px rgba(0, 0, 0, .42); }
+body[data-ui-theme="dark"] .access-kicker,
+body[data-ui-theme="dark"] .access-card p,
+body[data-ui-theme="dark"] .access-card small { color: #aeb6af; }
+@media (prefers-reduced-motion: reduce) { .access-spinner, .access-progress span { animation-duration: 8s; } }

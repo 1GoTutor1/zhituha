@@ -6,52 +6,103 @@ export interface VerifiedUser {
   username?: string;
   first_name?: string;
   last_name?: string;
-  verified: boolean; // true = сервер проверил подпись initData
+  verified: boolean;
 }
+
+export type TelegramAuthStatus = 'checking' | 'verified' | 'failed' | 'not_required';
 
 export function useTelegram() {
   const [tg, setTg] = useState<any>(null);
   const [user, setUser] = useState<VerifiedUser | null>(null);
   const [startParam, setStartParam] = useState<string | null>(null);
+  const [authStatus, setAuthStatus] = useState<TelegramAuthStatus>(() =>
+    typeof window !== 'undefined' && (window as any).Telegram?.WebApp ? 'checking' : 'not_required'
+  );
+  const [authError, setAuthError] = useState('');
+  const [authAttempt, setAuthAttempt] = useState(0);
 
   useEffect(() => {
     const telegram = (window as any).Telegram?.WebApp;
-    if (telegram) {
-      telegram.ready(); 
-      telegram.expand(); 
-      
-      try {
-        const themeColor = document.documentElement.dataset.uiTheme === 'dark' ? '#171a18' : '#efe3c8';
-        telegram.setHeaderColor(themeColor);
-        telegram.setBackgroundColor(themeColor);
-        if (telegram.requestFullscreen) telegram.requestFullscreen();
-      } catch (e) {}
+    if (!telegram) {
+      setAuthStatus('not_required');
+      return;
+    }
 
-      setTg(telegram);
-      if (telegram.initDataUnsafe?.user) {
-        setStartParam(telegram.initDataUnsafe?.start_param ?? null);
-        const u = telegram.initDataUnsafe.user;
-        // Серверная проверка подписи Telegram initData.
-        // Пока ответ не пришёл — считаем пользователя непроверенным.
-        setUser({ id: u.id, username: u.username, first_name: u.first_name, last_name: u.last_name, verified: false });
-        const rawInitData: string = telegram.initData || '';
-        fetch('/api/auth', {
+    try {
+      telegram.ready();
+      telegram.expand();
+      const themeColor = document.documentElement.dataset.uiTheme === 'dark' ? '#171a18' : '#efe3c8';
+      telegram.setHeaderColor(themeColor);
+      telegram.setBackgroundColor(themeColor);
+      if (telegram.requestFullscreen) telegram.requestFullscreen();
+    } catch { /* The signature check still runs if optional Telegram UI calls fail. */ }
+
+    setTg(telegram);
+    const unsafeUser = telegram.initDataUnsafe?.user;
+    if (!unsafeUser) {
+      setAuthStatus('failed');
+      setAuthError('Открой игру из Telegram, чтобы подтвердить аккаунт.');
+      return;
+    }
+
+    setStartParam(telegram.initDataUnsafe?.start_param ?? null);
+    setUser({
+      id: Number(unsafeUser.id),
+      username: unsafeUser.username,
+      first_name: unsafeUser.first_name,
+      last_name: unsafeUser.last_name,
+      verified: false,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!tg) return;
+    const unsafeUser = tg.initDataUnsafe?.user;
+    if (!unsafeUser) return;
+    let cancelled = false;
+
+    setAuthStatus('checking');
+    setAuthError('');
+    void (async () => {
+      try {
+        const response = await fetch('/api/auth', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ init_data: rawInitData }),
-        })
-          .then((r) => (r.ok ? r.json() : Promise.reject(new Error('auth http ' + r.status))))
-          .then((d: any) => {
-            if (d?.ok && d?.user?.id) {
-              setUser({ ...u, id: Number(d.user.id), verified: true });
-            } else {
-              console.warn('[auth] initData не прошёл проверку сервера');
-            }
-          })
-          .catch((e) => console.warn('[auth] сервер проверки недоступен:', e?.message));
+          cache: 'no-store',
+          body: JSON.stringify({ init_data: tg.initData || '' }),
+        });
+        const result = await response.json();
+        if (!response.ok || result?.ok !== true || Number(result?.user?.id) !== Number(unsafeUser.id)) {
+          throw new Error(result?.error || 'Сервер не подтвердил Telegram-аккаунт.');
+        }
+        if (cancelled) return;
+        setUser({ ...unsafeUser, id: Number(result.user.id), verified: true });
+        setAuthStatus('verified');
+      } catch (error) {
+        if (cancelled) return;
+        setUser({ ...unsafeUser, id: Number(unsafeUser.id), verified: false });
+        setAuthError(error instanceof Error ? error.message : 'Не удалось проверить Telegram-аккаунт.');
+        setAuthStatus('failed');
       }
+    })();
+
+    return () => { cancelled = true; };
+  }, [tg, authAttempt]);
+
+  const retryAuth = () => {
+    const currentTelegram = tg || (typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null);
+    const unsafeUser = currentTelegram?.initDataUnsafe?.user;
+    if (!currentTelegram || !unsafeUser) {
+      setAuthError('Открой игру из Telegram, чтобы подтвердить аккаунт.');
+      setAuthStatus('failed');
+      return;
     }
-  }, []);
+    if (!tg) setTg(currentTelegram);
+    setUser({ id: Number(unsafeUser.id), username: unsafeUser.username, first_name: unsafeUser.first_name, last_name: unsafeUser.last_name, verified: false });
+    setAuthStatus('checking');
+    setAuthError('');
+    setAuthAttempt(current => current + 1);
+  };
 
   const hapticFeedback = (style: 'light' | 'medium' | 'heavy' = 'light') => {
     if (!isUiVibrationEnabled()) return;
@@ -64,5 +115,5 @@ export function useTelegram() {
     }
   };
 
-  return { tg, user, hapticFeedback, startParam };
+  return { tg, user, hapticFeedback, startParam, authStatus, authError, retryAuth };
 }

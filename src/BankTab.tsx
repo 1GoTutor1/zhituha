@@ -248,7 +248,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
                 ['Изменение открытых акций', stockUnrealizedProfit, stockUnrealizedProfit >= 0 ? '#2c7a3c' : '#b83229', true]
               ].map(([label, value, color, signed]) => <div key={String(label)} style={{ padding: 9, borderRadius: 8, background: 'rgba(255,255,255,.66)' }}><div style={{ color: '#80745e', fontSize: 10 }}>{label}</div><b style={{ color: String(color), fontSize: 13 }}>{signed && Number(value) > 0 ? '+' : ''}{money(Number(value))}</b></div>)}
             </div>
-            <div style={{ color: '#80745e', fontSize: 10, marginTop: 8 }}>В прибыли учтены цены покупок, фактические продажи и комиссия 5% при продаже.</div>
+            <div style={{ color: '#80745e', fontSize: 10, marginTop: 8 }}>Учитываются цена покупки, комиссия 5% при покупке и выплата 95% от котировки при продаже.</div>
           </div>
           <label style={{ display: 'block', color: '#6b5f45', fontSize: 12, margin: '8px 0 5px' }}>Количество акций</label>
           <input type="number" min="1" max="10000" step="1" value={sharesAmount} onChange={event => setSharesAmount(event.target.value)} style={S.input} />
@@ -259,6 +259,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
             const sellValue = Number(holding?.liquidation_value ?? Math.floor(shares * stock.price * 0.95));
             const openProfit = sellValue - costBasis;
             const realizedProfit = Number(holding?.realized_profit) || 0;
+            const purchaseTotal = Math.ceil(stock.price * 1.05) * sharesToTrade;
             const change = stock.previous_price ? ((stock.price - stock.previous_price) / stock.previous_price) * 100 : 0;
             const color = change >= 0 ? '#3f9d55' : '#c0453a';
             return <div key={stock.symbol} style={S.card}>
@@ -273,9 +274,9 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, marginTop: 6 }}><span style={{ color: '#6b5f45' }}>Профит открытых</span><b style={{ color: openProfit >= 0 ? '#2c7a3c' : '#b83229' }}>{openProfit > 0 ? '+' : ''}{money(openProfit)}</b></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, marginTop: 4 }}><span style={{ color: '#6b5f45' }}>Уже зафиксировано продажами</span><b style={{ color: realizedProfit >= 0 ? '#2c7a3c' : '#b83229' }}>{realizedProfit > 0 ? '+' : ''}{money(realizedProfit)}</b></div>
               </div>
-              <div style={{ fontSize: 11, color: '#6b5f45', marginBottom: 8 }}>Покупка: {money(stock.price * sharesToTrade)} · продажа {sharesToTrade} шт.: {money(Math.floor(stock.price * sharesToTrade * 0.95))}</div>
+              <div style={{ fontSize: 11, color: '#6b5f45', marginBottom: 8 }}>Покупка с комиссией 5%: {money(purchaseTotal)} · продажа сейчас: {money(Math.floor(stock.price * sharesToTrade * 0.95))}</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Btn variant="secondary" disabled={busy || sharesToTrade > 10000 || Number(bank?.balance) < stock.price * sharesToTrade} onClick={() => void run('bank_buy_stock_rpc', { p_symbol: stock.symbol, p_shares: sharesToTrade }, 'Акции куплены')} style={{ flex: 1, padding: 9 }}>Купить</Btn>
+                <Btn variant="secondary" disabled={busy || sharesToTrade > 10000 || Number(bank?.balance) < purchaseTotal} onClick={() => void run('bank_buy_stock_rpc', { p_symbol: stock.symbol, p_shares: sharesToTrade }, 'Акции куплены')} style={{ flex: 1, padding: 9 }}>Купить</Btn>
                 <Btn variant="primary" disabled={busy || shares < sharesToTrade} onClick={() => void run('bank_sell_stock_rpc', { p_symbol: stock.symbol, p_shares: sharesToTrade }, 'Акции проданы')} style={{ flex: 1, padding: 9 }}>Продать</Btn>
               </div>
             </div>;
