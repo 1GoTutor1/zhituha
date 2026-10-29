@@ -1,12 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" viewBox="0 0 360 360">
   <filter id="raw-concrete" x="0" y="0" width="100%" height="100%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="5" seed="17" stitchTiles="stitch" />
+    <feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="5" seed="17" stitchTiles="stitch" />
     <feColorMatrix type="saturate" values="0" />
   </filter>
   <filter id="concrete-pores" x="0" y="0" width="100%" height="100%">
-    <feTurbulence type="fractalNoise" baseFrequency="1.45" numOctaves="2" seed="31" stitchTiles="stitch" />
+    <feTurbulence type="fractalNoise" baseFrequency="0.42" numOctaves="3" seed="31" stitchTiles="stitch" />
     <feColorMatrix type="saturate" values="0" />
   </filter>
-  <rect width="220" height="220" filter="url(#raw-concrete)" opacity="0.34" />
-  <rect width="220" height="220" filter="url(#concrete-pores)" opacity="0.24" />
+  <rect width="360" height="360" filter="url(#raw-concrete)" opacity="0.52" />
+  <rect width="360" height="360" filter="url(#concrete-pores)" opacity="0.38" />
+  <g fill="#171a19" opacity=".25">
+    <ellipse cx="24" cy="42" rx="2.3" ry="1.5"/><ellipse cx="71" cy="25" rx="1.4" ry="1"/>
+    <ellipse cx="112" cy="62" rx="2.8" ry="1.7"/><ellipse cx="158" cy="31" rx="1.8" ry="1.2"/>
+    <ellipse cx="217" cy="52" rx="1.3" ry=".9"/><ellipse cx="291" cy="29" rx="2.4" ry="1.5"/>
+    <ellipse cx="337" cy="76" rx="1.7" ry="1.1"/><ellipse cx="42" cy="119" rx="1.7" ry="1.1"/>
+    <ellipse cx="91" cy="143" rx="2.5" ry="1.6"/><ellipse cx="181" cy="108" rx="1.4" ry="1"/>
+    <ellipse cx="248" cy="132" rx="2.1" ry="1.4"/><ellipse cx="319" cy="157" rx="2.9" ry="1.7"/>
+    <ellipse cx="18" cy="204" rx="1.4" ry="1"/><ellipse cx="66" cy="241" rx="2.6" ry="1.5"/>
+    <ellipse cx="139" cy="207" rx="1.8" ry="1.2"/><ellipse cx="204" cy="250" rx="2.7" ry="1.8"/>
+    <ellipse cx="277" cy="215" rx="1.5" ry="1"/><ellipse cx="341" cy="251" rx="2.1" ry="1.4"/>
+    <ellipse cx="33" cy="315" rx="2.4" ry="1.5"/><ellipse cx="107" cy="338" rx="1.6" ry="1.1"/>
+    <ellipse cx="164" cy="301" rx="2.2" ry="1.4"/><ellipse cx="245" cy="331" rx="1.4" ry="1"/>
+    <ellipse cx="306" cy="300" rx="2.7" ry="1.7"/>
+  </g>
+  <g fill="#d4d6cf" opacity=".18">
+    <circle cx="21" cy="39" r="1.1"/><circle cx="109" cy="59" r="1.3"/><circle cx="155" cy="29" r=".9"/>
+    <circle cx="88" cy="140" r="1.1"/><circle cx="245" cy="129" r=".9"/><circle cx="316" cy="154" r="1.2"/>
+    <circle cx="63" cy="238" r="1.1"/><circle cx="201" cy="247" r="1.2"/><circle cx="338" cy="248" r=".9"/>
+    <circle cx="161" cy="298" r="1.1"/><circle cx="303" cy="297" r="1.3"/>
+  </g>
 </svg>

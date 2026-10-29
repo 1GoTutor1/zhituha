@@ -8,18 +8,15 @@ export const getProfileBackground = (id?: string | null) => {
   switch (id) {
     case 'background_concrete':
       return {
-        backgroundColor: '#858b83',
+        backgroundColor: '#484b49',
         backgroundImage: [
-          'radial-gradient(circle, rgba(39,46,41,.13) 0 1px, transparent 1.4px)',
-          'radial-gradient(circle, rgba(255,255,255,.17) 0 1px, transparent 1.5px)',
-          'radial-gradient(ellipse at 17% 19%, rgba(255,255,255,.22), transparent 29%)',
-          'radial-gradient(ellipse at 84% 76%, rgba(30,36,32,.2), transparent 34%)',
-          'linear-gradient(164deg, transparent 0 39%, rgba(48,55,50,.12) 39.1% 39.35%, transparent 39.5% 100%)',
-          'repeating-linear-gradient(0deg, transparent 0 70px, rgba(35,42,38,.14) 70px 72px)',
-          'repeating-linear-gradient(90deg, transparent 0 118px, rgba(35,42,38,.13) 118px 120px)',
-          'linear-gradient(145deg, #b7bbb3, #7a827a 52%, #a0a59c)',
+          'url("/concrete-noise.svg")',
+          'radial-gradient(ellipse at 18% 16%, rgba(222,223,215,.12), transparent 36%)',
+          'radial-gradient(ellipse at 82% 78%, rgba(12,15,14,.28), transparent 42%)',
+          'linear-gradient(145deg, #555855, #3e4240 54%, #4b4e4b)',
         ].join(','),
-        backgroundSize: '17px 19px, 23px 29px, auto, auto, auto, auto, auto, auto',
+        backgroundSize: '360px 360px, auto, auto, auto',
+        backgroundBlendMode: 'soft-light,screen,multiply,normal',
       };
     case 'background_brick':
       return {
