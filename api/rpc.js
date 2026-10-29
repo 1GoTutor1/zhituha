@@ -82,6 +82,10 @@ export default async function handler(req, res) {
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Обновление профессий ещё не установлено в Supabase. Проверьте миграцию PROFESSIONS_INVENTORY_MIGRATION.sql.' });
       }
+      if (['profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc', 'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc', 'sell_inventory_rpc', 'taxi_fleet_rpc', 'select_taxi_car_rpc'].includes(name)) {
+        const detail = String(error.message || '').replace(/[\r\n]+/g, ' ').slice(0, 180);
+        return res.status(400).json({ error: `Ошибка профессии (${error.code || 'без кода'}): ${detail || 'не удалось выполнить действие'}` });
+      }
       if (name.startsWith('bank_')) {
         if (error.code === 'PGRST202' || error.code === '42883') {
           return res.status(400).json({ error: `Банковская функция ${name} не найдена в Supabase. Проверь, что применены SQL-миграции банка.` });

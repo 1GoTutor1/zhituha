@@ -862,6 +862,10 @@ export const AdminTab = ({ app }: { app: any }) => {
     if (app.adminTab === 'logs') loadLogs();
   }, [app.adminTab, logsFilter]);
 
+  useEffect(() => {
+    if (app.adminTab === 'market') void app.loadMarket();
+  }, [app.adminTab]);
+
   const loadAdminPlayers = async (page = adminPlayersPage, query = activeSearchQ) => {
     const requestId = ++playersRequestId.current;
     setAdminPlayersLoading(true);
@@ -1011,6 +1015,7 @@ export const AdminTab = ({ app }: { app: any }) => {
         <Btn variant={app.adminTab === 'players' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('players')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'players' ? '#c0453a' : '#fbf4e4' }}>Игроки</Btn>
         <Btn variant={app.adminTab === 'promos' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('promos')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'promos' ? '#c0453a' : '#fbf4e4' }}>Промо</Btn>
         <Btn variant={app.adminTab === 'logs' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('logs')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'logs' ? '#c0453a' : '#fbf4e4' }}>Логи</Btn>
+        <Btn variant={app.adminTab === 'market' ? 'danger' : 'secondary'} onClick={() => app.setAdminTab('market')} style={{ padding: 8, fontSize: 12, background: app.adminTab === 'market' ? '#c0453a' : '#fbf4e4' }}>Рынок</Btn>
       </div>
 
       {app.adminTab === 'players' && (
@@ -1097,6 +1102,24 @@ export const AdminTab = ({ app }: { app: any }) => {
           <input type="number" placeholder="Сумма монет" value={promoAmount} onChange={e => setPromoAmount(e.target.value)} style={S.input} />
           <input type="number" placeholder="Лимит активаций" value={promoLimit} onChange={e => setPromoLimit(e.target.value)} style={S.input} />
           <Btn variant="primary" onClick={handleCreatePromo} disabled={app.proc}>Создать</Btn>
+        </div>
+      )}
+
+      {app.adminTab === 'market' && (
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ ...S.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, textAlign: 'left' }}>
+            <div><b>Лоты на рынке</b><div style={{ color: '#6b5f45', fontSize: 12 }}>При удалении вещь возвращается продавцу</div></div>
+            <Btn variant="secondary" onClick={() => void app.loadMarket()} disabled={app.proc} style={{ width: 'auto', padding: '7px 10px', fontSize: 12 }}><RefreshCw size={14} /></Btn>
+          </div>
+          {app.market.length === 0 && <p style={{ color: '#6b5f45' }}>Активных лотов нет.</p>}
+          {app.market.map((lot: any) => {
+            const kind = lot.item_type === 'car' ? 'Автомобиль' : lot.item_type === 'house' ? 'Жильё' : 'Предмет';
+            const itemName = String(lot.item_data || '').split(':').pop();
+            return <div key={lot.id} style={{ ...S.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: 12, textAlign: 'left' }}>
+              <div style={{ minWidth: 0 }}><b>{kind}: {itemName}</b><div style={{ color: '#6b5f45', fontSize: 12, overflowWrap: 'anywhere' }}>{lot.seller_name || 'Без имени'} · {Number(lot.price || 0).toLocaleString('ru-RU')} ₽</div></div>
+              <Btn variant="danger" onClick={() => app.adminDeleteMarketLot(lot)} disabled={app.proc} style={{ width: 'auto', padding: '7px 10px', fontSize: 12 }}><Trash2 size={15} /> Удалить</Btn>
+            </div>;
+          })}
         </div>
       )}
 

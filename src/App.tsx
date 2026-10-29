@@ -198,7 +198,7 @@ export default function App() {
   const [allBiz, setAllBiz] = useState<any[]>([]);
   const [selCafe, setSelCafe] = useState<any>(null);
   const [boardOpen, setBoardOpen] = useState(false);
-  const [adminTab, setAdminTab] = useState<'players' | 'promos' | 'logs'>('players');
+  const [adminTab, setAdminTab] = useState<'players' | 'promos' | 'logs' | 'market'>('players');
 
   const [modifierOpen, setModifierOpen] = useState(false);
   const [promoOpen, setPromoOpen] = useState(false);
@@ -915,6 +915,18 @@ export default function App() {
     loadData(true); loadMarket();
   });
 
+  const adminDeleteMarketLot = (item: any) => action(async () => {
+    if (!window.confirm(`Удалить лот игрока ${item.seller_name || 'без имени'}? Выставленная вещь вернётся владельцу.`)) return;
+    const { data, error } = await supabase.rpc('admin_delete_market_lot_rpc', {
+      p_admin_id: pid,
+      p_item_id: item.id,
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setMarket((current: any[]) => current.filter((lot) => lot.id !== item.id));
+    showMsg('Лот удалён, вещь возвращена владельцу');
+  });
+
   const orderCar = (model: string, amount: number) => action(async () => {
     const salon = myBizs.find(b => b.id === activeBizId && b.biz_type === 'salon') || myBizs.find(b => b.biz_type === 'salon');
     if (!salon || carOrderEnd > 0) return showMsg("У тебя уже едут машины!", true);
@@ -1265,7 +1277,8 @@ export default function App() {
     maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance,
     settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, uiTheme, changeUiTheme,
     bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, createBusinessAuction, bidBusinessAuction, activeBizId, setActiveBizId,
-    career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
+    career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory,
+    adminDeleteMarketLot, loadMarket
   }), [
     user, tg, startParam, proc, toast, tab, nick, money, energy, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, restEnd, brewEnd, tLeft, bLeft, pid, maxEnergy, restTime, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, uiTheme, changeUiTheme, career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
   ]);
