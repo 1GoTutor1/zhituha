@@ -22,12 +22,11 @@ export const AppModals = ({ app }: { app: any }) => (
         const item = app.career.pending_reward.item;
         const rarity = PROFESSION_RARITIES[item.rarity as keyof typeof PROFESSION_RARITIES] || PROFESSION_RARITIES.common;
         return <div className={`profession-drop-reveal rarity-${item.rarity || 'common'}`}>
-          <div className="profession-drop-confetti" aria-hidden="true">✦　✧　✦</div>
           <div className="profession-drop-icon" style={{ color: rarity.color }}><ItemArtwork item={item} size={120} /></div>
-          <div className="profession-drop-rarity" style={{ color: rarity.color }}>{rarity.name}</div>
+          <div className="profession-drop-rarity" style={{ '--rarity-color': rarity.color } as React.CSSProperties}>{rarity.name}</div>
           <h2>{item.item_name}</h2>
-          <p>Находка готова. Выбери, что с ней сделать:</p>
-          <div className="profession-drop-value">Цена государства · {Number(item.sell_price).toLocaleString('ru-RU')} ₽</div>
+          <p>Предмет добавлен в результаты смены.</p>
+          <div className="profession-drop-value">Стоимость · {Number(item.sell_price).toLocaleString('ru-RU')} ₽</div>
           <div className="profession-drop-actions">
             <Btn variant="secondary" disabled={app.proc || (Number(app.career.inventory_slots) >= 200)} onClick={() => app.claimProfessionReward('inventory')}><Backpack size={18} /> В инвентарь</Btn>
             <Btn variant="primary" disabled={app.proc} onClick={() => { if (['rare','epic'].includes(item.rarity) && !window.confirm('\u041F\u0440\u043E\u0434\u0430\u0442\u044C \u0440\u0435\u0434\u043A\u0443\u044E \u043D\u0430\u0445\u043E\u0434\u043A\u0443?')) return; app.claimProfessionReward('sell'); }}><Coins size={18} /> Продать</Btn>
@@ -173,44 +172,22 @@ export const TutorialCard = ({ app }: { app: any }) => {
 
 const PROFESSION_ICONS: Record<string, any> = { miner: Pickaxe, lumberjack: TreePine, fisherman: Fish, farmer: Sprout, courier: PackageCheck, taxi: CarFront };
 
+const PROFESSION_SCENES: Record<string, { label: string; accent: string }> = {
+  miner: { label: 'Горное дело', accent: '#a98766' },
+  lumberjack: { label: 'Лесозаготовка', accent: '#6f9278' },
+  fisherman: { label: 'Рыбалка', accent: '#6f9ca8' },
+  farmer: { label: 'Земледелие', accent: '#91a76a' },
+  courier: { label: 'Доставка', accent: '#bc8c59' },
+  taxi: { label: 'Городской маршрут', accent: '#7793a3' },
+};
+
 const ProfessionScene = ({ profession, stage }: { profession: string; stage: number }) => {
   const Icon = PROFESSION_ICONS[profession] || Pickaxe;
-  return <div className={`profession-scene profession-scene-${profession}`} data-stage={stage}>
-    <div className="profession-scene-sun" />
-    {profession === 'miner' && <>
-      <div className={`profession-rock profession-rock-${stage}`}><span /><span /><i /></div>
-      <div className="profession-impact" aria-hidden="true"><i /><i /><i /><i /></div>
-      <div className="profession-mineral-glint" aria-hidden="true">✦</div>
-    </>}
-    {profession === 'lumberjack' && <>
-      <div className="profession-woodland" aria-hidden="true"><i /><i /><i /></div>
-      <div className={`profession-tree profession-tree-${stage}`}><TreePine size={76} strokeWidth={2.3} /></div>
-      <div className="profession-stump" aria-hidden="true"><i /></div>
-      <div className="profession-wood-chips" aria-hidden="true"><i /><i /><i /></div>
-    </>}
-    {profession === 'fisherman' && <>
-      <div className="profession-water"><i /><i /><i /></div>
-      <div className="profession-fishing-rod" aria-hidden="true"><i /><b /></div>
-      <div className="profession-fishing-fish" aria-hidden="true"><Fish size={23} /></div>
-      <Icon className="profession-fisher-icon" size={40} />
-    </>}
-    {profession === 'farmer' && <>
-      <div className="profession-furrows" aria-hidden="true"><i /><i /><i /><i /></div>
-      <div className={`profession-sprout profession-sprout-${stage}`}><Sprout size={48} strokeWidth={2.5} /></div>
-      <div className="profession-harvest" aria-hidden="true">✦</div>
-    </>}
-    {profession === 'courier' && <>
-      <div className="profession-route" aria-hidden="true"><i /><i /><i /></div>
-      <div className={`profession-package profession-package-${stage}`}><PackageCheck size={58} strokeWidth={2.2} /></div>
-      <div className="profession-delivery-check" aria-hidden="true">✓</div>
-    </>}
-    {profession === 'taxi' && <>
-      <div className="profession-road" aria-hidden="true"><i /><i /><i /></div>
-      <div className="profession-speed-lines" aria-hidden="true"><i /><i /><i /></div>
-      <div className={`profession-taxi profession-taxi-${stage}`}><CarFront size={68} strokeWidth={2.2} /></div>
-    </>}
-    {!['farmer', 'miner', 'lumberjack', 'fisherman', 'courier', 'taxi'].includes(profession) && <Icon size={60} />}
-    <div className="profession-scene-caption">{PLAYER_PROFESSIONS.find(item => item.id === profession)?.name}</div>
+  const scene = PROFESSION_SCENES[profession] || PROFESSION_SCENES.miner;
+  return <div className={`profession-scene profession-scene-${profession}`} data-stage={stage} style={{ '--profession-accent': scene.accent } as React.CSSProperties}>
+    <span className="profession-scene-index">ПОЛЕВАЯ РАБОТА · {String(stage).padStart(2, '0')} / 03</span>
+    <div className="profession-scene-mark" aria-hidden="true"><Icon size={48} strokeWidth={1.65} /></div>
+    <span className="profession-scene-caption">{scene.label}</span>
   </div>;
 };
 
@@ -227,14 +204,14 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
 
   return <section className="profession-work-card">
     <div className="profession-card-head">
-      <div><span className="profession-eyebrow">ТВОЯ ПРОФЕССИЯ</span><h2>{profession.name}</h2></div>
-      <div className="profession-level-badge">УР. {career.level || 1}</div>
+      <div><span className="profession-eyebrow">Профессия</span><h2>{profession.name}</h2></div>
+      <div className="profession-level-badge">Уровень {career.level || 1}</div>
     </div>
     <div className="profession-xp-block">
       <div className="profession-xp-label"><b>Уровень {career.level || 1}</b><span>{Number(career.xp || 0).toLocaleString('ru-RU')} / {Number(career.xp_to_next || 100).toLocaleString('ru-RU')} XP</span></div>
       <div className="profession-xp-track"><span style={{ width: `${Math.min(100, Number(career.xp || 0) / Math.max(1, Number(career.xp_to_next || 100)) * 100)}%` }} /></div>
     </div>
-    <label className="profession-select-label" htmlFor="profession-select">Выбрать профессию</label>
+    <label className="profession-select-label" htmlFor="profession-select">Специальность</label>
     <div className="profession-select-wrap"><Icon size={19} /><select id="profession-select" value={profession.id} onChange={event => app.selectProfession(event.target.value)} disabled={!!cycle || app.proc}>
       {PLAYER_PROFESSIONS.map(item => <option key={item.id} value={item.id} disabled={!unlocked.includes(item.id)}>{item.name}{unlocked.includes(item.id) ? '' : ` · с уровня ${item.unlockLevel}`}</option>)}
     </select><ChevronRight size={17} /></div>
@@ -258,7 +235,7 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
           ? <button className="profession-action-button" disabled={!canDoStep} onClick={() => app.stepProfessionCycle(cycle.actions_done + 1)}><Icon size={20} /> {profession.actionLabels[cycle.actions_done]}</button>
           : <button className="profession-action-button" disabled={app.proc} onClick={app.finishProfessionCycle}>Забрать результат</button>}
       </> : <>
-        <div className="profession-stage-label"><b>Три простых действия</b><span>Выполни их и сразу получи награду · +25 XP</span></div>
+        <div className="profession-stage-label"><b>Новая смена</b><span>3 этапа · +25 XP</span></div>
         {full && <div className="profession-inventory-full">Инвентарь заполнен · {career.inventory_slots}/200 <button onClick={() => app.setTab('inventory')}>Открыть</button></div>}
         <button className="profession-action-button" disabled={app.proc || full || (profession.id === 'taxi' && career.taxi_fleet?.selected_car_index == null)} onClick={app.startProfessionCycle}><Icon size={20} /> Начать работу</button>
       </>}
@@ -266,7 +243,7 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
     <div className="profession-reward-preview">
       <div className="profession-preview-title">{drops.length ? `Находки · ${profession.minPrice}–${profession.maxPrice} ₽` : `Выплата · ${profession.minPrice}–${profession.maxPrice} ₽`}</div>
       {drops.length ? <div className="profession-drop-list">{drops.map(item => <span key={item.id} style={{ color: PROFESSION_RARITIES[item.rarity].color }} title={PROFESSION_RARITIES[item.rarity].name}>{item.icon} {item.name}</span>)}</div> : <div className="profession-cash-preview">{profession.output}</div>}
-      <small>Предмет появится после завершения. Редкости видны заранее, точные шансы — нет.</small>
+      <small>Результат и редкость определяются после завершения смены.</small>
     </div>
   </section>;
 };

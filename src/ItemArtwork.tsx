@@ -8,7 +8,7 @@ const styles: Record<string, { base: string; accent: string }> = {
 export const ItemArtwork = ({ item, size = 96 }: { item: { item_id?: string; item_name?: string }; size?: number }) => {
   const id = item.item_id || 'stone';
   const { base, accent } = styles[id] || styles.stone;
-  const shared = { fill: base, stroke: '#342d27', strokeWidth: 3, strokeLinejoin: 'round' as const };
+  const shared = { fill: base, stroke: '#414942', strokeWidth: 2.4, strokeLinejoin: 'round' as const };
   const art = (() => {
     switch (id) {
       case 'stone': return <><path {...shared} d="M20 61 29 35 51 23 75 34 83 58 68 78 36 79Z"/><path d="m36 42 12-8m8 17-8 9m16-2 7 6" fill="none" stroke={accent} strokeWidth="5" strokeLinecap="round"/></>;
@@ -32,6 +32,6 @@ export const ItemArtwork = ({ item, size = 96 }: { item: { item_id?: string; ite
     }
   })();
   return <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={item.item_name || id}>
-    <ellipse cx="50" cy="87" rx="31" ry="6" fill="rgba(34,29,23,.13)" />{art}
+    <ellipse cx="50" cy="87" rx="31" ry="6" fill="rgba(34,41,36,.08)" />{art}
   </svg>;
 };

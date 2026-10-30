@@ -8,6 +8,7 @@ const resultText = (result: any) => result?.error || result?.message || (result?
 
 export const FamilyTab = ({ app }: { app: any }) => {
   const [state, setState] = useState<any>(null);
+  const [blackMarket, setBlackMarket] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [familyName, setFamilyName] = useState('');
@@ -26,6 +27,8 @@ export const FamilyTab = ({ app }: { app: any }) => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setState(data);
+      const { data: marketData, error: marketError } = await app.supabase.rpc('black_market_state_rpc', { p_player_id: app.pid });
+      if (!marketError && !marketData?.error) setBlackMarket(marketData);
       app.setMoney?.(Number(data.money ?? app.money));
     } catch (error: any) {
       app.showMsg(error?.message || 'Не удалось загрузить семьи', true);
@@ -97,6 +100,14 @@ export const FamilyTab = ({ app }: { app: any }) => {
       <p>Очки дают завершённые циклы профессий: до 10 в день на игрока.</p>
       <small>Награда семьи — 1–3 место. Личная награда победившей семьи требует 20 работ за сезон.</small>
     </section>
+
+    {family && blackMarket?.family_event && <section className="family-card">
+      <h3>Семейная поставка</h3>
+      <p>Сдайте вместе {blackMarket.family_event.target_units} единиц чёрному торговцу с 15:00 до 19:00 МСК. Нужны продажи минимум от {blackMarket.family_event.min_members} участников.</p>
+      <div className="family-personal-score">Прогресс: <b>{blackMarket.family_event.sold_units}/{blackMarket.family_event.target_units}</b> · участников {blackMarket.family_event.member_count}/{blackMarket.family_event.min_members}</div>
+      <p>{blackMarket.family_event.completed ? 'Поставка завершена — семье начислено 15 очков.' : blackMarket.family_event.joined ? 'Ты участвуешь. Твои продажи торговцу пойдут в общий зачёт.' : 'Нужно вступить до продажи товара.'}</p>
+      {!blackMarket.family_event.joined && !blackMarket.family_event.completed && <Btn disabled={busy || !blackMarket.market_open || blackMarket.slot !== 2} onClick={() => void run('family_black_market_join_rpc', {}, 'Ты вступил в семейную поставку')}>Участвовать</Btn>}
+    </section>}
 
     {publicFamily && <section className="family-card family-public-card">
       <div className="family-public-heading"><h3>[{publicFamily.tag}] {publicFamily.name}</h3><button onClick={() => setPublicFamily(null)}>Закрыть</button></div>

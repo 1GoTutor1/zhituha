@@ -29,6 +29,7 @@ const ProfileTab = lazy(() => loadTabs().then((module) => ({ default: module.Pro
 const CasinoTab = lazy(() => import('./casino').then((module) => ({ default: module.CasinoTab })));
 const BankTab = lazy(() => import('./BankTab').then((module) => ({ default: module.BankTab })));
 const FamilyTab = lazy(() => import('./FamilyTab').then((module) => ({ default: module.FamilyTab })));
+const BlackMarketTab = lazy(() => import('./BlackMarketTab').then((module) => ({ default: module.BlackMarketTab })));
 
 class TabErrorBoundary extends Component<{ tab: string; children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -169,7 +170,7 @@ export default function App() {
   const [workCaptchaCode, setWorkCaptchaCode] = useState('');
   const [workCaptchaInput, setWorkCaptchaInput] = useState('');
   const [workCaptchaError, setWorkCaptchaError] = useState('');
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'admin'>('home');
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'black_market' | 'admin'>('home');
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
@@ -1542,6 +1543,7 @@ export default function App() {
         {tab === 'bank' && <BankTab app={app} />}
         {tab === 'profile' && <ProfileTab app={app} />}
         {tab === 'family' && <FamilyTab app={app} />}
+        {tab === 'black_market' && <BlackMarketTab app={app} />}
         {tab === 'admin' && <AdminTab app={app} />}
         </main>
       </Suspense>

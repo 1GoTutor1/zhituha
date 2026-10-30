@@ -31,6 +31,8 @@ const CLIENT_RPCS = new Set([
   'family_state_rpc', 'family_create_rpc', 'family_apply_rpc', 'family_invite_rpc',
   'family_cash_deposit_rpc', 'family_respond_rpc', 'family_leave_rpc', 'family_kick_rpc', 'family_set_deputy_rpc',
   'family_claim_leadership_rpc', 'family_touch_rpc', 'family_territory_attack_rpc', 'family_public_rpc',
+  'black_market_state_rpc', 'black_market_buy_seed_rpc', 'black_market_plant_rpc',
+  'black_market_harvest_rpc', 'black_market_sell_rpc', 'family_black_market_join_rpc',
 ]);
 
 export default async function handler(req, res) {

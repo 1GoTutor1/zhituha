@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, Briefcase, Globe, Backpack, Dices, Landmark, MoreHorizontal, X, Users } from 'lucide-react';
+import { Home, Briefcase, Globe, Backpack, Dices, Landmark, MoreHorizontal, X, Users, Sprout } from 'lucide-react';
 import { S } from './constants';
 
 export const Btn = ({ variant = 'primary', onClick, disabled, children, style = {} }: any) => {
@@ -24,7 +24,7 @@ export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) =
       const removeTimer = setTimeout(() => {
         setVisible(false);
         onClose();
-      }, 2800); 
+      }, 2800);
 
       return () => {
         clearTimeout(hideTimer);
@@ -36,27 +36,27 @@ export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) =
   if (!visible || !toast) return null;
 
   return (
-    <div style={{ 
-      position: 'fixed', 
-      bottom: 'calc(90px + env(safe-area-inset-bottom, 20px))', 
-      left: '50%', 
+    <div style={{
+      position: 'fixed',
+      bottom: 'calc(90px + env(safe-area-inset-bottom, 20px))',
+      left: '50%',
       transform: leaving ? 'translate(-50%, 20px)' : 'translate(-50%, 0)',
       opacity: leaving ? 0 : 1,
-      transition: 'all 0.3s ease-in-out', 
-      backgroundColor: toast.err ? 'rgba(178, 45, 45, 0.96)' : 'rgba(63, 168, 82, 0.96)', 
-      color: '#fff4e0', 
-      padding: '12px 24px', 
-      borderRadius: '6px', 
-      fontWeight: 'bold', 
-      fontFamily: "'Russo One', sans-serif", 
-      textTransform: 'uppercase', 
-      letterSpacing: '0.5px', 
-      fontSize: 14, 
-      zIndex: 9999, 
-      width: 'auto', 
+      transition: 'all 0.3s ease-in-out',
+      backgroundColor: toast.err ? 'rgba(178, 45, 45, 0.96)' : 'rgba(63, 168, 82, 0.96)',
+      color: '#fff4e0',
+      padding: '12px 24px',
+      borderRadius: '6px',
+      fontWeight: 'bold',
+      fontFamily: "'Russo One', sans-serif",
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px',
+      fontSize: 14,
+      zIndex: 9999,
+      width: 'auto',
       minWidth: '200px',
-      maxWidth: '90vw', 
-      boxShadow: '0 4px 0 rgba(0,0,0,0.6), 0 10px 25px rgba(0,0,0,0.6)', 
+      maxWidth: '90vw',
+      boxShadow: '0 4px 0 rgba(0,0,0,0.6), 0 10px 25px rgba(0,0,0,0.6)',
       textAlign: 'center',
       pointerEvents: 'none',
       border: `2px solid ${toast.err ? '#8f1f1f' : '#2c7a3c'}`,
@@ -90,6 +90,7 @@ export const BottomNav = ({ app }: { app: any }) => {
         <button onClick={() => navigate('inventory')}><Backpack size={20} /> Инвентарь {inventoryNew && <i className="inventory-new-dot" />}</button>
         <button onClick={() => navigate('bank')}><Landmark size={20} /> Банк</button>
         <button onClick={() => navigate('family')}><Users size={20} /> Семья</button>
+        <button onClick={() => navigate('black_market')}><Sprout size={20} /> Чёрный рынок</button>
       </div></>}
       <div className="bottom-nav-bar">
         {items.map(t => (
@@ -97,7 +98,7 @@ export const BottomNav = ({ app }: { app: any }) => {
             <t.icon size={22} /><span>{t.text}</span>
           </button>
         ))}
-        <button onClick={() => setMoreOpen(current => !current)} className={`bottom-nav-item${moreOpen || ['inventory','bank','family'].includes(app.tab) ? ' is-active' : ''}`} aria-expanded={moreOpen}>
+        <button onClick={() => setMoreOpen(current => !current)} className={`bottom-nav-item${moreOpen || ['inventory','bank','family','black_market'].includes(app.tab) ? ' is-active' : ''}`} aria-expanded={moreOpen}>
           <span className="bottom-nav-more-icon"><MoreHorizontal size={22} />{inventoryNew && <i className="inventory-new-dot" />}</span><span>Ещё</span>
         </button>
       </div>

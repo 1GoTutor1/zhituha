@@ -1266,3 +1266,89 @@ body[data-ui-theme="dark"] .home-player-header [style*="#b06a15"] { color: #ff9a
 }
 .home-avatar-button.profile-avatar-frame { overflow: visible; }
 body[data-ui-theme="dark"] .home-avatar-button.has-exclamation-frame { border: 3px solid #63e6be !important; }
+
+/* Profession art: quiet field-guide panels with one clear symbol and one motion cue. */
+.profession-work-card {
+  border: 1px solid var(--surface-line, rgba(72, 82, 74, .2));
+  border-radius: 16px;
+  background: var(--bg-card, #fbf4e4);
+  box-shadow: 0 5px 18px rgba(24, 32, 27, .08);
+}
+.profession-card-head h2 { font-family: var(--font-body); font-size: 22px; font-weight: 700; letter-spacing: -.35px; text-transform: none; }
+.profession-eyebrow { color: var(--text-muted); font: 600 11px var(--font-body); letter-spacing: .1px; text-transform: none; }
+.profession-level-badge { border: 1px solid var(--surface-line, rgba(72, 82, 74, .18)); background: transparent; color: var(--text-muted); font: 600 11px var(--font-body); }
+.profession-xp-label, .profession-stage-label { font-size: 12px; }
+.profession-xp-label span, .profession-stage-label span { color: var(--text-muted); }
+.profession-xp-track, .profession-cycle-track { height: 5px; background: color-mix(in srgb, var(--text-muted) 15%, transparent); }
+.profession-xp-track span, .profession-cycle-track span { background: var(--accent-green, #4b9161); }
+.profession-select-label { color: var(--text-muted); font-size: 11px; font-weight: 600; }
+.profession-select-wrap { border-color: var(--surface-line, rgba(72, 82, 74, .18)); border-radius: 9px; background: transparent; }
+.profession-scene {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  height: 142px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 12px 0;
+  overflow: hidden;
+  border: 1px solid rgba(49, 60, 52, .12);
+  border-radius: 12px;
+  background: #e7e9e0;
+  color: #344139;
+}
+.profession-scene::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: repeating-linear-gradient(135deg, transparent 0 13px, color-mix(in srgb, var(--profession-accent) 5%, transparent) 13px 14px);
+  content: '';
+}
+.profession-scene::after { display: none; }
+.profession-scene-index { position: absolute; top: 12px; right: 13px; color: #7a8279; font: 600 9px var(--font-body); letter-spacing: .6px; }
+.profession-scene-mark {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--profession-accent) 45%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--profession-accent) 9%, #f4f4eb);
+  color: color-mix(in srgb, var(--profession-accent) 78%, #29322d);
+  transform-origin: center;
+}
+.profession-scene[data-stage="1"] .profession-scene-mark,
+.profession-scene[data-stage="2"] .profession-scene-mark,
+.profession-scene[data-stage="3"] .profession-scene-mark { animation: professionStep .24s ease-out; }
+.profession-scene-caption { position: static; color: #566159; font: 600 11px var(--font-body); letter-spacing: .1px; text-transform: none; }
+@keyframes professionStep { 0% { transform: translateY(2px) scale(.97); } 100% { transform: translateY(0) scale(1); } }
+.profession-action-button { border-radius: 9px; background: var(--accent-green, #3f8957); box-shadow: none; font: 600 14px var(--font-body); text-transform: none; }
+.profession-action-button:active:not(:disabled) { transform: translateY(1px); }
+.profession-inventory-full { border: 1px solid rgba(192, 69, 58, .2); border-radius: 9px; }
+.profession-reward-preview { border-color: var(--surface-line, rgba(72, 82, 74, .15)); }
+.profession-preview-title { font-size: 12px; font-weight: 700; }
+.profession-drop-list span { border-color: color-mix(in srgb, currentColor 24%, transparent); border-radius: 6px; background: transparent; font-weight: 500; }
+.profession-reward-preview small { color: var(--text-muted); font-size: 10px; }
+.profession-drop-reveal { padding-top: 8px; }
+.profession-drop-icon { width: 116px; height: 116px; margin: 10px auto; border: 1px solid color-mix(in srgb, var(--rarity-color, #879188) 32%, transparent); border-radius: 18px; background: color-mix(in srgb, var(--rarity-color, #879188) 7%, var(--bg-card, #fbf4e4)); box-shadow: none; animation: dropReveal .24s ease-out both; }
+.profession-drop-rarity { color: var(--rarity-color); font: 600 11px var(--font-body); letter-spacing: .2px; text-transform: none; }
+.profession-drop-reveal h2 { margin: 5px 0; font: 700 20px var(--font-body); letter-spacing: -.2px; text-transform: none; }
+.profession-drop-reveal p { color: var(--text-muted); }
+@keyframes dropReveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+body[data-ui-theme="dark"] .profession-work-card { background: var(--bg-card); border-color: var(--surface-line); box-shadow: 0 5px 18px rgba(0,0,0,.16); }
+body[data-ui-theme="dark"] .profession-scene { border-color: rgba(230, 235, 230, .1); background: #252c29; color: #dfe5dc; }
+body[data-ui-theme="dark"] .profession-scene-index { color: #9ca69d; }
+body[data-ui-theme="dark"] .profession-scene-mark { background: color-mix(in srgb, var(--profession-accent) 13%, #252c29); color: color-mix(in srgb, var(--profession-accent) 72%, #e3e8df); }
+body[data-ui-theme="dark"] .profession-scene-caption { color: #c0c8bf; }
+body[data-ui-theme="dark"] .profession-select-wrap select { color: var(--text-main); }
+body[data-ui-theme="dark"] .profession-drop-icon { background: color-mix(in srgb, var(--rarity-color, #879188) 8%, var(--bg-card)); }
+body[data-ui-theme="dark"] .profession-drop-reveal p,
+body[data-ui-theme="dark"] .profession-stage-label span,
+body[data-ui-theme="dark"] .profession-xp-label span,
+body[data-ui-theme="dark"] .profession-reward-preview small,
+body[data-ui-theme="dark"] .profession-select-label { color: var(--text-muted); }
+@media (prefers-reduced-motion: reduce) {
+  .profession-scene-mark, .profession-drop-icon { animation: none !important; }
+}
