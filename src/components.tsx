@@ -81,7 +81,7 @@ export const BottomNav = ({ app }: { app: any }) => {
   }, []);
   const items = [
     { id: 'home', icon: Home, text: 'Главная' }, { id: 'jobs', icon: Briefcase, text: 'Работа' },
-    { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'casino', icon: Dices, text: 'Казино' },
+    { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'family', icon: Users, text: 'Семья' },
   ];
   const navigate = (id: string) => { app.setTab(id); app.hapticFeedback('light'); app.setBoardOpen(false); setMoreOpen(false); };
   return (
@@ -89,7 +89,7 @@ export const BottomNav = ({ app }: { app: any }) => {
       {moreOpen && <><button className="more-menu-scrim" aria-label="Закрыть меню" onClick={() => setMoreOpen(false)} /><div className="more-menu-sheet"><div className="more-menu-heading"><b>Ещё</b><button aria-label="Закрыть" onClick={() => setMoreOpen(false)}><X size={18} /></button></div>
         <button onClick={() => navigate('inventory')}><Backpack size={20} /> Инвентарь {inventoryNew && <i className="inventory-new-dot" />}</button>
         <button onClick={() => navigate('bank')}><Landmark size={20} /> Банк</button>
-        <button onClick={() => navigate('family')}><Users size={20} /> Семья</button>
+        <button onClick={() => navigate('casino')}><Dices size={20} /> Казино</button>
         <button onClick={() => navigate('black_market')}><Sprout size={20} /> Чёрный рынок</button>
       </div></>}
       <div className="bottom-nav-bar">
@@ -98,7 +98,7 @@ export const BottomNav = ({ app }: { app: any }) => {
             <t.icon size={22} /><span>{t.text}</span>
           </button>
         ))}
-        <button onClick={() => setMoreOpen(current => !current)} className={`bottom-nav-item${moreOpen || ['inventory','bank','family','black_market'].includes(app.tab) ? ' is-active' : ''}`} aria-expanded={moreOpen}>
+        <button onClick={() => setMoreOpen(current => !current)} className={`bottom-nav-item${moreOpen || ['inventory','bank','casino','black_market'].includes(app.tab) ? ' is-active' : ''}`} aria-expanded={moreOpen}>
           <span className="bottom-nav-more-icon"><MoreHorizontal size={22} />{inventoryNew && <i className="inventory-new-dot" />}</span><span>Ещё</span>
         </button>
       </div>

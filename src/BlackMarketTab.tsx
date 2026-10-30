@@ -46,7 +46,9 @@ export const BlackMarketTab = ({ app }: { app: BlackMarketApp }) => {
     if (app.tab !== 'black_market') return;
     const load = () => void refresh().catch((e: unknown) => setError(messageFromError(e, 'Не удалось загрузить рынок')));
     load();
-    const timer = window.setInterval(load, 15_000);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, 60_000);
     return () => window.clearInterval(timer);
   }, [app.tab, refresh]);
   useEffect(() => {
@@ -80,6 +82,9 @@ export const BlackMarketTab = ({ app }: { app: BlackMarketApp }) => {
   const next = state?.next_open_at ? new Date(state.next_open_at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' }) : '07:00 или 15:00 МСК';
   const cropUnits = Number(state?.crop_units || 0);
   const cropValue = cropUnits * Number(state?.buy_price || 0);
+  const currentPrice = Number(state?.buy_price || 0);
+  const seedPrice = Number(state?.seed_price || 100_000);
+  const expectedProfit = currentPrice * 10 - seedPrice;
   return <div style={{ padding: 'calc(120px + env(safe-area-inset-top, 16px)) 16px calc(100px + env(safe-area-inset-bottom, 16px))', maxWidth: 620, margin: '0 auto', color: 'var(--text-main, #f7f1ff)' }}>
     <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}><div><small style={{ color: '#8d75a8', letterSpacing: 1 }}>ЗАКРЫТАЯ ТОРГОВЛЯ</small><h2 style={{ margin: '4px 0' }}>Чёрный рынок</h2></div><button aria-label="Обновить" onClick={() => void refresh()} style={{ background: 'transparent', color: 'inherit', border: 0 }}><RefreshCw size={19} /></button></header>
     <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}><button onClick={() => setTab('trader')} style={{ flex: 1, padding: 12, borderRadius: 12, border: '1px solid #49345d', background: tab === 'trader' ? '#ff922e' : '#21182c', color: 'white', fontWeight: 800 }}><Store size={16} /> Торговец</button><button onClick={() => setTab('cultivation')} style={{ flex: 1, padding: 12, borderRadius: 12, border: '1px solid #49345d', background: tab === 'cultivation' ? '#ff922e' : '#21182c', color: 'white', fontWeight: 800 }}><Sprout size={16} /> Выращивание</button></div>
@@ -87,6 +92,7 @@ export const BlackMarketTab = ({ app }: { app: BlackMarketApp }) => {
     {tab === 'trader' ? <>
       <section style={panel}><h3><Leaf size={18} /> Семена</h3><p>Фиксированная цена — <b>{fmt(state?.seed_price)} ₽</b> за семя. Покупка доступна во время приезда торговца.</p><p>В запасе: <b>{fmt(state?.seeds)}</b></p><Btn disabled={busy || !isOpen} onClick={() => void act('black_market_buy_seed_rpc')}>Купить семя · {fmt(state?.seed_price)} ₽</Btn></section>
       <section style={panel}><h3><ShoppingBag size={18} /> Скупка урожая</h3><p>Урожай принимается только здесь и только во время визита торговца. В запасе: <b>{fmt(cropUnits)} ед.</b></p>{isOpen && cropUnits > 0 && <p>По текущей котировке: <b>{fmt(cropValue)} ₽</b></p>}<Btn disabled={busy || !isOpen || cropUnits < 1} onClick={() => void act('black_market_sell_rpc')}>Сдать урожай{isOpen && cropUnits > 0 ? ` · ${fmt(cropValue)} ₽` : ''}</Btn></section>
+      {isOpen && <section style={panel} aria-live="polite"><h3>Расчёт по текущей цене</h3><p>Обычный урожай — 10 единиц. По нынешней котировке это <b>{fmt(currentPrice * 10)} ₽</b>, или <b style={{ color: expectedProfit >= 0 ? '#73dc98' : '#ff8798' }}>{expectedProfit > 0 ? '+' : ''}{fmt(expectedProfit)} ₽</b> после стоимости семени.</p><p>Для сравнения: при 8 единицах получится {fmt(currentPrice * 8 - seedPrice)} ₽, при 12 — {fmt(currentPrice * 12 - seedPrice)} ₽.</p><small style={{ color: '#b7a8c7' }}>Это расчёт по сегодняшней цене. Курс может измениться к моменту созревания; прибыль не гарантирована.</small></section>}
     </> : <section className="black-market-cultivation" style={panel}>
       <h3><Sprout size={18} /> Участок</h3>
       <p>Выращивание занимает 4 часа. Урожай: обычно 10 единиц, иногда 8 или 12.</p>

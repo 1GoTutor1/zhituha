@@ -167,7 +167,7 @@ export default function App() {
   const [pid, setPid] = useState<string | null>(null);
   const [tgId, setTgId] = useState('');
   const [toast, setToast] = useState<{ msg: string, err: boolean, id: number } | null>(null);
-  const [workCaptchaCode, setWorkCaptchaCode] = useState('');
+  const [workCaptchaImage, setWorkCaptchaImage] = useState('');
   const [workCaptchaInput, setWorkCaptchaInput] = useState('');
   const [workCaptchaError, setWorkCaptchaError] = useState('');
   const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'black_market' | 'admin'>('home');
@@ -1077,7 +1077,12 @@ export default function App() {
     const { data, error } = await supabase.rpc('work_rpc', { p_player_id: pid });
     if (error) throw error;
     if (data?.captcha_required) {
-      setWorkCaptchaCode(String(data.captcha_code || ''));
+      const image = String(data.captcha_image || '');
+      if (!image.startsWith('data:image/svg+xml;base64,')) {
+        showMsg('Защита CAPTCHA ещё не обновлена на сервере. Обнови приложение позже.', true);
+        return;
+      }
+      setWorkCaptchaImage(image);
       setWorkCaptchaInput('');
       setWorkCaptchaError('');
       return;
@@ -1100,26 +1105,32 @@ export default function App() {
       p_code: workCaptchaInput,
     });
     if (error) throw error;
-    if (data?.captcha_required && data?.captcha_code) {
-      setWorkCaptchaCode(String(data.captcha_code));
+    if (data?.captcha_required && data?.captcha_image) {
+      setWorkCaptchaImage(String(data.captcha_image));
       setWorkCaptchaInput('');
       setWorkCaptchaError('Код неверный или истёк. Введи новый.');
       return;
     }
+    if (data?.captcha_required) {
+      setWorkCaptchaImage('');
+      setWorkCaptchaInput('');
+      showMsg('Защита CAPTCHA ещё не обновлена на сервере. Обнови приложение позже.', true);
+      return;
+    }
     if (data?.blocked) {
-      setWorkCaptchaCode('');
+      setWorkCaptchaImage('');
       setWorkCaptchaInput('');
       setWorkCaptchaError('');
       showMsg('Слишком много неверных ответов. Подожди минуту.', true);
       return;
     }
     if (data?.error || !data?.success) {
-      setWorkCaptchaCode('');
+      setWorkCaptchaImage('');
       setWorkCaptchaError('');
       showMsg('Проверка истекла. Нажми «Работать» ещё раз.', true);
       return;
     }
-    setWorkCaptchaCode('');
+    setWorkCaptchaImage('');
     setWorkCaptchaInput('');
     setWorkCaptchaError('');
     window.setTimeout(() => work(), 0);
@@ -1505,12 +1516,10 @@ export default function App() {
         <Btn variant="secondary" onClick={() => setModifierOpen(false)} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Понятно</Btn>
       </Modal>
 
-      <Modal open={Boolean(workCaptchaCode)} onClose={() => {}} contentStyle={{ maxWidth: 360, textAlign: 'center' }}>
+      <Modal open={Boolean(workCaptchaImage)} onClose={() => {}} contentStyle={{ maxWidth: 360, textAlign: 'center' }}>
         <h3 style={{ margin: '0 0 8px' }}>Проверка активности</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 14 }}>Введи цифры в том же порядке:</p>
-        <div aria-label={`Код ${workCaptchaCode.split('').join(' ')}`} style={{ padding: '14px 18px', marginBottom: 12, borderRadius: 12, background: '#100b18', color: '#f7f3fb', fontSize: 30, fontWeight: 800, letterSpacing: 10, fontFamily: 'monospace' }}>
-          {workCaptchaCode.split('').join(' ')}
-        </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 14 }}>Введи цифры с картинки в том же порядке:</p>
+        <img src={workCaptchaImage} alt="Пять цифр для проверки" width={160} height={44} style={{ display: 'block', margin: '0 auto 12px', borderRadius: 8, background: '#100b18' }} />
         <input
           aria-label="Код проверки"
           type="text"

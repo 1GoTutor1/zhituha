@@ -42,8 +42,8 @@ const BUSINESS_UPGRADE_COSTS: Record<string, number[]> = {
   construction: [150_000, 500_000, 1_500_000, 3_000_000]
 };
 const DEPOSIT_TERMS: [number, string, number][] = [
-  [1, '1 час', 1], [6, '6 часов', 3], [12, '12 часов', 5],
-  [24, '1 день', 10], [72, '3 дня', 40], [168, '7 дней', 100]
+  [1, '1 час', 0.05], [6, '6 часов', 0.25], [12, '12 часов', 0.5],
+  [24, '1 день', 1], [72, '3 дня', 2.5], [168, '7 дней', 5]
 ];
 const depositTermLabel = (hours: number) => hours < 24 ? `${hours} ч.` : `${hours / 24} дн.`;
 const businessCollateralValue = (business: OwnedBusiness) => {
