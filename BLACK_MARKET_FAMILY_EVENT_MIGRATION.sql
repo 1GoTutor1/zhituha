@@ -1,7 +1,7 @@
 -- Black market cultivation and daily family delivery. Times use Moscow time.
 create table if not exists public.black_market_wallets(player_id uuid primary key references public.players(id) on delete cascade,seeds integer not null default 0 check(seeds>=0),crop_units integer not null default 0 check(crop_units>=0));
 create table if not exists public.black_market_plots(player_id uuid primary key references public.players(id) on delete cascade,planted_at timestamptz,ready_at timestamptz,yield_units integer check(yield_units in(8,10,12)));
-create table if not exists public.black_market_windows(window_key text primary key,market_day date not null,slot smallint not null check(slot in(1,2)),starts_at timestamptz not null,ends_at timestamptz not null,buy_price integer not null check(buy_price between 8000 and 16000),unique(market_day,slot));
+create table if not exists public.black_market_windows(window_key text primary key,market_day date not null,slot smallint not null check(slot in(1,2)),starts_at timestamptz not null,ends_at timestamptz not null,buy_price integer not null check(buy_price between 8000 and 16000 and mod(buy_price,1000)=0),unique(market_day,slot));
 create table if not exists public.black_market_seed_purchases(player_id uuid not null references public.players(id) on delete cascade,window_key text not null references public.black_market_windows(window_key),bought_at timestamptz not null default now(),primary key(player_id,window_key));
 create table if not exists public.black_market_family_events(id uuid primary key default gen_random_uuid(),market_day date not null,family_id uuid not null references public.families(id) on delete cascade,season_no bigint not null references public.family_seasons(season_no),target_units integer not null default 20,sold_units integer not null default 0,min_members integer not null default 2,completed_at timestamptz,unique(market_day,family_id));
 create table if not exists public.black_market_family_event_members(event_id uuid not null references public.black_market_family_events(id) on delete cascade,player_id uuid not null references public.players(id) on delete cascade,sold_units integer not null default 0,joined_at timestamptz not null default now(),primary key(event_id,player_id));
@@ -24,7 +24,7 @@ begin
   elsif ln::time>=time '15:00' and ln::time<time '19:00' then sl:=2; sh:=15; eh:=19;
   else return null; end if;
   insert into public.black_market_windows(window_key,market_day,slot,starts_at,ends_at,buy_price)
-  values(to_char(d,'YYYYMMDD')||'-'||sl,d,sl,(d+make_time(sh,0,0)) at time zone 'Europe/Moscow',(d+make_time(eh,0,0)) at time zone 'Europe/Moscow',8000+floor(random()*8001)::integer)
+  values(to_char(d,'YYYYMMDD')||'-'||sl,d,sl,(d+make_time(sh,0,0)) at time zone 'Europe/Moscow',(d+make_time(eh,0,0)) at time zone 'Europe/Moscow',8000+floor(random()*9)::integer*1000)
   on conflict(market_day,slot) do nothing;
   select * into w from public.black_market_windows where market_day=d and slot=sl; return w;
 end $$;
