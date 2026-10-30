@@ -16,7 +16,7 @@ const CLIENT_RPCS = new Set([
   'profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc',
   'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc',
   'sell_inventory_rpc', 'taxi_fleet_rpc', 'select_taxi_car_rpc',
-  'business_catalog_rpc', 'purchase_business_location_rpc', 'sell_business_to_state_rpc',
+  'business_catalog_rpc', 'purchase_business_location_rpc', 'start_business_lease_rpc', 'finish_business_lease_rpc', 'sell_business_to_state_rpc',
   'create_business_auction_rpc', 'bid_business_auction_rpc',
   'business_shop_state_rpc', 'business_cash_transfer_rpc', 'business_shop_restock_rpc', 'business_shop_set_price_rpc', 'business_shop_buy_rpc',
   'business_autostock_state_rpc', 'business_autostock_configure_rpc',
@@ -99,7 +99,10 @@ export default async function handler(req, res) {
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Персональные слоты ещё не установлены в Supabase. Выполни CASINO_PERSONAL_SLOTS_MIGRATION.sql.' });
       }
-      if (['business_catalog_rpc', 'purchase_business_location_rpc', 'sell_business_to_state_rpc', 'create_business_auction_rpc', 'bid_business_auction_rpc'].includes(name)
+      if (['start_business_lease_rpc', 'finish_business_lease_rpc'].includes(name) && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
+        return res.status(400).json({ error: 'Аренда с выкупом ещё не установлена в Supabase. Примените BUSINESS_LEASE_TO_OWN_MIGRATION.sql.' });
+      }
+      if (['business_catalog_rpc', 'purchase_business_location_rpc', 'start_business_lease_rpc', 'sell_business_to_state_rpc', 'create_business_auction_rpc', 'bid_business_auction_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Обновление каталога бизнесов ещё не установлено в Supabase. Примените миграцию профессий и инвентаря, затем BUSINESS_LOCATIONS_MIGRATION.sql.' });
       }

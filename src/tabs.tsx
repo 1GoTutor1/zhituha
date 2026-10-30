@@ -609,6 +609,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   const vehicleName = (modelId: string) => app.vehicleState?.models?.find((model: any) => model.model_id === modelId)?.model_name || modelId;
   const vehicleRepairPrice = (modelId: string) => Number(app.vehicleState?.models?.find((model: any) => model.model_id === modelId)?.repair_price || (modelId === 'lada' ? TAXI_REPAIR_LADA : TAXI_REPAIR_TOYOTA));
   const passiveTiers = activeBiz ? BUSINESS_PASSIVE_TIERS[activeBiz.biz_type as keyof typeof BUSINESS_PASSIVE_TIERS] : null;
+  const activeLease = app.businessCatalog?.locations?.find((location: any) => String(location.business_id) === String(activeBiz?.id) && location.lease_active);
   const passiveLevel = Math.max(-1, Math.min(3, Number(activeBiz?.passive_level ?? -1)));
   const nextPassiveTier = passiveTiers?.[passiveLevel + 1];
   const passiveCarCount = activeBiz?.biz_type === 'taxi' ? (getStock(activeBiz).taxi_cars?.length || 0) : 1;
@@ -641,15 +642,25 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
       {businessView === 'all' && <section className="business-location-catalog">
         <div className="business-catalog-heading"><div><h3>Точки бизнеса</h3><span>В собственности: {app.businessCatalog?.owned_count ?? app.myBizs.length} / 3</span></div><button onClick={app.loadBusinessCatalog} aria-label="Обновить список"><RefreshCw size={17} /></button></div>
         {(app.businessCatalog?.locations || []).map((location: any) => {
-          const owned = location.status === 'owned';
+          const leased = location.status === 'leased';
+          const owned = location.status === 'owned' || leased;
+          const stateOwned = location.state_owned === true;
           const available = location.status === 'available';
           const purchasable = ['coffee','salon','taxi','construction','minimarket','auto_repair','casino'].includes(location.biz_type);
+          const leaseEligible = ['coffee','minimarket','salon','taxi','auto_repair'].includes(location.biz_type);
           const price = location.price == null ? null : Number(location.price);
+          const leaseDownPayment = price == null ? null : Math.ceil(price * 0.25);
           return <div key={location.location_key} className="business-location-row">
-            <div className="business-location-info"><b>{location.business_name}</b><small>{owned ? 'Твой бизнес' : available ? 'Свободно у государства' : `Владелец: ${location.owner_name || 'занято'}`}</small></div>
-            <div className="business-location-action">
+            <div className="business-location-info"><b>{location.business_name}</b><small>{leased ? `В аренде с выкупом · осталось ${Number(location.lease_remaining).toLocaleString('ru-RU')} ₽` : owned ? 'Твой бизнес' : available ? 'Свободно у государства' : `Владелец: ${location.owner_name || 'занято'}`}</small></div>
+            <div className="business-location-action" style={available && leaseEligible ? { display: 'grid', gap: 5, textAlign: 'right' } : undefined}>
               {owned ? <button onClick={() => { app.setActiveBizType(location.biz_type); app.setActiveBizId(location.business_id); setBusinessView('mine'); }}>Управлять</button>
-                : available && purchasable && price != null ? <button disabled={app.proc || app.businessCatalog?.owned_count >= 3 || app.money < price} onClick={() => app.purchaseBusinessLocation(location.location_key)}>{price.toLocaleString('ru-RU')} ₽ · Купить</button>
+                : available && purchasable && price != null ? <>
+                  {!stateOwned && <button disabled={app.proc || app.businessCatalog?.owned_count >= 3 || app.money < price} onClick={() => app.purchaseBusinessLocation(location.location_key)}>Купить · {price.toLocaleString('ru-RU')} ₽</button>}
+                  {leaseEligible && <button title="Взнос 25%; половина выручки пойдёт в выкуп" disabled={app.proc || app.businessCatalog?.owned_count >= 3 || app.money < Number(leaseDownPayment)} onClick={() => {
+                    if (!window.confirm(`Внести ${Number(leaseDownPayment).toLocaleString('ru-RU')} ₽ (25%)? Половина учитываемой выручки бизнеса будет идти в выкуп.`)) return;
+                    app.leaseBusinessLocation(location.location_key);
+                  }}>Аренда · {Number(leaseDownPayment).toLocaleString('ru-RU')} ₽</button>}
+                </>
                 : location.status === 'auction' ? <BusinessAuctionEntry location={location} app={app} />
                 : <span>{price == null ? 'Цена не задана' : !purchasable ? 'Готовится' : 'Занято'}</span>}
             </div>
@@ -679,6 +690,19 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
               <Btn variant="secondary" disabled={app.proc || Number(cashAmount) < 1 || Number(activeBiz.cash_balance || 0) < Number(cashAmount)} onClick={() => app.transferBusinessCash(activeBiz.id, Number(cashAmount), 'withdraw')}>Снять</Btn>
             </div>
           </section>
+
+          {activeLease && <section style={{ marginBottom: 16, padding: 13, borderRadius: 10, background: 'rgba(61,126,166,.08)', border: '1px solid rgba(61,126,166,.25)', textAlign: 'left' }}>
+            <b>Аренда с выкупом</b>
+            <p style={{ margin: '7px 0', fontSize: 12 }}>Внесено: {Number(activeLease.lease_down_payment).toLocaleString('ru-RU')} ₽ · выкуплено с продаж: {Number(activeLease.lease_paid_from_sales).toLocaleString('ru-RU')} ₽</p>
+            <div style={{ height: 7, overflow: 'hidden', borderRadius: 99, background: 'rgba(61,126,166,.18)' }}><div style={{ width: `${Math.min(100, Math.max(0, (Number(activeLease.lease_price) - Number(activeLease.lease_remaining)) / Number(activeLease.lease_price) * 100))}%`, height: '100%', background: '#3d9b72' }} /></div>
+            <b style={{ display: 'block', marginTop: 7 }}>Осталось выкупить {Number(activeLease.lease_remaining).toLocaleString('ru-RU')} ₽</b>
+            <small style={{ display: 'block', marginTop: 4, color: '#6b5f45' }}>50% учитываемой выручки автоматически идёт в выкуп; в кассе остаётся вторая половина.</small>
+            <small style={{ display: 'block', marginTop: 5, color: '#6b5f45' }}>До полного выкупа бизнес нельзя продать государству, выставить на торги или заложить.</small>
+            <Btn variant="secondary" disabled={app.proc || app.money < Number(activeLease.lease_remaining)} onClick={() => {
+              if (!window.confirm(`Полностью выкупить бизнес за ${Number(activeLease.lease_remaining).toLocaleString('ru-RU')} ₽?`)) return;
+              app.finishBusinessLease(activeBiz.id);
+            }} style={{ marginTop: 10, width: '100%' }}>Выкупить остаток · {Number(activeLease.lease_remaining).toLocaleString('ru-RU')} ₽</Btn>
+          </section>}
 
           {activeBiz.biz_type !== 'casino' && <section style={{ marginBottom: 16, padding: 13, borderRadius: 10, background: 'rgba(63,157,85,.07)', border: '1px solid rgba(63,157,85,.18)', textAlign: 'left' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -872,8 +896,8 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
           </div>
 
           <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(90,70,40,0.22)' }}>
-            <Btn variant="danger" onClick={() => app.sellBusiness(activeBiz)} disabled={app.proc} style={{ background: 'transparent', border: '1px solid #c0453a', color: '#c0453a', marginBottom: 8 }}>Продать государству · 50%</Btn>
-            <Btn variant="purple" onClick={() => { const point = app.businessCatalog?.locations?.find((location: any) => location.business_id === activeBiz.id); setAuctionPrice(String(Math.floor(Number(point?.price || 0) * 0.5))); setAuctionOpen(true); }} disabled={app.proc || !!app.businessCatalog?.locations?.some((location: any) => location.business_id === activeBiz.id && location.status === 'auction')}>Выставить на торги · 24 часа</Btn>
+            <Btn variant="danger" onClick={() => app.sellBusiness(activeBiz)} disabled={app.proc || !!activeLease} style={{ background: 'transparent', border: '1px solid #c0453a', color: '#c0453a', marginBottom: 8 }}>Продать государству · 50%</Btn>
+            <Btn variant="purple" onClick={() => { const point = app.businessCatalog?.locations?.find((location: any) => location.business_id === activeBiz.id); setAuctionPrice(String(Math.floor(Number(point?.price || 0) * 0.5))); setAuctionOpen(true); }} disabled={app.proc || !!activeLease || !!app.businessCatalog?.locations?.some((location: any) => location.business_id === activeBiz.id && location.status === 'auction')}>Выставить на торги · 24 часа</Btn>
           </div>
         </div>
       ) : (
