@@ -6,7 +6,7 @@ const CLIENT_RPCS = new Set([
   'update_profile_rpc', 'work_rpc', 'verify_work_captcha_rpc', 'drink_tutorial_coffee_rpc', 'claim_tutorial_reward_rpc', 'claim_daily_reward_rpc', 'finish_business_timer_rpc',
   'taxi_collect_rpc', 'start_phone_order_rpc',
   'cancel_lot_rpc', 'start_car_order_rpc', 'start_build_rpc',
-  'upgrade_business_passive_rpc', 'collect_business_passive_rpc',
+  'upgrade_business_passive_rpc', 'upgrade_leased_business_passive_rpc', 'collect_business_passive_rpc',
   'buy_coffee_rpc', 'collect_coffee_cash_rpc', 'hire_worker_rpc', 'fire_worker_rpc', 'quit_job_rpc',
   'buy_phone_rpc', 'list_item_rpc', 'buy_market_item', 'collect_ref_bonus_rpc', 'collect_tips_rpc',
   'redeem_promo', 'reset_game_rpc', 'log_action_rpc', 'get_logs_rpc', 'cleanup_logs_rpc',
@@ -101,6 +101,9 @@ export default async function handler(req, res) {
       }
       if (['start_business_lease_rpc', 'finish_business_lease_rpc'].includes(name) && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Аренда с выкупом ещё не установлена в Supabase. Примените BUSINESS_LEASE_TO_OWN_MIGRATION.sql.' });
+      }
+      if (name === 'upgrade_leased_business_passive_rpc' && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
+        return res.status(400).json({ error: 'Оплата пассивного дохода из кассы ещё не установлена. Примените BUSINESS_LEASE_PASSIVE_CASH_MIGRATION.sql.' });
       }
       if (['business_catalog_rpc', 'purchase_business_location_rpc', 'start_business_lease_rpc', 'sell_business_to_state_rpc', 'create_business_auction_rpc', 'bid_business_auction_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {

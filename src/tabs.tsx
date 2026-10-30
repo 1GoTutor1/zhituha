@@ -620,6 +620,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
     ? Math.max(0, Math.floor((passiveNow - passiveUpdatedAt) / 60000))
     : 0;
   const passivePending = Number(activeBiz?.passive_balance || 0) + passiveElapsedMinutes * passiveRate * passiveCarCount;
+  const passiveUpgradeFunds = activeLease ? Number(activeBiz?.cash_balance || 0) : Number(app.money || 0);
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -875,8 +876,8 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
                 </>
               )}
               {nextPassiveTier ? (
-                <Btn variant="secondary" onClick={() => app.upgradeBusinessPassive(activeBiz.id)} disabled={app.proc || app.money < nextPassiveTier.cost} style={{ background: 'rgba(214,177,103,0.14)', border: '1px solid rgba(214,177,103,0.55)', color: '#f1d28f' }}>
-                  {passiveLevel < 0 ? 'Открыть' : `Улучшить до уровня ${passiveLevel + 1}`} · {nextPassiveTier.cost.toLocaleString('ru-RU')} ₽
+                <Btn variant="secondary" onClick={() => app.upgradeBusinessPassive(activeBiz.id)} disabled={app.proc || passiveUpgradeFunds < nextPassiveTier.cost} style={{ background: 'rgba(214,177,103,0.14)', border: '1px solid rgba(214,177,103,0.55)', color: '#f1d28f' }}>
+                  {passiveLevel < 0 ? 'Открыть' : `Улучшить до уровня ${passiveLevel + 1}`} · {nextPassiveTier.cost.toLocaleString('ru-RU')} ₽{activeLease ? ' из кассы' : ''}
                 </Btn>
               ) : (
                 <p style={{ margin: '8px 0 0', color: '#9ee6a9', fontSize: 13, textAlign: 'center' }}>Максимальный уровень</p>

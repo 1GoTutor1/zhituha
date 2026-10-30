@@ -1266,11 +1266,21 @@ export default function App() {
   });
 
   const upgradeBusinessPassive = (bizId: string) => action(async () => {
-    const { data, error } = await supabase.rpc('upgrade_business_passive_rpc', { p_biz_id: bizId, p_player_id: pid });
+    const isLeased = businessCatalog?.locations?.some((location: any) =>
+      String(location.business_id) === String(bizId) && location.lease_active
+    );
+    const rpcName = isLeased ? 'upgrade_leased_business_passive_rpc' : 'upgrade_business_passive_rpc';
+    const { data, error } = await supabase.rpc(rpcName, { p_biz_id: bizId, p_player_id: pid });
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
     setMoney(Number(data.money));
-    setMyBizs(prev => prev.map(b => b.id === bizId ? { ...b, passive_level: Number(data.level), passive_balance: Number(data.passive_balance), passive_updated_at: data.passive_updated_at } : b));
+    setMyBizs(prev => prev.map(b => b.id === bizId ? {
+      ...b,
+      passive_level: Number(data.level),
+      passive_balance: Number(data.passive_balance),
+      passive_updated_at: data.passive_updated_at,
+      ...(data.cash_balance != null ? { cash_balance: Number(data.cash_balance) } : {}),
+    } : b));
     showMsg(`Пассивный доход улучшен до уровня ${data.level}!`);
     await afterAction();
   });
