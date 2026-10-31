@@ -1394,3 +1394,73 @@ body[data-ui-theme="dark"] .profession-select-label { color: var(--text-muted); 
 .black-market-growth-track { position: absolute; right: 14px; bottom: 13px; left: 14px; height: 4px; overflow: hidden; border-radius: 99px; background: rgba(130, 155, 118, .2); }
 .black-market-growth-track span { display: block; height: 100%; border-radius: inherit; background: #80b977; transition: width 1s linear; }
 .black-market-growth-status { min-height: 20px; margin: 0 0 10px; color: #b7a8c7; font-size: 12px; }
+
+/* City-life artwork: photography lives in feature panels; the global wallpapers stay untouched. */
+.profession-scene { height: auto; aspect-ratio: 1.72; border-color: rgba(232, 195, 140, .26); background: #21172e !important; color: #fff7e8 !important; }
+.profession-scene-art { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 48%; }
+.profession-scene::after { position: absolute; z-index: 1; inset: 0; display: block !important; width: auto; height: auto; border-radius: 0; background: linear-gradient(90deg, rgba(17, 12, 22, .12), rgba(17, 12, 22, .04) 48%, rgba(17, 12, 22, .26)), linear-gradient(0deg, rgba(17, 12, 22, .68), transparent 55%); content: ''; pointer-events: none; }
+.profession-scene-index,
+.profession-scene-mark,
+.profession-scene-caption { z-index: 2; }
+.profession-scene-index { top: 12px; right: auto; left: 13px; color: rgba(255, 248, 235, .84); }
+.profession-scene-mark { position: absolute; right: 13px; bottom: 12px; width: 44px; height: 44px; border-color: rgba(250, 206, 143, .5); border-radius: 13px; background: rgba(30, 20, 32, .58); color: #ffd293; backdrop-filter: blur(8px); }
+.profession-scene-mark svg { width: 22px; height: 22px; }
+.profession-scene-caption { position: absolute; bottom: 17px; left: 14px; color: #fff7e8; font-size: 13px; font-weight: 700; text-shadow: 0 2px 8px rgba(0, 0, 0, .7); }
+
+.vehicle-artwork { display: block; width: 86px; height: 62px; flex: 0 0 auto; border: 1px solid rgba(232, 195, 140, .2); border-radius: 10px; background: linear-gradient(145deg, #30233b, #17111f); object-fit: cover; object-position: center; }
+.market-item-main { display: flex; min-width: 0; flex: 1; align-items: center; gap: 12px; }
+.market-item-copy { min-width: 0; }
+.market-item-copy > div:first-child { color: #fff7e8; }
+.market-item-art { width: 74px; height: 58px; flex: 0 0 auto; border: 1px solid rgba(232, 195, 140, .2); border-radius: 9px; object-fit: cover; }
+.market-item-card > div:last-child { margin-left: 10px; }
+.inventory-personal-vehicle { overflow: hidden; }
+.inventory-vehicle-art { width: 100%; height: 154px; object-position: center 55%; }
+.business-car-stock-row .vehicle-artwork { width: 100%; height: 112px; margin-bottom: 9px; object-position: center 56%; }
+.taxi-fleet-car { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: start; gap: 11px; }
+.taxi-fleet-car .vehicle-artwork { width: 88px; height: 72px; }
+.taxi-fleet-info { min-width: 0; }
+.taxi-dealer-offer .vehicle-artwork { width: 76px; height: 54px; }
+.business-location-thumb { width: 52px; height: 42px; flex: 0 0 auto; border: 1px solid rgba(232, 195, 140, .2); border-radius: 9px; object-fit: cover; }
+body[data-ui-theme="dark"] .taxi-fleet-car,
+body[data-ui-theme="dark"] .business-car-stock-row { border: 1px solid rgba(201, 173, 224, .1); background: rgba(36, 24, 50, .74) !important; color: #f7f3fb; }
+body[data-ui-theme="dark"] .taxi-dealer-offer { border-color: rgba(232, 195, 140, .24) !important; background: #21172e !important; color: #f7f3fb !important; }
+
+.business-scene-banner,
+.family-city-hero { position: relative; isolation: isolate; min-height: 142px; margin: 0 0 14px; overflow: hidden; border: 1px solid rgba(232, 195, 140, .26); border-radius: 18px; background-color: #21172e; box-shadow: 0 12px 28px rgba(12, 9, 15, .2); }
+.business-scene-banner { display: flex; min-height: 190px; align-items: flex-end; padding: 15px; background-image: linear-gradient(0deg, rgba(17, 12, 20, .82), rgba(17, 12, 20, .04) 78%), var(--business-scene-image, url('/images/business-coffee.jpg')); background-position: center, center 48%; background-size: cover; }
+.business-scene-banner > div,
+.family-city-hero-copy { display: grid; gap: 4px; color: #fff7e9; text-shadow: 0 2px 10px rgba(0, 0, 0, .58); }
+.business-scene-banner span,
+.family-city-hero-copy span { color: #f2c27f; font-size: 9px; font-weight: 800; letter-spacing: 1.5px; }
+.business-scene-banner b,
+.family-city-hero-copy b { font-size: 21px; line-height: 1.12; }
+.family-city-hero { height: auto; min-height: 0; aspect-ratio: 3 / 2; margin-bottom: 14px; }
+.family-city-hero img { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.family-city-hero::after { position: absolute; z-index: 1; inset: 0; background: linear-gradient(90deg, rgba(18, 12, 23, .8), rgba(18, 12, 23, .28) 72%), linear-gradient(0deg, rgba(18, 12, 23, .52), transparent 64%); content: ''; }
+.family-city-hero-copy { position: absolute; z-index: 2; right: 16px; bottom: 16px; left: 16px; }
+.family-city-hero-copy b { font-size: 24px; }
+.family-city-hero-copy small { color: rgba(255, 247, 233, .8); font-size: 11px; }
+body[data-ui-theme="dark"] .business-scene-banner,
+body[data-ui-theme="dark"] .family-city-hero { border-color: rgba(238, 205, 157, .24); box-shadow: 0 14px 34px rgba(0, 0, 0, .32); }
+@media (max-width: 380px) {
+  .family-city-hero { min-height: 0; }
+  .business-scene-banner { min-height: 160px; }
+  .business-car-stock-row .vehicle-artwork { height: 90px; }
+  .inventory-vehicle-art { height: 128px; }
+}
+
+.black-market-feature { position: relative; display: flex; min-height: 156px; align-items: flex-end; margin: 0 0 13px; padding: 16px; overflow: hidden; border: 1px solid rgba(232,195,140,.22); border-radius: 16px; background-image: linear-gradient(0deg, rgba(18,12,24,.9), rgba(18,12,24,.08) 90%), url('/images/black-market-trader.jpg'); background-position: center, center 52%; background-size: cover; box-shadow: 0 10px 25px rgba(0,0,0,.2); }
+.black-market-feature[data-mode="cultivation"] { background-image: linear-gradient(0deg, rgba(18,12,24,.88), rgba(18,12,24,.06) 90%), url('/images/black-market-seedling.jpg'); }
+.black-market-feature[data-mode="cultivation"][data-ready="true"] { background-image: linear-gradient(0deg, rgba(18,12,24,.88), rgba(18,12,24,.06) 90%), url('/images/black-market-mature.jpg'); }
+.black-market-feature > div { position: relative; z-index: 1; display: grid; gap: 5px; color: #fff7e8; text-shadow: 0 2px 8px rgba(0,0,0,.65); }
+.black-market-feature span { color: #f2c27f; font-size: 9px; font-weight: 800; letter-spacing: 1.3px; }
+.black-market-feature b { font-size: 19px; }
+.black-market-garden { background: #1c1720; }
+.black-market-growth-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 58%; opacity: .72; }
+.black-market-garden::before { z-index: 1; bottom: 37px; background: rgba(227,207,167,.32); }
+.black-market-plant, .black-market-garden-label, .black-market-growth-track { z-index: 2; }
+.black-market-plant { color: #a8ca8b; filter: drop-shadow(0 3px 9px rgba(0,0,0,.55)); }
+.black-market-garden-label { color: #fff2dc; text-shadow: 0 1px 5px #17111f; }
+.black-market-growth-track { background: rgba(15,12,18,.58); }
+.black-market-growth-track span { background: #e7b66d; }
+.black-market-growth-status { color: #c6b7d2; }

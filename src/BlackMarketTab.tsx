@@ -88,6 +88,9 @@ export const BlackMarketTab = ({ app }: { app: BlackMarketApp }) => {
   return <div style={{ padding: 'calc(120px + env(safe-area-inset-top, 16px)) 16px calc(100px + env(safe-area-inset-bottom, 16px))', maxWidth: 620, margin: '0 auto', color: 'var(--text-main, #f7f1ff)' }}>
     <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}><div><small style={{ color: '#8d75a8', letterSpacing: 1 }}>ЗАКРЫТАЯ ТОРГОВЛЯ</small><h2 style={{ margin: '4px 0' }}>Чёрный рынок</h2></div><button aria-label="Обновить" onClick={() => void refresh()} style={{ background: 'transparent', color: 'inherit', border: 0 }}><RefreshCw size={19} /></button></header>
     <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}><button onClick={() => setTab('trader')} style={{ flex: 1, padding: 12, borderRadius: 12, border: '1px solid #49345d', background: tab === 'trader' ? '#ff922e' : '#21182c', color: 'white', fontWeight: 800 }}><Store size={16} /> Торговец</button><button onClick={() => setTab('cultivation')} style={{ flex: 1, padding: 12, borderRadius: 12, border: '1px solid #49345d', background: tab === 'cultivation' ? '#ff922e' : '#21182c', color: 'white', fontWeight: 800 }}><Sprout size={16} /> Выращивание</button></div>
+    <section className="black-market-feature" data-mode={tab} data-ready={Boolean(plot?.planted_at && growth >= 1)}>
+      <div><span>{tab === 'trader' ? (isOpen ? 'ТОРГОВЕЦ УЖЕ В ГОРОДЕ' : 'СЛЕДУЮЩИЙ ЗАЕЗД') : 'СВОЙ УЧАСТОК'}</span><b>{tab === 'trader' ? (isOpen ? 'Успей до отъезда' : `Приедет в ${next} МСК`) : 'Урожай за 4 часа'}</b></div>
+    </section>
     <section style={panel}><b>{isOpen ? 'Торговец на месте' : 'Торговец уехал'}</b><p style={{ color: '#b7a8c7', margin: '7px 0' }}>{isOpen ? 'Рынок открыт с 07:00 до 11:00 и с 15:00 до 19:00 по Москве.' : `Следующий приезд: ${next} МСК.`}</p>{isOpen && <div>Скупка сейчас: <b>{fmt(state?.buy_price)} ₽ за единицу</b></div>}</section>
     {tab === 'trader' ? <>
       <section style={panel}><h3><Leaf size={18} /> Семена</h3><p>Фиксированная цена — <b>{fmt(state?.seed_price)} ₽</b> за семя. Покупка доступна во время приезда торговца.</p><p>В запасе: <b>{fmt(state?.seeds)}</b></p><Btn disabled={busy || !isOpen} onClick={() => void act('black_market_buy_seed_rpc')}>Купить семя · {fmt(state?.seed_price)} ₽</Btn></section>
@@ -97,6 +100,7 @@ export const BlackMarketTab = ({ app }: { app: BlackMarketApp }) => {
       <h3><Sprout size={18} /> Участок</h3>
       <p>Выращивание занимает 4 часа. Урожай: обычно 10 единиц, иногда 8 или 12.</p>
       <div className="black-market-garden" data-growing={Boolean(plot?.planted_at)}>
+        <img className="black-market-growth-art" src={!plot?.planted_at || growth < .55 ? '/images/black-market-seedling.jpg' : '/images/black-market-mature.jpg'} alt="" aria-hidden="true" />
         <div className="black-market-plant" style={{ '--growth': growth, '--growth-scale': 0.42 + growth * 0.58 } as React.CSSProperties}><Sprout size={64} strokeWidth={1.6} /></div>
         <span className="black-market-garden-label">{plot?.planted_at ? growthLabel : 'Грядка свободна'}</span>
         <div className="black-market-growth-track"><span style={{ width: `${growth * 100}%` }} /></div>

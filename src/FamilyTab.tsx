@@ -94,6 +94,11 @@ export const FamilyTab = ({ app }: { app: any }) => {
       <button className="family-icon-button" onClick={() => void refresh()} disabled={loading} aria-label="Обновить"><RefreshCw size={18} className={loading ? 'family-spin' : ''} /></button>
     </div>
 
+    <section className="family-city-hero" aria-label="Играй вместе с семьёй">
+      <img src="/images/family-event.jpg" alt="Двое друзей целиком стоят на набережной на фоне вечернего города" />
+      <div className="family-city-hero-copy"><span>СВОИ В ГОРОДЕ</span><b>{family?.name || 'Найди своих'}</b><small>Сезон · территории · общие события</small></div>
+    </section>
+
     <section className="family-card family-season-card">
       <div><Trophy size={20} /><b>Сезон #{state?.season?.number ?? '—'}</b></div>
       <p>Идёт 14 дней · осталось {Math.floor(seasonSeconds / 86400)} дн. {Math.floor((seasonSeconds % 86400) / 3600)} ч.</p>
