@@ -101,7 +101,6 @@ export const BlackMarketTab = ({ app }: { app: BlackMarketApp }) => {
       <p>Выращивание занимает 4 часа. Урожай: обычно 10 единиц, иногда 8 или 12.</p>
       <div className="black-market-garden" data-growing={Boolean(plot?.planted_at)}>
         <img className="black-market-growth-art" src={!plot?.planted_at || growth < .55 ? '/images/black-market-seedling.jpg' : '/images/black-market-mature.jpg'} alt="" aria-hidden="true" />
-        <div className="black-market-plant" style={{ '--growth': growth, '--growth-scale': 0.42 + growth * 0.58 } as React.CSSProperties}><Sprout size={64} strokeWidth={1.6} /></div>
         <span className="black-market-garden-label">{plot?.planted_at ? growthLabel : 'Грядка свободна'}</span>
         <div className="black-market-growth-track"><span style={{ width: `${growth * 100}%` }} /></div>
       </div>

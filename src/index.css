@@ -1378,18 +1378,6 @@ body[data-ui-theme="dark"] .profession-select-label { color: var(--text-muted); 
   background: rgba(141, 162, 119, .34);
   content: '';
 }
-.black-market-plant {
-  display: grid;
-  width: 82px;
-  height: 92px;
-  place-items: end center;
-  color: #7fac78;
-  transform: scale(var(--growth-scale, .42));
-  transform-origin: center bottom;
-  transition: transform 1s linear, color 1s linear;
-}
-.black-market-garden[data-growing="false"] .black-market-plant { color: #87907c; opacity: .5; }
-.black-market-garden[data-growing="true"] .black-market-plant { color: #8abf78; }
 .black-market-garden-label { position: absolute; top: 12px; left: 14px; color: #b7c1ad; font-size: 11px; font-weight: 600; }
 .black-market-growth-track { position: absolute; right: 14px; bottom: 13px; left: 14px; height: 4px; overflow: hidden; border-radius: 99px; background: rgba(130, 155, 118, .2); }
 .black-market-growth-track span { display: block; height: 100%; border-radius: inherit; background: #80b977; transition: width 1s linear; }
@@ -1457,9 +1445,8 @@ body[data-ui-theme="dark"] .family-city-hero { border-color: rgba(238, 205, 157,
 .black-market-feature b { font-size: 19px; }
 .black-market-garden { background: #1c1720; }
 .black-market-growth-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 58%; opacity: .72; }
-.black-market-garden::before { z-index: 1; bottom: 37px; background: rgba(227,207,167,.32); }
-.black-market-plant, .black-market-garden-label, .black-market-growth-track { z-index: 2; }
-.black-market-plant { color: #a8ca8b; filter: drop-shadow(0 3px 9px rgba(0,0,0,.55)); }
+.black-market-garden::before { display: none; }
+.black-market-garden-label, .black-market-growth-track { z-index: 2; }
 .black-market-garden-label { color: #fff2dc; text-shadow: 0 1px 5px #17111f; }
 .black-market-growth-track { background: rgba(15,12,18,.58); }
 .black-market-growth-track span { background: #e7b66d; }
