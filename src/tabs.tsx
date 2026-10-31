@@ -406,7 +406,7 @@ export const HomeTab = ({ app }: { app: any }) => {
 };
 
 export const MarketItem = ({ item, app, type }: any) => {
-  const itemKey = String(item.item_data || '').split(':').pop();
+  const itemKey = String(item.item_data || '').split(':').pop() || '';
   const marketArt = type === 'car' ? VEHICLE_ART[itemKey] || VEHICLE_ART.lada
     : type === 'house' ? '/images/market-panelka.jpg' : null;
   return <div className="market-item-card" style={{ backgroundColor: '#21172e', color: '#f5effa', padding: 15, borderRadius: 14, border: '1px solid rgba(232,195,140,.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
