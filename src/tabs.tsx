@@ -267,9 +267,9 @@ export const HomeTab = ({ app }: { app: any }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'Russo One, Impact, sans-serif' }}>{app.nick}</div>
               {Date.parse(app.premiumUntil || '') > Date.now() && <Crown size={17} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}
-              <button onClick={() => app.setRefOpen(true)} style={{ background: 'rgba(192,69,58,0.12)', border: '1px solid #c0453a', color: '#c0453a', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><UserPlus size={16} /></button>
-              <button onClick={() => app.setPromoOpen(true)} style={{ background: 'rgba(63,157,85,0.15)', border: '1px solid #3f9d55', color: '#3f9d55', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Gift size={16} /></button>
-              <button onClick={() => app.setBugOpen(true)} style={{ background: 'rgba(192,69,58,0.12)', border: '1px solid #c0453a', color: '#c0453a', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Bug size={16} /></button>
+              <button type="button" aria-label="Пригласить друга" title="Пригласить друга" onClick={() => app.setRefOpen(true)} style={{ background: 'rgba(192,69,58,0.12)', border: '1px solid #c0453a', color: '#c0453a', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><UserPlus size={16} /></button>
+              <button type="button" aria-label="Ввести промокод" title="Промокод" onClick={() => app.setPromoOpen(true)} style={{ background: 'rgba(63,157,85,0.15)', border: '1px solid #3f9d55', color: '#3f9d55', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Gift size={16} /></button>
+              <button type="button" aria-label="Сообщить об ошибке" title="Сообщить об ошибке" onClick={() => app.setBugOpen(true)} style={{ background: 'rgba(192,69,58,0.12)', border: '1px solid #c0453a', color: '#c0453a', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Bug size={16} /></button>
             </div>
             <div style={{ fontSize: 13, color: '#6b5f45', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
               ID: {app.tgId.slice(0, 6)}
@@ -283,16 +283,19 @@ export const HomeTab = ({ app }: { app: any }) => {
         </div>
       </div>
 
-      <div className="home-event-card" onClick={() => app.setModifierOpen(true)} style={{ backgroundColor: 'rgba(90,70,40,0.08)', border: `1px solid ${modifier.color}`, borderRadius: 8, padding: 12, marginBottom: 15, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+      <button type="button" className="home-event-card" aria-label={`Подробнее о событии дня: ${modifier.name}`} onClick={() => app.setModifierOpen(true)} style={{ width: '100%', font: 'inherit', textAlign: 'left', backgroundColor: 'rgba(90,70,40,0.08)', border: `1px solid ${modifier.color}`, borderRadius: 8, padding: 12, marginBottom: 15, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
         <div style={{ fontSize: 20 }}>{modifier.icon}</div>
         <div style={{ textAlign: 'left', flex: 1 }}>
           <div style={{ fontWeight: 'bold', color: modifier.color, fontSize: 14 }}>{modifier.name}</div>
           <div style={{ fontSize: 12, color: '#6b5f45' }}>{modifier.desc}</div>
         </div>
         <div style={{ fontSize: 12, color: '#6b5f45' }}>Подробнее →</div>
-      </div>
+      </button>
 
-      <section style={{ marginBottom: 15, padding: 13, borderRadius: 12, background: 'linear-gradient(145deg, rgba(38,25,55,.96), rgba(27,19,37,.98))', border: '1px solid rgba(183,142,255,.25)', color: '#f7f1ff', textAlign: 'left' }}>
+      {coffeeBonusSeconds > 0 && <div role="status" style={{ background: 'rgba(63,157,85,.12)', border: '1px solid rgba(63,157,85,.35)', borderRadius: 9, padding: '9px 12px', marginBottom: 12, color: '#327b45', fontWeight: 700, fontSize: 13 }}>☕ +10% к заработку · ещё {Math.floor(coffeeBonusSeconds / 60)}:{String(coffeeBonusSeconds % 60).padStart(2, '0')}</div>}
+      <ProfessionWorkCard app={app} />
+
+      <section style={{ marginTop: 15, marginBottom: 15, padding: 13, borderRadius: 12, background: 'linear-gradient(145deg, rgba(38,25,55,.96), rgba(27,19,37,.98))', border: '1px solid rgba(183,142,255,.25)', color: '#f7f1ff', textAlign: 'left' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 }}>
           <b>Задания на сегодня</b><small style={{ color: '#b9a6d0' }}>Обновятся в полночь UTC</small>
         </div>
@@ -325,8 +328,6 @@ export const HomeTab = ({ app }: { app: any }) => {
       </details>
 
       <TutorialCard app={app} />
-      {coffeeBonusSeconds > 0 && <div role="status" style={{ background: 'rgba(63,157,85,.12)', border: '1px solid rgba(63,157,85,.35)', borderRadius: 9, padding: '9px 12px', marginBottom: 12, color: '#327b45', fontWeight: 700, fontSize: 13 }}>☕ +10% к заработку · ещё {Math.floor(coffeeBonusSeconds / 60)}:{String(coffeeBonusSeconds % 60).padStart(2, '0')}</div>}
-      <ProfessionWorkCard app={app} />
 
       <div className="home-shortcuts" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
         <button className="home-shortcut" onClick={() => app.setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 10, backgroundColor: '#fbf4e4', border: '1px solid rgba(192, 132, 252, 0.3)', color: '#2f2a1d', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>

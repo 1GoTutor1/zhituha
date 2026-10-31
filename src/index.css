@@ -1324,8 +1324,13 @@ body[data-ui-theme="dark"] .home-avatar-button.has-exclamation-frame { border: 3
 .profession-scene[data-stage="3"] .profession-scene-mark { animation: professionStep .24s ease-out; }
 .profession-scene-caption { position: static; color: #566159; font: 600 11px var(--font-body); letter-spacing: .1px; text-transform: none; }
 @keyframes professionStep { 0% { transform: translateY(2px) scale(.97); } 100% { transform: translateY(0) scale(1); } }
-.profession-action-button { border-radius: 9px; background: var(--accent-green, #3f8957); box-shadow: none; font: 600 14px var(--font-body); text-transform: none; }
+.profession-action-button { min-height: 56px; border-radius: 11px; background: var(--accent-green, #3f8957); box-shadow: none; font: 700 15px var(--font-body); letter-spacing: .1px; text-transform: none; }
 .profession-action-button:active:not(:disabled) { transform: translateY(1px); }
+.profession-action-button:focus-visible,
+.home-event-card:focus-visible,
+.home-player-header button:focus-visible { outline: 3px solid var(--accent-green, #63e6be); outline-offset: 3px; }
+.home-player-header button { min-width: 36px; min-height: 36px; }
+.home-event-card { font-family: var(--font-body); }
 .profession-inventory-full { border: 1px solid rgba(192, 69, 58, .2); border-radius: 9px; }
 .profession-reward-preview { border-color: var(--surface-line, rgba(72, 82, 74, .15)); }
 .profession-preview-title { font-size: 12px; font-weight: 700; }
