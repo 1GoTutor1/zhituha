@@ -1255,8 +1255,8 @@ body[data-ui-theme="dark"] .home-player-header [style*="#b06a15"] { color: #ff9a
 
 .profile-avatar-frame { position: relative; z-index: 1; overflow: visible; }
 .profile-avatar-frame .avatar-exclamation-ring {
-  position: absolute; top: -16px; left: -16px; z-index: 5;
-  display: block; width: calc(100% + 32px); height: calc(100% + 32px);
+  position: absolute; top: -24px; left: -24px; z-index: 5;
+  display: block; width: calc(100% + 48px); height: calc(100% + 48px);
   overflow: visible; pointer-events: none;
   object-fit: contain;
 }
@@ -1381,12 +1381,11 @@ body[data-ui-theme="dark"] .profession-select-label { color: var(--text-muted); 
 
 /* City-life artwork: photography lives in feature panels; the global wallpapers stay untouched. */
 .profession-scene { height: auto; aspect-ratio: 1.72; border-color: rgba(232, 195, 140, .26); background: #21172e !important; color: #fff7e8 !important; }
-.profession-scene::before { z-index: 0; inset: -8px; background-image: linear-gradient(rgba(18, 12, 23, .25), rgba(18, 12, 23, .25)), var(--profession-image); background-position: center; background-size: cover; filter: blur(9px); opacity: .8; transform: scale(1.06); }
-.profession-scene-art { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; }
-.profession-scene::after { position: absolute; z-index: 2; inset: 0; display: block !important; width: auto; height: auto; border-radius: 0; background: linear-gradient(90deg, rgba(17, 12, 22, .12), rgba(17, 12, 22, .04) 48%, rgba(17, 12, 22, .26)), linear-gradient(0deg, rgba(17, 12, 22, .68), transparent 55%); content: ''; pointer-events: none; }
+.profession-scene-art { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 48%; }
+.profession-scene::after { position: absolute; z-index: 1; inset: 0; display: block !important; width: auto; height: auto; border-radius: 0; background: linear-gradient(90deg, rgba(17, 12, 22, .12), rgba(17, 12, 22, .04) 48%, rgba(17, 12, 22, .26)), linear-gradient(0deg, rgba(17, 12, 22, .68), transparent 55%); content: ''; pointer-events: none; }
 .profession-scene-index,
 .profession-scene-mark,
-.profession-scene-caption { z-index: 3; }
+.profession-scene-caption { z-index: 2; }
 .profession-scene-index { top: 12px; right: auto; left: 13px; color: rgba(255, 248, 235, .84); }
 .profession-scene-mark { position: absolute; right: 13px; bottom: 12px; width: 44px; height: 44px; border-color: rgba(250, 206, 143, .5); border-radius: 13px; background: rgba(30, 20, 32, .58); color: #ffd293; backdrop-filter: blur(8px); }
 .profession-scene-mark svg { width: 22px; height: 22px; }
@@ -1441,8 +1440,8 @@ body[data-ui-theme="dark"] .family-city-hero { border-color: rgba(238, 205, 157,
 .black-market-feature span { color: #f2c27f; font-size: 9px; font-weight: 800; letter-spacing: 1.3px; }
 .black-market-feature b { font-size: 19px; }
 .black-market-garden { background: #1c1720; }
-.black-market-growth-art { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; opacity: 1; }
-.black-market-garden::before { top: -8px; right: -8px; bottom: -8px; left: -8px; z-index: 0; width: auto; height: auto; display: block; background-image: linear-gradient(rgba(20, 15, 24, .35), rgba(20, 15, 24, .35)), var(--growth-art-image); background-position: center; background-size: cover; filter: blur(9px); opacity: .72; transform: scale(1.06); }
+.black-market-growth-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 58%; opacity: .72; }
+.black-market-garden::before { display: none; }
 .black-market-garden-label, .black-market-growth-track { z-index: 2; }
 .black-market-garden-label { color: #fff2dc; text-shadow: 0 1px 5px #17111f; }
 .black-market-growth-track { background: rgba(15,12,18,.58); }

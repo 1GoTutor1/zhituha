@@ -225,9 +225,8 @@ const VehicleArtwork = ({ modelId, className = '' }: { modelId: string; classNam
 const ProfessionScene = ({ profession, stage }: { profession: string; stage: number }) => {
   const Icon = PROFESSION_ICONS[profession] || Pickaxe;
   const scene = PROFESSION_SCENES[profession] || PROFESSION_SCENES.miner;
-  const image = PROFESSION_ART[profession] || PROFESSION_ART.miner;
-  return <div className={`profession-scene profession-scene-${profession}`} data-stage={stage} style={{ '--profession-accent': scene.accent, '--profession-image': `url('${image}')` } as React.CSSProperties}>
-    <img className="profession-scene-art" src={image} alt={`${scene.label} на фоне города`} />
+  return <div className={`profession-scene profession-scene-${profession}`} data-stage={stage} style={{ '--profession-accent': scene.accent } as React.CSSProperties}>
+    <img className="profession-scene-art" src={PROFESSION_ART[profession] || PROFESSION_ART.miner} alt={`${scene.label} на фоне города`} />
     <span className="profession-scene-index">ПОЛЕВАЯ РАБОТА · {String(stage).padStart(2, '0')} / 03</span>
     <div className="profession-scene-mark" aria-hidden="true"><Icon size={48} strokeWidth={1.65} /></div>
     <span className="profession-scene-caption">{scene.label}</span>
