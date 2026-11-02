@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     if (playerError) throw playerError;
     if (!player) return res.status(404).json({ error: 'Игрок не зарегистрирован' });
 
-    const { action, item_id: itemId, direction, amount, package_id: packageId, business_id: businessId } = req.body || {};
+    const { action, item_id: itemId, direction, amount: rawAmount, package_id: packageId, business_id: businessId } = req.body || {};
     if (action === 'create_invoice') {
       const pack = PACKAGES[packageId];
       if (!pack) return res.status(400).json({ error: 'Пакет не найден' });
@@ -82,13 +82,17 @@ export default async function handler(req, res) {
 
     let rpcName;
     let rpcArgs;
+    let exchangeRequest = null;
     if (action === 'purchase' && typeof itemId === 'string') {
       rpcName = 'donation_purchase_rpc'; rpcArgs = { p_player_id: player.id, p_item_id: itemId };
     } else if (action === 'purchase_autostock' && typeof businessId === 'string') {
       rpcName = 'business_autostock_purchase_rpc'; rpcArgs = { p_player_id: player.id, p_business_id: businessId };
     } else if (action === 'equip' && typeof itemId === 'string') {
       rpcName = 'donation_equip_rpc'; rpcArgs = { p_player_id: player.id, p_item_id: itemId };
-    } else if (action === 'exchange' && ['money_to_premium', 'premium_to_money'].includes(direction) && Number.isSafeInteger(amount)) {
+    } else if (action === 'exchange' && ['money_to_premium', 'premium_to_money'].includes(direction)) {
+      const amount = typeof rawAmount === 'number' ? rawAmount : typeof rawAmount === 'string' && rawAmount.trim() ? Number(rawAmount) : NaN;
+      if (!Number.isSafeInteger(amount)) return res.status(400).json({ error: 'Укажи целое количество для обмена' });
+      exchangeRequest = { direction, amount };
       rpcName = 'donation_exchange_rpc'; rpcArgs = { p_player_id: player.id, p_direction: direction, p_amount: amount };
     } else {
       return res.status(400).json({ error: 'Некорректное действие' });
@@ -98,7 +102,14 @@ export default async function handler(req, res) {
     if (error) throw error;
     if (data?.error) return res.status(400).json({ error: data.error });
     const updatedPlayer = data?.player || null;
-    const message = action === 'equip'
+    const exchange = data?.exchange || (exchangeRequest?.direction === 'premium_to_money'
+      ? { direction: exchangeRequest.direction, spent: exchangeRequest.amount, received: exchangeRequest.amount * 1500 }
+      : exchangeRequest ? { direction: exchangeRequest.direction, spent: exchangeRequest.amount, received: exchangeRequest.amount / 2500 } : null);
+    const message = action === 'exchange'
+      ? exchange?.direction === 'premium_to_money'
+        ? `Обмен выполнен: −${Number(exchange.spent).toLocaleString('ru-RU')} жет. · +${Number(exchange.received).toLocaleString('ru-RU')} монет`
+        : `Обмен выполнен: −${Number(exchange?.spent || 0).toLocaleString('ru-RU')} монет · +${Number(exchange?.received || 0).toLocaleString('ru-RU')} жет.`
+      : action === 'equip'
       ? 'Профиль обновлён'
       : action === 'purchase_autostock'
         ? 'Слот автопополнения куплен'
