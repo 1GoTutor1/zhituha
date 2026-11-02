@@ -38,13 +38,21 @@ const adminKeyboard = () => ({ inline_keyboard: [
   [{ text: '← Назад', callback_data: 'btn_back' }],
 ] });
 
+const topKeyboard = (active = 'money') => ({ inline_keyboard: [
+  [
+    { text: `${active === 'money' ? '\u2713 ' : ''}\u0422\u043e\u043f \u043f\u043e \u0434\u0435\u043d\u044c\u0433\u0430\u043c`, callback_data: 'btn_top' },
+    { text: `${active === 'level' ? '\u2713 ' : ''}\u0422\u043e\u043f \u043f\u043e \u0443\u0440\u043e\u0432\u043d\u044e`, callback_data: 'btn_top_level' },
+  ],
+  [{ text: '\u041d\u0430\u0437\u0430\u0434', callback_data: 'btn_back' }],
+] });
+
 const mainMenuKeyboard = async (tgId, appUrl = WEBAPP_URL) => {
   const admin = await isAdmin(tgId);
   const rows = [
     [{ text: '🎮 Играть в Житуху', web_app: { url: appUrl } }],
     [{ text: '💰 Баланс', callback_data: 'btn_balance' }, { text: '🏢 Бизнесы', callback_data: 'btn_biz' }],
     [{ text: '📈 Прогресс', callback_data: 'btn_progress' }],
-    [{ text: '🏆 Топ богачей', callback_data: 'btn_top' }],
+    [{ text: '\uD83C\uDFC6 \u0422\u043e\u043f \u043f\u043e \u0434\u0435\u043d\u044c\u0433\u0430\u043c', callback_data: 'btn_top' }, { text: '\u2B50 \u0422\u043e\u043f \u043f\u043e \u0443\u0440\u043e\u0432\u043d\u044e', callback_data: 'btn_top_level' }],
   ];
   if (admin) rows.push([{ text: '⚙️ Админка', callback_data: 'btn_admin' }]);
   return { inline_keyboard: rows };
@@ -139,14 +147,34 @@ const getProgress = async (ctx) => {
 
 const getTop = async (ctx) => {
   const { data: top } = await supabase.from('players').select('nickname, money').order('money', { ascending: false }).limit(5);
-  if (!top) return replyOrEdit(ctx, 'Ошибка получения топа.', { reply_markup: backKeyboard() });
+  if (!top) return replyOrEdit(ctx, 'Ошибка получения топа.', { reply_markup: topKeyboard('money') });
 
   let text = `🏆 *Топ-5 богачей района:*\n\n`;
   top.forEach((p, i) => {
     const emoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '👤';
-    text += `${emoji} ${p.nickname} — *${Number(p.money).toLocaleString('ru-RU')}* монет\n`;
+    text += `${emoji} ${escapeMarkdown(p.nickname || 'Игрок')} — *${Number(p.money).toLocaleString('ru-RU')}* монет\n`;
   });
-  await replyOrEdit(ctx, text, { parse_mode: 'Markdown', reply_markup: backKeyboard() });
+  await replyOrEdit(ctx, text, { parse_mode: 'Markdown', reply_markup: topKeyboard('money') });
+};
+
+const getLevelTop = async (ctx) => {
+  const { data: top, error } = await supabase.from('players')
+    .select('nickname, player_level, player_xp')
+    .order('player_level', { ascending: false })
+    .order('player_xp', { ascending: false })
+    .limit(5);
+  if (error || !top) {
+    console.error('Level leaderboard query failed:', error?.message);
+    return replyOrEdit(ctx, 'Не удалось загрузить рейтинг уровней. Проверь миграцию профессий.', { reply_markup: topKeyboard('level') });
+  }
+  let text = '\u2B50 *\u0422\u043e\u043f-5 \u043f\u043e \u0443\u0440\u043e\u0432\u043d\u044e*\n\n';
+  top.forEach((player, index) => {
+    const medal = index === 0 ? '\uD83E\uDD47' : index === 1 ? '\uD83E\uDD48' : index === 2 ? '\uD83E\uDD49' : '\uD83D\uDC64';
+    const level = Math.max(1, Number(player.player_level) || 1);
+    const xp = Math.max(0, Number(player.player_xp) || 0);
+    text += `${medal} ${escapeMarkdown(player.nickname || 'Игрок')} - *ур. ${level}* | ${xp.toLocaleString('ru-RU')} XP\n`;
+  });
+  await replyOrEdit(ctx, text, { parse_mode: 'Markdown', reply_markup: topKeyboard('level') });
 };
 
 const getBiz = async (ctx) => {
@@ -197,6 +225,7 @@ bot.command(['balance', 'bal'], getBalance);
 bot.command('profile', getBalance);
 bot.command('progress', getProgress);
 bot.command('top', getTop);
+bot.command(['toplevel', 'leveltop'], getLevelTop);
 bot.command(['biz', 'business'], getBiz);
 
 // --- ЛИЧНОЕ СООБЩЕНИЕ ИГРОКУ (только администраторы) ---
@@ -236,6 +265,7 @@ bot.command(['dm', 'message'], async (ctx) => {
 bot.action('btn_balance', getBalance);
 bot.action('btn_progress', getProgress);
 bot.action('btn_top', getTop);
+bot.action('btn_top_level', getLevelTop);
 bot.action('btn_biz', getBiz);
 
 bot.on('pre_checkout_query', async (ctx) => {

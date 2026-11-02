@@ -23,8 +23,9 @@ export default async function handler(req, res) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   try {
-    const { data: player, error: playerError } = await sb.from('players').select('id, telegram_id').eq('telegram_id', String(user.id)).maybeSingle();
+    const { data: player, error: playerError } = await sb.from('players').select('id, telegram_id, is_banned').eq('telegram_id', String(user.id)).maybeSingle();
     if (playerError) throw playerError;
+    if (player?.is_banned === true) return res.status(403).json({ error: 'Аккаунт заблокирован', banned: true });
     if (!player) return res.status(404).json({ error: 'Игрок не зарегистрирован' });
 
     const { action, item_id: itemId, direction, amount: rawAmount, package_id: packageId, business_id: businessId } = req.body || {};

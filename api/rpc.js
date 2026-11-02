@@ -55,7 +55,7 @@ export default async function handler(req, res) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const [playerResult, maintenanceEnabled] = await Promise.all([
-      sb.from('players').select('id, role, is_subscribed').eq('telegram_id', String(user.id)).maybeSingle(),
+      sb.from('players').select('id, role, is_subscribed, is_banned').eq('telegram_id', String(user.id)).maybeSingle(),
       readMaintenance(sb),
     ]);
     const { data: player, error: playerError } = playerResult;
@@ -63,6 +63,9 @@ export default async function handler(req, res) {
     if (await blockDuringMaintenance(sb, player, res, maintenanceEnabled)) return;
     if (!player && name !== 'get_casino_round_rpc') {
       return res.status(404).json({ error: 'Player not registered' });
+    }
+    if (player?.is_banned === true) {
+      return res.status(403).json({ error: 'Аккаунт заблокирован', banned: true });
     }
     if (player && player.is_subscribed !== true) {
       return res.status(403).json({ error: 'Подпишись на Telegram-канал Житухи и нажми «Проверить подписку».' });
@@ -77,17 +80,64 @@ export default async function handler(req, res) {
     if (name === 'add_referral_balance') return res.status(400).json({ error: 'Unsupported RPC' });
     if (name === 'fire_worker_rpc') safeArgs.p_player_id = player.id;
 
+    // This RPC is only for the admin UI's audit trail. Never let a regular
+    // player forge arbitrary event names, money changes, or another actor.
+    if (name === 'log_action_rpc') {
+      if (!['admin', 'superadmin'].includes(player?.role)) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      const allowedActions = new Set(['admin_ban', 'admin_unban', 'admin_delete_biz', 'admin_create_promo']);
+      if (!allowedActions.has(args.p_action_type)) {
+        return res.status(400).json({ error: 'Unsupported audit action' });
+      }
+      const input = args.p_details && typeof args.p_details === 'object' && !Array.isArray(args.p_details)
+        ? args.p_details : {};
+      const allowedDetailKeys = args.p_action_type === 'admin_ban' || args.p_action_type === 'admin_unban'
+        ? ['target_nick', 'target_id']
+        : args.p_action_type === 'admin_delete_biz'
+          ? ['target_nick', 'target_id', 'biz_id', 'biz_name']
+          : ['code', 'amount', 'max_uses'];
+      safeArgs.p_player_id = player.id;
+      safeArgs.p_action_type = args.p_action_type;
+      safeArgs.p_details = Object.fromEntries(allowedDetailKeys
+        .filter((key) => ['string', 'number'].includes(typeof input[key]))
+        .map((key) => [key, String(input[key]).slice(0, key === 'target_nick' || key === 'biz_name' ? 80 : 64)]));
+      safeArgs.p_money_delta = null;
+      safeArgs.p_money_after = null;
+    }
+
     const trackedMissionIds = name === 'work_rpc' ? ['work_5']
       : name === 'sell_inventory_rpc' ? ['sell_1']
         : name === 'finish_profession_cycle_rpc' ? ['profession_1', 'work_5'] : [];
     let missionProgressBefore = null;
     if (trackedMissionIds.length && player) {
-      const { data: state } = await sb.rpc('daily_missions_state_rpc', { p_player_id: player.id });
+      let { data: state, error: missionStateError } = await sb.rpc('daily_missions_state_rpc', { p_player_id: player.id });
+      if (missionStateError) {
+        // A transient pre-read failure must not silently disable the fallback
+        // that reconciles quest progress after the action.
+        ({ data: state, error: missionStateError } = await sb.rpc('daily_missions_state_rpc', { p_player_id: player.id }));
+      }
       if (state?.missions) {
         missionProgressBefore = Object.fromEntries(trackedMissionIds.map((id) => {
           const mission = state.missions.find((item) => item.id === id);
-          return [id, mission ? Number(mission.progress) || 0 : null];
+          return [id, mission ? Number(mission.progress) || 0 : 0];
         }));
+      } else {
+        // If the state RPC is unavailable, read the authoritative progress
+        // rows directly before the action so a successful fallback cannot
+        // double-count progress already written by a SQL wrapper.
+        const { data: rows, error: rowError } = await sb.from('player_daily_missions')
+          .select('mission_id, progress')
+          .eq('player_id', player.id)
+          .eq('mission_date', new Date().toISOString().slice(0, 10));
+        if (!rowError) {
+          missionProgressBefore = Object.fromEntries(trackedMissionIds.map((id) => {
+            const mission = rows?.find((item) => item.mission_id === id);
+            return [id, mission ? Number(mission.progress) || 0 : 0];
+          }));
+        } else {
+          console.error('Daily mission pre-sync failed:', missionStateError?.message, rowError.message);
+        }
       }
     }
 
@@ -160,11 +210,24 @@ export default async function handler(req, res) {
           : data && !data.error;
       if (actionSucceeded) {
         const { data: stateAfter, error: stateError } = await sb.rpc('daily_missions_state_rpc', { p_player_id: player.id });
+        let missionsAfter = stateAfter?.missions;
+        let canCheckAfter = Array.isArray(missionsAfter);
+        if (stateError || !missionsAfter) {
+          const { data: rows, error: rowError } = await sb.from('player_daily_missions')
+            .select('mission_id, progress')
+            .eq('player_id', player.id)
+            .eq('mission_date', new Date().toISOString().slice(0, 10));
+          if (!rowError) {
+            missionsAfter = (rows || []).map((row) => ({ id: row.mission_id, progress: row.progress }));
+            canCheckAfter = true;
+          }
+          else console.error('Daily mission post-sync failed:', stateError?.message, rowError.message);
+        }
         for (const missionId of trackedMissionIds) {
-          const missionAfter = stateAfter?.missions?.find((item) => item.id === missionId);
+          const missionAfter = missionsAfter?.find((item) => item.id === missionId);
           const progressAfter = Number(missionAfter?.progress) || 0;
           const progressBefore = missionProgressBefore[missionId];
-          if (progressBefore !== null && (stateError || progressAfter <= progressBefore)) {
+          if (progressBefore !== null && missionAfter && progressAfter <= progressBefore) {
             const { error: progressError } = await sb.rpc('daily_mission_add_progress', {
               p_player_id: player.id,
               p_mission_id: missionId,
@@ -173,6 +236,32 @@ export default async function handler(req, res) {
             if (progressError) {
               console.error('Daily mission progress sync failed:', missionId, progressError.message);
               data = { ...(data || {}), daily_mission_sync_error: true };
+            }
+          } else if (progressBefore !== null && !canCheckAfter) {
+            console.error('Daily mission progress could not be verified:', missionId);
+            data = { ...(data || {}), daily_mission_sync_error: true };
+          }
+        }
+      }
+    } else if (trackedMissionIds.length && player) {
+      const actionSucceeded = name === 'work_rpc'
+        ? data && !data.error && !data.captcha_required && !data.ignored && !data.blocked && data.work_pay != null
+        : name === 'sell_inventory_rpc' ? data?.success === true
+          : data && !data.error;
+      if (actionSucceeded) {
+        // Pre-read failed. Retry after the action and only repair a still-zero
+        // progress row; SQL wrappers normally count it atomically themselves.
+        const { data: stateAfter, error: stateError } = await sb.rpc('daily_missions_state_rpc', { p_player_id: player.id });
+        if (stateError) {
+          console.error('Daily mission post-sync failed:', stateError.code, stateError.message);
+        } else {
+          for (const missionId of trackedMissionIds) {
+            const missionAfter = stateAfter?.missions?.find((item) => item.id === missionId);
+            if (missionAfter && (Number(missionAfter.progress) || 0) === 0) {
+              const { error: progressError } = await sb.rpc('daily_mission_add_progress', {
+                p_player_id: player.id, p_mission_id: missionId, p_amount: 1,
+              });
+              if (progressError) console.error('Daily mission progress fallback failed:', missionId, progressError.message);
             }
           }
         }

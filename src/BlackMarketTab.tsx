@@ -110,7 +110,7 @@ export const BlackMarketTab = ({ app }: { app: BlackMarketApp }) => {
         {plot?.planted_at && <Btn disabled={busy || seconds > 0} onClick={() => void act('black_market_harvest_rpc')}>Собрать урожай · {fmt(plot.yield_units)} ед.</Btn>}
       </div>
     </section>}
-    {state?.family_event && <section style={panel}><b>Семейная поставка</b><p>Сдайте вместе {state.family_event.target_units} единиц до отъезда торговца. Нужно минимум {state.family_event.min_members} участников. За успешное событие семья получает 15 очков.</p><p>Сдано: <b>{state.family_event.sold_units}/{state.family_event.target_units}</b> · Участников: <b>{state.family_event.member_count}/{state.family_event.min_members}</b></p><p>{state.family_event.joined ? 'Ты участвуешь в поставке.' : 'Вступи в событие до продажи товара.'}</p>{!state.family_event.joined && <Btn disabled={busy || !isOpen} onClick={() => void act('family_black_market_join_rpc')}>Участвовать</Btn>}</section>}
+    {state?.family_event && <section style={panel}><b>Семейная поставка</b><p>Сдайте вместе {state.family_event.target_units} единиц до отъезда торговца. Нужно минимум {state.family_event.min_members} участников. За успешное событие семья получает 15 очков.</p><p>Сдано: <b>{state.family_event.sold_units}/{state.family_event.target_units}</b> · Участников: <b>{state.family_event.member_count}/{state.family_event.min_members}</b></p><p>{state.family_event.joined ? 'Ты участвуешь в поставке.' : 'Вступи в событие до продажи товара.'}</p>{!state.family_event.joined && <Btn disabled={busy || !isOpen || state.slot !== 2} onClick={() => void act('family_black_market_join_rpc')}>Участвовать</Btn>}</section>}
     {error && <p role="alert" style={{ color: '#ff7187' }}>{error}</p>}
   </div>;
 };

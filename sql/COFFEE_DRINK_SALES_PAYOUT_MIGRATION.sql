@@ -2,6 +2,16 @@
 -- Espresso, cappuccino and latte all use their actual shop retail price for the
 -- buyer/business accounting; the barista receives the advertised fixed wage.
 
+-- Older worker rows may still store the former 600 ₽ value. Normalize existing
+-- coffee baristas and make the payout below independent of editable/stale salary.
+update public.business_workers w
+set salary=60
+from public.businesses b
+where b.id=w.business_id
+  and b.biz_type='coffee'
+  and w.role='Бариста'
+  and w.salary is distinct from 60;
+
 do $$
 begin
   if to_regprocedure('public.business_shop_buy_rpc_before_coffee_sales_payout(uuid,uuid,text,integer)') is null then
@@ -15,7 +25,6 @@ returns jsonb language plpgsql security definer set search_path=pg_catalog,publi
 declare
   result_json jsonb;
   barista_id uuid;
-  wage_per_cup bigint;
   payout bigint;
 begin
   -- This calls the currently installed coffee-bonus wrapper, preserving the
@@ -31,8 +40,8 @@ begin
     return result_json;
   end if;
 
-  select w.player_id, w.salary::bigint
-    into barista_id, wage_per_cup
+  select w.player_id
+    into barista_id
   from public.businesses b
   join public.business_workers w on w.business_id=b.id
   where b.id=p_business_id and b.biz_type='coffee' and w.role='Бариста'
@@ -43,7 +52,9 @@ begin
     raise exception 'У кафе нет бариста для начисления оплаты';
   end if;
 
-  payout:=greatest(0,coalesce(wage_per_cup,60))*p_quantity;
+  -- This is a fixed per-cup payout. Never derive it from the worker row:
+  -- old saves may contain the former 600 ₽ monthly/shift value.
+  payout:=60::bigint*p_quantity;
 
   -- Remove the old 5% direct-wallet commission. The advertised per-cup wage is
   -- accumulated in tip_balance and withdrawn from the existing job screen.

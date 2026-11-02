@@ -93,7 +93,15 @@ begin
     select * into p from public.business_shop_products where product_id=r.product_id and biz_type=b.biz_type;
     if not found then continue; end if;
     select * into s from public.business_shop_stock where business_id=b.id and product_id=r.product_id for update;
-    if not found or s.quantity>r.threshold then continue; end if;
+    if not found then
+      -- A rule may be enabled before the first manual restock. Seed the stock
+      -- row at zero so the configured threshold can trigger the initial refill.
+      insert into public.business_shop_stock(business_id,product_id,quantity,retail_price)
+        values(b.id,p.product_id,0,p.base_price)
+        on conflict(business_id,product_id) do nothing;
+      select * into s from public.business_shop_stock where business_id=b.id and product_id=r.product_id for update;
+    end if;
+    if s.quantity>r.threshold then continue; end if;
     cost:=p.wholesale_price*r.refill_quantity;
     if coalesce(b.cash_balance,0)<cost then continue; end if;
     insert into public.business_shop_stock(business_id,product_id,quantity,retail_price)
