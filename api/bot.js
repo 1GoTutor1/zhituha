@@ -33,6 +33,10 @@ const isAdmin = async (tgId) => {
 };
 
 const backKeyboard = () => ({ inline_keyboard: [[{ text: '← Назад', callback_data: 'btn_back' }]] });
+const adminKeyboard = () => ({ inline_keyboard: [
+  [{ text: '✉️ Написать игроку', callback_data: 'btn_admin_dm' }],
+  [{ text: '← Назад', callback_data: 'btn_back' }],
+] });
 
 const mainMenuKeyboard = async (tgId, appUrl = WEBAPP_URL) => {
   const admin = await isAdmin(tgId);
@@ -195,6 +199,40 @@ bot.command('progress', getProgress);
 bot.command('top', getTop);
 bot.command(['biz', 'business'], getBiz);
 
+// --- ЛИЧНОЕ СООБЩЕНИЕ ИГРОКУ (только администраторы) ---
+bot.command(['dm', 'message'], async (ctx) => {
+  if (!(await isAdmin(ctx.from.id))) return ctx.reply('⛔ Отказано в доступе.');
+
+  const commandText = String(ctx.message?.text || '').replace(/^\/(?:dm|message)(?:@\w+)?\s*/i, '');
+  const match = commandText.match(/^(\d{5,20})\s+([\s\S]*\S)\s*$/);
+  if (!match) {
+    return ctx.reply('Формат: /dm <Telegram ID> <сообщение>\nНапример: /dm 123456789 Привет!');
+  }
+
+  const [, targetTgId, message] = match;
+  if (message.length > 3800) return ctx.reply('Сообщение слишком длинное: максимум 3 800 символов.');
+
+  const { data: target, error } = await supabase.from('players')
+    .select('telegram_id, nickname')
+    .eq('telegram_id', targetTgId)
+    .maybeSingle();
+  if (error) {
+    console.error('Bot direct-message lookup failed:', error.message);
+    return ctx.reply('Не удалось найти игрока. Попробуй позже.');
+  }
+  if (!target) return ctx.reply('Игрок с таким Telegram ID не найден.');
+
+  try {
+    await ctx.telegram.sendMessage(String(target.telegram_id), `📩 Личное сообщение\n\n${message}`, {
+      disable_web_page_preview: true,
+    });
+    return ctx.reply(`✅ Личное сообщение отправлено игроку ${target.nickname || targetTgId}.`);
+  } catch (sendError) {
+    console.error('Bot direct-message delivery failed:', sendError?.response?.description || sendError?.message || sendError);
+    return ctx.reply('Не удалось доставить сообщение. Возможно, игрок ещё не запускал бота или запретил ему писать.');
+  }
+});
+
 bot.action('btn_balance', getBalance);
 bot.action('btn_progress', getProgress);
 bot.action('btn_top', getTop);
@@ -265,14 +303,23 @@ bot.action('btn_admin', async (ctx) => {
     `Доступные команды:\n\n` +
     `📊 \`/stats\` — статистика сервера\n` +
     `💰 \`/give <id> <сумма>\` — выдать/забрать деньги\n` +
+    `✉️ \`/dm <id> <текст>\` — написать игроку лично\n` +
     `📢 \`/broadcast <текст>\` — рассылка всем`;
 
   try {
-    await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: backKeyboard() });
+    await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: adminKeyboard() });
   } catch (e) {
-    await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: backKeyboard() });
+    await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: adminKeyboard() });
   }
   await ctx.answerCbQuery();
+});
+
+bot.action('btn_admin_dm', async (ctx) => {
+  if (!(await isAdmin(ctx.from.id))) {
+    return ctx.answerCbQuery('⛔ Нет доступа', { show_alert: true });
+  }
+  await ctx.answerCbQuery();
+  await ctx.reply('✉️ Чтобы написать игроку, отправь команду:\n/dm <Telegram ID> <сообщение>\n\nНапример:\n/dm 123456789 Привет!');
 });
 
 // --- СТАТИСТИКА ---
@@ -342,6 +389,7 @@ const setupCommands = async () => {
     { command: 'biz', description: '🏢 Мои бизнесы и таймеры' },
     { command: 'top', description: '🏆 Топ-5 богачей района' },
     { command: 'stats', description: '📊 Статистика сервера (Админ)' },
+    { command: 'dm', description: '✉️ Личное сообщение игроку (Админ)' },
   ]);
 };
 setupCommands().catch(console.error);
