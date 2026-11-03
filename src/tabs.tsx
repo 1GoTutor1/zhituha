@@ -1735,9 +1735,9 @@ const NicknameSettings = ({ app }: { app: any }) => {
   const nextDate = onCooldown ? new Date(availableAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '';
 
   const submit = () => app.action(async () => {
-    const response = await fetch('/api/change-nickname', {
+    const response = await fetch('/api/players', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nickname: draft, init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+      body: JSON.stringify({ action: 'change_nickname', nickname: draft, init_data: (window as any).Telegram?.WebApp?.initData || '' }),
     });
     const result = await response.json();
     if (!response.ok || result?.error) {

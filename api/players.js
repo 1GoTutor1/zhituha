@@ -41,6 +41,20 @@ export default async function handler(req, res) {
       return res.status(200).json({ is_subscribed: isSubscribed });
     }
 
+    if (action === 'change_nickname') {
+      if (!player) return res.status(404).json({ error: '\u0418\u0433\u0440\u043e\u043a \u043d\u0435 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043e\u0432\u0430\u043d' });
+      if (player.is_banned) return res.status(403).json({ error: '\u0410\u043a\u043a\u0430\u0443\u043d\u0442 \u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u043d' });
+      if (player.is_subscribed === false) return res.status(403).json({ error: '\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u043f\u043e\u0434\u043f\u0438\u0448\u0438\u0441\u044c \u043d\u0430 \u043a\u0430\u043d\u0430\u043b \u0438\u0433\u0440\u044b' });
+      const nickname = typeof req.body?.nickname === 'string' ? req.body.nickname : '';
+      if (!/^[A-Za-z]{3,20}$/.test(nickname)) {
+        return res.status(400).json({ error: '\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439 3\u201320 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u0438\u0445 \u0431\u0443\u043a\u0432 A\u2013Z \u0431\u0435\u0437 \u0446\u0438\u0444\u0440 \u0438 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432' });
+      }
+      const { data, error } = await sb.rpc('change_nickname_rpc', { p_player_id: player.id, p_nickname: nickname });
+      if (error) return res.status(400).json({ error: String(error.message || '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043c\u0435\u043d\u0438\u0442\u044c \u043d\u0438\u043a').slice(0, 180) });
+      if (data?.error) return res.status(400).json(data);
+      return res.status(200).json(data);
+    }
+
     if (action === 'leaderboard') {
       const { data, error } = await sb.from('players').select('id, nickname, money, profile_background, owned_cosmetics')
         .or('is_banned.is.null,is_banned.eq.false').order('money', { ascending: false }).limit(10);
