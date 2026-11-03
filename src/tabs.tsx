@@ -1032,6 +1032,8 @@ const LogEntry = ({ log }: { log: any }) => {
   let summary = '';
   if (isMoney) {
     summary = `💰 ${delta > 0 ? '+' : ''}${delta} → ${log.money_after ?? '?'}`;
+    if (details.reason) summary += ` · ${details.reason}`;
+    if (details.actor_nickname) summary += ` · выдал: ${details.actor_nickname}`;
   } else {
     summary = log.action_type.replace(/_/g, ' ');
     if (details.code) summary += ` · ${details.code}`;
