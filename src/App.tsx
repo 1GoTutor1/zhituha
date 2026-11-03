@@ -30,6 +30,8 @@ const CasinoTab = lazy(() => import('./casino').then((module) => ({ default: mod
 const BankTab = lazy(() => import('./BankTab').then((module) => ({ default: module.BankTab })));
 const FamilyTab = lazy(() => import('./FamilyTab').then((module) => ({ default: module.FamilyTab })));
 const BlackMarketTab = lazy(() => import('./BlackMarketTab').then((module) => ({ default: module.BlackMarketTab })));
+const SeasonPassTab = lazy(() => loadTabs().then((module) => ({ default: module.SeasonPassTab })));
+const DistrictMapTab = lazy(() => import('./DistrictMapTab').then((module) => ({ default: module.DistrictMapTab })));
 
 class TabErrorBoundary extends Component<{ tab: string; children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -170,7 +172,7 @@ export default function App() {
   const [workCaptchaImage, setWorkCaptchaImage] = useState('');
   const [workCaptchaInput, setWorkCaptchaInput] = useState('');
   const [workCaptchaError, setWorkCaptchaError] = useState('');
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'black_market' | 'admin'>('home');
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'black_market' | 'season_pass' | 'district_map' | 'admin'>('home');
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
@@ -213,6 +215,8 @@ export default function App() {
   const [money, setMoney] = useState(3500);
   const [phone, setPhone] = useState(false);
   const [hasCar, setHasCar] = useState(false);
+  const [energy, setEnergy] = useState(80);
+  const [currentDistrict, setCurrentDistrict] = useState('center');
   const [carModel, setCarModel] = useState('none');
   const [carHealth, setCarHealth] = useState(100);
   const [hasHouse, setHasHouse] = useState(false);
@@ -418,6 +422,7 @@ export default function App() {
       setPid(d.id); setNick(d.nickname); setGender(d.gender); setAvatarId(d.avatar_id || 1);
       setRole(d.role || 'player'); setMoney(Number(d.money));
       setPhone(Number(d.phone_count) > 0); setHasCar(d.has_car || false); setCarModel(d.car_model || 'none'); setCarHealth(Number(d.car_health ?? 100));
+      setEnergy(Number(d.energy ?? 80)); setCurrentDistrict(d.current_district || 'center');
       setHasHouse(d.has_house || false); setHouseType(d.house_type || 'none');
       setRefBalance(Number(d.referral_balance) || 0); setDailyStreak(Number(d.daily_streak) || 0);
       setBoostEnd(Number(d.boost_end) || 0); setOnboardStep(Number(d.onboarding_step) || 0);
@@ -519,6 +524,7 @@ export default function App() {
     // цифры на экране сходились с БД без полного reload.
     setPhone(Number(data.phone_count) > 0);
     setHasCar(!!data.has_car); setCarModel(data.car_model || 'none'); setCarHealth(Number(data.car_health ?? 100));
+    setEnergy(Number(data.energy ?? 0)); setCurrentDistrict(data.current_district || 'center');
     setHasHouse(!!data.has_house); setHouseType(data.house_type || 'none');
     setMarketSlots(Number(data.market_slots) || 3);
     setPremiumBalance(Number(data.premium_balance) || 0);
@@ -604,8 +610,25 @@ export default function App() {
     if (!error && data) setBusinessCatalog(data);
   };
 
+  const travelToDistrict = (district: string) => action(async () => {
+    const { data, error } = await supabase.rpc('district_travel_rpc', { p_player_id: pid, p_district: district });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setCurrentDistrict(data.current_district);
+    setEnergy(Number(data.energy));
+    showMsg(`Ты приехал: ${data.district_name} · −${data.energy_spent} энергии`);
+  });
+
+  const restForEnergy = () => action(async () => {
+    const { data, error } = await supabase.rpc('district_rest_rpc', { p_player_id: pid });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setEnergy(Number(data.energy));
+    showMsg(`Энергия восстановлена · ${data.energy}`);
+  });
+
   useEffect(() => {
-    if (tab === 'market') { loadMarket(); refreshBusinessOffers(); refreshProfile(); pollMyBizs(); }
+    if (tab === 'market') { loadMarket(); refreshBusinessOffers(); refreshProfile(); loadBusinessCatalog(); pollMyBizs(); }
     if (tab === 'business') { refreshBusinessOffers(); refreshVehicleState(); }
     if (tab === 'shop' || tab === 'inventory') { refreshProfile(); pollMyBizs(); }
     if (['business', 'jobs', 'cafe'].includes(tab)) {
@@ -1110,7 +1133,7 @@ export default function App() {
     if (data?.ignored) return;
     if (data?.blocked) return showMsg('Слишком много неверных ответов. Подожди минуту.', true);
     if (data?.error) return showMsg(data.error, true);
-    if (data?.daily_mission_sync_error) showMsg('Работа засчитана, но квест не синхронизировался. Проверь DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
+    if (data?.daily_mission_sync_error) showMsg('Работа засчитана, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
     setMoney(Number(data.money));
     window.dispatchEvent(new CustomEvent('zhituha:work-reward', { detail: Number(data.work_pay) }));
     advanceMissionProgress('work_5');
@@ -1230,12 +1253,12 @@ export default function App() {
     const { data, error } = await supabase.rpc('sell_inventory_rpc', { p_player_id: pid, p_item_id: itemId, p_quantity: quantity });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    if (data?.daily_mission_sync_error) showMsg('Продажа прошла, но квест не синхронизировался. Проверь DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
+    if (data?.daily_mission_sync_error) showMsg('Продажа прошла, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
     setMoney(Number(data.money));
     advanceMissionProgress('sell_1');
     await Promise.all([refreshProfile(), refreshDailyMissions()]);
     showMsg(data?.daily_mission_sync_error
-      ? 'Продажа прошла, но квест не синхронизировался. Проверь DAILY_MISSIONS_SYNC_FIX.sql в Supabase.'
+      ? 'Продажа прошла, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.'
       : `Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, Boolean(data?.daily_mission_sync_error), data?.daily_mission_sync_error ? undefined : 'reward');
   });
 
@@ -1471,14 +1494,14 @@ export default function App() {
   };
 
   const app = useMemo(() => ({
-    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, setAllWorkers, allBiz, setAllBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, dailyMissions, boostEnd, claimDaily, claimDailyMission, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, inviteFamily, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
+    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, phone, hasCar, carModel, energy, currentDistrict, travelToDistrict, restForEnergy, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, setAllWorkers, allBiz, setAllBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, dailyMissions, boostEnd, claimDaily, claimDailyMission, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, inviteFamily, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
     maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance,
     settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled,
     bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, leaseBusinessLocation, finishBusinessLease, createBusinessAuction, bidBusinessAuction, activeBizId, setActiveBizId,
     career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory,
     adminDeleteMarketLot, loadMarket
   }), [
-    user, tg, startParam, proc, toast, tab, nick, money, phone, hasCar, carModel, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, leaseBusinessLocation, finishBusinessLease, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, dailyMissions, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, career, selectProfession, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
+    user, tg, startParam, proc, toast, tab, nick, money, phone, hasCar, carModel, energy, currentDistrict, travelToDistrict, restForEnergy, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, leaseBusinessLocation, finishBusinessLease, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, dailyMissions, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, career, selectProfession, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
   ]);
 
   const activeBiz = myBizs.find(b => b.id === activeBizId) || myBizs.find(b => b.biz_type === activeBizType);
@@ -1583,6 +1606,8 @@ export default function App() {
         {tab === 'profile' && <ProfileTab app={app} />}
         {tab === 'family' && <FamilyTab app={app} />}
         {tab === 'black_market' && <BlackMarketTab app={app} />}
+        {tab === 'season_pass' && <SeasonPassTab app={app} />}
+        {tab === 'district_map' && <DistrictMapTab app={app} />}
         {tab === 'admin' && <AdminTab app={app} />}
         </main>
       </Suspense>

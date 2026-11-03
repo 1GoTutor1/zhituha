@@ -42,26 +42,31 @@ export default async function handler(req, res) {
     }
 
     if (action === 'change_nickname') {
-      if (!player) return res.status(404).json({ error: '\u0418\u0433\u0440\u043e\u043a \u043d\u0435 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043e\u0432\u0430\u043d' });
-      if (player.is_banned) return res.status(403).json({ error: '\u0410\u043a\u043a\u0430\u0443\u043d\u0442 \u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u043d' });
-      if (player.is_subscribed === false) return res.status(403).json({ error: '\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u043f\u043e\u0434\u043f\u0438\u0448\u0438\u0441\u044c \u043d\u0430 \u043a\u0430\u043d\u0430\u043b \u0438\u0433\u0440\u044b' });
+      if (!player) return res.status(404).json({ error: 'Игрок не зарегистрирован' });
+      if (player.is_banned) return res.status(403).json({ error: 'Аккаунт заблокирован' });
+      if (player.is_subscribed === false) return res.status(403).json({ error: 'Сначала подпишись на канал игры' });
       const nickname = typeof req.body?.nickname === 'string' ? req.body.nickname : '';
       if (!/^[A-Za-z]{3,20}$/.test(nickname)) {
-        return res.status(400).json({ error: '\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439 3\u201320 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u0438\u0445 \u0431\u0443\u043a\u0432 A\u2013Z \u0431\u0435\u0437 \u0446\u0438\u0444\u0440 \u0438 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432' });
+        return res.status(400).json({ error: 'Используй 3–20 английских букв A–Z без цифр и символов' });
       }
-      const { data, error } = await sb.rpc('change_nickname_rpc', { p_player_id: player.id, p_nickname: nickname });
-      if (error) return res.status(400).json({ error: String(error.message || '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043c\u0435\u043d\u0438\u0442\u044c \u043d\u0438\u043a').slice(0, 180) });
+      const { data, error } = await sb.rpc('change_nickname_rpc', {
+        p_player_id: player.id,
+        p_nickname: nickname,
+      });
+      if (error) return res.status(400).json({ error: String(error.message || 'Не удалось сменить ник').slice(0, 180) });
       if (data?.error) return res.status(400).json(data);
       return res.status(200).json(data);
     }
 
     if (action === 'leaderboard') {
-      const { data, error } = await sb.from('players').select('id, nickname, money, profile_background, owned_cosmetics')
+      const { data, error } = await sb.from('players').select('id, nickname, money, profile_background, owned_cosmetics, premium_until, season_badge_showcase')
         .or('is_banned.is.null,is_banned.eq.false').order('money', { ascending: false }).limit(10);
       if (error) throw error;
-      const allowedBackgrounds = new Set(['background_panelka', 'background_brick', 'background_concrete']);
+      const allowedBackgrounds = new Set(['background_panelka', 'background_brick', 'background_concrete', 'background_night_route']);
       const players = (data || []).map(({ owned_cosmetics, ...rankedPlayer }) => ({
         ...rankedPlayer,
+        premium_active: !!rankedPlayer.premium_until && new Date(rankedPlayer.premium_until).getTime() > Date.now(),
+        season_badge_showcase: Array.isArray(rankedPlayer.season_badge_showcase) ? rankedPlayer.season_badge_showcase.slice(0, 1) : [],
         profile_background: allowedBackgrounds.has(rankedPlayer.profile_background)
           && Array.isArray(owned_cosmetics) && owned_cosmetics.includes(rankedPlayer.profile_background)
           ? rankedPlayer.profile_background : null,
@@ -76,7 +81,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Invalid player id' });
       }
       const { data: target, error: targetError } = await sb.from('players')
-        .select('id, telegram_id, nickname, gender, avatar_id, money, referral_balance, has_car, car_model, has_house, house_type, phone_count, profile_frame, profile_background, premium_until, player_level, player_xp, active_profession, unlocked_professions, is_banned')
+        .select('id, telegram_id, nickname, gender, avatar_id, money, referral_balance, has_car, car_model, has_house, house_type, phone_count, profile_frame, profile_background, premium_until, player_level, player_xp, active_profession, unlocked_professions, season_badge_showcase, is_banned')
         .eq('id', targetId).maybeSingle();
       if (targetError) throw targetError;
       if (!target || target.is_banned) return res.status(404).json({ error: 'Player profile not found' });
@@ -115,6 +120,7 @@ export default async function handler(req, res) {
           profile_background: target.profile_background,
           premium_until: target.premium_until,
           premium_active: !!target.premium_until && new Date(target.premium_until).getTime() > Date.now(),
+          season_badge_showcase: Array.isArray(target.season_badge_showcase) ? target.season_badge_showcase.slice(0, 3) : [],
           player_level: target.player_level,
           player_xp: target.player_xp,
           active_profession: target.active_profession,

@@ -1,6 +1,6 @@
 .gitignore
-CASINO_ONLY.sql
-CASINO_SQL_ONLY.sql
+sql/CASINO_ONLY.sql
+sql/CASINO_SQL_ONLY.sql
 FULL_FILES_DUMP.txt
 HOW_TO_APPLY.md
 README.md
@@ -39,7 +39,7 @@ src/main.tsx
 src/supabaseClient.ts
 src/tabs.tsx
 src/useTelegram.ts
-supabase_schema.sql
+sql/supabase_schema.sql
 t2.gz
 tar.b64
 tsconfig.app.json

@@ -23,6 +23,7 @@ const CLIENT_RPCS = new Set([
   'business_sales_history_rpc',
   'casino_business_state_rpc', 'casino_business_upgrade_rpc',
   'daily_missions_state_rpc', 'daily_mission_claim_rpc',
+  'season_pass_state_rpc', 'season_pass_unlock_premium_rpc', 'season_pass_claim_rpc', 'season_pass_select_badges_rpc',
   'business_repair_personal_car_rpc', 'business_repair_taxi_car_rpc',
   'business_vehicle_state_rpc', 'taxi_purchase_vehicle_rpc',
   'bank_get_state_rpc', 'bank_move_cash_rpc', 'bank_transfer_rpc', 'bank_open_deposit_rpc',
@@ -33,6 +34,7 @@ const CLIENT_RPCS = new Set([
   'family_claim_leadership_rpc', 'family_touch_rpc', 'family_territory_attack_rpc', 'family_public_rpc',
   'black_market_state_rpc', 'black_market_buy_seed_rpc', 'black_market_plant_rpc',
   'black_market_harvest_rpc', 'black_market_sell_rpc', 'family_black_market_join_rpc',
+  'district_state_rpc', 'district_travel_rpc', 'district_rest_rpc',
 ]);
 
 export default async function handler(req, res) {
@@ -143,29 +145,32 @@ export default async function handler(req, res) {
 
     let { data, error } = await sb.rpc(name, safeArgs);
     if (error) {
+      if (name.startsWith('season_pass_') && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
+        return res.status(400).json({ error: 'Сезонный пропуск ещё не установлен в Supabase. Выполни sql/SEASON_PASS_MIGRATION.sql после указанных в начале файла миграций.' });
+      }
       // This RPC is polled in the background; the client already exposes sync failures in the casino UI.
       if (name !== 'get_casino_round_rpc') console.error('RPC failed:', name, error.code, error.message);
       if (['casino_slots_spin_rpc', 'casino_slots_history_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
-        return res.status(400).json({ error: 'Персональные слоты ещё не установлены в Supabase. Выполни CASINO_PERSONAL_SLOTS_MIGRATION.sql.' });
+        return res.status(400).json({ error: 'Персональные слоты ещё не установлены в Supabase. Выполни sql/CASINO_PERSONAL_SLOTS_MIGRATION.sql.' });
       }
       if (['start_business_lease_rpc', 'finish_business_lease_rpc'].includes(name) && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
-        return res.status(400).json({ error: 'Аренда с выкупом ещё не установлена в Supabase. Примените BUSINESS_LEASE_TO_OWN_MIGRATION.sql.' });
+        return res.status(400).json({ error: 'Аренда с выкупом ещё не установлена в Supabase. Примените sql/BUSINESS_LEASE_TO_OWN_MIGRATION.sql.' });
       }
       if (name === 'upgrade_leased_business_passive_rpc' && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
-        return res.status(400).json({ error: 'Оплата пассивного дохода из кассы ещё не установлена. Примените BUSINESS_LEASE_PASSIVE_CASH_MIGRATION.sql.' });
+        return res.status(400).json({ error: 'Оплата пассивного дохода из кассы ещё не установлена. Примените sql/BUSINESS_LEASE_PASSIVE_CASH_MIGRATION.sql.' });
       }
       if (['business_catalog_rpc', 'purchase_business_location_rpc', 'start_business_lease_rpc', 'sell_business_to_state_rpc', 'create_business_auction_rpc', 'bid_business_auction_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
-        return res.status(400).json({ error: 'Обновление каталога бизнесов ещё не установлено в Supabase. Примените миграцию профессий и инвентаря, затем BUSINESS_LOCATIONS_MIGRATION.sql.' });
+        return res.status(400).json({ error: 'Обновление каталога бизнесов ещё не установлено в Supabase. Примените миграцию профессий и инвентаря, затем sql/BUSINESS_LOCATIONS_MIGRATION.sql.' });
       }
       if (['business_shop_state_rpc', 'business_cash_transfer_rpc', 'business_shop_restock_rpc', 'business_shop_set_price_rpc', 'business_shop_buy_rpc', 'business_repair_personal_car_rpc', 'business_repair_taxi_car_rpc', 'business_vehicle_state_rpc', 'taxi_purchase_vehicle_rpc', 'start_car_order_rpc', 'finish_business_timer_rpc', 'taxi_collect_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
-        return res.status(400).json({ error: 'Система бизнесов ещё не установлена полностью. Проверьте BUSINESS_COMMERCE_MIGRATION.sql и DEALERSHIP_FLEET_MIGRATION.sql.' });
+        return res.status(400).json({ error: 'Система бизнесов ещё не установлена полностью. Проверьте sql/BUSINESS_COMMERCE_MIGRATION.sql и sql/DEALERSHIP_FLEET_MIGRATION.sql.' });
       }
       if (['profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc', 'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc', 'sell_inventory_rpc', 'taxi_fleet_rpc', 'select_taxi_car_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
-        return res.status(400).json({ error: 'Обновление профессий ещё не установлено в Supabase. Проверьте миграцию PROFESSIONS_INVENTORY_MIGRATION.sql.' });
+        return res.status(400).json({ error: 'Обновление профессий ещё не установлено в Supabase. Проверьте миграцию sql/PROFESSIONS_INVENTORY_MIGRATION.sql.' });
       }
       if (['profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc', 'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc', 'sell_inventory_rpc', 'taxi_fleet_rpc', 'select_taxi_car_rpc'].includes(name)) {
         const detail = String(error.message || '').replace(/[\r\n]+/g, ' ').slice(0, 180);
@@ -175,7 +180,7 @@ export default async function handler(req, res) {
         const detail = String(error.message || '').replace(/[\r\n]+/g, ' ').slice(0, 180);
         const hint = ['PGRST202', '42883'].includes(error.code)
           ? 'Проверьте наличие функции в Supabase и обновление кеша схемы API.'
-          : 'Проверьте указанную таблицу или колонку в FAMILY_SYSTEM_MIGRATION.sql.';
+          : 'Проверьте указанную таблицу или колонку в sql/FAMILY_SYSTEM_MIGRATION.sql.';
         return res.status(400).json({ error: `Ошибка ${name} (${error.code}): ${detail || 'семейная функция или поле не найдены'}. ${hint}` });
       }
       if (name.startsWith('family_')) {
@@ -187,7 +192,7 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: `Банковская функция ${name} не найдена в Supabase. Проверь, что применены SQL-миграции банка.` });
         }
         if (error.code === '42P01') {
-          return res.status(400).json({ error: 'Не найдена таблица банка в Supabase. Выполни BANK_MIGRATION.sql.' });
+          return res.status(400).json({ error: 'Не найдена таблица банка в Supabase. Выполни sql/BANK_MIGRATION.sql.' });
         }
         if (error.code === '42703') {
           return res.status(400).json({ error: 'Схема банка устарела: не хватает колонки. Выполни актуальную миграцию банка.' });

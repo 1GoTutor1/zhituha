@@ -10,7 +10,7 @@ git add -A && git commit -m "visual 00-х + экономика кофе + фик
 Vercel задеплоит автоматически.
 
 ## Шаг 2 — база (без этого кофе даст 500, а не 410!)
-Supabase → SQL Editor → вставить содержимое supabase_schema.sql ЦЕЛИКОМ → Run.
+Supabase → SQL Editor → открыть `sql/supabase_schema.sql`, вставить содержимое ЦЕЛИКОМ → Run.
 (начинается с блока drop function — лечит ошибку 42P13)
 
 ## Шаг 3 — env на Vercel (Settings → Environment Variables)

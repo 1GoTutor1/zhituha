@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront, Crown } from 'lucide-react';
+import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront, Crown, Ticket, LockKeyhole, Check, Medal } from 'lucide-react';
 import { 
   getAvatar, BUILDING_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier,
@@ -292,11 +292,28 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
 
 export const HomeTab = ({ app }: { app: any }) => {
   const [clockNow, setClockNow] = useState(Date.now());
+  const [seasonPass, setSeasonPass] = useState<any>(null);
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+  useEffect(() => {
+    let active = true;
+    if (!app.pid) { setSeasonPass(null); return; }
+    void app.supabase.rpc('season_pass_state_rpc', { p_player_id: app.pid }).then(({ data, error }: any) => {
+      if (active && !error && !data?.error) setSeasonPass(data);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [app.pid, app.dailyMissions, app.supabase]);
   const coffeeBonusSeconds = Math.max(0, Math.ceil((Date.parse(app.coffeeBonusUntil || '') - clockNow) / 1000));
+  const seasonXp = Number(seasonPass?.xp || 0);
+  const seasonLevel = Math.min(30, Math.floor(seasonXp / 45));
+  const seasonXpInLevel = seasonLevel >= 30 ? 0 : seasonXp % 45;
+  const seasonSecondsLeft = Math.max(0, Math.floor((Date.parse(seasonPass?.season?.ends_at || '') - clockNow) / 1000));
+  const seasonDaysLeft = Math.ceil(seasonSecondsLeft / 86400);
+  const seasonStartsAt = Date.parse(seasonPass?.season?.starts_at || '');
+  const seasonOpenSeconds = Number.isFinite(seasonStartsAt) ? Math.max(0, Math.floor((seasonStartsAt - clockNow) / 1000)) : 0;
+  const seasonLocked = !!seasonPass && seasonOpenSeconds > 0;
   const av = getAvatar(app.avatarId);
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
   const modifier = getDayModifier();
@@ -332,6 +349,16 @@ export const HomeTab = ({ app }: { app: any }) => {
           <div style={{ fontSize: 12, color: '#6b5f45' }}>{modifier.desc}</div>
         </div>
         <div style={{ fontSize: 12, color: '#6b5f45' }}>Подробнее →</div>
+      </button>
+
+      <button type="button" className="home-season-pass-card" onClick={() => app.setTab('season_pass')} aria-label="Открыть сезонный пропуск">
+        <span className="home-season-pass-icon"><Ticket size={21} /></span>
+        <span className="home-season-pass-copy">
+          <span className="home-season-pass-title">Сезонный пропуск <small>{seasonLocked ? `откроется через ${Math.ceil(seasonOpenSeconds / 86400)} дн.` : seasonDaysLeft > 0 ? `ещё ${seasonDaysLeft} дн.` : seasonPass ? 'сезон завершён' : 'открыть'}</small></span>
+          <span className="home-season-pass-progress-label">{seasonLocked ? 'Откроется после семейного сезона' : seasonPass ? `Уровень ${seasonLevel} / 30 · ${seasonLevel >= 30 ? 'все уровни открыты' : `${seasonXpInLevel} / 45 XP`}` : 'Награды за работу, продажи и профессии'}</span>
+          <span className="home-season-pass-progress"><i style={{ width: `${seasonLevel >= 30 ? 100 : seasonPass ? seasonXpInLevel / 45 * 100 : 0}%` }} /></span>
+        </span>
+        <ChevronRight size={19} className="home-season-pass-arrow" />
       </button>
 
       {coffeeBonusSeconds > 0 && <div role="status" style={{ background: 'rgba(63,157,85,.12)', border: '1px solid rgba(63,157,85,.35)', borderRadius: 9, padding: '9px 12px', marginBottom: 12, color: '#327b45', fontWeight: 700, fontSize: 13 }}>☕ +10% к заработку · ещё {Math.floor(coffeeBonusSeconds / 60)}:{String(coffeeBonusSeconds % 60).padStart(2, '0')}</div>}
@@ -481,7 +508,7 @@ export const MarketTab = ({ app }: { app: any }) => {
         <div style={{ marginTop: 20 }}>
           {topPlayers.length === 0 && <p style={{ color: '#6b5f45' }}>{leaderboardMode === 'referrals' && app.referralLeaderboardUnavailable ? '\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'money' ? '\u041f\u043e\u043a\u0430 \u043d\u0438\u043a\u043e\u0433\u043e...' : '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</p>}
           {topPlayers.map((p: any, i: number) => {
-            const purchasedBackground = ['background_panelka', 'background_brick', 'background_concrete'].includes(p.profile_background)
+            const purchasedBackground = ['background_panelka', 'background_brick', 'background_concrete', 'background_night_route'].includes(p.profile_background)
               ? getProfileBackground(p.profile_background) : null;
             const rankBackgroundVars = purchasedBackground ? {
               '--rank-bg-color': purchasedBackground.backgroundColor,
@@ -493,7 +520,7 @@ export const MarketTab = ({ app }: { app: any }) => {
             return <button className={`market-rank-row${purchasedBackground ? ' has-profile-bg' : ''}`} key={p.id || p.player_id || `${p.nickname}-${i}`} type="button" disabled={publicProfileLoading} onClick={() => void openPlayerProfile(p)} title="Открыть профиль" style={{ width: '100%', backgroundColor: '#fbf4e4', ...rankBackgroundVars, padding: '12px 15px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(90,70,40,0.08)', marginBottom: 8, color: '#2f2a1d', cursor: publicProfileLoading ? 'wait' : 'pointer', textAlign: 'left', opacity: publicProfileLoading ? 0.7 : 1 } as any}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#b06a15' : i === 1 ? '#5f43a0' : i === 2 ? '#3d7ea6' : '#6b5f45', minWidth: 26 }}>#{i + 1}</span>
-                <span style={{ fontWeight: 'bold' }}>{p.nickname}</span>
+                <span style={{ fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{p.nickname}{p.premium_active && <Crown size={14} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}{p.season_badge_showcase?.[0] && <span aria-label={SEASON_BADGES[p.season_badge_showcase[0]]?.name || 'Значок сезона'} title={SEASON_BADGES[p.season_badge_showcase[0]]?.name || 'Значок сезона'}>{SEASON_BADGES[p.season_badge_showcase[0]]?.icon || '✦'}</span>}</span>
               </div>
               <span style={{ color: leaderboardMode === 'money' ? '#2c7a3c' : '#c0453a', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{leaderboardMode === 'money' ? <>{Number(p.money || 0).toLocaleString('ru-RU')} <Coins size={14} /></> : <>{Number(p.referral_count || 0).toLocaleString('ru-RU')} {'\u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</>}</span>
             </button>;
@@ -538,18 +565,20 @@ export const MarketTab = ({ app }: { app: any }) => {
         <h3 style={{ color: '#6b5f45', fontSize: 16, marginBottom: 10 }}>Магазины игроков</h3>
         {(app.businessOffers?.shops || []).map((shop: any) => {
           const own = String(shop.owner_id) === String(app.pid);
+          const outsideCoffeeDistrict = shop.biz_type === 'coffee' && shop.district && shop.district !== app.currentDistrict;
           const status = shop.status === 'open' ? 'Открыт' : shop.status === 'closed_staff' ? 'Закрыт · нет сотрудника' : 'Закрыт · нет товара';
           return <section key={shop.business_id} style={{ ...S.card, maxWidth: 'none', padding: 14, marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
-              <div style={{ textAlign: 'left' }}><b>{shop.business_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Владелец: {shop.owner_name || 'Государство'}</div></div>
+              <div style={{ textAlign: 'left' }}><b>{shop.business_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Владелец: {shop.owner_name || 'Государство'}{shop.district_name ? ` · ${shop.district_name}` : ''}</div></div>
               <span style={{ fontSize: 11, color: shop.status === 'open' ? '#327b45' : '#a46b21', whiteSpace: 'nowrap' }}>{status}</span>
             </div>
             <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
               {(shop.products || []).map((product: any) => <div key={product.product_id} style={{ padding: 10, borderRadius: 9, background: 'rgba(90,70,40,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, textAlign: 'left' }}>
                 <div><b>{product.product_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Остаток: {product.quantity}</div><strong>{Number(product.retail_price).toLocaleString('ru-RU')} ₽</strong>{String(product.product_id).startsWith('coffee_') && <div style={{ fontSize: 11, color: '#327b45', marginTop: 3 }}>Даёт +10% к заработку на {coffeeBonusMinutes(product.product_id)} минут</div>}</div>
-                <button type="button" disabled={app.proc || own || shop.status !== 'open' || product.quantity < 1} onClick={() => { setShopPurchase({ shop, product }); setShopQuantity(1); }} style={{ border: 0, borderRadius: 8, padding: '9px 12px', color: '#fff', background: own || shop.status !== 'open' ? '#a7a092' : '#3f9d55', fontWeight: 700, whiteSpace: 'nowrap' }}>{own ? 'Твой магазин' : 'Купить'}</button>
+                <button type="button" disabled={app.proc || own || outsideCoffeeDistrict || shop.status !== 'open' || product.quantity < 1} onClick={() => { setShopPurchase({ shop, product }); setShopQuantity(1); }} style={{ border: 0, borderRadius: 8, padding: '9px 12px', color: '#fff', background: own || outsideCoffeeDistrict || shop.status !== 'open' ? '#777181' : '#3f9d55', fontWeight: 700, whiteSpace: 'nowrap' }}>{own ? 'Твой магазин' : outsideCoffeeDistrict ? 'Другой район' : 'Купить'}</button>
               </div>)}
             </div>
+            {outsideCoffeeDistrict && <small style={{ display: 'block', marginTop: 8, color: '#d5a35b' }}>Чтобы купить здесь кофе, сначала приезжай в район «{shop.district_name}».</small>}
           </section>;
         })}
         <h3 style={{ color: '#6b5f45', fontSize: 16, margin: '18px 0 10px' }}>Автомастерские</h3>
@@ -704,7 +733,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
           const leaseDownPayment = price == null ? null : Math.ceil(price * 0.25);
           return <div key={location.location_key} className="business-location-row">
             {businessArt && <img className="business-location-thumb" src={businessArt} alt="" aria-hidden="true" loading="lazy" />}
-            <div className="business-location-info"><b>{location.business_name}</b><small>{leased ? `В аренде с выкупом · осталось ${Number(location.lease_remaining).toLocaleString('ru-RU')} ₽` : owned ? 'Твой бизнес' : available ? 'Свободно у государства' : `Владелец: ${location.owner_name || 'занято'}`}</small></div>
+            <div className="business-location-info"><b>{location.business_name}</b><small>{location.district_name ? `${location.district_name} · ` : ''}{leased ? `В аренде с выкупом · осталось ${Number(location.lease_remaining).toLocaleString('ru-RU')} ₽` : owned ? 'Твой бизнес' : available ? 'Свободно у государства' : `Владелец: ${location.owner_name || 'занято'}`}</small></div>
             <div className="business-location-action" style={available && leaseEligible ? { display: 'grid', gap: 5, textAlign: 'right' } : undefined}>
               {owned ? <button onClick={() => { app.setActiveBizType(location.biz_type); app.setActiveBizId(location.business_id); setBusinessView('mine'); }}>Управлять</button>
                 : available && purchasable && price != null ? <>
@@ -1372,9 +1401,11 @@ export const AdminTab = ({ app }: { app: any }) => {
 };
 
 export const CafeTab = ({ app }: { app: any }) => {
+  const districtName = app.currentDistrict === 'residential' ? 'Спальный район' : app.currentDistrict === 'factory' ? 'Заводской район' : 'Центр';
   return (
     <div className="cafe-page" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <h2>Кофейни</h2>
+      <div style={{ ...S.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: 12, marginBottom: 12 }}><span style={{ textAlign: 'left', fontSize: 13 }}>Твой район: <b>{districtName}</b><small style={{ display: 'block', color: '#aaa0b5', marginTop: 3 }}>Кофе доступен только здесь</small></span><button type="button" onClick={() => app.setTab('district_map')} style={{ border: 0, borderRadius: 9, padding: '9px 11px', background: '#ff9827', color: '#20142a', fontWeight: 800 }}>Карта</button></div>
       <section className="business-scene-banner cafe-scene-banner" aria-label="Уютная кофейня вечером"><div><span>ПАУЗА В ГОРОДСКОМ РИТМЕ</span><b>Кофе с собой</b></div></section>
       <div style={{ ...S.card, textAlign: 'center' }}><Coffee size={42} color="#b06a15" /><h3>Кофе с бонусом</h3><p style={{ color: '#6b5f45' }}>Каждый напиток даёт +10% к заработку профессий: эспрессо на 5 минут, капучино на 7, большой латте на 9. Время разных чашек суммируется.</p><Btn variant="primary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Открыть кофейни в магазинах</Btn></div>
     </div>
@@ -1491,6 +1522,145 @@ export const JobsTab = ({ app }: { app: any }) => {
   );
 };
 
+const SEASON_BADGES: Record<string, { name: string; icon: string }> = {
+  season_local: { name: 'Свой район', icon: '☕' },
+  season_district: { name: 'Знаток города', icon: '🧭' },
+  season_route_master: { name: 'Мастер маршрутов', icon: '🏆' },
+};
+
+const formatSeasonCountdown = (seconds: number) => {
+  const safe = Math.max(0, Math.floor(seconds));
+  const days = Math.floor(safe / 86400);
+  const hours = Math.floor((safe % 86400) / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const secs = safe % 60;
+  return `${days} дн. ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
+const PassBadge = ({ id, selected, onClick }: { id: string; selected?: boolean; onClick?: () => void }) => {
+  const badge = SEASON_BADGES[id];
+  if (!badge) return null;
+  return <button type="button" onClick={onClick} className={`season-badge-chip${selected ? ' is-selected' : ''}`} title={badge.name}>
+    <span>{badge.icon}</span><b>{badge.name}</b>
+  </button>;
+};
+
+export const SeasonPassTab = ({ app }: { app: any }) => {
+  const [state, setState] = useState<any>(null);
+  const [busy, setBusy] = useState(true);
+  const [now, setNow] = useState(Date.now());
+  const loadState = async () => {
+    if (!app.pid) return;
+    const { data, error } = await app.supabase.rpc('season_pass_state_rpc', { p_player_id: app.pid });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setState(data);
+  };
+  useEffect(() => {
+    let active = true;
+    setBusy(true);
+    void loadState().catch(error => app.showMsg(error.message || 'Не удалось загрузить пропуск', true))
+      .finally(() => { if (active) setBusy(false); });
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [app.pid]);
+
+  const run = (rpcName: string, args: Record<string, unknown>, successText: string) => app.action(async () => {
+    const { data, error } = await app.supabase.rpc(rpcName, { p_player_id: app.pid, ...args });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    if (typeof data?.money === 'number') app.setMoney(data.money);
+    await loadState();
+    await app.loadData(true);
+    app.showMsg(successText, false, 'reward');
+  });
+
+  const totalXp = Number(state?.xp || 0);
+  const tier = Math.min(30, Math.floor(totalXp / 45));
+  const xpInTier = tier >= 30 ? 0 : totalXp % 45;
+  const secondsLeft = Math.max(0, Math.floor((Date.parse(state?.season?.ends_at || '') - now) / 1000));
+  const daysLeft = Math.ceil(secondsLeft / 86400);
+  const startsAt = Date.parse(state?.season?.starts_at || '');
+  const secondsUntilOpen = Number.isFinite(startsAt) ? Math.max(0, Math.floor((startsAt - now) / 1000)) : 0;
+  const passOpen = !!state && secondsUntilOpen === 0;
+  const earned = Array.isArray(state?.earned_badges) ? state.earned_badges as string[] : [];
+  const showcase = Array.isArray(state?.showcase) ? state.showcase as string[] : [];
+  const tiers = Array.isArray(state?.tiers) ? state.tiers : [];
+  const toggleBadge = (badgeId: string) => app.action(async () => {
+    const next = showcase.includes(badgeId) ? showcase.filter(id => id !== badgeId) : [...showcase, badgeId];
+    if (next.length > 3) throw new Error('В витрине может быть не больше трёх значков');
+    const { data, error } = await app.supabase.rpc('season_pass_select_badges_rpc', { p_player_id: app.pid, p_badges: next });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    await loadState();
+  });
+
+  return <div className="game-tab season-pass-page">
+    <button type="button" onClick={() => app.setTab('home')} className="season-pass-back">← На главную</button>
+    <div className="season-pass-hero">
+      <div className="season-pass-kicker"><Ticket size={16} /> СЕЗОННЫЙ ПРОПУСК</div>
+      <h2>{state?.season?.name || 'Городские маршруты'}</h2>
+      <p>Играй в своём районе, выполняй дела и забирай награды по пути.</p>
+      <div className="season-pass-time">{busy ? 'Загружаем сезон…' : !passOpen ? `До открытия · ${formatSeasonCountdown(secondsUntilOpen)}` : daysLeft ? `До конца сезона · ${daysLeft} дн.` : 'Сезон завершён'}</div>
+      <div className="season-pass-progress-label"><b>Уровень {tier} / 30</b><span>{tier >= 30 ? 'Все уровни открыты' : `${xpInTier} / 45 XP`}</span></div>
+      <div className="season-pass-progress"><span style={{ width: `${tier >= 30 ? 100 : xpInTier / 45 * 100}%` }} /></div>
+    </div>
+
+    {!passOpen && !busy && <div className="season-pass-locked-banner"><LockKeyhole size={18} /><div><b>Пропуск пока закрыт</b><span>Он откроется одновременно с завершением текущего семейного сезона. До этого прогресс и награды недоступны.</span></div></div>}
+
+    {state && !state.premium_unlocked && <div className="season-pass-premium-card">
+      <div><b><Crown size={17} /> Премиум-дорожка</b><span>Уникальные значки и косметика сезона</span></div>
+      <button type="button" disabled={!passOpen || app.proc || Number(state.premium_balance) < Number(state.season?.premium_cost)} onClick={() => run('season_pass_unlock_premium_rpc', {}, 'Премиум-дорожка открыта')}>{passOpen ? `Открыть · ${Number(state.season?.premium_cost || 99)} жет.` : 'Откроется позже'}</button>
+    </div>}
+    {state?.premium_unlocked && <div className="season-pass-unlocked"><Crown size={16} /> Премиум-дорожка открыта</div>}
+
+    <div className="season-pass-howto">
+      <b>Как получать XP</b>
+      <span>Работа — до 5 раз в день, +7 XP за раз. Продажа предмета и завершение действия в профессии — по +10 XP в день.</span>
+    </div>
+
+    <h3 className="season-pass-section-title">Награды сезона</h3>
+    {busy && <div className="season-pass-empty">Подтягиваем прогресс…</div>}
+    {!busy && tiers.map((item: any) => {
+      const level = Number(item.level);
+      const unlocked = totalXp >= Number(item.required_xp);
+      const freeClaimed = (state.claimed_free || []).includes(level);
+      const premiumClaimed = (state.claimed_premium || []).includes(level);
+      const freeReward = item.free;
+      const premiumReward = item.premium;
+      const oneRewardLabel = (reward: any) => {
+        if (reward?.type === 'badge' || reward?.type === 'cosmetic') return `${reward.icon || '✦'} ${reward.name}`;
+        if (reward?.type === 'premium') return `${Number(reward.amount || 0).toLocaleString('ru-RU')} жет.`;
+        return `${Number(reward?.amount || 0).toLocaleString('ru-RU')} ₽`;
+      };
+      const rewardLabel = (reward: any) => reward?.type === 'bundle' && Array.isArray(reward.items)
+        ? reward.items.map(oneRewardLabel).join(' + ') : oneRewardLabel(reward);
+      return <article className={`season-pass-level${unlocked ? ' is-open' : ''}`} key={level}>
+        <div className="season-pass-level-number"><span>{level}</span><small>ур.</small></div>
+        <div className="season-pass-track-reward">
+          <small>БЕСПЛАТНО</small><b>{rewardLabel(freeReward)}</b>
+          <button type="button" disabled={!passOpen || app.proc || !unlocked || freeClaimed || daysLeft === 0} onClick={() => run('season_pass_claim_rpc', { p_level: level, p_track: 'free' }, `Награда уровня ${level} получена`)}>
+            {freeClaimed ? <><Check size={14} /> Получено</> : unlocked ? 'Забрать' : <><LockKeyhole size={13} /> Открыто на уровне {level}</>}
+          </button>
+        </div>
+        <div className="season-pass-track-reward premium">
+          <small>ПРЕМИУМ</small><b>{rewardLabel(premiumReward)}</b>
+          <button type="button" disabled={!passOpen || app.proc || !unlocked || !state.premium_unlocked || premiumClaimed || daysLeft === 0} onClick={() => run('season_pass_claim_rpc', { p_level: level, p_track: 'premium' }, `Премиум-награда уровня ${level} получена`)}>
+            {premiumClaimed ? <><Check size={14} /> Получено</> : !state.premium_unlocked ? <><LockKeyhole size={13} /> Закрыто</> : unlocked ? 'Забрать' : `Уровень ${level}`}
+          </button>
+        </div>
+      </article>;
+    })}
+
+    <section className="season-pass-badge-collection">
+      <div className="season-pass-section-heading"><h3><Medal size={18} /> Коллекция значков</h3><span>{earned.length} собрано · в витрине {showcase.length}/3</span></div>
+      {earned.length ? <div className="season-badge-grid">{earned.map(id => <PassBadge key={id} id={id} selected={showcase.includes(id)} onClick={() => void toggleBadge(id)} />)}</div>
+        : <p>Значки открываются на 15-м и 30-м уровнях бесплатной дорожки и на 30-м уровне премиальной.</p>}
+      <small>Нажми на значок, чтобы добавить его в витрину профиля. Корона VIP отображается отдельно рядом с ником.</small>
+    </section>
+  </div>;
+};
+
 const PREMIUM_ITEMS = [
   { id: 'frame_test', name: 'Мятная рамка', price: 120, icon: '🟢', description: 'Мятный контур вокруг аватара в профиле' },
   { id: 'frame_amber', name: 'Янтарная рамка', price: 60, icon: '🟠', description: 'Тёплый янтарный ободок вокруг аватара' },
@@ -1502,12 +1672,14 @@ const PREMIUM_ITEMS = [
 
 const frameStyle = (frame: string) => frame === 'frame_test'
   ? { border: '0 solid transparent', boxShadow: 'none' }
+  : frame === 'frame_route'
+    ? { border: '2px solid #e5a846', boxShadow: '0 0 0 3px rgba(40,133,145,.38), 0 0 16px rgba(229,168,70,.36)' }
   : frame === 'frame_amber'
     ? { border: '3px solid #e69a32', boxShadow: '0 0 0 2px #6f3d0d, 0 0 14px rgba(230,154,50,.45)' }
     : { border: '3px solid rgba(90,70,40,.28)' };
 
 const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profile: any, loading: boolean, vehicleState?: any, onClose: () => void }) => {
-  const frameNames: Record<string, string> = { frame_test: 'Мятная рамка', frame_amber: 'Янтарная рамка' };
+  const frameNames: Record<string, string> = { frame_test: 'Мятная рамка', frame_amber: 'Янтарная рамка', frame_route: 'Рамка «Маршрут»' };
   const backgroundNames: Record<string, string> = PROFILE_BACKGROUND_NAMES;
   const businessNames: Record<string, string> = {
     coffee: 'Кофейня', salon: 'Автосалон', taxi: 'Таксопарк',
@@ -1522,6 +1694,7 @@ const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profi
           <div className={`profile-avatar-frame${profile.profile_frame === 'frame_test' ? ' has-exclamation-frame' : ''}`} style={{ width: 76, height: 76, margin: '0 auto 10px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: avatar.bg, ...frameStyle(profile.profile_frame) }}>{profile.profile_frame === 'frame_test' && <img className="avatar-exclamation-ring" src="/images/frame-mint-exclamation.svg" alt="" aria-hidden="true" />}{avatar.emoji}</div>
           <h3 style={{ margin: 0, fontFamily: 'Russo One', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>{profile.nickname}{profile.premium_active && <Crown size={18} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}</h3>
           {(profile.family_awards || []).map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
+          {!!profile.season_badge_showcase?.length && <div className="season-profile-badges">{profile.season_badge_showcase.slice(0, 3).map((id: string) => <PassBadge key={id} id={id} />)}</div>}
         </div>
         <div style={{ ...S.card, padding: 15, textAlign: 'left' }}>
           <h4 style={{ margin: '0 0 10px' }}>Показатели</h4>
@@ -1556,6 +1729,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
   const [section, setSection] = useState<'stats' | 'businesses' | 'cosmetics'>('stats');
   const [familyProfile, setFamilyProfile] = useState<any>(null);
   const [familyAwards, setFamilyAwards] = useState<any[]>([]);
+  const [passState, setPassState] = useState<any>(null);
   const avatar = getAvatar(app.avatarId);
   useEffect(() => {
     let cancelled = false;
@@ -1565,6 +1739,9 @@ export const ProfileTab = ({ app }: { app: any }) => {
         setFamilyProfile(data.family || null);
         setFamilyAwards(data.awards || []);
       }
+    }).catch(() => {});
+    void app.supabase.rpc('season_pass_state_rpc', { p_player_id: app.pid }).then(({ data, error }: any) => {
+      if (!cancelled && !error && !data?.error) setPassState(data);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [app.pid, app.supabase]);
@@ -1576,12 +1753,14 @@ export const ProfileTab = ({ app }: { app: any }) => {
       <div style={{ fontSize: 23, fontFamily: 'Russo One', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>{app.nick}{Date.parse(app.premiumUntil || '') > Date.now() && <Crown size={20} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}</div>
       {familyProfile && <div style={{ marginTop: 6, color: '#3f9d65', fontWeight: 700 }}>[{familyProfile.tag}] {familyProfile.name}</div>}
       {familyAwards.map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
+      {!!passState?.showcase?.length && <div className="season-profile-badges">{passState.showcase.slice(0, 3).map((id: string) => <PassBadge key={id} id={id} />)}</div>}
       <div style={{ color: '#6b5f45', marginTop: 6 }}>ID: {app.tgId.slice(0, 6)}</div>
       <NicknameSettings app={app} />
       <div style={{ marginTop: 12, fontWeight: 700 }}>💰 {Number(app.money || 0).toLocaleString('ru-RU')} ₽</div>
       <div style={{ marginTop: 12, textAlign: 'left' }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><b>Уровень {app.career?.level || 1} · {PLAYER_PROFESSIONS.find(item => item.id === app.career?.profession)?.name || 'Шахтёр'}</b><span>{Number(app.career?.xp || 0)} / {Number(app.career?.xp_to_next || 100)} XP</span></div><div className="profession-xp-track"><span style={{ width: `${Math.min(100, Number(app.career?.xp || 0) / Math.max(1, Number(app.career?.xp_to_next || 100)) * 100)}%` }} /></div></div>
       <div style={{ marginTop: 5, color: '#6b5f45' }}>🎨 {PROFILE_BACKGROUND_NAMES[app.profileBackground] || 'Стандартный фон'}</div>
       <div style={{ marginTop: 12, fontWeight: 700, color: '#7656a8' }}>◆ {app.premiumBalance} жетонов</div>
+      <button type="button" onClick={() => app.setTab('season_pass')} style={{ ...S.btnSecondary, width: '100%', marginTop: 10 }}>Открыть сезонный пропуск</button>
     </div>
     <div className="profile-section-tabs" role="tablist" aria-label="\u0420\u0430\u0437\u0434\u0435\u043B\u044B \u043F\u0440\u043E\u0444\u0438\u043B\u044F">
       <button type="button" role="tab" aria-selected={section === 'stats'} className={section === 'stats' ? 'active' : ''} onClick={() => setSection('stats')}>{'\u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430'}</button>
@@ -1608,9 +1787,28 @@ export const ProfileTab = ({ app }: { app: any }) => {
         <h3 style={{ marginTop: 0 }}>{'\u041F\u0440\u0438\u043C\u0435\u043D\u0451\u043D\u043D\u0430\u044F \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0430'}</h3>
         <p>{'\u0420\u0430\u043C\u043A\u0430'}: <b>{app.profileFrame === 'frame_test' ? 'Мятная' : app.profileFrame === 'frame_amber' ? '\u042F\u043D\u0442\u0430\u0440\u043D\u0430\u044F' : '\u0421\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u0430\u044F'}</b></p>
         <p>{'Фон'}: <b>{PROFILE_BACKGROUND_NAMES[app.profileBackground] || 'Стандартный'}</b></p>
-        {['frame_test', 'frame_amber'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...frameStyle(id) }}>{id === 'frame_test' ? '🟢 Мятная рамка' : '🟠 Янтарная рамка'}</button>)}
-        {['background_concrete', 'background_brick', 'background_panelka'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...getProfileBackground(id) }}>Установить: {PROFILE_BACKGROUND_NAMES[id]}</button>)}
+        {['frame_test', 'frame_amber', 'frame_route'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...frameStyle(id) }}>{id === 'frame_test' ? '🟢 Мятная рамка' : id === 'frame_route' ? '🚦 Рамка «Маршрут»' : '🟠 Янтарная рамка'}</button>)}
+        {['background_concrete', 'background_brick', 'background_panelka', 'background_night_route'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...getProfileBackground(id) }}>Установить: {PROFILE_BACKGROUND_NAMES[id]}</button>)}
         <button onClick={() => app.donateAction('equip', { item_id: 'default' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%' }}>{'\u0412\u0435\u0440\u043D\u0443\u0442\u044C \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u0439 \u0432\u0438\u0434'}</button>
+      </div>
+      <div className="profile-section-card" style={S.card}>
+        <div className="season-pass-section-heading"><h3><Medal size={18} /> Значки сезона</h3><span>{passState?.earned_badges?.length || 0} собрано · витрина {passState?.showcase?.length || 0}/3</span></div>
+        {passState?.earned_badges?.length
+          ? <div className="season-badge-grid">{passState.earned_badges.map((id: string) => {
+            const selected = (passState.showcase || []).includes(id);
+            return <PassBadge key={id} id={id} selected={selected} onClick={() => app.action(async () => {
+              const current = passState.showcase || [];
+              const next = selected ? current.filter((item: string) => item !== id) : [...current, id];
+              if (next.length > 3) throw new Error('В витрине может быть не больше трёх значков');
+              const { data, error } = await app.supabase.rpc('season_pass_select_badges_rpc', { p_player_id: app.pid, p_badges: next });
+              if (error) throw new Error(error.message);
+              if (data?.error) throw new Error(data.error);
+              const updated = await app.supabase.rpc('season_pass_state_rpc', { p_player_id: app.pid });
+              if (!updated.error && !updated.data?.error) setPassState(updated.data);
+            })} />;
+          })}</div>
+          : <p className="season-pass-muted-copy">Открывай значки в пропуске, затем выбери до трёх для витрины профиля.</p>}
+        <button type="button" onClick={() => app.setTab('season_pass')} style={{ ...S.btnSecondary, width: '100%', marginTop: 10 }}>Перейти к наградам</button>
       </div>
       <div className="profile-section-card" style={S.card}>
         <h3 style={{ marginTop: 0 }}>{'\u041C\u0430\u0433\u0430\u0437\u0438\u043D \u043A\u043E\u0441\u043C\u0435\u0442\u0438\u043A\u0438'}</h3>

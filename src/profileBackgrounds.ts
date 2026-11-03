@@ -2,6 +2,7 @@ export const PROFILE_BACKGROUND_NAMES: Record<string, string> = {
   background_concrete: 'Бетонный двор',
   background_brick: 'Кирпичный дом',
   background_panelka: 'Панелька',
+  background_night_route: 'Ночной маршрут',
 };
 
 export const getProfileBackground = (id?: string | null) => {
@@ -34,6 +35,13 @@ export const getProfileBackground = (id?: string | null) => {
         backgroundImage: 'url("/panelka-evening.svg")',
         backgroundSize: '240px 190px',
         backgroundRepeat: 'repeat',
+      };
+    case 'background_night_route':
+      return {
+        backgroundColor: '#171922',
+        backgroundImage: 'radial-gradient(ellipse at 18% 14%, rgba(235,167,66,.18), transparent 25%),linear-gradient(28deg, transparent 0 47%, rgba(230,169,75,.22) 47.4% 48.1%, transparent 48.5%),linear-gradient(150deg, transparent 0 56%, rgba(72,173,177,.18) 56.4% 57.1%, transparent 57.5%),linear-gradient(145deg,#191b25,#242330 55%,#171922)',
+        backgroundSize: 'auto,100% 100%,100% 100%,auto',
+        backgroundRepeat: 'no-repeat',
       };
     default:
       return {
