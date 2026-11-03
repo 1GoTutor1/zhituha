@@ -12,6 +12,7 @@ import { Btn, Modal } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import { ItemArtwork } from './ItemArtwork';
 import { getProfileBackground, PROFILE_BACKGROUND_NAMES } from './profileBackgrounds';
+import { DISTRICTS, districtForLocation, RETIRED_LOCATION_KEYS } from './districts';
 
 const coffeeBonusMinutes = (productId: string) => productId === 'coffee_small' ? 5 : productId === 'coffee_medium' ? 7 : 9;
 
@@ -574,7 +575,7 @@ export const MarketTab = ({ app }: { app: any }) => {
             </div>
             <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
               {(shop.products || []).map((product: any) => <div key={product.product_id} style={{ padding: 10, borderRadius: 9, background: 'rgba(90,70,40,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, textAlign: 'left' }}>
-                <div><b>{product.product_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Остаток: {product.quantity}</div><strong>{Number(product.retail_price).toLocaleString('ru-RU')} ₽</strong>{String(product.product_id).startsWith('coffee_') && <div style={{ fontSize: 11, color: '#327b45', marginTop: 3 }}>Даёт +10% к заработку на {coffeeBonusMinutes(product.product_id)} минут</div>}</div>
+                <div><b>{product.product_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Остаток: {product.quantity}</div><strong>{Number(product.retail_price).toLocaleString('ru-RU')} ₽</strong>{String(product.product_id).startsWith('coffee_') && <div style={{ fontSize: 11, color: '#327b45', marginTop: 3 }}>Выпей: +{Number(product.energy_restore) || 0} энергии · +10% к заработку на {coffeeBonusMinutes(product.product_id)} мин</div>}</div>
                 <button type="button" disabled={app.proc || own || outsideCoffeeDistrict || shop.status !== 'open' || product.quantity < 1} onClick={() => { setShopPurchase({ shop, product }); setShopQuantity(1); }} style={{ border: 0, borderRadius: 8, padding: '9px 12px', color: '#fff', background: own || outsideCoffeeDistrict || shop.status !== 'open' ? '#777181' : '#3f9d55', fontWeight: 700, whiteSpace: 'nowrap' }}>{own ? 'Твой магазин' : outsideCoffeeDistrict ? 'Другой район' : 'Купить'}</button>
               </div>)}
             </div>
@@ -595,13 +596,13 @@ export const MarketTab = ({ app }: { app: any }) => {
           {shopPurchase && <>
             <h3 style={{ marginTop: 0 }}>{shopPurchase.product.product_name}</h3>
             <p style={{ color: '#6b5f45' }}>{shopPurchase.shop.business_name} · {Number(shopPurchase.product.retail_price).toLocaleString('ru-RU')} ₽ за штуку</p>
-            {String(shopPurchase.product.product_id).startsWith('coffee_') && <p style={{ color: '#327b45', fontSize: 13, textAlign: 'left' }}>Кофе даёт +10% к заработку от профессий. Эта чашка добавляет {coffeeBonusMinutes(shopPurchase.product.product_id)} минут к общему таймеру, покупки суммируются до 24 часов. Цену задаёт владелец кофейни.</p>}
+            {String(shopPurchase.product.product_id).startsWith('coffee_') && <p style={{ color: '#327b45', fontSize: 13, textAlign: 'left' }}>После покупки кофе сразу выпивается и восстанавливает до {Number(shopPurchase.product.energy_restore) || 0} энергии. Также чашка добавляет {coffeeBonusMinutes(shopPurchase.product.product_id)} минут к общему бонусу +10%; время суммируется до 24 часов. Цену задаёт владелец кофейни.</p>}
             <label htmlFor="shop-buy-quantity" style={{ display: 'block', textAlign: 'left', marginBottom: 6 }}>Количество</label>
             <input id="shop-buy-quantity" type="number" min={1} max={Math.min(20, Number(shopPurchase.product.quantity))} value={shopQuantity} onChange={event => setShopQuantity(Math.max(1, Math.min(20, Number(event.target.value) || 1)))} style={S.input} />
             <p style={{ margin: '0 0 12px', textAlign: 'left' }}>Итого: <b>{(Number(shopPurchase.product.retail_price) * shopQuantity).toLocaleString('ru-RU')} ₽</b></p>
             <div style={{ display: 'flex', gap: 8 }}>
               <Btn variant="secondary" onClick={() => setShopPurchase(null)}>Назад</Btn>
-              <Btn variant="primary" disabled={app.proc || app.money < Number(shopPurchase.product.retail_price) * shopQuantity || shopQuantity > Number(shopPurchase.product.quantity)} onClick={() => { app.buyBusinessProduct(shopPurchase.shop.business_id, shopPurchase.product.product_id, shopQuantity); setShopPurchase(null); }}>Подтвердить покупку</Btn>
+              <Btn variant="primary" disabled={app.proc || app.money < Number(shopPurchase.product.retail_price) * shopQuantity || shopQuantity > Number(shopPurchase.product.quantity)} onClick={() => { app.buyBusinessProduct(shopPurchase.shop.business_id, shopPurchase.product.product_id, shopQuantity); setShopPurchase(null); }}>{String(shopPurchase.product.product_id).startsWith('coffee_') ? 'Купить и выпить' : 'Подтвердить покупку'}</Btn>
             </div>
           </>}
         </Modal>
@@ -645,6 +646,9 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   const [cashAmount, setCashAmount] = useState('1000');
   const [shopPriceDrafts, setShopPriceDrafts] = useState<Record<string, string>>({});
   const [autostockDrafts, setAutostockDrafts] = useState<Record<string, { threshold: string; refill: string }>>({});
+  const businessLocations: any[] = (app.businessCatalog?.locations || []).filter((location: any) =>
+    !RETIRED_LOCATION_KEYS.has(location.location_key) || Boolean(location.business_id)
+  );
   useEffect(() => {
     const timer = setInterval(() => setPassiveNow(Date.now()), 10000);
     return () => clearInterval(timer);
@@ -721,7 +725,12 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
 
       {businessView === 'all' && <section className="business-location-catalog">
         <div className="business-catalog-heading"><div><h3>Точки бизнеса</h3><span>В собственности: {app.businessCatalog?.owned_count ?? app.myBizs.length} / 3</span></div><button onClick={app.loadBusinessCatalog} aria-label="Обновить список"><RefreshCw size={17} /></button></div>
-        {(app.businessCatalog?.locations || []).map((location: any) => {
+        {DISTRICTS.map((district) => {
+          const districtLocations = businessLocations.filter((location: any) => districtForLocation(location).id === district.id);
+          if (!districtLocations.length) return null;
+          return <div key={district.id} style={{ marginTop: 12 }}>
+          <div style={{ padding: '8px 10px', borderRadius: 9, background: 'rgba(61,126,166,.09)', color: '#3d7ea6', fontWeight: 800, fontSize: 13 }}>{district.name} <span style={{ fontWeight: 500, opacity: .8 }}>· {districtLocations.length} точек</span></div>
+          {districtLocations.map((location: any) => {
           const leased = location.status === 'leased';
           const owned = location.status === 'owned' || leased;
           const stateOwned = location.state_owned === true;
@@ -733,7 +742,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
           const leaseDownPayment = price == null ? null : Math.ceil(price * 0.25);
           return <div key={location.location_key} className="business-location-row">
             {businessArt && <img className="business-location-thumb" src={businessArt} alt="" aria-hidden="true" loading="lazy" />}
-            <div className="business-location-info"><b>{location.business_name}</b><small>{location.district_name ? `${location.district_name} · ` : ''}{leased ? `В аренде с выкупом · осталось ${Number(location.lease_remaining).toLocaleString('ru-RU')} ₽` : owned ? 'Твой бизнес' : available ? 'Свободно у государства' : `Владелец: ${location.owner_name || 'занято'}`}</small></div>
+            <div className="business-location-info"><b>{location.business_name}</b><small>{district.name} · {leased ? `В аренде с выкупом · осталось ${Number(location.lease_remaining).toLocaleString('ru-RU')} ₽` : owned ? 'Твой бизнес' : available ? 'Свободно у государства' : `Владелец: ${location.owner_name || 'занято'}`}</small></div>
             <div className="business-location-action" style={available && leaseEligible ? { display: 'grid', gap: 5, textAlign: 'right' } : undefined}>
               {owned ? <button onClick={() => { app.setActiveBizType(location.biz_type); app.setActiveBizId(location.business_id); setBusinessView('mine'); }}>Управлять</button>
                 : available && purchasable && price != null ? <>
@@ -747,6 +756,8 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
                 : <span>{price == null ? 'Цена не задана' : !purchasable ? 'Готовится' : 'Занято'}</span>}
             </div>
           </div>;
+        })}
+        </div>;
         })}
       </section>}
 
