@@ -470,6 +470,10 @@ export const MarketTab = ({ app }: { app: any }) => {
   const myLots = app.market.filter((m: any) => m.seller_id === app.pid).length;
   const maxSlots = app.marketSlots;
   const topPlayers = leaderboardMode === 'money' ? app.players : app.referralLeaderboard;
+  const allPlayerShops = app.businessOffers?.shops || [];
+  const districtPlayerShops = allPlayerShops.filter((shop: any) => shop.district === app.currentDistrict);
+  const shopsMissingDistrict = allPlayerShops.length > 0 && allPlayerShops.every((shop: any) => !shop.district);
+  const currentDistrictName = DISTRICTS.find(district => district.id === app.currentDistrict)?.name || 'текущий район';
 
   const openPlayerProfile = async (topPlayer: any) => {
     const targetId = topPlayer.id || topPlayer.player_id;
@@ -564,9 +568,8 @@ export const MarketTab = ({ app }: { app: any }) => {
 
       {app.marketTab === 'shops' ? <>
         <h3 style={{ color: '#6b5f45', fontSize: 16, marginBottom: 10 }}>Магазины игроков</h3>
-        {(app.businessOffers?.shops || []).map((shop: any) => {
+        {districtPlayerShops.map((shop: any) => {
           const own = String(shop.owner_id) === String(app.pid);
-          const outsideCoffeeDistrict = shop.biz_type === 'coffee' && shop.district && shop.district !== app.currentDistrict;
           const status = shop.status === 'open' ? 'Открыт' : shop.status === 'closed_staff' ? 'Закрыт · нет сотрудника' : 'Закрыт · нет товара';
           return <section key={shop.business_id} style={{ ...S.card, maxWidth: 'none', padding: 14, marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
@@ -576,10 +579,9 @@ export const MarketTab = ({ app }: { app: any }) => {
             <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
               {(shop.products || []).map((product: any) => <div key={product.product_id} style={{ padding: 10, borderRadius: 9, background: 'rgba(90,70,40,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, textAlign: 'left' }}>
                 <div><b>{product.product_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Остаток: {product.quantity}</div><strong>{Number(product.retail_price).toLocaleString('ru-RU')} ₽</strong>{String(product.product_id).startsWith('coffee_') && <div style={{ fontSize: 11, color: '#327b45', marginTop: 3 }}>Выпей: +{Number(product.energy_restore) || 0} энергии · +10% к заработку на {coffeeBonusMinutes(product.product_id)} мин</div>}</div>
-                <button type="button" disabled={app.proc || own || outsideCoffeeDistrict || shop.status !== 'open' || product.quantity < 1} onClick={() => { setShopPurchase({ shop, product }); setShopQuantity(1); }} style={{ border: 0, borderRadius: 8, padding: '9px 12px', color: '#fff', background: own || outsideCoffeeDistrict || shop.status !== 'open' ? '#777181' : '#3f9d55', fontWeight: 700, whiteSpace: 'nowrap' }}>{own ? 'Твой магазин' : outsideCoffeeDistrict ? 'Другой район' : 'Купить'}</button>
+                <button type="button" disabled={app.proc || own || shop.status !== 'open' || product.quantity < 1} onClick={() => { setShopPurchase({ shop, product }); setShopQuantity(1); }} style={{ border: 0, borderRadius: 8, padding: '9px 12px', color: '#fff', background: own || shop.status !== 'open' ? '#777181' : '#3f9d55', fontWeight: 700, whiteSpace: 'nowrap' }}>{own ? 'Твой магазин' : 'Купить'}</button>
               </div>)}
             </div>
-            {outsideCoffeeDistrict && <small style={{ display: 'block', marginTop: 8, color: '#d5a35b' }}>Чтобы купить здесь кофе, сначала приезжай в район «{shop.district_name}».</small>}
           </section>;
         })}
         <h3 style={{ color: '#6b5f45', fontSize: 16, margin: '18px 0 10px' }}>Автомастерские</h3>
@@ -591,7 +593,8 @@ export const MarketTab = ({ app }: { app: any }) => {
           </div>)}
           {!(app.businessOffers?.repair_shops || []).length && <small style={{ color: '#6b5f45' }}>Пока нет автомастерских.</small>}
         </div>
-        {!(app.businessOffers?.shops || []).length && <p style={{ color: '#6b5f45' }}>Магазины появятся после покупки точек у государства.</p>}
+        {allPlayerShops.length === 0 && <p style={{ color: '#6b5f45' }}>Магазины появятся после покупки точек у государства.</p>}
+        {allPlayerShops.length > 0 && districtPlayerShops.length === 0 && <p style={{ color: '#6b5f45' }}>{shopsMissingDistrict ? 'Не удалось определить районы магазинов. Обнови миграцию районов в Supabase.' : `В районе «${currentDistrictName}» пока нет магазинов игроков.`}</p>}
         <Modal open={!!shopPurchase} onClose={() => setShopPurchase(null)}>
           {shopPurchase && <>
             <h3 style={{ marginTop: 0 }}>{shopPurchase.product.product_name}</h3>

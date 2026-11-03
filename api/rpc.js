@@ -148,8 +148,15 @@ export default async function handler(req, res) {
       if (name.startsWith('season_pass_') && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Сезонный пропуск ещё не установлен в Supabase. Выполни sql/SEASON_PASS_MIGRATION.sql после указанных в начале файла миграций.' });
       }
+      // A leased-business collateral rejection is an expected user-facing validation,
+      // not an infrastructure failure worth writing to the Vercel error log.
+      const leasedCollateralRejected = name === 'bank_apply_loan_rpc'
+        && error.code === 'P0001'
+        && String(error.message || '').includes('Бизнес в аренде с выкупом нельзя заложить');
+      const districtMigrationMissing = ['district_state_rpc', 'district_travel_rpc', 'district_rest_rpc'].includes(name)
+        && ['PGRST202', '42883', '42P01', '42703'].includes(error.code);
       // This RPC is polled in the background; the client already exposes sync failures in the casino UI.
-      if (name !== 'get_casino_round_rpc') console.error('RPC failed:', name, error.code, error.message);
+      if (name !== 'get_casino_round_rpc' && !leasedCollateralRejected && !districtMigrationMissing) console.error('RPC failed:', name, error.code, error.message);
       if (['casino_slots_spin_rpc', 'casino_slots_history_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Персональные слоты ещё не установлены в Supabase. Выполни sql/CASINO_PERSONAL_SLOTS_MIGRATION.sql.' });
@@ -167,6 +174,10 @@ export default async function handler(req, res) {
       if (['business_shop_state_rpc', 'business_cash_transfer_rpc', 'business_shop_restock_rpc', 'business_shop_set_price_rpc', 'business_shop_buy_rpc', 'business_repair_personal_car_rpc', 'business_repair_taxi_car_rpc', 'business_vehicle_state_rpc', 'taxi_purchase_vehicle_rpc', 'start_car_order_rpc', 'finish_business_timer_rpc', 'taxi_collect_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Система бизнесов ещё не установлена полностью. Проверьте sql/BUSINESS_COMMERCE_MIGRATION.sql и sql/DEALERSHIP_FLEET_MIGRATION.sql.' });
+      }
+      if (['district_state_rpc', 'district_travel_rpc', 'district_rest_rpc'].includes(name)
+          && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
+        return res.status(400).json({ error: 'Районы ещё не установлены в Supabase. Выполни sql/DISTRICTS_ENERGY_MIGRATION.sql после миграций бизнеса.' });
       }
       if (['profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc', 'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc', 'sell_inventory_rpc', 'taxi_fleet_rpc', 'select_taxi_car_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
@@ -199,6 +210,10 @@ export default async function handler(req, res) {
         }
         if (error.code === '42501') {
           return res.status(400).json({ error: `Supabase запретил выполнение ${name}. Проверь права service_role в банковской миграции.` });
+        }
+        if (name === 'bank_apply_loan_rpc' && error.code === 'P0001'
+            && String(error.message || '').includes('Бизнес в аренде с выкупом нельзя заложить')) {
+          return res.status(400).json({ error: 'Бизнес в аренде с выкупом нельзя заложить. Сначала полностью выкупи его.' });
         }
         return res.status(400).json({ error: `Ошибка банковского запроса (${error.code || 'без кода'}). Подробности есть в логах Vercel: api/rpc.` });
       }

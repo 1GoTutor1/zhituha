@@ -96,6 +96,8 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const [sharesAmount, setSharesAmount] = useState('1');
   const [collateral, setCollateral] = useState<'car' | 'house' | 'business' | ''>('');
   const [collateralBusinessId, setCollateralBusinessId] = useState('');
+  const [leasedBusinessIds, setLeasedBusinessIds] = useState<Set<string> | null>(null);
+  const [leaseCheckError, setLeaseCheckError] = useState('');
   const [loanAmount, setLoanAmount] = useState('10000');
   const [repaymentAmount, setRepaymentAmount] = useState('1000');
   const lastForeclosureSeen = useRef<number | null>(null);
@@ -132,6 +134,30 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
     const timer = window.setInterval(() => { void loadBank(true); }, 30_000);
     return () => { window.clearTimeout(initialLoad); window.clearInterval(timer); };
   }, [loadBank]);
+
+  useEffect(() => {
+    if (!app.pid) return;
+    let cancelled = false;
+    setLeasedBusinessIds(null);
+    setLeaseCheckError('');
+    void app.supabase.rpc('business_catalog_rpc', { p_player_id: app.pid }).then(({ data, error }) => {
+      if (cancelled) return;
+      const catalog = data as { error?: string; locations?: any[] } | null;
+      if (error || catalog?.error || !Array.isArray(catalog?.locations)) {
+        setLeaseCheckError(error?.message || catalog?.error || 'Не удалось проверить каталог бизнеса');
+        setLeasedBusinessIds(new Set());
+        return;
+      }
+      setLeasedBusinessIds(new Set(catalog.locations
+        .filter((location: any) => location.lease_active && location.business_id)
+        .map((location: any) => String(location.business_id))));
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      setLeaseCheckError(error instanceof Error ? error.message : 'Не удалось проверить каталог бизнеса');
+      setLeasedBusinessIds(new Set());
+    });
+    return () => { cancelled = true; };
+  }, [app.pid, app.supabase]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
@@ -176,7 +202,10 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const stockDividendsReceived = stockPortfolio.reduce((sum, holding) => sum + Number(holding.dividends_received || 0), 0);
   const stockUnrealizedProfit = stockLiquidationValue - stockInvested;
   const stockTotalProfit = stockRealizedProfit + stockUnrealizedProfit + stockDividendsReceived;
-  const selectedBusiness = app.myBizs.find(business => business.id === collateralBusinessId);
+  const collateralBusinesses = leasedBusinessIds === null || Boolean(leaseCheckError)
+    ? []
+    : app.myBizs.filter(business => !leasedBusinessIds.has(String(business.id)));
+  const selectedBusiness = collateralBusinesses.find(business => business.id === collateralBusinessId);
   const selectedCollateralValue = collateral === 'car'
     ? (app.carModel === 'toyota' ? 65_000 : 28_000)
     : collateral === 'house' ? 50_000
@@ -324,13 +353,16 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
               {app.hasCar && <button type="button" onClick={() => setCollateral('car')} style={{ flex: 1, padding: 10, borderRadius: 8, cursor: 'pointer', background: collateral === 'car' ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: collateral === 'car' ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d' }}><Car size={16} /> {app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'toyota' ? 'Тойота' : 'Ока')}<br/><small>до {money(Math.floor(Number(app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.base_price || (app.carModel === 'toyota' ? 65000 : 35000)) * .7))}</small></button>}
               {app.hasHouse && <button type="button" onClick={() => setCollateral('house')} style={{ flex: 1, padding: 10, borderRadius: 8, cursor: 'pointer', background: collateral === 'house' ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: collateral === 'house' ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d' }}><Building2 size={16} /> Квартира<br/><small>до {money(35000)}</small></button>}
             </div>
-            {app.myBizs.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginBottom: 10 }}>
-              {app.myBizs.map(business => {
+            {app.myBizs.length > 0 && collateralBusinesses.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginBottom: 10 }}>
+              {collateralBusinesses.map(business => {
                 const appraisal = businessCollateralValue(business);
                 const selected = collateral === 'business' && collateralBusinessId === business.id;
                 return <button key={business.id} type="button" onClick={() => { setCollateral('business'); setCollateralBusinessId(business.id); }} style={{ padding: 10, borderRadius: 8, cursor: 'pointer', background: selected ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: selected ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d', textAlign: 'left' }}><Store size={16} /> {business.business_name || BUSINESS_NAMES[business.biz_type]}<br/><small>Кредит до {money(Math.floor(appraisal * 0.7))}</small></button>;
               })}
             </div>}
+            {leaseCheckError && <p role="alert" style={{ color: '#a9322a', fontSize: 12 }}>Не удалось проверить аренду бизнесов, поэтому залог бизнеса временно недоступен.</p>}
+            {!leaseCheckError && app.myBizs.length > 0 && leasedBusinessIds === null && <p role="status" style={{ color: '#6b5f45', fontSize: 12 }}>Проверяем, какие бизнесы можно заложить…</p>}
+            {!leaseCheckError && leasedBusinessIds !== null && app.myBizs.length > 0 && collateralBusinesses.length === 0 && <p style={{ color: '#b06a15', fontSize: 12 }}>Свободных для залога бизнесов нет. Бизнес в аренде с выкупом нельзя закладывать.</p>}
             {!app.hasCar && !app.hasHouse && app.myBizs.length === 0 && <p style={{ color: '#b06a15', fontSize: 12 }}>Для кредита нужна машина, квартира или бизнес.</p>}
             {collateral && (collateral !== 'business' || selectedBusiness) && <><p style={{ color: '#6b5f45', fontSize: 12, margin: '0 0 5px' }}>Оценка залога: {money(selectedCollateralValue)} · максимум кредита: {money(maxLoan)}</p><input type="number" min="1000" max={maxLoan} step="1000" value={loanAmount} onChange={event => setLoanAmount(event.target.value)} style={S.input} /><p style={{ color: '#6b5f45', fontSize: 12 }}>Вернуть через 72 часа: {money(Number(loanAmount) + Math.ceil(Number(loanAmount) * .1))}</p><Btn variant="primary" disabled={busy || Number(loanAmount) < 1000 || Number(loanAmount) > maxLoan} onClick={() => void run('bank_apply_loan_rpc', { p_collateral_type: collateral, p_collateral_business_id: collateral === 'business' ? collateralBusinessId : null, p_amount: Number(loanAmount) }, 'Кредит зачислен на банковский счёт')}>Получить кредит</Btn></>}
           </div>}
