@@ -137,12 +137,24 @@ export default async function handler(req, res) {
 
     if (action === 'me') {
       if (referralsResult.error) throw referralsResult.error;
+      let returnBonus = null;
+      const { data: activity, error: activityError } = await sb.rpc('player_touch_activity_rpc', { p_player_id: player.id });
+      if (activityError) {
+        // The game can still load while the return-bonus migration is being applied.
+        if (!['PGRST202', '42883'].includes(activityError.code)) {
+          console.error('Player activity touch failed:', activityError.message);
+        }
+      } else if (activity) {
+        if (activity.money != null) player.money = activity.money;
+        if (activity.return_boost_until) player.return_boost_until = activity.return_boost_until;
+        returnBonus = activity.return_bonus || null;
+      }
       const { data: professionState, error: professionError } = await sb.rpc('profession_state_rpc', { p_player_id: player.id });
       if (professionError) throw professionError;
       const { data: taxiFleet, error: taxiFleetError } = await sb.rpc('taxi_fleet_rpc', { p_player_id: player.id });
       if (taxiFleetError) throw taxiFleetError;
       if (professionState) professionState.taxi_fleet = taxiFleet;
-      return res.status(200).json({ player, referrals: referralsResult.data || [], profession: professionState });
+      return res.status(200).json({ player, referrals: referralsResult.data || [], profession: professionState, return_bonus: returnBonus });
     }
     if (action === 'admin_grant_cosmetic') {
       if (!['admin', 'superadmin'].includes(player.role)) return res.status(403).json({ error: 'Admin access required' });

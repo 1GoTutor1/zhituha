@@ -56,7 +56,7 @@ export const AppModals = ({ app }: { app: any }) => (
       <Gift size={40} color="#c0453a" style={{ marginBottom: 15 }} /><h3 style={{ marginTop: 0, fontSize: 20 }}>Рефералка</h3>
       <Btn variant="purple" onClick={app.inviteFriend} style={{ background: 'linear-gradient(135deg, #c0453a 0%, #be185d 100%)', color: '#fdf1ec', marginBottom: 15, padding: 12 }}><UserPlus size={20} /> Пригласить друга</Btn>
       <p style={{ color: '#6b5f45', fontSize: 14, marginBottom: 10 }}>Приглашено друзей: <b>{app.myRefs.length}</b></p>
-      <div style={{ background: 'rgba(63,157,85,0.10)', padding: 12, borderRadius: 8, marginBottom: 12, border: '1px solid rgba(63,157,85,0.3)', textAlign: 'left' }}><b style={{ color: '#27804d', fontSize: 13 }}>Бонусы за приглашения</b><p style={{ margin: '5px 0 0', fontSize: 12, lineHeight: 1.45 }}>10 жетонов за нового игрока после регистрации и ещё 10% жетонами с каждой его покупки за Stars. Бонусы с покупок начисляются автоматически.</p></div>
+      <div style={{ background: 'rgba(63,157,85,0.10)', padding: 12, borderRadius: 8, marginBottom: 12, border: '1px solid rgba(63,157,85,0.3)', textAlign: 'left' }}><b style={{ color: '#27804d', fontSize: 13 }}>Бонусы за приглашения</b><p style={{ margin: '5px 0 0', fontSize: 12, lineHeight: 1.45 }}>Новому игроку — +1 000 ₽ к старту. Тебе — 500 ₽ и 10 жетонов, когда друг зайдёт в два разных дня и завершит первую работу. Затем 14 дней начисляется 5% с его оплаты за работу и собранной кассы кофейни — максимум 10 000 ₽ с одного друга. С каждой его покупки за Stars тебе навсегда начисляется ещё 10% жетонами.</p></div>
       <div style={{ background: 'rgba(192,69,58,0.08)', padding: 15, borderRadius: 8, marginBottom: 15, border: '1px solid rgba(192,69,58,0.25)' }}><p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#c0453a' }}>Игровой бонус: 5% с доходов приглашённых</p><p style={{ margin: 0, fontSize: 24, color: '#c0453a', fontWeight: 'bold', fontFamily: 'Russo One' }}>{app.refBalance} <Coins size={18} style={{ display: 'inline' }} /></p></div>
       <Btn variant="primary" onClick={app.collectRefBonus} disabled={app.proc || app.refBalance <= 0} style={{ background: app.refBalance > 0 ? 'linear-gradient(135deg, #3f9d55 0%, #059669 100%)' : '#e7d9b8', marginBottom: 10 }}>Собрать 5%</Btn>
       <Btn variant="secondary" onClick={() => app.setRefOpen(false)} style={{ background: '#e7d9b8', boxShadow: 'none', color: '#2f2a1d' }}>Закрыть</Btn>
@@ -307,6 +307,7 @@ export const HomeTab = ({ app }: { app: any }) => {
     return () => { active = false; };
   }, [app.pid, app.dailyMissions, app.supabase]);
   const coffeeBonusSeconds = Math.max(0, Math.ceil((Date.parse(app.coffeeBonusUntil || '') - clockNow) / 1000));
+  const returnBonusSeconds = Math.max(0, Math.ceil((Date.parse(app.returnBoostUntil || '') - clockNow) / 1000));
   const seasonXp = Number(seasonPass?.xp || 0);
   const seasonLevel = Math.min(30, Math.floor(seasonXp / 45));
   const seasonXpInLevel = seasonLevel >= 30 ? 0 : seasonXp % 45;
@@ -363,6 +364,7 @@ export const HomeTab = ({ app }: { app: any }) => {
       </button>
 
       {coffeeBonusSeconds > 0 && <div role="status" style={{ background: 'rgba(63,157,85,.12)', border: '1px solid rgba(63,157,85,.35)', borderRadius: 9, padding: '9px 12px', marginBottom: 12, color: '#327b45', fontWeight: 700, fontSize: 13 }}>☕ +10% к заработку · ещё {Math.floor(coffeeBonusSeconds / 60)}:{String(coffeeBonusSeconds % 60).padStart(2, '0')}</div>}
+      {returnBonusSeconds > 0 && <div role="status" style={{ background: 'rgba(63,157,85,.12)', border: '1px solid rgba(63,157,85,.35)', borderRadius: 9, padding: '9px 12px', marginBottom: 12, color: '#327b45', fontWeight: 700, fontSize: 13 }}>🎁 Возвратный бонус: +15% к игровому заработку · ещё {Math.floor(returnBonusSeconds / 60)}:{String(returnBonusSeconds % 60).padStart(2, '0')}</div>}
       <ProfessionWorkCard app={app} />
 
       <section style={{ marginTop: 15, marginBottom: 15, padding: 13, borderRadius: 12, background: 'linear-gradient(145deg, rgba(38,25,55,.96), rgba(27,19,37,.98))', border: '1px solid rgba(183,142,255,.25)', color: '#f7f1ff', textAlign: 'left' }}>

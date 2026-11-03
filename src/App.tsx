@@ -189,6 +189,7 @@ export default function App() {
   const [profileFrame, setProfileFrame] = useState('');
   const [profileBackground, setProfileBackground] = useState('');
   const [coffeeBonusUntil, setCoffeeBonusUntil] = useState('');
+  const [returnBoostUntil, setReturnBoostUntil] = useState('');
   const [career, setCareer] = useState<any>({ level: 1, xp: 0, xp_to_next: 100, profession: 'miner', unlocked: ['miner'], active_cycle: null, pending_reward: null, inventory: [], inventory_slots: 0, inventory_capacity: 200 });
 
   useEffect(() => {
@@ -412,6 +413,9 @@ export default function App() {
       if (!profileResponse.ok) throw new Error(profileResult.error || 'Profile request failed');
       const d = profileResult.player;
       if (!d) { if (user?.first_name) setInNick(user.first_name); return; }
+      if (profileResult.return_bonus?.granted) {
+        showMsg('С возвращением! Начислено 5 000 ₽ и +15% к игровому заработку на 2 часа.');
+      }
       const [myBRes, allBizRes, wRes] = await Promise.all([
         supabase.from('businesses').select('*').eq('owner_id', d.id),
         supabase.from('businesses').select('id, owner_id, owner_name, biz_type, business_name, worker_id, worker_name, coffee_balance, last_collected'),
@@ -434,6 +438,7 @@ export default function App() {
       setProfileFrame(d.profile_frame || '');
       setProfileBackground(d.profile_background || '');
       setCoffeeBonusUntil(d.coffee_bonus_until || '');
+      setReturnBoostUntil(d.return_boost_until || '');
       if (profileResult.profession) setCareer(profileResult.profession);
       setBrewEnd(Number(d.brew_end) || 0);
       setTipBalance(Number(d.tip_balance) || 0);
@@ -570,12 +575,16 @@ export default function App() {
     const result = await response.json();
     const data = response.ok ? result.player : null;
     if (!data) return;
+    if (result.return_bonus?.granted) {
+      showMsg('С возвращением! Начислено 5 000 ₽ и +15% к игровому заработку на 2 часа.');
+    }
     if (result.profession) setCareer(result.profession);
     if (data.is_banned) { setIsBanned(true); return; }
     setMoney(Number(data.money));
     setRefBalance(Number(data.referral_balance) || 0); setTipBalance(Number(data.tip_balance) || 0);
     setBoostEnd(Number(data.boost_end) || 0); setBrewEnd(Number(data.brew_end) || 0);
     setCoffeeBonusUntil(data.coffee_bonus_until || '');
+    setReturnBoostUntil(data.return_boost_until || '');
     // Имущество/слоты — чтобы после покупки/продажи телефона, машины, квартиры
     // цифры на экране сходились с БД без полного reload.
     setPhone(Number(data.phone_count) > 0);
@@ -1543,14 +1552,14 @@ export default function App() {
   };
 
   const app = useMemo(() => ({
-    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, phone, hasCar, carModel, energy, currentDistrict, travelToDistrict, taxiRide, requestTaxiRide, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, setAllWorkers, allBiz, setAllBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, dailyMissions, boostEnd, claimDaily, claimDailyMission, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, inviteFamily, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
+    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, phone, hasCar, carModel, energy, currentDistrict, travelToDistrict, taxiRide, requestTaxiRide, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, setAllWorkers, allBiz, setAllBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, avatarId, tgId, setInNick, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, returnBoostUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, dailyMissions, boostEnd, claimDaily, claimDailyMission, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, inviteFamily, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
     maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance,
     settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled,
     bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, leaseBusinessLocation, finishBusinessLease, createBusinessAuction, bidBusinessAuction, activeBizId, setActiveBizId,
     career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory,
     adminDeleteMarketLot, loadMarket
   }), [
-    user, tg, startParam, proc, toast, tab, nick, money, phone, hasCar, carModel, energy, currentDistrict, travelToDistrict, taxiRide, requestTaxiRide, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, leaseBusinessLocation, finishBusinessLease, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, dailyMissions, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, career, selectProfession, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
+    user, tg, startParam, proc, toast, tab, nick, money, phone, hasCar, carModel, energy, currentDistrict, travelToDistrict, taxiRide, requestTaxiRide, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, leaseBusinessLocation, finishBusinessLease, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, avatarId, tgId, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, returnBoostUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, dailyMissions, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, career, selectProfession, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
   ]);
 
   const activeBiz = myBizs.find(b => b.id === activeBizId) || myBizs.find(b => b.biz_type === activeBizType);

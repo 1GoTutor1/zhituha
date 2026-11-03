@@ -69,5 +69,52 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ processed: (players || []).length, delivered, permanentFailures, retryLater });
+  const { data: returnTargets, error: returnTargetsError } = await supabase.rpc('claim_return_reminder_targets_rpc', {
+    p_limit: BATCH_SIZE,
+  });
+  if (returnTargetsError) {
+    if (!['PGRST202', '42883'].includes(returnTargetsError.code)) {
+      console.error('Return reminder target query failed:', returnTargetsError.message);
+    }
+  } else {
+    for (const player of returnTargets || []) {
+      try {
+        const telegramResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: player.telegram_id,
+            text: 'Давно тебя не видели в Житухе! Возвращайся: забери 5 000 ₽ и получи +15% к игровому заработку на 2 часа.',
+            reply_markup: {
+              inline_keyboard: [[{ text: 'Вернуться в игру', web_app: { url: WEBAPP_URL } }]],
+            },
+          }),
+        });
+        const telegramResult = await telegramResponse.json();
+        if (telegramResponse.ok && telegramResult.ok) {
+          const { error: markError } = await supabase.rpc('mark_return_reminder_sent_rpc', {
+            p_player_id: player.id,
+            p_last_active_at: player.last_active_at,
+          });
+          if (markError) throw markError;
+          delivered++;
+        } else if (telegramResult.error_code === 429 || telegramResult.error_code >= 500 || !telegramResult.error_code) {
+          console.error('Temporary return reminder delivery failure:', telegramResult.description || telegramResponse.status);
+          retryLater++;
+        } else {
+          const { error: markError } = await supabase.rpc('mark_return_reminder_sent_rpc', {
+            p_player_id: player.id,
+            p_last_active_at: player.last_active_at,
+          });
+          if (markError) throw markError;
+          permanentFailures++;
+        }
+      } catch (sendError) {
+        console.error('Return reminder processing failed:', sendError?.message || sendError);
+        retryLater++;
+      }
+    }
+  }
+
+  return res.status(200).json({ processed: (players || []).length, returnProcessed: (returnTargets || []).length, delivered, permanentFailures, retryLater });
 }
