@@ -52,6 +52,12 @@ begin
       if p_salary <> 5 then return 'Ставка механика фиксирована: 5% кассы'; end if;
       allowed := 1;
     else return 'Такой роли в таксопарке нет'; end if;
+  elsif b.biz_type = 'minimarket' then
+    if p_role <> 'Кассир' or p_salary <> 5 then return 'Кассиру положено 5% с продаж'; end if;
+    allowed := 1;
+  elsif b.biz_type = 'auto_repair' then
+    if p_role <> 'Механик' or p_salary <> 3 then return 'Механику положено 3% с ремонта'; end if;
+    allowed := 1;
   else return 'Неизвестный тип бизнеса'; end if;
 
   select count(*) into cnt from business_workers

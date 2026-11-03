@@ -1384,6 +1384,12 @@ export default function App() {
     const hiredWorker = data?.workers?.find((worker: any) => worker.player_id === pid);
     if (hiredWorker) setMyJob(hiredWorker);
     if (Array.isArray(data?.workers)) setAllWorkers((current) => [...current.filter((worker) => worker.business_id !== bizId), ...data.workers]);
+    if (roleName === 'Водитель') {
+      const { data: taxiFleet, error: taxiFleetError } = await supabase.rpc('taxi_fleet_rpc', { p_player_id: pid });
+      if (!taxiFleetError && taxiFleet && !taxiFleet.error) {
+        setCareer((current: any) => ({ ...current, taxi_fleet: taxiFleet }));
+      }
+    }
     showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium');
     await Promise.all([pollWorkers(), afterAction()]);
   });

@@ -242,6 +242,8 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
   const progress = cycle ? Math.min(100, Math.max(0, (Number(cycle.actions_done || 0) / 3) * 100)) : 0;
   const unlocked = Array.isArray(career.unlocked) ? career.unlocked : ['miner'];
   const drops = PROFESSION_LOOT[profession.id] || [];
+  const taxiCars = career.taxi_fleet?.cars || [];
+  const availableTaxiCars = taxiCars.filter((car: any) => !car.busy && Number(car.health) > 0);
   const canDoStep = !!cycle && cycle.actions_done < 3 && !app.proc;
   const full = Number(career.inventory_slots) >= Number(career.inventory_capacity || 200) && drops.length > 0;
 
@@ -261,13 +263,14 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
     {profession.id === 'taxi' && <div className="profession-select-wrap taxi-shift-car">
       <CarFront size={19} />
       <select aria-label="Машина на смену" value={career.taxi_fleet?.selected_car_index ?? ''}
-        onChange={event => app.selectTaxiCar(Number(event.target.value))} disabled={!!cycle || app.proc || !(career.taxi_fleet?.cars?.length)}>
-        <option value="" disabled>Выбери машину на смену</option>
-        {(career.taxi_fleet?.cars || []).map((car: any) => <option key={car.car_index} value={car.car_index} disabled={car.busy || car.health <= 0}>
+        onChange={event => app.selectTaxiCar(Number(event.target.value))} disabled={!!cycle || app.proc || availableTaxiCars.length === 0}>
+        <option value="" disabled>{taxiCars.length ? 'Нет свободных машин' : 'В таксопарке нет машин'}</option>
+        {taxiCars.map((car: any) => <option key={car.car_index} value={car.car_index} disabled={car.busy || car.health <= 0}>
           {car.model_name || app.vehicleState?.models?.find((item: any) => item.model_id === car.model)?.model_name || car.model} / {car.class === 'economy' ? 'эконом' : car.class === 'comfort' ? 'комфорт' : 'бизнес'} · {car.health}%{car.busy ? ' · занята' : ''}
         </option>)}
       </select><ChevronRight size={17} />
     </div>}
+    {profession.id === 'taxi' && availableTaxiCars.length === 0 && <small className="profession-taxi-hint">{taxiCars.length ? 'Все машины заняты или требуют ремонта.' : 'Попроси владельца таксопарка добавить машину в автопарк.'}</small>}
     <ProfessionScene profession={profession.id} stage={cycle?.actions_done || 0} />
     <div className="profession-cycle-status">
       {cycle ? <>
@@ -280,7 +283,7 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
       </> : <>
         <div className="profession-stage-label"><b>Новая смена</b><span>3 этапа · +25 XP</span></div>
         {full && <div className="profession-inventory-full">Инвентарь заполнен · {career.inventory_slots}/200 <button onClick={() => app.setTab('inventory')}>Открыть</button></div>}
-        <button className="profession-action-button" disabled={app.proc || full || (profession.id === 'taxi' && career.taxi_fleet?.selected_car_index == null)} onClick={app.startProfessionCycle}><Icon size={20} /> Начать работу</button>
+        <button className="profession-action-button" disabled={app.proc || full || (profession.id === 'taxi' && (career.taxi_fleet?.selected_car_index == null || availableTaxiCars.length === 0))} onClick={app.startProfessionCycle}><Icon size={20} /> Начать работу</button>
       </>}
     </div>
     <div className="profession-reward-preview">
