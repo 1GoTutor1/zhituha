@@ -1082,6 +1082,8 @@ export const AdminTab = ({ app }: { app: any }) => {
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsFilter, setLogsFilter] = useState<string>('all');
+  const [logsPlayerQuery, setLogsPlayerQuery] = useState('');
+  const [activeLogsPlayerQuery, setActiveLogsPlayerQuery] = useState('');
 
   const logClientEvent = async (actionType: string, details: any = {}) => {
     try { await app.supabase.rpc('log_action_rpc', { p_player_id: app.pid, p_action_type: actionType, p_details: details }); }
@@ -1093,7 +1095,8 @@ export const AdminTab = ({ app }: { app: any }) => {
     const { data, error } = await app.supabase.rpc('get_logs_rpc', {
       p_admin_id: app.pid,
       p_limit: 200,
-      p_action_type: logsFilter === 'all' ? null : logsFilter
+      p_action_type: logsFilter === 'all' ? null : logsFilter,
+      p_player_query: activeLogsPlayerQuery.trim() || null,
     });
     setLogsLoading(false);
     if (error) return app.showMsg(error.message, true);
@@ -1112,7 +1115,7 @@ export const AdminTab = ({ app }: { app: any }) => {
 
   useEffect(() => {
     if (app.adminTab === 'logs') loadLogs();
-  }, [app.adminTab, logsFilter]);
+  }, [app.adminTab, logsFilter, activeLogsPlayerQuery]);
 
   useEffect(() => {
     if (app.adminTab === 'market') void app.loadMarket();
@@ -1379,6 +1382,18 @@ export const AdminTab = ({ app }: { app: any }) => {
 
       {app.adminTab === 'logs' && (
         <div>
+          <form onSubmit={event => { event.preventDefault(); const query = logsPlayerQuery.trim(); if (query === activeLogsPlayerQuery) void loadLogs(); else setActiveLogsPlayerQuery(query); }} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <input
+              value={logsPlayerQuery}
+              onChange={event => setLogsPlayerQuery(event.target.value)}
+              placeholder="Точный ник, Telegram ID или UUID"
+              aria-label="Найти логи игрока"
+              style={{ ...S.input, minWidth: 0, flex: 1, margin: 0 }}
+            />
+            <Btn variant="primary" type="submit" disabled={logsLoading} style={{ width: 'auto', padding: '9px 12px', fontSize: 12 }}>Найти</Btn>
+            {activeLogsPlayerQuery && <button type="button" onClick={() => { setLogsPlayerQuery(''); setActiveLogsPlayerQuery(''); }} style={{ border: 0, borderRadius: 9, padding: '9px 12px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', background: '#292033', color: '#ddd2e7' }}>Сбросить</button>}
+          </form>
+          {activeLogsPlayerQuery && <div style={{ fontSize: 11, color: '#6b5f45', margin: '-4px 0 10px' }}>Логи игрока: {activeLogsPlayerQuery}</div>}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <Btn variant="secondary" onClick={loadLogs} disabled={logsLoading} style={{ padding: 10, fontSize: 12, flex: 1 }}>
               <RefreshCw size={14} style={{ marginRight: 4 }}/> {logsLoading ? 'Загрузка...' : 'Обновить'}
