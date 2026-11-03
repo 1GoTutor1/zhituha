@@ -1576,7 +1576,8 @@ export const ProfileTab = ({ app }: { app: any }) => {
       <div style={{ fontSize: 23, fontFamily: 'Russo One', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>{app.nick}{Date.parse(app.premiumUntil || '') > Date.now() && <Crown size={20} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}</div>
       {familyProfile && <div style={{ marginTop: 6, color: '#3f9d65', fontWeight: 700 }}>[{familyProfile.tag}] {familyProfile.name}</div>}
       {familyAwards.map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
-      <div style={{ color: '#6b5f45', marginTop: 6 }}>ID: {app.tgId.slice(0, 6)} · имя нельзя менять</div>
+      <div style={{ color: '#6b5f45', marginTop: 6 }}>ID: {app.tgId.slice(0, 6)}</div>
+      <NicknameSettings app={app} />
       <div style={{ marginTop: 12, fontWeight: 700 }}>💰 {Number(app.money || 0).toLocaleString('ru-RU')} ₽</div>
       <div style={{ marginTop: 12, textAlign: 'left' }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><b>Уровень {app.career?.level || 1} · {PLAYER_PROFESSIONS.find(item => item.id === app.career?.profession)?.name || 'Шахтёр'}</b><span>{Number(app.career?.xp || 0)} / {Number(app.career?.xp_to_next || 100)} XP</span></div><div className="profession-xp-track"><span style={{ width: `${Math.min(100, Number(app.career?.xp || 0) / Math.max(1, Number(app.career?.xp_to_next || 100)) * 100)}%` }} /></div></div>
       <div style={{ marginTop: 5, color: '#6b5f45' }}>🎨 {PROFILE_BACKGROUND_NAMES[app.profileBackground] || 'Стандартный фон'}</div>
@@ -1709,5 +1710,52 @@ export const InventoryTab = ({ app }: { app: any }) => {
         <div className="inventory-detail-actions"><Btn variant={confirmRareSale ? 'danger' : 'primary'} disabled={app.proc} onClick={proceedSale}>{confirmRareSale ? 'Подтвердить продажу' : 'Продать государству'}</Btn><Btn variant="secondary" disabled={app.proc} onClick={closeStack}>Назад</Btn></div>
       </div>; })()}
     </Modal>
+  </div>;
+};
+
+const NicknameSettings = ({ app }: { app: any }) => {
+  const [draft, setDraft] = useState(app.nick || '');
+  const [changedAt, setChangedAt] = useState<string | null>(null);
+  const [statusLoaded, setStatusLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (!app.pid) return;
+    void fetch('/api/players', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'me', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+    }).then(response => response.json()).then(result => {
+      if (active && result.player) setChangedAt(result.player.nickname_changed_at || null);
+    }).catch(() => {}).finally(() => { if (active) setStatusLoaded(true); });
+    return () => { active = false; };
+  }, [app.pid]);
+
+  const availableAt = changedAt ? Date.parse(changedAt) + 14 * 24 * 60 * 60 * 1000 : 0;
+  const onCooldown = availableAt > Date.now();
+  const nextDate = onCooldown ? new Date(availableAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '';
+
+  const submit = () => app.action(async () => {
+    const response = await fetch('/api/change-nickname', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname: draft, init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+    });
+    const result = await response.json();
+    if (!response.ok || result?.error) {
+      if (result?.next_change_at) setChangedAt(new Date(Date.parse(result.next_change_at) - 14 * 24 * 60 * 60 * 1000).toISOString());
+      throw new Error(result?.error || 'Не удалось сменить ник');
+    }
+    setChangedAt(result.nickname_changed_at);
+    setDraft(result.nickname);
+    await app.loadData(true);
+    app.showMsg(`Ник изменён на ${result.nickname}`);
+  });
+
+  return <div style={{ marginTop: 14, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.04)', textAlign: 'left' }}>
+    <label htmlFor="profile-nickname" style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 7 }}>Игровой ник</label>
+    <div style={{ display: 'flex', gap: 8 }}>
+      <input id="profile-nickname" value={draft} maxLength={20} autoComplete="off" onChange={event => setDraft(event.target.value.replace(/[^A-Za-z]/g, '').slice(0, 20))} placeholder="Только A–Z" style={{ ...S.input, minWidth: 0, margin: 0, flex: 1 }} />
+      <button type="button" disabled={app.proc || !statusLoaded || onCooldown || draft.length < 3 || draft.toLowerCase() === String(app.nick || '').toLowerCase()} onClick={submit} style={{ ...S.btnPrimary, width: 'auto', padding: '9px 12px', whiteSpace: 'nowrap' }}>Сменить</button>
+    </div>
+    <small style={{ display: 'block', marginTop: 7, color: '#aaa0b5', lineHeight: 1.4 }}>{!statusLoaded ? 'Проверяем доступность смены…' : onCooldown ? `Следующая смена ника: ${nextDate}` : 'Ник можно менять раз в 14 дней. Только английские буквы, от 3 до 20.'}</small>
   </div>;
 };
