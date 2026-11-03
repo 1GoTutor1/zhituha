@@ -299,6 +299,34 @@ bot.on('message', async (ctx, next) => {
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
+    if (data?.ok === true && data.duplicate !== true && process.env.ADMIN_TG_ID) {
+      try {
+        const { data: order, error: orderError } = await supabase.from('donation_orders')
+          .select('id, player_id, credits_amount')
+          .eq('id', payment.invoice_payload)
+          .maybeSingle();
+        if (orderError) throw orderError;
+        const { data: donor, error: donorError } = await supabase.from('players')
+          .select('nickname')
+          .eq('id', order?.player_id)
+          .maybeSingle();
+        if (donorError) throw donorError;
+        const payerName = donor?.nickname || [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ') || 'Без ника';
+        const username = ctx.from.username ? ` (@${ctx.from.username})` : '';
+        const notice = [
+          '💸 Новый донат в Житухе',
+          `Игрок: ${payerName}${username}`,
+          `Telegram ID: ${ctx.from.id}`,
+          `Оплачено: ⭐ ${Number(payment.total_amount).toLocaleString('ru-RU')}`,
+          `Начислено жетонов: ${Number(order?.credits_amount || 0).toLocaleString('ru-RU')}`,
+          `Заказ: ${payment.invoice_payload}`,
+        ].join('\n');
+        await ctx.telegram.sendMessage(String(process.env.ADMIN_TG_ID), notice, { disable_web_page_preview: true });
+      } catch (notifyError) {
+        // Don't make Telegram retry an already credited payment just because the admin DM failed.
+        console.error('Donation admin notification failed:', notifyError?.response?.description || notifyError?.message || notifyError);
+      }
+    }
     await ctx.reply('Оплата подтверждена! Донат-жетоны зачислены на аккаунт. Возвращайся в игру.');
   } catch (error) {
     console.error('Stars payment delivery failed:', error?.message || error);

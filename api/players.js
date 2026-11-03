@@ -135,6 +135,12 @@ export default async function handler(req, res) {
 
     if (!player) return res.status(200).json({ player: null, referrals: [] });
 
+    if (action === 'donor_leaderboard') {
+      const { data, error } = await sb.rpc('donation_leaderboard_rpc', { p_limit: 10 });
+      if (error) throw error;
+      return res.status(200).json({ players: data?.players || [] });
+    }
+
     if (action === 'me') {
       if (referralsResult.error) throw referralsResult.error;
       let returnBonus = null;

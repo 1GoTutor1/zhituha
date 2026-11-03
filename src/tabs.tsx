@@ -467,14 +467,39 @@ export const MarketItem = ({ item, app, type }: any) => {
 
 export const MarketTab = ({ app }: { app: any }) => {
   const [showTop, setShowTop] = useState(false);
-  const [leaderboardMode, setLeaderboardMode] = useState<'money' | 'referrals'>('money');
+  const [leaderboardMode, setLeaderboardMode] = useState<'money' | 'referrals' | 'donations'>('money');
+  const [donationPlayers, setDonationPlayers] = useState<any[]>([]);
+  const [donationLeaderboardUnavailable, setDonationLeaderboardUnavailable] = useState(false);
   const [selectedPublicProfile, setSelectedPublicProfile] = useState<any>(null);
   const [publicProfileLoading, setPublicProfileLoading] = useState(false);
   const [shopPurchase, setShopPurchase] = useState<any>(null);
   const [shopQuantity, setShopQuantity] = useState(1);
+  useEffect(() => {
+    if (!showTop || leaderboardMode !== 'donations') return;
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch('/api/players', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'donor_leaderboard', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+        });
+        const result = await response.json();
+        if (active) {
+          setDonationLeaderboardUnavailable(!response.ok);
+          if (response.ok) setDonationPlayers(result.players || []);
+        }
+      } catch {
+        if (active) setDonationLeaderboardUnavailable(true);
+      }
+    })();
+    return () => { active = false; };
+  }, [showTop, leaderboardMode]);
   const myLots = app.market.filter((m: any) => m.seller_id === app.pid).length;
   const maxSlots = app.marketSlots;
-  const topPlayers = leaderboardMode === 'money' ? app.players : app.referralLeaderboard;
+  const topPlayers = leaderboardMode === 'money' ? app.players
+    : leaderboardMode === 'referrals' ? app.referralLeaderboard
+      : donationPlayers;
   const allPlayerShops = app.businessOffers?.shops || [];
   const districtPlayerShops = allPlayerShops.filter((shop: any) => shop.district === app.currentDistrict);
   const shopsMissingDistrict = allPlayerShops.length > 0 && allPlayerShops.every((shop: any) => !shop.district);
@@ -510,13 +535,14 @@ export const MarketTab = ({ app }: { app: any }) => {
     return (
       <div className="game-tab market-page market-leaderboard" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
         <button onClick={() => setShowTop(false)} style={{ background: 'none', border: 'none', color: '#6b5f45', marginBottom: 20, marginTop: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Trophy size={22} color="#b06a15"/>{leaderboardMode === 'money' ? '\u0422\u043e\u043f \u0431\u043e\u0433\u0430\u0447\u0435\u0439' : '\u0422\u043e\u043f \u043f\u043e \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u0430\u043c'}</h2>
-        <div className="market-rank-tabs" style={{ display: 'flex', gap: 8, marginTop: 14, background: '#fbf4e4', padding: 5, borderRadius: 8 }}>
-          <button onClick={() => setLeaderboardMode('money')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, padding: 10, border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'money' ? '#b06a15' : 'transparent', color: leaderboardMode === 'money' ? '#fff' : '#6b5f45', fontWeight: 'bold' }}><Coins size={15} /> {'\u041f\u043e \u0434\u0435\u043d\u044c\u0433\u0430\u043c'}</button>
-          <button onClick={() => setLeaderboardMode('referrals')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, padding: 10, border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'referrals' ? '#c0453a' : 'transparent', color: leaderboardMode === 'referrals' ? '#fff' : '#6b5f45', fontWeight: 'bold' }}><Users size={15} /> {'\u0420\u0435\u0444\u0435\u0440\u0430\u043b\u044b'}</button>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Trophy size={22} color="#b06a15"/>{leaderboardMode === 'money' ? '\u0422\u043e\u043f \u0431\u043e\u0433\u0430\u0447\u0435\u0439' : leaderboardMode === 'referrals' ? '\u0422\u043e\u043f \u043f\u043e \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u0430\u043c' : '\u0422\u043e\u043f \u0434\u043e\u043d\u0430\u0442\u0435\u0440\u043e\u0432'}</h2>
+        <div className="market-rank-tabs" style={{ display: 'flex', gap: 4, marginTop: 14, background: '#fbf4e4', padding: 5, borderRadius: 8 }}>
+          <button onClick={() => setLeaderboardMode('money')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, padding: '9px 4px', border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'money' ? '#b06a15' : 'transparent', color: leaderboardMode === 'money' ? '#fff' : '#6b5f45', fontWeight: 'bold', fontSize: 11 }}><Coins size={14} /> {'\u041f\u043e \u0434\u0435\u043d\u044c\u0433\u0430\u043c'}</button>
+          <button onClick={() => setLeaderboardMode('referrals')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, padding: '9px 4px', border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'referrals' ? '#c0453a' : 'transparent', color: leaderboardMode === 'referrals' ? '#fff' : '#6b5f45', fontWeight: 'bold', fontSize: 11 }}><Users size={14} /> {'\u0420\u0435\u0444\u0435\u0440\u0430\u043b\u044b'}</button>
+          <button onClick={() => setLeaderboardMode('donations')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, padding: '9px 4px', border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'donations' ? '#d59518' : 'transparent', color: leaderboardMode === 'donations' ? '#fff' : '#6b5f45', fontWeight: 'bold', fontSize: 11 }}>⭐ {'\u0414\u043e\u043d\u0430\u0442\u044b'}</button>
         </div>
         <div style={{ marginTop: 20 }}>
-          {topPlayers.length === 0 && <p style={{ color: '#6b5f45' }}>{leaderboardMode === 'referrals' && app.referralLeaderboardUnavailable ? '\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'money' ? '\u041f\u043e\u043a\u0430 \u043d\u0438\u043a\u043e\u0433\u043e...' : '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</p>}
+          {topPlayers.length === 0 && <p style={{ color: '#6b5f45' }}>{leaderboardMode === 'referrals' && app.referralLeaderboardUnavailable ? '\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'donations' && donationLeaderboardUnavailable ? '\u0422\u043e\u043f \u0434\u043e\u043d\u0430\u0442\u0435\u0440\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'money' ? '\u041f\u043e\u043a\u0430 \u043d\u0438\u043a\u043e\u0433\u043e...' : leaderboardMode === 'referrals' ? '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445' : '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0434\u043e\u043d\u0430\u0442\u043e\u0432'}</p>}
           {topPlayers.map((p: any, i: number) => {
             const purchasedBackground = ['background_panelka', 'background_brick', 'background_concrete', 'background_night_route'].includes(p.profile_background)
               ? getProfileBackground(p.profile_background) : null;
@@ -532,7 +558,7 @@ export const MarketTab = ({ app }: { app: any }) => {
                 <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#b06a15' : i === 1 ? '#5f43a0' : i === 2 ? '#3d7ea6' : '#6b5f45', minWidth: 26 }}>#{i + 1}</span>
                 <span style={{ fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{p.nickname}{p.premium_active && <Crown size={14} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}{p.season_badge_showcase?.[0] && <span aria-label={SEASON_BADGES[p.season_badge_showcase[0]]?.name || 'Значок сезона'} title={SEASON_BADGES[p.season_badge_showcase[0]]?.name || 'Значок сезона'}>{SEASON_BADGES[p.season_badge_showcase[0]]?.icon || '✦'}</span>}</span>
               </div>
-              <span style={{ color: leaderboardMode === 'money' ? '#2c7a3c' : '#c0453a', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{leaderboardMode === 'money' ? <>{Number(p.money || 0).toLocaleString('ru-RU')} <Coins size={14} /></> : <>{Number(p.referral_count || 0).toLocaleString('ru-RU')} {'\u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</>}</span>
+              <span style={{ color: leaderboardMode === 'money' ? '#2c7a3c' : leaderboardMode === 'referrals' ? '#c0453a' : '#b06a15', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{leaderboardMode === 'money' ? <>{Number(p.money || 0).toLocaleString('ru-RU')} <Coins size={14} /></> : leaderboardMode === 'referrals' ? <>{Number(p.referral_count || 0).toLocaleString('ru-RU')} {'\u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</> : <>⭐ {Number(p.stars_total || 0).toLocaleString('ru-RU')} <small>· {Number(p.donation_count || 0)} {'\u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439'}</small></>}</span>
             </button>;
           })}
         </div>
