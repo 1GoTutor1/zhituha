@@ -202,10 +202,12 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const stockDividendsReceived = stockPortfolio.reduce((sum, holding) => sum + Number(holding.dividends_received || 0), 0);
   const stockUnrealizedProfit = stockLiquidationValue - stockInvested;
   const stockTotalProfit = stockRealizedProfit + stockUnrealizedProfit + stockDividendsReceived;
-  const collateralBusinesses = leasedBusinessIds === null || Boolean(leaseCheckError)
+  const eligibleCollateralBusinesses = leasedBusinessIds === null || Boolean(leaseCheckError)
     ? []
-    : app.myBizs.filter(business => !leasedBusinessIds.has(String(business.id)));
-  const selectedBusiness = collateralBusinesses.find(business => business.id === collateralBusinessId);
+    : app.myBizs.filter(business =>
+      !leasedBusinessIds.has(String(business.id)) && Boolean(BUSINESS_BASE_VALUES[business.biz_type])
+    );
+  const selectedBusiness = eligibleCollateralBusinesses.find(business => business.id === collateralBusinessId);
   const selectedCollateralValue = collateral === 'car'
     ? (app.carModel === 'toyota' ? 65_000 : 28_000)
     : collateral === 'house' ? 50_000
@@ -353,16 +355,20 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
               {app.hasCar && <button type="button" onClick={() => setCollateral('car')} style={{ flex: 1, padding: 10, borderRadius: 8, cursor: 'pointer', background: collateral === 'car' ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: collateral === 'car' ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d' }}><Car size={16} /> {app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'toyota' ? 'Тойота' : 'Ока')}<br/><small>до {money(Math.floor(Number(app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.base_price || (app.carModel === 'toyota' ? 65000 : 35000)) * .7))}</small></button>}
               {app.hasHouse && <button type="button" onClick={() => setCollateral('house')} style={{ flex: 1, padding: 10, borderRadius: 8, cursor: 'pointer', background: collateral === 'house' ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: collateral === 'house' ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d' }}><Building2 size={16} /> Квартира<br/><small>до {money(35000)}</small></button>}
             </div>
-            {app.myBizs.length > 0 && collateralBusinesses.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginBottom: 10 }}>
-              {collateralBusinesses.map(business => {
+            {app.myBizs.length > 0 && leasedBusinessIds !== null && !leaseCheckError && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginBottom: 10 }}>
+              {app.myBizs.map(business => {
                 const appraisal = businessCollateralValue(business);
                 const selected = collateral === 'business' && collateralBusinessId === business.id;
-                return <button key={business.id} type="button" onClick={() => { setCollateral('business'); setCollateralBusinessId(business.id); }} style={{ padding: 10, borderRadius: 8, cursor: 'pointer', background: selected ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: selected ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d', textAlign: 'left' }}><Store size={16} /> {business.business_name || BUSINESS_NAMES[business.biz_type]}<br/><small>Кредит до {money(Math.floor(appraisal * 0.7))}</small></button>;
+                const leased = leasedBusinessIds.has(String(business.id));
+                const supported = Boolean(BUSINESS_BASE_VALUES[business.biz_type]);
+                const canPledge = !leased && supported;
+                const reason = leased ? 'В аренде с выкупом · залог недоступен' : !supported ? 'Этот тип нельзя заложить' : `Кредит до ${money(Math.floor(appraisal * 0.7))}`;
+                return <button key={business.id} type="button" disabled={!canPledge} onClick={() => { setCollateral('business'); setCollateralBusinessId(business.id); }} style={{ padding: 10, borderRadius: 8, cursor: canPledge ? 'pointer' : 'not-allowed', opacity: canPledge ? 1 : .62, background: selected ? 'rgba(61,126,166,.14)' : '#fbf4e4', border: selected ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.18)', color: '#2f2a1d', textAlign: 'left' }}><Store size={16} /> {business.business_name || BUSINESS_NAMES[business.biz_type]}<br/><small>{reason}</small></button>;
               })}
             </div>}
             {leaseCheckError && <p role="alert" style={{ color: '#a9322a', fontSize: 12 }}>Не удалось проверить аренду бизнесов, поэтому залог бизнеса временно недоступен.</p>}
             {!leaseCheckError && app.myBizs.length > 0 && leasedBusinessIds === null && <p role="status" style={{ color: '#6b5f45', fontSize: 12 }}>Проверяем, какие бизнесы можно заложить…</p>}
-            {!leaseCheckError && leasedBusinessIds !== null && app.myBizs.length > 0 && collateralBusinesses.length === 0 && <p style={{ color: '#b06a15', fontSize: 12 }}>Свободных для залога бизнесов нет. Бизнес в аренде с выкупом нельзя закладывать.</p>}
+            {!leaseCheckError && leasedBusinessIds !== null && app.myBizs.length > 0 && eligibleCollateralBusinesses.length === 0 && <p style={{ color: '#b06a15', fontSize: 12 }}>Среди твоих бизнесов пока нет доступного залога. Арендованные с выкупом и неподдерживаемые типы показать можно, но заложить их нельзя.</p>}
             {!app.hasCar && !app.hasHouse && app.myBizs.length === 0 && <p style={{ color: '#b06a15', fontSize: 12 }}>Для кредита нужна машина, квартира или бизнес.</p>}
             {collateral && (collateral !== 'business' || selectedBusiness) && <><p style={{ color: '#6b5f45', fontSize: 12, margin: '0 0 5px' }}>Оценка залога: {money(selectedCollateralValue)} · максимум кредита: {money(maxLoan)}</p><input type="number" min="1000" max={maxLoan} step="1000" value={loanAmount} onChange={event => setLoanAmount(event.target.value)} style={S.input} /><p style={{ color: '#6b5f45', fontSize: 12 }}>Вернуть через 72 часа: {money(Number(loanAmount) + Math.ceil(Number(loanAmount) * .1))}</p><Btn variant="primary" disabled={busy || Number(loanAmount) < 1000 || Number(loanAmount) > maxLoan} onClick={() => void run('bank_apply_loan_rpc', { p_collateral_type: collateral, p_collateral_business_id: collateral === 'business' ? collateralBusinessId : null, p_amount: Number(loanAmount) }, 'Кредит зачислен на банковский счёт')}>Получить кредит</Btn></>}
           </div>}

@@ -114,6 +114,12 @@ export const DistrictMapTab = ({ app }: { app: any }) => {
             </div>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, color: 'var(--text-muted)', fontSize: 12 }}><Building2 size={14} />{openBusinesses === null ? '—' : `Открыто бизнесов: ${openInDistrict.length}`}</div>
+          {openInDistrict.length > 0 && <div style={{ display: 'grid', gap: 6, marginTop: 9 }}>
+            {openInDistrict.map((business: any) => <div key={`${district.id}-${business.business_id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '7px 9px', borderRadius: 9, background: 'rgba(255,255,255,.035)', fontSize: 12 }}>
+              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>{business.business_name || 'Бизнес'}</span>
+              <span style={{ flex: '0 0 auto', color: 'var(--text-muted)' }}>{business.owner_name || 'Государство'}</span>
+            </div>)}
+          </div>}
         </article>;
       })}
     </div>
