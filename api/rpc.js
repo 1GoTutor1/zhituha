@@ -35,6 +35,7 @@ const CLIENT_RPCS = new Set([
   'black_market_state_rpc', 'black_market_buy_seed_rpc', 'black_market_plant_rpc',
   'black_market_harvest_rpc', 'black_market_sell_rpc', 'family_black_market_join_rpc',
   'district_state_rpc', 'district_travel_rpc', 'district_rest_rpc',
+  'district_taxi_options_rpc', 'district_taxi_order_rpc', 'district_taxi_ride_state_rpc', 'district_taxi_finish_ride_rpc',
 ]);
 
 export default async function handler(req, res) {
@@ -155,8 +156,13 @@ export default async function handler(req, res) {
         && String(error.message || '').includes('Бизнес в аренде с выкупом нельзя заложить');
       const districtMigrationMissing = ['district_state_rpc', 'district_travel_rpc', 'district_rest_rpc'].includes(name)
         && ['PGRST202', '42883', '42P01', '42703'].includes(error.code);
+      const districtTaxiMigrationMissing = name.startsWith('district_taxi_')
+        && ['PGRST202', '42883', '42P01', '42703'].includes(error.code);
       // This RPC is polled in the background; the client already exposes sync failures in the casino UI.
-      if (name !== 'get_casino_round_rpc' && !leasedCollateralRejected && !districtMigrationMissing) console.error('RPC failed:', name, error.code, error.message);
+      if (name !== 'get_casino_round_rpc' && !leasedCollateralRejected && !districtMigrationMissing && !districtTaxiMigrationMissing) console.error('RPC failed:', name, error.code, error.message);
+      if (districtTaxiMigrationMissing) {
+        return res.status(400).json({ error: 'Такси между районами ещё не включено в Supabase. Примените sql/DISTRICT_TAXI_RIDES_MIGRATION.sql.' });
+      }
       if (['casino_slots_spin_rpc', 'casino_slots_history_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Персональные слоты ещё не установлены в Supabase. Выполни sql/CASINO_PERSONAL_SLOTS_MIGRATION.sql.' });
