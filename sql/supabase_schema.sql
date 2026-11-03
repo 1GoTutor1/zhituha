@@ -1498,7 +1498,12 @@ create trigger zzzz_players_money_source_audit
 after update of money on public.players
 for each row execute function public.audit_player_money_change();
 
-create or replace function public.get_logs_rpc(p_admin_id uuid, p_limit int default 200, p_action_type text default null)
+create or replace function public.get_logs_rpc(
+  p_admin_id uuid,
+  p_limit int default 200,
+  p_action_type text default null,
+  p_player_query text default null
+)
 returns jsonb language plpgsql security definer as $$
 begin
   if not public.is_admin(p_admin_id) then return jsonb_build_object('error','не админ'); end if;
@@ -1506,8 +1511,13 @@ begin
     (select jsonb_agg(l order by l.created_at desc)
      from (
        select l.* from action_logs l
+       left join players p on p.id = l.player_id
        where l.action_type not in ('casino_bet', 'casino_resolve')
          and (p_action_type is null or l.action_type = p_action_type)
+         and (nullif(trim(p_player_query), '') is null
+           or l.player_id::text = trim(p_player_query)
+           or coalesce(p.telegram_id::text, '') = trim(p_player_query)
+           or lower(coalesce(p.nickname, '')) = lower(trim(p_player_query)))
        order by l.created_at desc limit least(coalesce(p_limit,200), 500)
      ) l));
 end $$;
