@@ -244,7 +244,13 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
   const drops = PROFESSION_LOOT[profession.id] || [];
   const taxiCars = career.taxi_fleet?.cars || [];
   const availableTaxiCars = taxiCars.filter((car: any) => !car.busy && Number(car.health) > 0);
-  const canDoStep = !!cycle && cycle.actions_done < 3 && !app.proc;
+  const courierDestination = profession.id === 'courier'
+    ? DISTRICTS.find(district => district.id === cycle?.delivery_district)
+    : null;
+  const courierAtDestination = !!courierDestination && app.currentDistrict === courierDestination.id;
+  const needsCourierTravel = profession.id === 'courier' && Number(cycle?.actions_done) >= 1;
+  const canDoStep = !!cycle && cycle.actions_done < 3 && !app.proc
+    && (!needsCourierTravel || courierAtDestination);
   const full = Number(career.inventory_slots) >= Number(career.inventory_capacity || 200) && drops.length > 0;
 
   return <section className="profession-work-card">

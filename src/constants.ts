@@ -52,7 +52,7 @@ export const PLAYER_PROFESSIONS = [
   { id: 'lumberjack', name: 'Лесоруб', unlockLevel: 3, actionLabels: ['Замахнуться', 'Попасть в метку', 'Срубить дерево'], output: 'Древесина и находки', minPrice: 200, maxPrice: 3000 },
   { id: 'fisherman', name: 'Рыбак', unlockLevel: 5, actionLabels: ['Забросить удочку', 'Подсечь', 'Вытянуть улов'], output: 'Рыба', minPrice: 200, maxPrice: 3000 },
   { id: 'farmer', name: 'Фермер', unlockLevel: 7, actionLabels: ['Вспахать грядку', 'Полить росток', 'Собрать урожай'], output: 'Случайный урожай', minPrice: 200, maxPrice: 4000 },
-  { id: 'courier', name: 'Курьер', unlockLevel: 9, actionLabels: ['Принять заказ', 'Забрать посылку', 'Доставить'], output: 'Выплата за заказ', minPrice: 380, maxPrice: 500 },
+  { id: 'courier', name: 'Курьер', unlockLevel: 9, actionLabels: ['Принять заказ', 'Подтвердить прибытие', 'Доставить'], output: 'Выплата за заказ', minPrice: 550, maxPrice: 670 },
   { id: 'taxi', name: 'Таксист', unlockLevel: 12, actionLabels: ['Принять заказ', 'Начать поездку', 'Завершить поездку'], output: 'Тариф выбранной машины', minPrice: 350, maxPrice: 630 },
 ] as const;
 
