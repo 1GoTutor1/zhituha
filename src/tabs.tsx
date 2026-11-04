@@ -248,6 +248,7 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
     ? DISTRICTS.find(district => district.id === cycle?.delivery_district)
     : null;
   const courierAtDestination = !!courierDestination && app.currentDistrict === courierDestination.id;
+  const hasCourierRoute = profession.id === 'courier' && !!cycle;
   const needsCourierTravel = profession.id === 'courier' && Number(cycle?.actions_done) >= 1;
   const canDoStep = !!cycle && cycle.actions_done < 3 && !app.proc
     && (!needsCourierTravel || courierAtDestination);
@@ -281,11 +282,24 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
     <div className="profession-cycle-status">
       {cycle ? <>
         <div className="profession-stage-label"><b>{cycle.actions_done < 3 ? `Этап ${cycle.actions_done + 1} из 3` : 'Результат готов'}</b>
-          <span>{cycle.actions_done < 3 ? profession.actionLabels[cycle.actions_done] : 'Можно забрать'}</span></div>
+          <span>{hasCourierRoute && courierDestination
+            ? cycle.actions_done === 0 ? `Забрать заказ · доставка в район «${courierDestination.name}»` : cycle.actions_done < 3 ? `Отправляйтесь в район «${courierDestination.name}»` : `Забрать можно только в районе «${courierDestination.name}»`
+            : cycle.actions_done < 3 ? profession.actionLabels[cycle.actions_done] : 'Можно забрать'}</span></div>
         <div className="profession-cycle-track"><span style={{ width: `${progress}%` }} /></div>
+        {hasCourierRoute && <div style={{ margin: '10px 0', padding: '10px 12px', borderRadius: 10, textAlign: 'left', background: courierAtDestination ? 'rgba(63,157,85,.12)' : 'rgba(61,126,166,.12)', border: `1px solid ${courierAtDestination ? 'rgba(63,157,85,.35)' : 'rgba(61,126,166,.3)'}` }}>
+          <b style={{ display: 'block', color: courierAtDestination ? '#3f9d65' : '#3d7ea6', fontSize: 13 }}>{!courierDestination ? 'Район доставки ещё не назначен' : cycle.actions_done === 0 ? `Заказ доставить в район «${courierDestination.name}»` : courierAtDestination ? 'Вы приехали — можно продолжать заказ' : `Пункт доставки: ${courierDestination.name}`}</b>
+          {!courierDestination
+            ? <small style={{ display: 'block', marginTop: 4, color: 'var(--text-muted)' }}>Для маршрутов курьера нужно применить SQL-миграцию районной доставки.</small>
+            : cycle.actions_done === 0
+              ? <small style={{ display: 'block', marginTop: 4, color: 'var(--text-muted)' }}>Сначала заберите заказ. На следующем этапе отправляйтесь в этот район.</small>
+              : !courierAtDestination && <>
+              <small style={{ display: 'block', marginTop: 4, color: 'var(--text-muted)' }}>На втором этапе отправляйтесь в указанный район. Завершить доставку получится только там.</small>
+              <button type="button" onClick={() => app.setTab('district_map')} style={{ marginTop: 8, border: 0, borderRadius: 8, padding: '8px 11px', background: '#3d7ea6', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Открыть карту районов</button>
+            </>}
+        </div>}
         {cycle.actions_done < 3
-          ? <button className="profession-action-button" disabled={!canDoStep} onClick={() => app.stepProfessionCycle(cycle.actions_done + 1)}><Icon size={20} /> {profession.actionLabels[cycle.actions_done]}</button>
-          : <button className="profession-action-button" disabled={app.proc} onClick={app.finishProfessionCycle}>Забрать результат</button>}
+          ? <button className="profession-action-button" disabled={!canDoStep} onClick={() => app.stepProfessionCycle(cycle.actions_done + 1)}><Icon size={20} /> {needsCourierTravel && !courierAtDestination ? 'Сначала доберитесь до района' : needsCourierTravel ? (cycle.actions_done === 1 ? 'Подтвердить прибытие' : 'Завершить доставку') : profession.actionLabels[cycle.actions_done]}</button>
+          : <button className="profession-action-button" disabled={app.proc || (needsCourierTravel && !courierAtDestination)} onClick={app.finishProfessionCycle}>{needsCourierTravel && !courierAtDestination ? 'Вернитесь в район доставки' : 'Забрать результат'}</button>}
       </> : <>
         <div className="profession-stage-label"><b>Новая смена</b><span>3 этапа · +25 XP</span></div>
         {full && <div className="profession-inventory-full">Инвентарь заполнен · {career.inventory_slots}/200 <button onClick={() => app.setTab('inventory')}>Открыть</button></div>}

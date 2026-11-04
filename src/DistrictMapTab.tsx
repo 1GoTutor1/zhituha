@@ -13,16 +13,20 @@ export const DistrictMapTab = ({ app }: { app: any }) => {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [clock, setClock] = useState(Date.now());
+  const [restAvailableAt, setRestAvailableAt] = useState<string | null>(null);
+  const [restError, setRestError] = useState('');
+  const [resting, setResting] = useState(false);
 
   const refresh = async () => {
     if (!app.pid) return;
     setLoading(true);
     try {
       setLoadError('');
-      const [catalogResult, shopResult, taxiResult] = await Promise.all([
+      const [catalogResult, shopResult, taxiResult, restStateResult] = await Promise.all([
         app.supabase.rpc('business_catalog_rpc', { p_player_id: app.pid }),
         app.supabase.rpc('business_shop_state_rpc', { p_player_id: app.pid }),
         app.supabase.rpc('district_taxi_options_rpc', { p_player_id: app.pid }),
+        app.supabase.rpc('district_rest_state_rpc', { p_player_id: app.pid }),
       ]);
       if (catalogResult.error) throw catalogResult.error;
       if (catalogResult.data?.error) throw new Error(catalogResult.data.error);
@@ -40,6 +44,12 @@ export const DistrictMapTab = ({ app }: { app: any }) => {
         return { ...business, location_key: point?.location_key, district: business.district || point?.district };
       }).filter((business: any) => business.location_key || business.district));
       setTaxiOptions(taxiResult.error ? [] : (taxiResult.data?.options || []));
+      if (!restStateResult.error && !restStateResult.data?.error) {
+        setRestAvailableAt(restStateResult.data?.available_at || null);
+        setRestError('');
+      } else {
+        setRestError(restStateResult.error?.message || restStateResult.data?.error || 'Восстановление энергии пока не настроено');
+      }
     } catch (error: any) {
       setLoadError(error?.message || 'Не удалось загрузить точки бизнеса');
     } finally {
@@ -49,14 +59,37 @@ export const DistrictMapTab = ({ app }: { app: any }) => {
 
   useEffect(() => { void refresh(); }, [app.pid, app.currentDistrict, app.taxiRide?.id]);
   useEffect(() => {
-    if (!app.taxiRide) return;
-    const timer = window.setInterval(() => setClock(Date.now()), 300);
+    const timer = window.setInterval(() => setClock(Date.now()), app.taxiRide ? 300 : 1000);
     return () => window.clearInterval(timer);
   }, [app.taxiRide?.id, app.taxiRide?.status]);
 
   const current = DISTRICTS.find((district) => district.id === app.currentDistrict) || DISTRICTS[0];
   const travelCost = app.hasCar ? 5 : 20;
   const maxEnergy = app.hasHouse ? 150 : 100;
+  const restSeconds = restAvailableAt ? Math.max(0, Math.ceil((new Date(restAvailableAt).getTime() - clock) / 1000)) : 0;
+  const restIsReady = !restError && restSeconds === 0;
+  const energyIsFull = Number(app.energy) >= maxEnergy;
+  const restoreEnergy = async () => {
+    if (resting || !restIsReady || energyIsFull) return;
+    setResting(true);
+    setRestError('');
+    try {
+      const { data, error } = await app.supabase.rpc('district_rest_rpc', { p_player_id: app.pid });
+      if (error) throw new Error(error.message);
+      if (data?.error) {
+        if (data.available_at) setRestAvailableAt(data.available_at);
+        app.showMsg(data.error);
+        return;
+      }
+      if (data?.available_at) setRestAvailableAt(data.available_at);
+      await app.refreshProfile();
+      app.showMsg(`Восстановлено ${data.energy_restored} энергии`);
+    } catch (error: any) {
+      app.showMsg(error?.message || 'Не удалось восстановить энергию');
+    } finally {
+      setResting(false);
+    }
+  };
   const activeRide = app.taxiRide;
   const rideTarget = activeRide?.status === 'in_trip' ? activeRide.completes_at : activeRide?.arrives_at;
   const rideSeconds = rideTarget ? Math.max(0, Math.ceil((new Date(rideTarget).getTime() - clock) / 1000)) : 0;
@@ -86,6 +119,13 @@ export const DistrictMapTab = ({ app }: { app: any }) => {
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 7, marginTop: 13, color: 'var(--text-muted)', fontSize: 12 }}>
         {app.hasCar ? <><CarFront size={16} /> С машиной поездка стоит 5 энергии</> : <>Без машины поездка стоит 20 энергии</>}
         <span style={{ marginLeft: 'auto', textAlign: 'right', color: 'var(--text-muted)' }}>Кофе восстанавливает энергию:<br /><b style={{ color: 'var(--text-main)' }}>+10 / +25 / +40</b></span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 13, paddingTop: 12, borderTop: '1px solid var(--surface-line)' }}>
+        <div style={{ flex: '1 1 150px', color: 'var(--text-muted)', fontSize: 12 }}>Можно бесплатно восстановить <b style={{ color: 'var(--text-main)' }}>20 энергии</b> раз в 90 секунд.</div>
+        <button type="button" disabled={resting || !restIsReady || energyIsFull} onClick={() => void restoreEnergy()} style={{ border: 0, borderRadius: 10, padding: '9px 12px', color: '#21152a', background: '#ff9827', fontWeight: 850, opacity: resting || !restIsReady || energyIsFull ? .55 : 1 }}>
+          {resting ? 'Восстанавливаем…' : energyIsFull ? 'Энергия полная' : restError ? 'Недоступно' : restSeconds > 0 ? `Восстановить через ${restSeconds} сек` : 'Восстановить +20 энергии'}
+        </button>
+        {restError && <small role="alert" style={{ flexBasis: '100%', color: '#ff9b91' }}>{restError}</small>}
       </div>
     </article>
 

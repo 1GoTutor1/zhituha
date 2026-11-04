@@ -34,7 +34,7 @@ const CLIENT_RPCS = new Set([
   'family_claim_leadership_rpc', 'family_touch_rpc', 'family_territory_attack_rpc', 'family_public_rpc',
   'black_market_state_rpc', 'black_market_buy_seed_rpc', 'black_market_plant_rpc',
   'black_market_harvest_rpc', 'black_market_sell_rpc', 'family_black_market_join_rpc',
-  'district_state_rpc', 'district_travel_rpc', 'district_rest_rpc',
+  'district_state_rpc', 'district_travel_rpc', 'district_rest_rpc', 'district_rest_state_rpc',
   'district_taxi_options_rpc', 'district_taxi_order_rpc', 'district_taxi_ride_state_rpc', 'district_taxi_finish_ride_rpc',
 ]);
 
@@ -157,12 +157,17 @@ export default async function handler(req, res) {
       const leasedCollateralRejected = name === 'bank_apply_loan_rpc'
         && error.code === 'P0001'
         && String(error.message || '').includes('Бизнес в аренде с выкупом нельзя заложить');
-      const districtMigrationMissing = ['district_state_rpc', 'district_travel_rpc', 'district_rest_rpc'].includes(name)
+      const districtRestCooldownMigrationMissing = ['district_rest_rpc', 'district_rest_state_rpc'].includes(name)
+        && ['PGRST202', '42883', '42P01', '42703'].includes(error.code);
+      const districtMigrationMissing = ['district_state_rpc', 'district_travel_rpc', 'district_rest_rpc', 'district_rest_state_rpc'].includes(name)
         && ['PGRST202', '42883', '42P01', '42703'].includes(error.code);
       const districtTaxiMigrationMissing = name.startsWith('district_taxi_')
         && ['PGRST202', '42883', '42P01', '42703'].includes(error.code);
       // This RPC is polled in the background; the client already exposes sync failures in the casino UI.
-      if (name !== 'get_casino_round_rpc' && !leasedCollateralRejected && !districtMigrationMissing && !districtTaxiMigrationMissing) console.error('RPC failed:', name, error.code, error.message);
+      if (name !== 'get_casino_round_rpc' && !leasedCollateralRejected && !districtMigrationMissing && !districtRestCooldownMigrationMissing && !districtTaxiMigrationMissing) console.error('RPC failed:', name, error.code, error.message);
+      if (districtRestCooldownMigrationMissing) {
+        return res.status(400).json({ error: 'Восстановление энергии ещё не установлено в Supabase. Примени sql/DISTRICT_ENERGY_REST_COOLDOWN_MIGRATION.sql.' });
+      }
       if (districtTaxiMigrationMissing) {
         return res.status(400).json({ error: 'Такси между районами ещё не включено в Supabase. Примените sql/DISTRICT_TAXI_RIDES_MIGRATION.sql.' });
       }
@@ -184,7 +189,7 @@ export default async function handler(req, res) {
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Система бизнесов ещё не установлена полностью. Проверьте sql/BUSINESS_COMMERCE_MIGRATION.sql и sql/DEALERSHIP_FLEET_MIGRATION.sql.' });
       }
-      if (['district_state_rpc', 'district_travel_rpc', 'district_rest_rpc'].includes(name)
+      if (['district_state_rpc', 'district_travel_rpc', 'district_rest_rpc', 'district_rest_state_rpc'].includes(name)
           && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Районы ещё не установлены в Supabase. Выполни sql/DISTRICTS_ENERGY_MIGRATION.sql после миграций бизнеса.' });
       }
