@@ -19,6 +19,7 @@ declare
   v_expression text;
   v_set_clause text := '';
   v_business_count integer := 0;
+  v_active_lease_business_ids uuid[] := '{}'::uuid[];
 begin
   select role into v_admin_role
   from public.players
@@ -44,6 +45,16 @@ begin
   select count(*)::integer into v_business_count
   from public.businesses
   where owner_id = p_target_player_id;
+
+  -- Businesses still being paid off are returned to the state instead of
+  -- being deleted. Remember their IDs before removing the active contracts.
+  if to_regclass('public.business_lease_contracts') is not null then
+    execute 'select coalesce(array_agg(business_id), ''{}''::uuid[])
+      from public.business_lease_contracts
+      where lessee_id = $1 and status = ''active'''
+      into v_active_lease_business_ids
+      using p_target_player_id;
+  end if;
 
   -- Clear ride rows first: a driver FK intentionally prevents deleting a player
   -- while a trip references them.
@@ -78,8 +89,7 @@ begin
       using p_target_player_id;
   end if;
 
-  -- Remove the player's listed property and businesses. Business-owned stock,
-  -- cash, passive income, autostock rules and lease records follow their FKs.
+  -- Remove the player's listed property.
   if to_regclass('public.market_items') is not null then
     execute 'delete from public.market_items where seller_id = $1' using p_target_player_id;
   end if;
@@ -91,7 +101,36 @@ begin
       using p_target_player_id;
   end if;
 
-  delete from public.businesses where owner_id = p_target_player_id;
+  -- End active lease contracts first so the lease-protection trigger allows
+  -- ownership to return to the state. Keep the location's business row linked;
+  -- it will be available for the next player to lease or buy.
+  if cardinality(v_active_lease_business_ids) > 0 then
+    if to_regclass('public.business_lease_contracts') is not null then
+      execute 'delete from public.business_lease_contracts
+        where business_id = any($1) and lessee_id = $2 and status = ''active'''
+        using v_active_lease_business_ids, p_target_player_id;
+    end if;
+    if to_regclass('public.business_shop_stock') is not null then
+      execute 'delete from public.business_shop_stock where business_id = any($1)'
+        using v_active_lease_business_ids;
+    end if;
+    update public.businesses
+    set owner_id = null,
+        owner_name = 'Государство',
+        cash_balance = 0,
+        coffee_balance = 0,
+        passive_balance = 0,
+        passive_level = -1,
+        passive_updated_at = clock_timestamp(),
+        stock = '{}'::jsonb
+    where id = any(v_active_lease_business_ids)
+      and owner_id = p_target_player_id;
+  end if;
+
+  -- Fully purchased businesses are still removed as part of the reset.
+  delete from public.businesses
+  where owner_id = p_target_player_id
+    and not (id = any(v_active_lease_business_ids));
 
   -- Remove current bank assets/liabilities; retain bank_transactions as an
   -- immutable history for support and economy audits.
