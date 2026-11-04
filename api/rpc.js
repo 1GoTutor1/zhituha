@@ -70,6 +70,9 @@ export default async function handler(req, res) {
     if (player?.is_banned === true) {
       return res.status(403).json({ error: 'Аккаунт заблокирован', banned: true });
     }
+    if (name === 'admin_reset_player_rpc' && !['admin', 'superadmin'].includes(player?.role)) {
+      return res.status(403).json({ error: 'Недостаточно прав для сброса игрока' });
+    }
     if (player && player.is_subscribed !== true) {
       return res.status(403).json({ error: 'Подпишись на Telegram-канал Житухи и нажми «Проверить подписку».' });
     }
@@ -146,6 +149,10 @@ export default async function handler(req, res) {
 
     let { data, error } = await sb.rpc(name, safeArgs);
     if (error) {
+      if (name === 'admin_reset_player_rpc') {
+        console.error('Admin player reset failed:', error.code, error.message);
+        return res.status(400).json({ error: `Сброс не выполнен (${error.code || 'без кода'}): ${String(error.message || 'ошибка базы данных').slice(0, 240)}` });
+      }
       if (name.startsWith('season_pass_') && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Сезонный пропуск ещё не установлен в Supabase. Выполни sql/SEASON_PASS_MIGRATION.sql после указанных в начале файла миграций.' });
       }
