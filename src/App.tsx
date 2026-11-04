@@ -883,7 +883,8 @@ export default function App() {
     if (data && data.error) return showMsg(data.error, true);
     if (data) {
       setMyBizs(prev => prev.map(b => b.id === taxi.id ? { ...b, stock: data.stock } : b));
-      showMsg(`Собрано ${data.income} монет!`, false, 'reward');
+      const taxNotice = Number(data.business_tax) > 0 ? ` · налог 13%: −${Number(data.business_tax).toLocaleString('ru-RU')} ₽` : '';
+      showMsg(`Собрано ${Number(data.income).toLocaleString('ru-RU')} ₽${taxNotice}`, false, 'reward');
       await afterAction();
     }
   });

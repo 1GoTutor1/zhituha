@@ -760,6 +760,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
   return (
     <div className="business-page" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 'none', color: '#6b5f45', marginBottom: 20, marginTop: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button><h2>Бизнесы</h2>
+      <p style={{ margin: '-8px 0 14px', padding: '9px 11px', borderRadius: 10, background: 'rgba(61,126,166,.08)', color: '#6b5f45', fontSize: 12, lineHeight: 1.4 }}>Налог на доход бизнеса — 13% с обычных и пассивных начислений. Пополнение кассы своими деньгами налогом не облагается.</p>
       {activeBiz && activeBusinessArt && <section className="business-scene-banner" aria-label={`${getBizName(activeBiz.biz_type)} в вечернем городе`} style={{ '--business-scene-image': `url('${activeBusinessArt}')` } as React.CSSProperties}><div><span>СВОЁ ДЕЛО В ГОРОДЕ</span><b>{activeBiz.business_name}</b></div></section>}
 
       <div role="tablist" aria-label="Разделы бизнеса" style={{ display: 'flex', gap: 6, padding: 5, marginBottom: 18, borderRadius: 10, background: 'rgba(90,70,40,.08)' }}>
