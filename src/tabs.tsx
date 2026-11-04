@@ -1111,6 +1111,7 @@ export const AdminTab = ({ app }: { app: any }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [playerBizs, setPlayerBizs] = useState<any[]>([]);
   const [playerDetailsLoading, setPlayerDetailsLoading] = useState(false);
+  const [playerResetting, setPlayerResetting] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [promoAmount, setPromoAmount] = useState('');
   const [promoLimit, setPromoLimit] = useState('100');
@@ -1260,6 +1261,36 @@ export const AdminTab = ({ app }: { app: any }) => {
     app.showMsg(newStatus ? "Забанен" : "Разбанен"); 
     if (app.loadData) app.loadData(true); 
   };
+
+  const handleResetPlayer = async () => {
+    if (!selectedPlayer || playerResetting) return;
+    const nickname = String(selectedPlayer.nickname || 'игрок');
+    const confirmed = window.confirm(
+      `Сделать игрока «${nickname}» новичком?\n\n` +
+      'Сбросятся ₽ и жетоны, банк, транспорт и жильё, косметика, бизнесы, уровень/XP, инвентарь и прогресс пропуска. ' +
+      'Семья и роль в ней, реферальные связи/начисления, VIP-статус, аккаунт, история платежей и аудита сохранятся.'
+    );
+    if (!confirmed) return;
+
+    setPlayerResetting(true);
+    try {
+      const { data, error } = await app.supabase.rpc('admin_reset_player_rpc', {
+        p_admin_id: app.pid,
+        p_target_player_id: selectedPlayer.id,
+      });
+      if (error) return app.showMsg(error.message || 'Не удалось сбросить игрока', true);
+      if (data?.error) return app.showMsg(data.error, true);
+
+      setSelectedPlayer((current: any) => current ? { ...current, money: 3500 } : current);
+      setPlayerBizs([]);
+      app.showMsg(`Игрок «${nickname}» сброшен до новичка; семья и рефералы сохранены`);
+      if (selectedPlayer.id === app.pid && app.loadData) await app.loadData(true);
+    } catch (error: any) {
+      app.showMsg(error?.message || 'Не удалось сбросить игрока', true);
+    } finally {
+      setPlayerResetting(false);
+    }
+  };
   
   const handleDeleteBiz = async (bizId: string) => { 
     if (!window.confirm("Удалить этот бизнес?")) return; 
@@ -1294,7 +1325,7 @@ export const AdminTab = ({ app }: { app: any }) => {
     setPromoAmount('');
   };
 
-  const logFilters = ['all', 'money_change', 'admin_give_money', 'admin_ban', 'admin_unban', 'admin_delete_biz', 'admin_create_promo', 'admin_grant_cosmetic', 'promo_used'];
+  const logFilters = ['all', 'money_change', 'admin_give_money', 'admin_ban', 'admin_unban', 'admin_delete_biz', 'admin_reset_player', 'admin_create_promo', 'admin_grant_cosmetic', 'promo_used'];
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -1384,6 +1415,16 @@ export const AdminTab = ({ app }: { app: any }) => {
                 </div>
               ))}
               {playerBizs.length === 0 && <p style={{ color: '#6b5f45', fontSize: 12 }}>Нет бизнесов.</p>}
+
+              <div style={{ border: '1px solid rgba(239,68,68,.5)', borderRadius: 12, padding: 12, marginTop: 18, background: 'rgba(192,69,58,.08)' }}>
+                <h4 style={{ margin: '0 0 6px', color: '#c0453a' }}>Сброс прогресса игрока</h4>
+                <p style={{ margin: '0 0 10px', color: '#6b5f45', fontSize: 12, lineHeight: 1.45 }}>
+                  Сбросит только выбранный аккаунт. Семья и роль в ней, а также реферальные связи и начисления сохранятся.
+                </p>
+                <Btn variant="danger" onClick={handleResetPlayer} disabled={app.proc || playerDetailsLoading || playerResetting}>
+                  <AlertTriangle size={16} /> {playerResetting ? 'Сбрасываем…' : 'Сделать новичком'}
+                </Btn>
+              </div>
             </div>
           )}
         </div>

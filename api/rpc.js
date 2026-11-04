@@ -10,7 +10,7 @@ const CLIENT_RPCS = new Set([
   'buy_coffee_rpc', 'collect_coffee_cash_rpc', 'hire_worker_rpc', 'fire_worker_rpc', 'quit_job_rpc',
   'buy_phone_rpc', 'list_item_rpc', 'buy_market_item', 'collect_ref_bonus_rpc', 'collect_tips_rpc',
   'redeem_promo', 'reset_game_rpc', 'log_action_rpc', 'get_logs_rpc', 'cleanup_logs_rpc',
-  'admin_give_money_rpc', 'admin_set_ban_rpc', 'admin_delete_biz_rpc', 'create_promo_rpc',
+  'admin_give_money_rpc', 'admin_set_ban_rpc', 'admin_delete_biz_rpc', 'admin_reset_player_rpc', 'create_promo_rpc',
   'admin_delete_market_lot_rpc',
   'get_casino_round_rpc', 'place_bet_rpc', 'casino_slots_spin_rpc', 'casino_slots_history_rpc',
   'profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc',
@@ -148,6 +148,9 @@ export default async function handler(req, res) {
     if (error) {
       if (name.startsWith('season_pass_') && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
         return res.status(400).json({ error: 'Сезонный пропуск ещё не установлен в Supabase. Выполни sql/SEASON_PASS_MIGRATION.sql после указанных в начале файла миграций.' });
+      }
+      if (name === 'admin_reset_player_rpc' && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
+        return res.status(400).json({ error: 'Сброс игрока ещё не включён в Supabase. Примени sql/ADMIN_PLAYER_RESET_MIGRATION.sql.' });
       }
       // A leased-business collateral rejection is an expected user-facing validation,
       // not an infrastructure failure worth writing to the Vercel error log.
