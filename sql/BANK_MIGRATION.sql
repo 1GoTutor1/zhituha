@@ -402,7 +402,7 @@ do $$
 begin
   if exists(select 1 from pg_extension where extname='pg_cron') then
     perform cron.unschedule(jobid) from cron.job where jobname='bank-market-minute-tick';
-    perform cron.schedule('bank-market-minute-tick','* * * * *','select public.bank_market_tick_rpc();');
+    perform cron.schedule('bank-market-five-minute-tick','*/5 * * * *','select public.bank_market_tick_rpc();');
   end if;
 end $$;
 

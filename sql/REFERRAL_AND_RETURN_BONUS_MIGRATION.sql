@@ -461,7 +461,7 @@ begin
     end if;
     perform cron.schedule(
       'daily-reward-reminders',
-      '* * * * *',
+      '*/5 * * * *',
       $job$
         select net.http_post(
           url := (select decrypted_secret from vault.decrypted_secrets where name = 'daily_reminders_url'),

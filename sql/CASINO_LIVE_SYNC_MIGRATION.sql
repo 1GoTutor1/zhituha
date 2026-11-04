@@ -102,4 +102,4 @@ begin
 end $$;
 
 -- Same job name makes the migration safe to re-run: it updates the existing schedule.
-select cron.schedule('casino-live-tick', '1 second', $$select public.casino_tick_rpc();$$);
+select cron.schedule('casino-live-tick', '5 seconds', $$select public.casino_tick_rpc();$$);

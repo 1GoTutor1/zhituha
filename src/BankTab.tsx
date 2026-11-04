@@ -131,7 +131,9 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => { void loadBank(); }, 0);
-    const timer = window.setInterval(() => { void loadBank(true); }, 30_000);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadBank(true);
+    }, 60_000);
     return () => { window.clearTimeout(initialLoad); window.clearInterval(timer); };
   }, [loadBank]);
 

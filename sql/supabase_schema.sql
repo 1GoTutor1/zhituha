@@ -1921,7 +1921,7 @@ grant execute on all functions in schema public to service_role;
 
 -- Независимый от открытых клиентов цикл: переход раундов проверяется каждую секунду.
 create extension if not exists pg_cron;
-select cron.schedule('casino-live-tick', '1 second', $$select public.casino_tick_rpc();$$);
+select cron.schedule('casino-live-tick', '5 seconds', $$select public.casino_tick_rpc();$$);
 
 -- SECURITY DEFINER functions must not resolve objects from a caller-controlled schema.
 revoke create on schema public from public, anon, authenticated;

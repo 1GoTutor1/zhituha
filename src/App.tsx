@@ -140,8 +140,15 @@ export default function App() {
 
   useEffect(() => {
     void refreshMaintenance();
-    const timer = window.setInterval(() => { void refreshMaintenance(); }, 60_000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshMaintenance();
+    }, 5 * 60_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void refreshMaintenance(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [user]);
 
   const setMaintenance = async (enabled: boolean) => {
@@ -691,7 +698,9 @@ export default function App() {
     if (['business', 'jobs', 'cafe'].includes(tab)) {
       refreshProfile(); pollMyBizs(); pollWorkers();
       if (tab === 'business') loadBusinessCatalog();
-      const int = setInterval(() => { refreshProfile(); pollMyBizs(); pollWorkers(); }, POLL);
+      const int = setInterval(() => {
+        if (document.visibilityState === 'visible') { refreshProfile(); pollMyBizs(); pollWorkers(); }
+      }, POLL);
       return () => clearInterval(int);
     }
   }, [tab, pid]);
