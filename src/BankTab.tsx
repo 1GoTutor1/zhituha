@@ -178,7 +178,16 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
       if (typeof payload.wallet === 'number') app.setMoney?.(payload.wallet);
       await loadBank(true);
       app.hapticFeedback?.('medium');
-      app.showMsg?.(successText);
+      if (rpcName === 'bank_transfer_rpc') {
+        const fee = Number(payload.fee) || 0;
+        const commission = Number(payload.commission_percent) || 0;
+        const remaining = Number(payload.daily_remaining) || 0;
+        app.showMsg?.(fee > 0
+          ? `Перевод отправлен · комиссия ${money(fee)} (${commission}%)`
+          : `Перевод отправлен без комиссии · осталось ${money(remaining)} лимита`);
+      } else {
+        app.showMsg?.(successText);
+      }
     } catch (runError) {
       const message = runError instanceof Error ? runError.message : 'Операция не выполнена';
       setError(message);
@@ -254,7 +263,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
             <h3 style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 7 }}><Send size={17} /> Перевести игроку</h3>
             <input type="text" value={recipient} onChange={event => setRecipient(event.target.value)} placeholder="Ник получателя" style={S.input} />
             <input type="number" min="1" step="1" value={transferAmount} onChange={event => setTransferAmount(event.target.value)} placeholder="Сумма" style={S.input} />
-            <small style={{ display: 'block', color: 'var(--text-muted)', margin: '-2px 0 10px', textAlign: 'left' }}>Лимит за московские сутки: 100 000 ₽; с активной премиум-подпиской — 250 000 ₽.</small>
+            <small style={{ display: 'block', color: 'var(--text-muted)', margin: '-2px 0 10px', textAlign: 'left' }}>Без комиссии: до 100 000 ₽ в сутки, с премиумом — до 250 000 ₽. Сверх лимита перевод всё равно пройдёт: комиссия 20% или 10% с премиумом. Получатель получит всю указанную сумму, комиссия спишется отдельно.</small>
             <Btn variant="primary" disabled={busy || !recipient.trim()} onClick={() => void run('bank_transfer_rpc', { p_recipient_nickname: recipient.trim(), p_amount: Number(transferAmount) }, 'Перевод отправлен')}>Перевести</Btn>
           </div>
         </>}
@@ -380,7 +389,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
 
         {section === 'history' && <>
           {(bank?.transactions || []).length === 0 && <div style={{ ...S.card, color: '#6b5f45', fontSize: 13 }}>Операций пока нет.</div>}
-          {(bank?.transactions || []).map((transaction: Transaction) => <div key={transaction.id} style={{ ...S.card, marginBottom: 8, padding: 12, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}><div><b style={{ fontSize: 12 }}>{({ cash_deposit: 'Внесение наличных', cash_withdraw: 'Снятие наличных', transfer_out: 'Перевод отправлен', transfer_in: 'Перевод получен', deposit_open: 'Открытие вклада', deposit_payout: 'Выплата вклада', deposit_early_close: 'Досрочное закрытие', stock_buy: 'Покупка акций', stock_sell: 'Продажа акций', stock_dividend: 'Дивиденды по акциям', loan_issued: 'Выдача кредита', loan_repayment: 'Погашение кредита', loan_foreclosure: 'Изъятие залога' } as Record<string,string>)[transaction.operation] || transaction.operation}</b><div style={{ color: '#8a806c', fontSize: 10, marginTop: 3 }}>{dateTime(transaction.created_at)}</div></div><span style={{ color: Number(transaction.amount) >= 0 ? '#3f9d55' : '#c0453a', fontWeight: 700, whiteSpace: 'nowrap' }}>{Number(transaction.amount) > 0 ? '+' : ''}{money(transaction.amount)}</span></div>)}
+          {(bank?.transactions || []).map((transaction: Transaction) => <div key={transaction.id} style={{ ...S.card, marginBottom: 8, padding: 12, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}><div><b style={{ fontSize: 12 }}>{({ cash_deposit: 'Внесение наличных', cash_withdraw: 'Снятие наличных', transfer_out: 'Перевод отправлен', transfer_in: 'Перевод получен', transfer_fee: 'Комиссия за перевод', deposit_open: 'Открытие вклада', deposit_payout: 'Выплата вклада', deposit_early_close: 'Досрочное закрытие', stock_buy: 'Покупка акций', stock_sell: 'Продажа акций', stock_dividend: 'Дивиденды по акциям', loan_issued: 'Выдача кредита', loan_repayment: 'Погашение кредита', loan_foreclosure: 'Изъятие залога' } as Record<string,string>)[transaction.operation] || transaction.operation}</b><div style={{ color: '#8a806c', fontSize: 10, marginTop: 3 }}>{dateTime(transaction.created_at)}</div></div><span style={{ color: Number(transaction.amount) >= 0 ? '#3f9d55' : '#c0453a', fontWeight: 700, whiteSpace: 'nowrap' }}>{Number(transaction.amount) > 0 ? '+' : ''}{money(transaction.amount)}</span></div>)}
         </>}
       </>}
       <div style={{ color: '#958b78', fontSize: 10, textAlign: 'center', margin: '15px 0 5px' }}><Clock3 size={12} style={{ verticalAlign: 'middle' }} /> Котировки обновляются раз в минуту</div>
