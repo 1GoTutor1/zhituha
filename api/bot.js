@@ -34,9 +34,57 @@ const isAdmin = async (tgId) => {
 
 const backKeyboard = () => ({ inline_keyboard: [[{ text: '← Назад', callback_data: 'btn_back' }]] });
 const adminKeyboard = () => ({ inline_keyboard: [
+  [{ text: '\uD83D\uDCE5 \u0411\u0430\u0433-\u0440\u0435\u043f\u043e\u0440\u0442\u044b', callback_data: 'btn_bug_reports' }],
   [{ text: '✉️ Написать игроку', callback_data: 'btn_admin_dm' }],
   [{ text: '← Назад', callback_data: 'btn_back' }],
 ] });
+
+const showBugReports = async (ctx, page = 0) => {
+  if (!(await isAdmin(ctx.from.id))) {
+    if (ctx.callbackQuery) return ctx.answerCbQuery('\u041d\u0435\u0442 \u0434\u043e\u0441\u0442\u0443\u043f\u0430', { show_alert: true });
+    return ctx.reply('\u041d\u0435\u0442 \u0434\u043e\u0441\u0442\u0443\u043f\u0430.');
+  }
+
+  const { count, error: countError } = await supabase.from('bug_reports')
+    .select('id', { count: 'exact', head: true }).eq('status', 'open');
+  const total = count || 0;
+  const safePage = total ? Math.min(page, total - 1) : 0;
+  const { data: reports, error } = await supabase.from('bug_reports')
+    .select('id, player_name, telegram_id, message, created_at')
+    .eq('status', 'open').order('created_at', { ascending: false }).order('id', { ascending: false })
+    .range(safePage, safePage);
+
+  let text;
+  let keyboard;
+  if (error || countError) {
+    console.error('Bug report inbox query failed:', error?.message || countError?.message);
+    text = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0431\u0430\u0433-\u0440\u0435\u043f\u043e\u0440\u0442\u044b. \u041f\u0440\u043e\u0432\u0435\u0440\u044c \u043c\u0438\u0433\u0440\u0430\u0446\u0438\u044e BUG_REPORT_INBOX_MIGRATION.sql.';
+    keyboard = adminKeyboard();
+  } else {
+    const report = reports?.[0];
+    if (!report) {
+      text = `\u0412\u0445\u043e\u0434\u044f\u0449\u0438\u0435 \u0431\u0430\u0433-\u0440\u0435\u043f\u043e\u0440\u0442\u044b\n\u041e\u0442\u043a\u0440\u044b\u0442\u044b\u0445: ${total}\n\n\u041d\u043e\u0432\u044b\u0445 \u043e\u0442\u043a\u0440\u044b\u0442\u044b\u0445 \u0440\u0435\u043f\u043e\u0440\u0442\u043e\u0432 \u043d\u0435\u0442.`;
+      keyboard = adminKeyboard();
+    } else {
+      const date = new Date(report.created_at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
+      text = `\u0411\u0430\u0433-\u0440\u0435\u043f\u043e\u0440\u0442 #${report.id} · ${safePage + 1}/${total}\n${date}\n\u0418\u0433\u0440\u043e\u043a: ${report.player_name} (TG ${report.telegram_id})\n\n${report.message}`;
+      const nav = [];
+      if (safePage > 0) nav.push({ text: '\u2190 \u041d\u043e\u0432\u0435\u0435', callback_data: `btn_bug_reports_${safePage - 1}` });
+      if (safePage < total - 1) nav.push({ text: '\u0421\u0442\u0430\u0440\u0435\u0435 \u2192', callback_data: `btn_bug_reports_${safePage + 1}` });
+      const rows = [[{ text: `\u2705 \u0417\u0430\u043a\u0440\u044b\u0442\u044c #${report.id}`, callback_data: `bug_resolve_${report.id}_${safePage}` }]];
+      if (nav.length) rows.push(nav);
+      rows.push([{ text: '\u0412 \u0430\u0434\u043c\u0438\u043d-\u043c\u0435\u043d\u044e', callback_data: 'btn_admin' }]);
+      keyboard = { inline_keyboard: rows };
+    }
+  }
+
+  if (ctx.callbackQuery) {
+    try { await ctx.editMessageText(text, { reply_markup: keyboard }); }
+    catch { await ctx.reply(text, { reply_markup: keyboard }); }
+    return ctx.answerCbQuery();
+  }
+  return ctx.reply(text, { reply_markup: keyboard });
+};
 
 const topKeyboard = (active = 'money') => ({ inline_keyboard: [
   [
@@ -353,6 +401,28 @@ bot.action('btn_back', async (ctx) => {
 });
 
 // --- АДМИНКА ---
+bot.command('reports', async (ctx) => showBugReports(ctx, 0));
+
+bot.action(/^btn_bug_reports(?:_(\d+))?$/, async (ctx) => {
+  await showBugReports(ctx, Number(ctx.match?.[1] || 0));
+});
+
+bot.action(/^bug_resolve_(\d+)_(\d+)$/, async (ctx) => {
+  if (!(await isAdmin(ctx.from.id))) return ctx.answerCbQuery('\u041d\u0435\u0442 \u0434\u043e\u0441\u0442\u0443\u043f\u0430', { show_alert: true });
+  const [, rawId, rawPage] = ctx.match;
+  const { error } = await supabase.from('bug_reports').update({
+    status: 'resolved',
+    resolved_at: new Date().toISOString(),
+    resolved_by: String(ctx.from.id),
+  }).eq('id', Number(rawId)).eq('status', 'open');
+  if (error) {
+    console.error('Bug report resolve failed:', error.message);
+    await ctx.answerCbQuery('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u043a\u0440\u044b\u0442\u044c', { show_alert: true });
+    return;
+  }
+  await showBugReports(ctx, Number(rawPage));
+});
+
 bot.action('btn_admin', async (ctx) => {
   if (!(await isAdmin(ctx.from.id))) {
     return ctx.answerCbQuery('⛔ Нет доступа', { show_alert: true });
