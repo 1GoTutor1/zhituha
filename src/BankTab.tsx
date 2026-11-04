@@ -252,6 +252,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
             <h3 style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 7 }}><Send size={17} /> Перевести игроку</h3>
             <input type="text" value={recipient} onChange={event => setRecipient(event.target.value)} placeholder="Ник получателя" style={S.input} />
             <input type="number" min="1" step="1" value={transferAmount} onChange={event => setTransferAmount(event.target.value)} placeholder="Сумма" style={S.input} />
+            <small style={{ display: 'block', color: 'var(--text-muted)', margin: '-2px 0 10px', textAlign: 'left' }}>Лимит за московские сутки: 100 000 ₽; с активной премиум-подпиской — 250 000 ₽.</small>
             <Btn variant="primary" disabled={busy || !recipient.trim()} onClick={() => void run('bank_transfer_rpc', { p_recipient_nickname: recipient.trim(), p_amount: Number(transferAmount) }, 'Перевод отправлен')}>Перевести</Btn>
           </div>
         </>}
