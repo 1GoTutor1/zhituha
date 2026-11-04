@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
-import { isAdminRole, readMaintenance } from './_maintenance.js';
+import { isAdminRole, readMaintenance, setMaintenanceCache } from './_maintenance.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -38,6 +38,7 @@ export default async function handler(req, res) {
         updated_at: new Date().toISOString(), updated_by: player.id,
       }, { onConflict: 'setting_key' });
       if (error) throw error;
+      setMaintenanceCache(req.body.enabled);
       return res.status(200).json({ enabled: req.body.enabled, is_admin: true });
     }
     return res.status(400).json({ error: 'Unsupported maintenance action' });

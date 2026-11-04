@@ -135,6 +135,14 @@ export default async function handler(req, res) {
 
     if (!player) return res.status(200).json({ player: null, referrals: [] });
 
+    // Periodic refreshes need only the current profile. The full `me` action
+    // touches activity and loads profession/taxi state, which is needed at login.
+    if (action === 'profile_refresh') {
+      if (player.is_banned) return res.status(403).json({ error: 'Аккаунт заблокирован' });
+      if (player.is_subscribed === false) return res.status(403).json({ error: 'Сначала подпишись на канал игры' });
+      return res.status(200).json({ player });
+    }
+
     if (action === 'donor_leaderboard') {
       const { data, error } = await sb.rpc('donation_leaderboard_rpc', { p_limit: 10 });
       if (error) throw error;

@@ -381,16 +381,25 @@ export default function App() {
     hapticFeedback('heavy');
   };
   const pollMyBizs = async () => {
-    if (!pid) return;
+    if (!pid) return [];
     const { data } = await supabase.from('businesses')
       .select('id, owner_id, biz_type, business_name, location_key, cash_balance, taxi_owner_cut_percent, stock, coffee_balance, build_end, car_order_end, last_collected, created_at, passive_level, passive_balance, passive_updated_at')
       .eq('owner_id', pid);
     if (data) setMyBizs(data);
+    return data || [];
   };
 
-  const pollWorkers = async () => {
+  const pollWorkers = async (businesses = myBizs) => {
     if (!pid) return;
-    const { data, error } = await supabase.from('business_workers').select('*');
+    const businessIds = businesses.map((business: any) => String(business.id)).filter(Boolean);
+    let query = supabase.from('business_workers')
+      .select('id, business_id, player_id, player_name, role, salary');
+    if (!boardOpen) {
+      query = businessIds.length
+        ? query.or(`player_id.eq.${pid},business_id.in.(${businessIds.join(',')})`)
+        : query.eq('player_id', pid);
+    }
+    const { data, error } = await query;
     if (error || !data) return;
     setAllWorkers(data);
     setMyJob(data.find((worker: any) => worker.player_id === pid) || null);
@@ -576,9 +585,9 @@ export default function App() {
 
   // Обновление профиля игрока (деньги/энергия/таймеры) — отдельный лёгкий запрос,
   // чтобы не тянуть ради этого все бизнесы.
-  const refreshProfile = async () => {
+  const refreshProfile = async (includeProfession = false) => {
     if (!user?.id || !pid) return;
-    const response = await fetch('/api/players', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'me', init_data: (window as any).Telegram?.WebApp?.initData || '' }) });
+    const response = await fetch('/api/players', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: includeProfession ? 'me' : 'profile_refresh', init_data: (window as any).Telegram?.WebApp?.initData || '' }) });
     const result = await response.json();
     const data = response.ok ? result.player : null;
     if (!data) return;
@@ -694,16 +703,21 @@ export default function App() {
   useEffect(() => {
     if (tab === 'market') { loadMarket(); refreshBusinessOffers(); refreshProfile(); loadBusinessCatalog(); pollMyBizs(); }
     if (tab === 'business') { refreshBusinessOffers(); refreshVehicleState(); }
-    if (tab === 'shop' || tab === 'inventory') { refreshProfile(); pollMyBizs(); }
+    if (tab === 'shop') { refreshProfile(); pollMyBizs(); }
+    if (tab === 'inventory') { refreshProfile(true); pollMyBizs(); }
     if (['business', 'jobs', 'cafe'].includes(tab)) {
-      refreshProfile(); pollMyBizs(); pollWorkers();
+      const refreshWorkData = async () => {
+        const businesses = await pollMyBizs();
+        await pollWorkers(businesses);
+      };
+      refreshProfile(); void refreshWorkData();
       if (tab === 'business') loadBusinessCatalog();
       const int = setInterval(() => {
-        if (document.visibilityState === 'visible') { refreshProfile(); pollMyBizs(); pollWorkers(); }
+        if (document.visibilityState === 'visible') { refreshProfile(); void refreshWorkData(); }
       }, POLL);
       return () => clearInterval(int);
     }
-  }, [tab, pid]);
+  }, [tab, pid, boardOpen]);
 
   useEffect(() => {
     if (onboardStep === 3 && tab === 'business') advanceTutorial(4);
@@ -1277,7 +1291,7 @@ export default function App() {
     if (data?.error) throw new Error(data.error);
     advanceMissionProgress('profession_1');
     advanceMissionProgress('work_5');
-    await Promise.all([refreshProfile(), refreshDailyMissions()]);
+    await Promise.all([refreshProfile(true), refreshDailyMissions()]);
     if (data.pending_reward) {
       showMsg('Находка готова — выбери, что с ней сделать');
       hapticFeedback('heavy');
@@ -1305,7 +1319,7 @@ export default function App() {
     const { data, error } = await supabase.rpc('claim_profession_reward_rpc', { p_player_id: pid, p_choice: choice });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    await refreshProfile();
+    await refreshProfile(true);
     if (choice === 'sell') setMoney(Number(data.money));
     if (choice === 'inventory') {
       try { localStorage.setItem('zhituha_inventory_new', '1'); } catch {}
@@ -1324,7 +1338,7 @@ export default function App() {
     if (data?.daily_mission_sync_error) showMsg('Продажа прошла, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
     setMoney(Number(data.money));
     advanceMissionProgress('sell_1');
-    await Promise.all([refreshProfile(), refreshDailyMissions()]);
+    await Promise.all([refreshProfile(true), refreshDailyMissions()]);
     showMsg(data?.daily_mission_sync_error
       ? 'Продажа прошла, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.'
       : `Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, Boolean(data?.daily_mission_sync_error), data?.daily_mission_sync_error ? undefined : 'reward');
