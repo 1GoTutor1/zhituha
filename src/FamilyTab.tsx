@@ -42,7 +42,7 @@ export const FamilyTab = ({ app }: { app: any }) => {
     void refresh();
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refresh();
-    }, 120_000);
+    }, 5 * 60_000);
     return () => window.clearInterval(timer);
   }, [app.tab, refresh]);
 

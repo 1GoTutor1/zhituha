@@ -710,12 +710,19 @@ export default function App() {
         const businesses = await pollMyBizs();
         await pollWorkers(businesses);
       };
-      refreshProfile(); void refreshWorkData();
+      const refreshVisibleWorkData = () => {
+        if (document.visibilityState !== 'visible') return;
+        void refreshProfile();
+        void refreshWorkData();
+      };
+      refreshVisibleWorkData();
       if (tab === 'business') loadBusinessCatalog();
-      const int = setInterval(() => {
-        if (document.visibilityState === 'visible') { refreshProfile(); void refreshWorkData(); }
-      }, POLL);
-      return () => clearInterval(int);
+      const int = setInterval(refreshVisibleWorkData, POLL);
+      document.addEventListener('visibilitychange', refreshVisibleWorkData);
+      return () => {
+        clearInterval(int);
+        document.removeEventListener('visibilitychange', refreshVisibleWorkData);
+      };
     }
   }, [tab, pid, boardOpen]);
 

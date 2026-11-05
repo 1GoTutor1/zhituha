@@ -521,8 +521,12 @@ export const MarketTab = ({ app }: { app: any }) => {
     : leaderboardMode === 'referrals' ? app.referralLeaderboard
       : donationPlayers;
   const allPlayerShops = app.businessOffers?.shops || [];
-  const districtPlayerShops = allPlayerShops.filter((shop: any) => shop.district === app.currentDistrict);
-  const shopsMissingDistrict = allPlayerShops.length > 0 && allPlayerShops.every((shop: any) => !shop.district);
+  const businessLocations = app.businessCatalog?.locations || [];
+  const districtPlayerShops = allPlayerShops.filter((shop: any) => {
+    if (shop.district) return shop.district === app.currentDistrict;
+    const location = businessLocations.find((item: any) => String(item.business_id) === String(shop.business_id));
+    return location ? districtForLocation(location).id === app.currentDistrict : false;
+  });
   const currentDistrictName = DISTRICTS.find(district => district.id === app.currentDistrict)?.name || 'текущий район';
 
   const openPlayerProfile = async (topPlayer: any) => {
@@ -657,7 +661,7 @@ export const MarketTab = ({ app }: { app: any }) => {
           {!(app.businessOffers?.repair_shops || []).length && <small style={{ color: '#6b5f45' }}>Пока нет автомастерских.</small>}
         </div>
         {allPlayerShops.length === 0 && <p style={{ color: '#6b5f45' }}>Магазины появятся после покупки точек у государства.</p>}
-        {allPlayerShops.length > 0 && districtPlayerShops.length === 0 && <p style={{ color: '#6b5f45' }}>{shopsMissingDistrict ? 'Не удалось определить районы магазинов. Обнови миграцию районов в Supabase.' : `В районе «${currentDistrictName}» пока нет магазинов игроков.`}</p>}
+        {allPlayerShops.length > 0 && districtPlayerShops.length === 0 && <p style={{ color: '#6b5f45' }}>{businessLocations.length === 0 ? 'Загружаем расположение магазинов…' : `В районе «${currentDistrictName}» пока нет магазинов игроков.`}</p>}
         <Modal open={!!shopPurchase} onClose={() => setShopPurchase(null)}>
           {shopPurchase && <>
             <h3 style={{ marginTop: 0 }}>{shopPurchase.product.product_name}</h3>
@@ -740,7 +744,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
     void refreshSalesHistory(true);
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refreshSalesHistory();
-    }, 120_000);
+    }, 5 * 60_000);
     return () => { disposed = true; window.clearInterval(timer); };
   }, [activeBiz?.id, activeBiz?.biz_type, app.pid, app.supabase]);
 

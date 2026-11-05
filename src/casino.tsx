@@ -144,7 +144,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
       });
     const poll = window.setInterval(() => {
       if (!realtimeReady) void loadRound();
-    }, 60000);
+    }, 5 * 60_000);
     return () => {
       mountedRef.current = false;
       window.clearInterval(poll);
