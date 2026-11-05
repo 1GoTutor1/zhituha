@@ -170,6 +170,7 @@ export default function App() {
   };
   
   const [loading, setLoading] = useState(!!(window as any).Telegram?.WebApp?.initDataUnsafe?.user);
+  const [profileLookupFailed, setProfileLookupFailed] = useState(false);
   const [isCheckingSub, setIsCheckingSub] = useState(Boolean(user?.id));
   const [subscriptionError, setSubscriptionError] = useState('');
   const [proc, setProc] = useState(false);
@@ -198,6 +199,11 @@ export default function App() {
   const [coffeeBonusUntil, setCoffeeBonusUntil] = useState('');
   const [returnBoostUntil, setReturnBoostUntil] = useState('');
   const [career, setCareer] = useState<any>({ level: 1, xp: 0, xp_to_next: 100, profession: 'miner', unlocked: ['miner'], active_cycle: null, pending_reward: null, inventory: [], inventory_slots: 0, inventory_capacity: 200 });
+  const professionFinishRetry = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (professionFinishRetry.current != null) window.clearTimeout(professionFinishRetry.current);
+  }, []);
 
   useEffect(() => {
     if (!pid) return;
@@ -416,7 +422,7 @@ export default function App() {
 
   const loadData = async (silent = false) => {
     if (lock.current && !silent) return;
-    if (!silent) setLoading(true);
+    if (!silent) { setLoading(true); setProfileLookupFailed(false); }
     try {
       const uid = getUid(); setTgId(uid);
       if (!uid) return; // в Telegram без реального user.id данные не грузим
@@ -437,6 +443,7 @@ export default function App() {
       const profileResult = await profileResponse.json();
       if (!profileResponse.ok) throw new Error(profileResult.error || 'Profile request failed');
       const d = profileResult.player;
+      setProfileLookupFailed(false);
       if (!d) { if (user?.first_name) setInNick(user.first_name); return; }
       if (profileResult.return_bonus?.granted) {
         showMsg('С возвращением! Начислено 5 000 ₽ и +15% к игровому заработку на 2 часа.');
@@ -465,6 +472,9 @@ export default function App() {
       setCoffeeBonusUntil(d.coffee_bonus_until || '');
       setReturnBoostUntil(d.return_boost_until || '');
       if (profileResult.profession) setCareer(profileResult.profession);
+      if (profileResult.profession_state_unavailable) {
+        showMsg('Профиль и уровень сохранены, но состояние профессии не загрузилось. Повтори позже или проверь миграцию профессий.', true);
+      }
       if (Array.isArray(profileResult.daily_missions)) setDailyMissions(profileResult.daily_missions);
       setBrewEnd(Number(d.brew_end) || 0);
       setTipBalance(Number(d.tip_balance) || 0);
@@ -499,6 +509,7 @@ export default function App() {
       }
     } catch (e) {
       console.error(e);
+      if (!silent && !pid) setProfileLookupFailed(true);
       if (!silent) showMsg(e instanceof Error ? e.message : 'Не удалось загрузить профиль. Проверьте настройки Vercel.', true);
     } finally { if (!silent) setLoading(false); }
   };
@@ -833,6 +844,14 @@ export default function App() {
     const data = result.player;
     setPid(data.id); setNick(data.nickname || final); setGender(data.gender || selG); setAvatarId(data.avatar_id || avatarId);
     setMoney(Number(data.money) || 0);
+    setCareer((current: any) => ({
+      ...current,
+      level: Math.max(1, Number(data.player_level) || 1),
+      xp: Math.max(0, Number(data.player_xp) || 0),
+      profession: data.active_profession || current.profession,
+      unlocked: Array.isArray(data.unlocked_professions) && data.unlocked_professions.length
+        ? data.unlocked_professions : current.unlocked,
+    }));
     window.setTimeout(() => { void loadData(true); }, 0);
     if (result.referred) showMsg("Бонус +1000 монет за приглашение!");
   });
@@ -1307,6 +1326,16 @@ export default function App() {
   const startProfessionCycle = () => action(async () => {
     const { data, error } = await supabase.rpc('start_profession_cycle_rpc', { p_player_id: pid });
     if (error) throw error;
+    if (data?.pending_reward) {
+      setCareer((current: any) => ({ ...current, pending_reward: data.pending_reward }));
+      showMsg('Нашёл незабранный результат смены — выбери, что с ним сделать.');
+      return;
+    }
+    if (data?.active_cycle) {
+      setCareer((current: any) => ({ ...current, active_cycle: data.active_cycle }));
+      showMsg('Нашёл незавершённую смену. Продолжай с текущего этапа.');
+      return;
+    }
     if (data?.error) throw new Error(data.error);
     setCareer((current: any) => ({ ...current, active_cycle: data.active_cycle }));
     hapticFeedback('medium');
@@ -1315,7 +1344,32 @@ export default function App() {
   const completeProfessionCycle = async () => {
     const { data, error } = await supabase.rpc('finish_profession_cycle_rpc', { p_player_id: pid });
     if (error) throw error;
-    if (data?.error) throw new Error(data.error);
+    if (data?.error) {
+      if (data.pending_reward) {
+        setCareer((current: any) => ({ ...current, pending_reward: data.pending_reward }));
+        showMsg('Нашёл незабранный результат смены — выбери, что с ним сделать.');
+        return;
+      }
+      const remainingSeconds = Number(data.remaining_seconds);
+      if (data.error === 'Работа ещё выполняется' && Number.isFinite(remainingSeconds) && remainingSeconds > 0) {
+        setCareer((current: any) => current.active_cycle
+          ? { ...current, active_cycle: { ...current.active_cycle, actions_done: 3,
+              completes_at: new Date(Date.now() + remainingSeconds * 1000).toISOString() } }
+          : current);
+        showMsg(`Смена почти готова. Заберу результат автоматически через ${remainingSeconds} сек.`);
+        if (professionFinishRetry.current != null) window.clearTimeout(professionFinishRetry.current);
+        professionFinishRetry.current = window.setTimeout(() => {
+          professionFinishRetry.current = null;
+          void action(completeProfessionCycle);
+        }, (remainingSeconds + 1) * 1000);
+        return;
+      }
+      throw new Error(data.error);
+    }
+    if (professionFinishRetry.current != null) {
+      window.clearTimeout(professionFinishRetry.current);
+      professionFinishRetry.current = null;
+    }
     advanceMissionProgress('profession_1');
     advanceMissionProgress('work_5');
     await refreshProfile(true);
@@ -1334,7 +1388,11 @@ export default function App() {
     const { data, error } = await supabase.rpc('profession_step_rpc', { p_player_id: pid, p_step: step });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    setCareer((current: any) => ({ ...current, active_cycle: { ...current.active_cycle, actions_done: data.actions_done } }));
+    setCareer((current: any) => ({ ...current, active_cycle: {
+      ...current.active_cycle,
+      actions_done: data.actions_done,
+      ...(data.completes_at ? { completes_at: data.completes_at } : {}),
+    } }));
     const professionSounds: Record<string, UiSound> = { miner: 'mine', lumberjack: 'woodcut', fisherman: 'fishing', farmer: 'harvest', courier: 'delivery', taxi: 'taxi' };
     playUiSound(professionSounds[career.profession] || 'tap');
     hapticFeedback(step === 3 ? 'medium' : 'light');
@@ -1637,6 +1695,14 @@ export default function App() {
   if (isTgEnv && isSubscribed !== true && isSubscribed !== false) return <VerificationScreen title="Доступ ещё не подтверждён" description="Игра остаётся закрытой, пока сервер не подтвердит подписку." error="Подписку пока не удалось проверить." onRetry={verifySubscription} />;
   if (loading) return <VerificationScreen title="Загружаем игру" description="Всё проверено. Подготавливаем профиль." />;
   if (isBanned) return <div style={authPageStyle}><ShieldAlert size={80} color="#c0453a" style={{ marginBottom: 20 }} /><h1>Вы забанены!</h1><p style={{ color: '#6b5f45', maxWidth: '300px' }}>Администрация заблокировала ваш аккаунт.</p></div>;
+  if (profileLookupFailed && !pid) return (
+    <div style={authPageStyle}>
+      <Toast toast={toast} onClose={closeToast} />
+      <h1>Не удалось загрузить профиль</h1>
+      <p style={{ color: '#6b5f45', maxWidth: 320 }}>Аккаунт не сброшен. Не создавай персонажа повторно — попробуй загрузить профиль ещё раз.</p>
+      <Btn variant="primary" disabled={proc} onClick={() => void loadData()}>Повторить</Btn>
+    </div>
+  );
   
   // Окно подписки показываем ТОЛЬКО когда точно знаем (из БД), что не подписан.
   // isSubscribed === undefined (данные ещё грузятся) — не мигаем экраном.

@@ -173,14 +173,30 @@ export default async function handler(req, res) {
           .catch(error => ({ data: null, error })),
       ]);
       const { data: professionState, error: professionError } = professionResult;
-      if (professionError) throw professionError;
       const { data: taxiFleet, error: taxiFleetError } = taxiFleetResult;
-      if (taxiFleetError) throw taxiFleetError;
-      if (professionState) professionState.taxi_fleet = taxiFleet;
+      if (professionError) console.error('Profession state unavailable; preserving profile:', professionError.message);
+      if (taxiFleetError) console.error('Taxi fleet state unavailable:', taxiFleetError.message);
+      const professionUnavailable = Boolean(professionError || !professionState);
+      const resolvedProfession = professionState || {
+        level: Math.max(1, Number(player.player_level) || 1),
+        xp: Math.max(0, Number(player.player_xp) || 0),
+        xp_to_next: 100,
+        profession: player.active_profession || 'miner',
+        unlocked: Array.isArray(player.unlocked_professions) && player.unlocked_professions.length
+          ? player.unlocked_professions : ['miner'],
+        active_cycle: null,
+        pending_reward: null,
+        inventory: [],
+        inventory_slots: 0,
+        inventory_capacity: 200,
+        state_unavailable: true,
+      };
+      resolvedProfession.taxi_fleet = taxiFleetError ? null : taxiFleet;
       return res.status(200).json({
         player,
         referrals_count: referralsResult.count || 0,
-        profession: professionState,
+        profession: resolvedProfession,
+        profession_state_unavailable: professionUnavailable,
         daily_missions: missionResult.error ? null : missionResult.data?.missions || [],
         return_bonus: returnBonus,
       });
