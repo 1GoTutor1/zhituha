@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront, Crown, Ticket, LockKeyhole, Check, Medal } from 'lucide-react';
+import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront, Crown, Ticket, LockKeyhole, Check, Medal, Sparkles } from 'lucide-react';
 import { 
   getAvatar, BUILDING_PRICE,
   TAXI_REPAIR_LADA, TAXI_REPAIR_TOYOTA, DAILY_REWARDS, S, getDayModifier,
@@ -341,9 +341,10 @@ export const HomeTab = ({ app }: { app: any }) => {
   const seasonLocked = !!seasonPass && seasonOpenSeconds > 0;
   const av = getAvatar(app.avatarId);
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
+  const hasBusiness = (app.myBizs || []).length > 0;
   const modifier = getDayModifier();
   return (
-    <div className="game-tab game-tab-home" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
+    <div className="game-tab game-tab-home" style={{ maxWidth: '460px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <div className="home-player-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button type="button" className={`home-avatar-button profile-avatar-frame${app.profileFrame === 'frame_test' ? ' has-exclamation-frame' : ''}`} aria-label="Открыть профиль" onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: app.profileFrame === 'frame_test' ? '50%' : '14px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, ...(app.profileFrame === 'frame_test' ? frameStyle('frame_test') : app.profileFrame === 'frame_amber' ? frameStyle('frame_amber') : { border: '2px solid rgba(90,70,40,0.22)' }), cursor: 'pointer', userSelect: 'none' }}>{app.profileFrame === 'frame_test' && <img className="avatar-exclamation-ring" src="/images/frame-mint-exclamation.svg" alt="" aria-hidden="true" />}{av.emoji}</button>
@@ -367,8 +368,20 @@ export const HomeTab = ({ app }: { app: any }) => {
         </div>
       </div>
 
+      <section className="home-hero">
+        <div className="home-hero-topline"><span>ТВОЯ ИГРА</span><span className="home-hero-level">Уровень {app.career?.level || 1}</span></div>
+        <h1>{hasBusiness ? 'Твой следующий ход.' : 'Первая смена.'}</h1>
+        <p>{hasBusiness ? 'Открывай новые возможности и развивай своё дело.' : 'Заработай первые деньги и открой свой бизнес.'}</p>
+        <div className="home-hero-business-progress" aria-label={'Бизнесов: ' + Math.min(3, (app.myBizs || []).length) + ' из 3'}>
+          <div><span>Твои бизнесы</span><b>{Math.min(3, (app.myBizs || []).length)} / 3</b></div>
+          <i><span style={{ width: (Math.min(100, (app.myBizs || []).length / 3 * 100) + '%') }} /></i>
+        </div>
+      </section>
+
+      <ProfessionWorkCard app={app} />
+
       <button type="button" className="home-event-card" aria-label={`Подробнее о событии дня: ${modifier.name}`} onClick={() => app.setModifierOpen(true)} style={{ width: '100%', font: 'inherit', textAlign: 'left', backgroundColor: 'rgba(90,70,40,0.08)', border: `1px solid ${modifier.color}`, borderRadius: 8, padding: 12, marginBottom: 15, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-        <div style={{ fontSize: 20 }}>{modifier.icon}</div>
+        <div className="home-event-icon"><Sparkles size={18} /></div>
         <div style={{ textAlign: 'left', flex: 1 }}>
           <div style={{ fontWeight: 'bold', color: modifier.color, fontSize: 14 }}>{modifier.name}</div>
           <div style={{ fontSize: 12, color: '#6b5f45' }}>{modifier.desc}</div>
@@ -386,11 +399,11 @@ export const HomeTab = ({ app }: { app: any }) => {
         <ChevronRight size={19} className="home-season-pass-arrow" />
       </button>
 
-      {coffeeBonusSeconds > 0 && <div role="status" style={{ background: 'rgba(63,157,85,.12)', border: '1px solid rgba(63,157,85,.35)', borderRadius: 9, padding: '9px 12px', marginBottom: 12, color: '#327b45', fontWeight: 700, fontSize: 13 }}>☕ +10% к заработку · ещё {Math.floor(coffeeBonusSeconds / 60)}:{String(coffeeBonusSeconds % 60).padStart(2, '0')}</div>}
-      {returnBonusSeconds > 0 && <div role="status" style={{ background: 'rgba(63,157,85,.12)', border: '1px solid rgba(63,157,85,.35)', borderRadius: 9, padding: '9px 12px', marginBottom: 12, color: '#327b45', fontWeight: 700, fontSize: 13 }}>🎁 Возвратный бонус: +15% к игровому заработку · ещё {Math.floor(returnBonusSeconds / 60)}:{String(returnBonusSeconds % 60).padStart(2, '0')}</div>}
-      <ProfessionWorkCard app={app} />
+      {coffeeBonusSeconds > 0 && <div role="status" className="home-bonus-status"><Coffee size={16} /> <span>+10% к заработку</span><b>{Math.floor(coffeeBonusSeconds / 60)}:{String(coffeeBonusSeconds % 60).padStart(2, '0')}</b></div>}
+      {returnBonusSeconds > 0 && <div role="status" className="home-bonus-status"><Gift size={16} /> <span>Бонус возвращения · +15%</span><b>{Math.floor(returnBonusSeconds / 60)}:{String(returnBonusSeconds % 60).padStart(2, '0')}</b></div>}
 
-      <section style={{ marginTop: 15, marginBottom: 15, padding: 13, borderRadius: 12, background: 'linear-gradient(145deg, rgba(38,25,55,.96), rgba(27,19,37,.98))', border: '1px solid rgba(183,142,255,.25)', color: '#f7f1ff', textAlign: 'left' }}>
+
+      <section className="home-missions" style={{ marginTop: 15, marginBottom: 15, padding: 13, borderRadius: 12, background: 'linear-gradient(145deg, rgba(38,25,55,.96), rgba(27,19,37,.98))', border: '1px solid rgba(183,142,255,.25)', color: '#f7f1ff', textAlign: 'left' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 }}>
           <b>Задания на сегодня</b><small style={{ color: '#b9a6d0' }}>Обновятся в полночь UTC</small>
         </div>
@@ -410,7 +423,7 @@ export const HomeTab = ({ app }: { app: any }) => {
         })}
       </section>
 
-      <details style={{ marginBottom: 15, padding: '11px 13px', borderRadius: 10, background: 'rgba(61,126,166,.08)', border: '1px solid rgba(61,126,166,.22)', color: '#2f2a1d', textAlign: 'left' }}>
+      <details className="home-wallet-details" style={{ marginBottom: 15, padding: '11px 13px', borderRadius: 10, background: 'rgba(61,126,166,.08)', border: '1px solid rgba(61,126,166,.22)', color: '#2f2a1d', textAlign: 'left' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Накопления и кассы · открыть</summary>
         <div style={{ display: 'grid', gap: 8, marginTop: 10, fontSize: 13 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Деньги на руках</span><b>{Number(app.money || 0).toLocaleString('ru-RU')} ₽</b></div>

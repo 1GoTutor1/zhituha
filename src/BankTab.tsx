@@ -243,8 +243,8 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
         <div style={{ ...S.card, margin: 0, padding: 12 }}><div style={{ color: '#6b5f45', fontSize: 11 }}>На банковском счёте</div><b style={{ color: '#3d7ea6' }}>{money(bank?.balance || 0)}</b></div>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 8, marginBottom: 10 }}>
-        {sections.map(item => <button key={item.id} type="button" onClick={() => setSection(item.id)} style={{ flex: '0 0 auto', border: section === item.id ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.16)', borderRadius: 8, padding: '8px 10px', background: section === item.id ? 'rgba(61,126,166,.12)' : '#fbf4e4', color: section === item.id ? '#2e6688' : '#6b5f45', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>{item.title}</button>)}
+      <div className="bank-section-tabs" style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 8, marginBottom: 10 }}>
+        {sections.map(item => <button key={item.id} type="button" aria-pressed={section === item.id} onClick={() => setSection(item.id)} style={{ flex: '0 0 auto', border: section === item.id ? '1px solid #3d7ea6' : '1px solid rgba(90,70,40,.16)', borderRadius: 8, padding: '8px 10px', background: section === item.id ? 'rgba(61,126,166,.12)' : '#fbf4e4', color: section === item.id ? '#2e6688' : '#6b5f45', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>{item.title}</button>)}
       </div>
 
       {error && <div role="alert" style={{ background: 'rgba(192,69,58,.10)', border: '1px solid rgba(192,69,58,.3)', borderRadius: 8, padding: 10, color: '#a9322a', fontSize: 12, marginBottom: 12 }}>{error}</div>}

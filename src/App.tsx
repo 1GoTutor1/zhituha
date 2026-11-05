@@ -1783,7 +1783,7 @@ export default function App() {
 
       <TabErrorBoundary tab={tab}>
       <Suspense fallback={<div className="loading">Загрузка…</div>}>
-        <main className="game-content-backplate">
+        <main className={`game-content-backplate${tab === 'home' ? ' game-home-backplate' : ''}`}>
         {tab === 'home' && <HomeTab app={app} />}
         {tab === 'cafe' && <CafeTab app={app} />}
         {tab === 'business' && <BusinessTab app={app} activeBiz={activeBiz} currentStock={currentStock} />}
