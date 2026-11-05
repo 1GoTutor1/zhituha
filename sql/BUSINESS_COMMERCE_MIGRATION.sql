@@ -16,7 +16,7 @@ drop trigger if exists players_reset_personal_car_condition on public.players;
 create trigger players_reset_personal_car_condition before update of has_car,car_model on public.players
   for each row execute function public.reset_personal_car_condition();
 
--- Wear the player's personal car by 1% after each completed profession shift.
+-- Personal-car wear is applied by district travel, not by profession shifts.
 do $$
 begin
   if to_regprocedure('public.finish_profession_cycle_rpc_before_commerce(uuid)') is null then
@@ -29,8 +29,6 @@ declare result jsonb; p public.players;
 begin
   result:=public.finish_profession_cycle_rpc_before_commerce(p_player_id);
   if result ? 'error' then return result; end if;
-  update public.players set car_health=greatest(0,coalesce(car_health,100)-1)
-    where id=p_player_id and coalesce(has_car,false);
   select * into p from public.players where id=p_player_id;
   return result||jsonb_build_object('personal_car_health',coalesce(p.car_health,100));
 end $$;

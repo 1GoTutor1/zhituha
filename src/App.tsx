@@ -697,6 +697,8 @@ export default function App() {
     if (data?.error) throw new Error(data.error);
     setCurrentDistrict(data.current_district);
     setEnergy(Number(data.energy));
+    if (data.personal_car_health != null) setCarHealth(Number(data.personal_car_health));
+    if (data.personal_car_health != null) setCarHealth(Number(data.personal_car_health));
     showMsg(`Ты приехал: ${data.district_name} · −${data.energy_spent} энергии`);
   });
 

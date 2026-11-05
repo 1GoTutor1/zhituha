@@ -212,7 +212,7 @@ end $$;
 -- Prevent bypassing the ride timer through the ordinary district-travel RPC.
 create or replace function public.district_travel_rpc(p_player_id uuid,p_district text)
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public,pg_temp as $$
-declare p public.players; cost integer; district_label text;
+declare p public.players; cost integer; district_label text; new_health integer;
 begin
   if p_district is null or p_district not in ('center','residential','factory') then
     return jsonb_build_object('error','Неизвестный район');
@@ -227,9 +227,12 @@ begin
   if coalesce(p.energy,0)<cost then return jsonb_build_object('error',format('Нужно %s энергии для поездки',cost)); end if;
   district_label:=case p_district when 'center' then 'Центр'
     when 'residential' then 'Спальный район' else 'Заводской район' end;
-  update public.players set current_district=p_district,energy=coalesce(energy,0)-cost where id=p_player_id;
+  update public.players set current_district=p_district,energy=coalesce(energy,0)-cost,
+    car_health=case when coalesce(has_car,false) then greatest(0,coalesce(car_health,100)-2) else car_health end
+    where id=p_player_id returning car_health into new_health;
   return jsonb_build_object('success',true,'current_district',p_district,'district_name',district_label,
-    'energy',coalesce(p.energy,0)-cost,'energy_spent',cost);
+    'energy',coalesce(p.energy,0)-cost,'energy_spent',cost,
+    'personal_car_health',case when coalesce(p.has_car,false) then new_health else null end);
 end $$;
 
 revoke all on function public.district_taxi_options_rpc(uuid),
