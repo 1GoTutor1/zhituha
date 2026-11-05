@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
 import { blockDuringMaintenance, readMaintenance } from './_maintenance.js';
+import { getServiceClient } from './_supabase.js';
 
 const CLIENT_RPCS = new Set([
   'update_profile_rpc', 'work_rpc', 'verify_work_captcha_rpc', 'drink_tutorial_coffee_rpc', 'claim_tutorial_reward_rpc', 'claim_daily_reward_rpc', 'finish_business_timer_rpc',
@@ -54,9 +54,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const sb = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const sb = getServiceClient();
     const [playerResult, maintenanceEnabled] = await Promise.all([
       sb.from('players').select('id, role, is_subscribed, is_banned').eq('telegram_id', String(user.id)).maybeSingle(),
       readMaintenance(sb),

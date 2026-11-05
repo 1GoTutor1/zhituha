@@ -48,7 +48,7 @@ export const BlackMarketTab = ({ app }: { app: BlackMarketApp }) => {
     load();
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') load();
-    }, 5 * 60_000);
+    }, 10 * 60_000);
     return () => window.clearInterval(timer);
   }, [app.tab, refresh]);
   useEffect(() => {

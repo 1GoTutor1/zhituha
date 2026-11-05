@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
 import { isAdminRole, readMaintenance, setMaintenanceCache } from './_maintenance.js';
+import { getServiceClient } from './_supabase.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -12,9 +12,7 @@ export default async function handler(req, res) {
   const user = verifyTelegramInitData(req.body?.init_data, BOT_TOKEN);
   if (!user) return res.status(403).json({ error: 'Telegram authentication required' });
 
-  const sb = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const sb = getServiceClient();
   try {
     const action = req.body?.action;
     const playerQuery = sb.from('players')

@@ -744,7 +744,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
     void refreshSalesHistory(true);
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refreshSalesHistory();
-    }, 5 * 60_000);
+    }, 10 * 60_000);
     return () => { disposed = true; window.clearInterval(timer); };
   }, [activeBiz?.id, activeBiz?.biz_type, app.pid, app.supabase]);
 

@@ -1,7 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
 import { verifyTelegramInitData } from './_telegram.js';
 import { blockDuringMaintenance, readMaintenance } from './_maintenance.js';
 import { checkChannelSubscription } from './_subscription.js';
+import { getServiceClient } from './_supabase.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -14,11 +14,14 @@ export default async function handler(req, res) {
   const user = verifyTelegramInitData(req.body?.init_data, BOT_TOKEN);
   if (!user) return res.status(403).json({ error: 'Telegram authentication required' });
 
-  const sb = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+  const sb = getServiceClient();
   const { action } = req.body || {};
   try {
+    const profileRefreshFields = 'id, role, is_subscribed, is_banned, money, referral_balance, tip_balance, boost_end, brew_end, coffee_bonus_until, return_boost_until, phone_count, has_car, car_model, car_health, energy, current_district, has_house, house_type, market_slots, premium_balance, premium_until, owned_cosmetics, profile_frame, profile_background';
+    const playerSelection = ['leaderboard', 'public_profile'].includes(action) ? 'id, role'
+      : action === 'profile_refresh' ? profileRefreshFields : '*';
     const [playerResult, maintenanceEnabled, referralsResult] = await Promise.all([
-      sb.from('players').select(['leaderboard', 'public_profile'].includes(action) ? 'id, role' : '*').eq('telegram_id', String(user.id)).maybeSingle(),
+      sb.from('players').select(playerSelection).eq('telegram_id', String(user.id)).maybeSingle(),
       readMaintenance(sb),
       action === 'me'
         ? sb.from('players').select('nickname').eq('referred_by', String(user.id))

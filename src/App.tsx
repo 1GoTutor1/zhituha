@@ -142,7 +142,7 @@ export default function App() {
     void refreshMaintenance();
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refreshMaintenance();
-    }, 5 * 60_000);
+    }, 10 * 60_000);
     const onVisible = () => { if (document.visibilityState === 'visible') void refreshMaintenance(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
