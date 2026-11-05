@@ -62,8 +62,12 @@ export default async function handler(req, res) {
     }
 
     if (action === 'leaderboard') {
-      const { data, error } = await sb.from('players').select('id, nickname, money, profile_background, owned_cosmetics, premium_until, season_badge_showcase')
-        .or('is_banned.is.null,is_banned.eq.false').order('money', { ascending: false }).limit(10);
+      const [{ data, error }, { data: rankedReferrals, error: referralError }] = await Promise.all([
+        sb.from('players').select('id, nickname, money, profile_background, owned_cosmetics, premium_until, season_badge_showcase')
+          .or('is_banned.is.null,is_banned.eq.false').order('money', { ascending: false }).limit(10),
+        sb.from('referral_leaderboard').select('nickname, referral_count, player_id')
+          .order('referral_count', { ascending: false }).order('nickname', { ascending: true }).limit(10),
+      ]);
       if (error) throw error;
       const allowedBackgrounds = new Set(['background_panelka', 'background_brick', 'background_concrete', 'background_night_route']);
       const players = (data || []).map(({ owned_cosmetics, ...rankedPlayer }) => ({
@@ -74,7 +78,33 @@ export default async function handler(req, res) {
           && Array.isArray(owned_cosmetics) && owned_cosmetics.includes(rankedPlayer.profile_background)
           ? rankedPlayer.profile_background : null,
       }));
-      return res.status(200).json({ players });
+      let referrals = [];
+      let referralsUnavailable = Boolean(referralError);
+      if (!referralsUnavailable) {
+        const referralRows = rankedReferrals || [];
+        const playerIds = referralRows.map(entry => entry.player_id).filter(Boolean);
+        let backgroundsById = new Map();
+        if (playerIds.length) {
+          const { data: profiles, error: profilesError } = await sb.from('players')
+            .select('id, profile_background, owned_cosmetics').in('id', playerIds);
+          if (profilesError) referralsUnavailable = true;
+          else {
+            const allowedReferralBackgrounds = new Set(['background_panelka', 'background_brick', 'background_concrete']);
+            backgroundsById = new Map((profiles || [])
+              .filter(profile => allowedReferralBackgrounds.has(profile.profile_background)
+                && Array.isArray(profile.owned_cosmetics)
+                && profile.owned_cosmetics.includes(profile.profile_background))
+              .map(profile => [profile.id, profile.profile_background]));
+          }
+        }
+        if (!referralsUnavailable) {
+          referrals = referralRows.map(entry => ({
+            ...entry,
+            profile_background: backgroundsById.get(entry.player_id) || null,
+          }));
+        }
+      }
+      return res.status(200).json({ players, referrals, referrals_unavailable: referralsUnavailable });
     }
 
     if (action === 'public_profile') {

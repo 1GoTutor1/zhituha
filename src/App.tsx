@@ -87,6 +87,8 @@ export default function App() {
   const [maintenanceBypass, setMaintenanceBypass] = useState(false);
   const [maintenanceBusy, setMaintenanceBusy] = useState(false);
   const [maintenanceError, setMaintenanceError] = useState('');
+  const maintenanceLastCheckedAt = useRef(0);
+  const maintenanceRequest = useRef<Promise<void> | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(isUiSoundEnabled);
   const [vibrationEnabled, setVibrationEnabledState] = useState(isUiVibrationEnabled);
@@ -117,32 +119,40 @@ export default function App() {
     document.addEventListener('click', playButtonTap, true);
     return () => document.removeEventListener('click', playButtonTap, true);
   }, []);
-  const refreshMaintenance = useCallback(async () => {
+  const refreshMaintenance = useCallback(async (force = false) => {
+    if (maintenanceRequest.current) return maintenanceRequest.current;
+    if (!force && Date.now() - maintenanceLastCheckedAt.current < 2 * 60_000) return;
+    maintenanceLastCheckedAt.current = Date.now();
     setMaintenanceError('');
-    try {
-      const response = await fetch('/api/maintenance', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'status', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Не удалось проверить режим техработ');
-      setMaintenanceEnabled(Boolean(result.enabled));
-      setMaintenanceAdmin(Boolean(result.is_admin));
-      if (!result.enabled) setMaintenanceBypass(false);
-      setMaintenanceChecked(true);
-    } catch (error) {
-      setMaintenanceError(error instanceof Error ? error.message : 'Не удалось проверить режим техработ');
-      setMaintenanceEnabled(false);
-      setMaintenanceAdmin(false);
-      setMaintenanceChecked(true);
-    }
+    const request = (async () => {
+      try {
+        const response = await fetch('/api/maintenance', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'status', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Не удалось проверить режим техработ');
+        setMaintenanceEnabled(Boolean(result.enabled));
+        setMaintenanceAdmin(Boolean(result.is_admin));
+        if (!result.enabled) setMaintenanceBypass(false);
+        setMaintenanceChecked(true);
+      } catch (error) {
+        setMaintenanceError(error instanceof Error ? error.message : 'Не удалось проверить режим техработ');
+        setMaintenanceEnabled(false);
+        setMaintenanceAdmin(false);
+        setMaintenanceChecked(true);
+      }
+    })();
+    maintenanceRequest.current = request;
+    try { await request; }
+    finally { if (maintenanceRequest.current === request) maintenanceRequest.current = null; }
   }, []);
 
   useEffect(() => {
-    void refreshMaintenance();
+    void refreshMaintenance(true);
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refreshMaintenance();
-    }, 10 * 60_000);
+    }, 15 * 60_000);
     const onVisible = () => { if (document.visibilityState === 'visible') void refreshMaintenance(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
@@ -209,14 +219,15 @@ export default function App() {
     if (!pid) return;
     let lastTouch = 0;
     const touchFamily = () => {
-      if (document.visibilityState !== 'visible' || Date.now() - lastTouch < 4 * 60_000) return;
+      if (document.visibilityState !== 'visible' || Date.now() - lastTouch < 15 * 60_000) return;
       lastTouch = Date.now();
       void (async () => { try { await supabase.rpc('family_touch_rpc', { p_player_id: pid }); } catch { /* Presence is best-effort. */ } })();
     };
     touchFamily();
-    // The server only accepts a touch once every four minutes, so avoid waking
-    // the client and making an RPC that is guaranteed to be discarded.
-    const timer = window.setInterval(touchFamily, 4 * 60_000);
+    // Family activity only affects long-term leadership checks. Update it on
+    // app entry/return and every 15 minutes instead of waking a function every
+    // four minutes for every active player.
+    const timer = window.setInterval(touchFamily, 15 * 60_000);
     document.addEventListener('visibilitychange', touchFamily);
     return () => {
       window.clearInterval(timer);
@@ -578,18 +589,18 @@ export default function App() {
     } else {
       if (!cache.pending) {
         cache.pending = (async () => {
-          const [leaderboardResponse, referralsResponse] = await Promise.all([
-            fetch('/api/players', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'leaderboard', init_data: (window as any).Telegram?.WebApp?.initData || '' }) }),
-            fetch('/api/leaderboard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ init_data: (window as any).Telegram?.WebApp?.initData || '' }) }),
-          ]);
-          const [leaderboard, referrals] = await Promise.all([leaderboardResponse.json(), referralsResponse.json()]);
+          const leaderboardResponse = await fetch('/api/players', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'leaderboard', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+          });
+          const leaderboard = await leaderboardResponse.json();
           if (leaderboardResponse.ok) cache.money = leaderboard.players || [];
-          if (referralsResponse.ok) cache.referrals = referrals.players || [];
-          cache.referralsUnavailable = !referralsResponse.ok;
+          cache.referrals = Array.isArray(leaderboard.referrals) ? leaderboard.referrals : [];
+          cache.referralsUnavailable = !leaderboardResponse.ok || leaderboard.referrals_unavailable === true;
           setPlayers(cache.money);
           setReferralLeaderboard(cache.referrals);
           setReferralLeaderboardUnavailable(cache.referralsUnavailable);
-          if (leaderboardResponse.ok && referralsResponse.ok) cache.until = Date.now() + 60_000;
+          if (leaderboardResponse.ok) cache.until = Date.now() + 60_000;
         })().finally(() => { cache.pending = null; });
       }
       await cache.pending;
