@@ -52,6 +52,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const realtimeRefreshRef = useRef<number | null>(null);
   const realtimeReadyRef = useRef(false);
   const serverDriftRef = useRef(0);         // поправка «серверные часы минус локальные»
+  const lastRoundSyncRef = useRef(0);
 
   // тик: 100мс во время спина (плавная анимация), 1с в остальных фазах
   useEffect(() => {
@@ -75,6 +76,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
       }
       data = rpcData;
       if (mountedRef.current) {
+        lastRoundSyncRef.current = Date.now();
         setLastServerSyncAt(Date.now());
         setSyncIssue(false);
       }
@@ -126,38 +128,71 @@ export const CasinoTab = ({ app }: { app: any }) => {
     }
   }, [pid]);
 
-  // подписка на Realtime + страховочный поллинг раз в 5 сек
+  // Realtime subscription plus a slow fallback poll while the casino is visible.
   useEffect(() => {
     mountedRef.current = true;
     if (game === 'slots') return () => { mountedRef.current = false; };
-    realtimeReadyRef.current = false;
-    setRealtimeReady(false);
-    loadRound();
-    const channel = supabase.channel('casino-live-round')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casino_rounds' }, () => {
-        if (realtimeRefreshRef.current !== null) window.clearTimeout(realtimeRefreshRef.current);
-        realtimeRefreshRef.current = window.setTimeout(() => {
-          realtimeRefreshRef.current = null;
-          if (mountedRef.current) void loadRound();
-        // Coalesce bursts of bet_count updates into one authenticated RPC.
-        // Betting and payout remain server-side; only the shared display lags slightly.
-        }, 750);
-      })
-      .subscribe((status: string) => {
-        const ready = status === 'SUBSCRIBED';
-        realtimeReadyRef.current = ready;
-        if (mountedRef.current) setRealtimeReady(ready);
-        if (status === 'SUBSCRIBED' && mountedRef.current) void loadRound();
-      });
+    let channel: any = null;
+    const stopRealtime = () => {
+      realtimeReadyRef.current = false;
+      if (mountedRef.current) setRealtimeReady(false);
+      if (realtimeRefreshRef.current !== null) window.clearTimeout(realtimeRefreshRef.current);
+      realtimeRefreshRef.current = null;
+      if (channel) {
+        const previousChannel = channel;
+        channel = null;
+        void supabase.removeChannel(previousChannel);
+      }
+    };
+    const startRealtime = () => {
+      if (channel || document.visibilityState !== 'visible') return;
+      realtimeReadyRef.current = false;
+      setRealtimeReady(false);
+      const activeChannel = supabase.channel('casino-live-round')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'casino_rounds' }, () => {
+          if (document.visibilityState !== 'visible') return;
+          // The action already fetched a fresh snapshot; don't repeat it for
+          // the Realtime event that the same action generated.
+          if (Date.now() - lastRoundSyncRef.current < 1_000 || realtimeRefreshRef.current !== null) return;
+          // Limit shared round reads to one per second during busy betting bursts.
+          realtimeRefreshRef.current = window.setTimeout(() => {
+            realtimeRefreshRef.current = null;
+            if (mountedRef.current && document.visibilityState === 'visible') void loadRound();
+          }, 1_000);
+        })
+        .subscribe((status: string) => {
+          if (!mountedRef.current || channel !== activeChannel) return;
+          const ready = status === 'SUBSCRIBED';
+          realtimeReadyRef.current = ready;
+          setRealtimeReady(ready);
+          // The initial snapshot is fetched when the channel starts. Only fetch
+          // again if connecting took long enough for that snapshot to go stale.
+          if (ready && !loadingRef.current && Date.now() - lastRoundSyncRef.current > 2_000) void loadRound();
+        });
+      channel = activeChannel;
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadRound();
+        startRealtime();
+      } else {
+        stopRealtime();
+      }
+    };
+
+    if (document.visibilityState === 'visible') {
+      void loadRound();
+      startRealtime();
+    }
     const poll = window.setInterval(() => {
-      if (!realtimeReadyRef.current) void loadRound();
+      if (document.visibilityState === 'visible' && !realtimeReadyRef.current) void loadRound();
     }, 5 * 60_000);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       mountedRef.current = false;
       window.clearInterval(poll);
-      if (realtimeRefreshRef.current !== null) window.clearTimeout(realtimeRefreshRef.current);
-      realtimeRefreshRef.current = null;
-      void supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      stopRealtime();
     };
   }, [pid, loadRound, game]);
 
