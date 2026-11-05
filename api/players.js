@@ -174,7 +174,8 @@ export default async function handler(req, res) {
       const [professionResult, taxiFleetResult, missionResult] = await Promise.all([
         sb.rpc('profession_state_rpc', { p_player_id: player.id }),
         sb.rpc('taxi_fleet_rpc', { p_player_id: player.id }),
-        sb.rpc('daily_missions_state_rpc', { p_player_id: player.id })
+        Promise.resolve()
+          .then(() => sb.rpc('daily_missions_state_rpc', { p_player_id: player.id }))
           .catch(error => ({ data: null, error })),
       ]);
       const { data: professionState, error: professionError } = professionResult;
