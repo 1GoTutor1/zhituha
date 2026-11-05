@@ -208,7 +208,9 @@ export default function App() {
       void (async () => { try { await supabase.rpc('family_touch_rpc', { p_player_id: pid }); } catch { /* Presence is best-effort. */ } })();
     };
     touchFamily();
-    const timer = window.setInterval(touchFamily, 60_000);
+    // The server only accepts a touch once every four minutes, so avoid waking
+    // the client and making an RPC that is guaranteed to be discarded.
+    const timer = window.setInterval(touchFamily, 4 * 60_000);
     document.addEventListener('visibilitychange', touchFamily);
     return () => {
       window.clearInterval(timer);
@@ -282,6 +284,13 @@ export default function App() {
   const [quitOpen, setQuitOpen] = useState(false);
   const [refOpen, setRefOpen] = useState(false);
   const lock = useRef(false);
+  const marketLeaderboardCache = useRef<{
+    until: number;
+    money: any[];
+    referrals: any[];
+    referralsUnavailable: boolean;
+    pending: Promise<void> | null;
+  }>({ until: 0, money: [], referrals: [], referralsUnavailable: false, pending: null });
   const familyInviteHandled = useRef<string | null>(null);
 
   const dayMod = getDayModifier();
@@ -550,32 +559,36 @@ export default function App() {
     showMsg(`${data.ride.car_name} едет к тебе. Списание: ${data.ride.fare} ₽.`);
   });
 
-  const loadMarket = async () => {
-    const [leaderboardResponse, referralsResponse, mRes] = await Promise.all([
-      fetch('/api/players', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'leaderboard', init_data: (window as any).Telegram?.WebApp?.initData || '' }) }),
-      fetch('/api/leaderboard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ init_data: (window as any).Telegram?.WebApp?.initData || '' }) }),
-      supabase.from('market_items').select('*').order('created_at', { ascending: false })
-    ]);
-    const [leaderboard, referrals] = await Promise.all([leaderboardResponse.json(), referralsResponse.json()]);
-    if (leaderboardResponse.ok) setPlayers(leaderboard.players || []);
-    setReferralLeaderboardUnavailable(!referralsResponse.ok);
-    if (referralsResponse.ok) setReferralLeaderboard(referrals.players || []);
-    if (mRes.data) setMarket(mRes.data);
-    if (pid) {
-      const [shopState, vehicleData] = await Promise.all([
-        supabase.rpc('business_shop_state_rpc', { p_player_id: pid }),
-        supabase.rpc('business_vehicle_state_rpc', { p_player_id: pid }),
-      ]);
-      if (!shopState.error && shopState.data) {
-        const [{ data: autostock }, { data: casinoBusiness }] = await Promise.all([
-          supabase.rpc('business_autostock_state_rpc', { p_player_id: pid }),
-          supabase.rpc('casino_business_state_rpc', { p_player_id: pid }),
-        ]);
-        setBusinessOffers({ ...shopState.data, autostock: autostock?.businesses || [], casinoBusiness: casinoBusiness?.owned ? casinoBusiness : null });
-        setCarHealth(Number(shopState.data.personal_car_health ?? 100));
+  const loadMarket = async (force = false) => {
+    const cache = marketLeaderboardCache.current;
+    if (!force && cache.until > Date.now()) {
+      setPlayers(cache.money);
+      setReferralLeaderboard(cache.referrals);
+      setReferralLeaderboardUnavailable(cache.referralsUnavailable);
+    } else {
+      if (!cache.pending) {
+        cache.pending = (async () => {
+          const [leaderboardResponse, referralsResponse] = await Promise.all([
+            fetch('/api/players', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'leaderboard', init_data: (window as any).Telegram?.WebApp?.initData || '' }) }),
+            fetch('/api/leaderboard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ init_data: (window as any).Telegram?.WebApp?.initData || '' }) }),
+          ]);
+          const [leaderboard, referrals] = await Promise.all([leaderboardResponse.json(), referralsResponse.json()]);
+          if (leaderboardResponse.ok) cache.money = leaderboard.players || [];
+          if (referralsResponse.ok) cache.referrals = referrals.players || [];
+          cache.referralsUnavailable = !referralsResponse.ok;
+          setPlayers(cache.money);
+          setReferralLeaderboard(cache.referrals);
+          setReferralLeaderboardUnavailable(cache.referralsUnavailable);
+          if (leaderboardResponse.ok && referralsResponse.ok) cache.until = Date.now() + 60_000;
+        })().finally(() => { cache.pending = null; });
       }
-      if (!vehicleData.error && vehicleData.data) setVehicleState(vehicleData.data);
+      await cache.pending;
     }
+    const mRes = await supabase.from('market_items').select('*').order('created_at', { ascending: false });
+    if (mRes.data) setMarket(mRes.data);
+    // Business offers are loaded once by the tab effect. Loading them here too
+    // used to issue the same three RPCs twice whenever the market was opened.
+    if (pid) void refreshVehicleState();
   };
 
   useEffect(() => { 
@@ -703,7 +716,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (tab === 'market') { loadMarket(); refreshBusinessOffers(); refreshProfile(); loadBusinessCatalog(); pollMyBizs(); }
+    if (tab === 'market') { loadMarket(); refreshBusinessOffers(); loadBusinessCatalog(); }
     if (tab === 'business') { refreshBusinessOffers(); refreshVehicleState(); }
     if (tab === 'shop') { refreshProfile(); pollMyBizs(); }
     if (tab === 'inventory') { refreshProfile(true); pollMyBizs(); }

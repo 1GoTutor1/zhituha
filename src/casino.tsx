@@ -50,6 +50,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
   const loadingRef = useRef(false);         // защита от наложения запросов loadRound
   const mountedRef = useRef(true);
   const realtimeRefreshRef = useRef<number | null>(null);
+  const realtimeReadyRef = useRef(false);
   const serverDriftRef = useRef(0);         // поправка «серверные часы минус локальные»
 
   // тик: 100мс во время спина (плавная анимация), 1с в остальных фазах
@@ -129,6 +130,8 @@ export const CasinoTab = ({ app }: { app: any }) => {
   useEffect(() => {
     mountedRef.current = true;
     if (game === 'slots') return () => { mountedRef.current = false; };
+    realtimeReadyRef.current = false;
+    setRealtimeReady(false);
     loadRound();
     const channel = supabase.channel('casino-live-round')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'casino_rounds' }, () => {
@@ -139,11 +142,13 @@ export const CasinoTab = ({ app }: { app: any }) => {
         }, 120);
       })
       .subscribe((status: string) => {
-        if (mountedRef.current) setRealtimeReady(status === 'SUBSCRIBED');
+        const ready = status === 'SUBSCRIBED';
+        realtimeReadyRef.current = ready;
+        if (mountedRef.current) setRealtimeReady(ready);
         if (status === 'SUBSCRIBED' && mountedRef.current) void loadRound();
       });
     const poll = window.setInterval(() => {
-      if (!realtimeReady) void loadRound();
+      if (!realtimeReadyRef.current) void loadRound();
     }, 5 * 60_000);
     return () => {
       mountedRef.current = false;
@@ -152,7 +157,7 @@ export const CasinoTab = ({ app }: { app: any }) => {
       realtimeRefreshRef.current = null;
       void supabase.removeChannel(channel);
     };
-  }, [pid, loadRound, game, realtimeReady]);
+  }, [pid, loadRound, game]);
 
   useEffect(() => {
     if (game !== 'slots' || !pid) return;

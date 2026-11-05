@@ -1477,7 +1477,7 @@ export const AdminTab = ({ app }: { app: any }) => {
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ ...S.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, textAlign: 'left' }}>
             <div><b>Лоты на рынке</b><div style={{ color: '#6b5f45', fontSize: 12 }}>Товар вернётся на склад; если бизнес закрыт, появится предупреждение</div></div>
-            <Btn variant="secondary" onClick={() => void app.loadMarket()} disabled={app.proc} style={{ width: 'auto', padding: '7px 10px', fontSize: 12 }}><RefreshCw size={14} /></Btn>
+            <Btn variant="secondary" onClick={() => void app.loadMarket(true)} disabled={app.proc} style={{ width: 'auto', padding: '7px 10px', fontSize: 12 }}><RefreshCw size={14} /></Btn>
           </div>
           {app.market.length === 0 && <p style={{ color: '#6b5f45' }}>Активных лотов нет.</p>}
           {app.market.map((lot: any) => {
