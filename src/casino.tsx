@@ -139,7 +139,9 @@ export const CasinoTab = ({ app }: { app: any }) => {
         realtimeRefreshRef.current = window.setTimeout(() => {
           realtimeRefreshRef.current = null;
           if (mountedRef.current) void loadRound();
-        }, 120);
+        // Coalesce bursts of bet_count updates into one authenticated RPC.
+        // Betting and payout remain server-side; only the shared display lags slightly.
+        }, 750);
       })
       .subscribe((status: string) => {
         const ready = status === 'SUBSCRIBED';
