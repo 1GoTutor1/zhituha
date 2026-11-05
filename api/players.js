@@ -153,7 +153,12 @@ export default async function handler(req, res) {
     }
 
     if (action === 'me') {
-      if (referralsResult.error) throw referralsResult.error;
+      // The referral count is decorative profile data. A missing column/index
+      // or a transient count-query failure must not prevent the player from
+      // entering the game.
+      if (referralsResult.error) {
+        console.error('Player referrals count unavailable:', referralsResult.error.message);
+      }
       let returnBonus = null;
       const { data: activity, error: activityError } = await sb.rpc('player_touch_activity_rpc', { p_player_id: player.id });
       if (activityError) {
@@ -194,7 +199,7 @@ export default async function handler(req, res) {
       resolvedProfession.taxi_fleet = taxiFleetError ? null : taxiFleet;
       return res.status(200).json({
         player,
-        referrals_count: referralsResult.count || 0,
+        referrals_count: referralsResult.error ? 0 : referralsResult.count || 0,
         profession: resolvedProfession,
         profession_state_unavailable: professionUnavailable,
         daily_missions: missionResult.error ? null : missionResult.data?.missions || [],
@@ -255,7 +260,12 @@ export default async function handler(req, res) {
     if (action === 'casino_money') return res.status(200).json({ money: player.money });
     return res.status(400).json({ error: 'Unsupported player action' });
   } catch (error) {
-    console.error('Player API failed:', error?.message || error);
+    console.error('Player API failed:', {
+      message: error?.message || String(error),
+      code: error?.code || null,
+      details: error?.details || null,
+      hint: error?.hint || null,
+    });
     return res.status(500).json({ error: 'Player service failed' });
   }
 }
