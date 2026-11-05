@@ -1471,8 +1471,7 @@ export default function App() {
 
   const buyLot = (item: any) => action(async () => {
     if (item.item_type === 'phone' && item.item_data === 'phone' && phone) return showMsg("У тебя уже есть телефон", true);
-    const commission = dayMod?.type === 'market_slots' ? 0 : 5;
-    const { data, error } = await supabase.rpc('buy_market_item', { p_buyer_id: pid, p_item_id: item.id, p_commission_percent: commission });
+    const { data, error } = await supabase.rpc('buy_market_item', { p_buyer_id: pid, p_item_id: item.id });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
 

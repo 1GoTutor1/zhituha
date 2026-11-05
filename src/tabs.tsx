@@ -617,6 +617,18 @@ export const MarketTab = ({ app }: { app: any }) => {
         ))}
       </div>
 
+      {app.marketTab !== 'shops' && (() => {
+        const premiumActive = Date.parse(app.premiumUntil || '') > Date.now();
+        const marketDay = getDayModifier()?.type === 'market_slots';
+        return <div style={{ margin: '-8px 0 14px', padding: '9px 12px', border: '1px solid rgba(61,126,166,.2)', borderRadius: 10, background: 'rgba(61,126,166,.07)', color: '#6b5f45', fontSize: 12 }}>
+          {premiumActive
+            ? 'Premium: комиссия рынка при продаже твоих лотов — 0%.'
+            : marketDay
+              ? 'Сегодня на рынке комиссия — 0%.'
+              : 'Комиссия рынка при продаже — 5%.'}
+        </div>;
+      })()}
+
       {app.marketTab === 'shops' ? <>
         <h3 style={{ color: '#6b5f45', fontSize: 16, marginBottom: 10 }}>Магазины игроков</h3>
         {districtPlayerShops.map((shop: any) => {
