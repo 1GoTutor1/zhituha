@@ -38,6 +38,15 @@ const CLIENT_RPCS = new Set([
   'district_taxi_options_rpc', 'district_taxi_order_rpc', 'district_taxi_ride_state_rpc', 'district_taxi_finish_ride_rpc',
 ]);
 
+// Read-only screens may fetch several independent snapshots in one
+// authenticated Vercel invocation. Mutating RPCs are never batchable.
+const READ_BATCH_RPCS = new Set([
+  'business_catalog_rpc', 'business_shop_state_rpc', 'business_autostock_state_rpc',
+  'casino_business_state_rpc', 'business_vehicle_state_rpc', 'family_state_rpc',
+  'black_market_state_rpc', 'bank_get_state_rpc', 'district_taxi_options_rpc',
+  'district_rest_state_rpc', 'district_state_rpc', 'district_taxi_ride_state_rpc',
+]);
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
@@ -49,7 +58,7 @@ export default async function handler(req, res) {
   const user = verifyTelegramInitData(req.body?.init_data, BOT_TOKEN);
   if (!user) return res.status(403).json({ error: 'Telegram authentication required' });
   const { name, args } = req.body || {};
-  if (typeof name !== 'string' || !CLIENT_RPCS.has(name) || !args || typeof args !== 'object' || Array.isArray(args)) {
+  if (typeof name !== 'string' || (name !== 'read_batch' && !CLIENT_RPCS.has(name)) || !args || typeof args !== 'object' || Array.isArray(args)) {
     return res.status(400).json({ error: 'Unsupported RPC' });
   }
 
@@ -73,6 +82,22 @@ export default async function handler(req, res) {
     }
     if (player && player.is_subscribed !== true) {
       return res.status(403).json({ error: 'Подпишись на Telegram-канал Житухи и нажми «Проверить подписку».' });
+    }
+
+    if (name === 'read_batch') {
+      const requests = args.requests;
+      if (!player || !Array.isArray(requests) || requests.length < 1 || requests.length > 6
+          || requests.some(request => !request || !READ_BATCH_RPCS.has(request.name)
+            || (request.args != null && (typeof request.args !== 'object' || Array.isArray(request.args))))) {
+        return res.status(400).json({ error: 'Unsupported RPC batch' });
+      }
+      const results = await Promise.all(requests.map(request =>
+        sb.rpc(request.name, { ...(request.args || {}), p_player_id: player.id })
+      ));
+      return res.status(200).json({ data: results.map(result => ({
+        data: result.data,
+        error: result.error ? { message: result.error.message, code: result.error.code } : null,
+      })) });
     }
 
     const safeArgs = { ...args };

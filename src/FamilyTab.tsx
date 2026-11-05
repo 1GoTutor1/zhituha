@@ -23,19 +23,25 @@ export const FamilyTab = ({ app }: { app: any }) => {
     if (!app.pid) return;
     setLoading(true);
     try {
-      const { data, error } = await app.supabase.rpc('family_state_rpc', { p_player_id: app.pid });
+      const { data: results, error } = await app.supabase.rpcBatch([
+        { name: 'family_state_rpc' },
+        { name: 'black_market_state_rpc' },
+      ]);
       if (error) throw error;
+      const [familyResult, marketResult] = results as any[];
+      if (familyResult.error) throw new Error(familyResult.error.message);
+      const data = familyResult.data;
+      const marketData = marketResult.data;
       if (data?.error) throw new Error(data.error);
       setState(data);
-      const { data: marketData, error: marketError } = await app.supabase.rpc('black_market_state_rpc', { p_player_id: app.pid });
-      if (!marketError && !marketData?.error) setBlackMarket(marketData);
-      app.setMoney?.(Number(data.money ?? app.money));
+      if (!marketResult.error && !marketData?.error) setBlackMarket(marketData);
+      if (data.money != null) app.setMoney?.(Number(data.money));
     } catch (error: any) {
       app.showMsg(error?.message || 'Не удалось загрузить семьи', true);
     } finally {
       setLoading(false);
     }
-  }, [app.pid, app.supabase, app.showMsg, app.setMoney, app.money]);
+  }, [app.pid, app.supabase, app.showMsg, app.setMoney]);
 
   useEffect(() => {
     if (app.tab !== 'family') return;

@@ -1,4 +1,4 @@
-import { Component, useState, useEffect, useRef, useMemo, lazy, Suspense, type ReactNode } from 'react';
+import { Component, useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback, type ReactNode } from 'react';
 import { useTelegram } from './useTelegram';
 import { supabase } from './supabaseClient';
 import { Send, ShieldAlert, Wrench, LoaderCircle, Settings, Coins } from 'lucide-react';
@@ -117,7 +117,7 @@ export default function App() {
     document.addEventListener('click', playButtonTap, true);
     return () => document.removeEventListener('click', playButtonTap, true);
   }, []);
-  const refreshMaintenance = async () => {
+  const refreshMaintenance = useCallback(async () => {
     setMaintenanceError('');
     try {
       const response = await fetch('/api/maintenance', {
@@ -136,7 +136,7 @@ export default function App() {
       setMaintenanceAdmin(false);
       setMaintenanceChecked(true);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void refreshMaintenance();
@@ -149,7 +149,7 @@ export default function App() {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [user]);
+  }, [refreshMaintenance]);
 
   const setMaintenance = async (enabled: boolean) => {
     setMaintenanceBusy(true);
@@ -234,7 +234,7 @@ export default function App() {
   const [houseType, setHouseType] = useState('none');
   const [refBalance, setRefBalance] = useState(0);
   const [tipBalance, setTipBalance] = useState(0);
-  const [myRefs, setMyRefs] = useState<any[]>([]);
+  const [myRefCount, setMyRefCount] = useState(0);
   const [isDailyOpen, setIsDailyOpen] = useState(false);
   const [dailyStreak, setDailyStreak] = useState(0);
   const [dailyMissions, setDailyMissions] = useState<any[]>([]);
@@ -307,10 +307,10 @@ export default function App() {
   const baseWorkPay = JOB_WORK;
   const workPay = Math.floor(baseWorkPay * (1 + bizBonusPercent / 100));
 
-  const showMsg = (msg: string, err = false, sound?: UiSound) => {
+  const showMsg = useCallback((msg: string, err = false, sound?: UiSound) => {
     setToast({ msg, err, id: Date.now() });
     playUiSound(sound || (err ? 'error' : 'success'));
-  };
+  }, []);
   const closeToast = () => setToast(null);
   // Идентификатор игрока = Telegram id. В браузере вне Telegram (dev-режим) разрешаем
   // локальную заглушку, но в самом Telegram — только реальный id из initDataUnsafe.
@@ -465,6 +465,7 @@ export default function App() {
       setCoffeeBonusUntil(d.coffee_bonus_until || '');
       setReturnBoostUntil(d.return_boost_until || '');
       if (profileResult.profession) setCareer(profileResult.profession);
+      if (Array.isArray(profileResult.daily_missions)) setDailyMissions(profileResult.daily_missions);
       setBrewEnd(Number(d.brew_end) || 0);
       setTipBalance(Number(d.tip_balance) || 0);
       setIsSubscribed(d.is_subscribed !== false); // undefined -> true/false из БД, без мигания окна подписки
@@ -482,7 +483,7 @@ export default function App() {
         }
       }
       
-      if (profileResult.referrals) setMyRefs(profileResult.referrals);
+      if (profileResult.referrals_count != null) setMyRefCount(Number(profileResult.referrals_count) || 0);
       
       if (myBRes.data) {
         setMyBizs(myBRes.data);
@@ -496,8 +497,6 @@ export default function App() {
         setAllWorkers(wRes.data);
         setMyJob(wRes.data.find((w: any) => w.player_id === d.id) || null);
       }
-      const { data: missionData } = await supabase.rpc('daily_missions_state_rpc', { p_player_id: d.id });
-      if (missionData && !missionData.error) setDailyMissions(missionData.missions || []);
     } catch (e) {
       console.error(e);
       if (!silent) showMsg(e instanceof Error ? e.message : 'Не удалось загрузить профиль. Проверьте настройки Vercel.', true);
@@ -608,6 +607,7 @@ export default function App() {
       showMsg('С возвращением! Начислено 5 000 ₽ и +15% к игровому заработку на 2 часа.');
     }
     if (result.profession) setCareer(result.profession);
+    if (Array.isArray(result.daily_missions)) setDailyMissions(result.daily_missions);
     if (data.is_banned) { setIsBanned(true); return; }
     setMoney(Number(data.money));
     setRefBalance(Number(data.referral_balance) || 0); setTipBalance(Number(data.tip_balance) || 0);
@@ -679,20 +679,13 @@ export default function App() {
     if (actionType === 'purchase_autostock') await refreshBusinessOffers();
   });
 
-  // После каждого успешного действия подтягиваем актуальные цифры с сервера,
-  // чтобы интерфейс обновлялся мгновенно (деньги/энергия/таймеры/склады).
-  const afterAction = async () => {
-    try { await Promise.all([refreshProfile(), pollMyBizs(), refreshDailyMissions()]); } catch {}
-  };
-
   const refreshDailyMissions = async () => {
     if (!pid) return;
     const { data, error } = await supabase.rpc('daily_missions_state_rpc', { p_player_id: pid });
     if (!error && data && !data.error) setDailyMissions(data.missions || []);
   };
 
-  // Обновляем полосу сразу после подтверждённого сервером действия; затем
-  // afterAction сверяет оптимистичное значение с сохранённым прогрессом.
+  // Обновляем полосу сразу после подтверждённого сервером действия.
   const advanceMissionProgress = (missionId: string, amount = 1) => {
     setDailyMissions(current => current.map(mission => mission.id === missionId
       ? { ...mission, progress: Math.min(Number(mission.target), Number(mission.progress) + amount) }
@@ -891,7 +884,6 @@ export default function App() {
     if (data?.error) return showMsg(data.error, true);
     setMoney(Number(data.money)); setOnboardStep(6);
     showMsg("Туториал пройден! +2000 монет"); hapticFeedback('heavy');
-    await afterAction();
   });
 
   const claimDaily = () => action(async () => {
@@ -905,7 +897,6 @@ export default function App() {
     if (data.reward_type === 'money') showMsg(data.boost_awarded ? `Награда: +${data.reward_amount} монет и БУСТ x1.1!` : `Награда: +${data.reward_amount} монет!`, false, 'reward');
     else showMsg(`Награда: +${data.reward_amount} монет!`, false, 'reward');
     hapticFeedback('heavy');
-    await afterAction();
   });
 
   const claimDailyMission = (missionId: string) => action(async () => {
@@ -927,10 +918,10 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) return showMsg(data.error, true);
     if (data) {
+      if (data.money != null) setMoney(Number(data.money));
       setMyBizs(prev => prev.map(b => b.id === taxi.id ? { ...b, stock: data.stock } : b));
       const taxNotice = Number(data.business_tax) > 0 ? ` · налог 13%: −${Number(data.business_tax).toLocaleString('ru-RU')} ₽` : '';
       showMsg(`Собрано ${Number(data.income).toLocaleString('ru-RU')} ₽${taxNotice}`, false, 'reward');
-      await afterAction();
     }
   });
 
@@ -951,7 +942,6 @@ export default function App() {
       if (Number(data.fine) > 0) showMsg(`Нет инженера: x3 времени + ${data.fine}₽ простоя станка`, true);
     }
     showMsg(`Заказана партия: ${model === 'button' ? 'Кнопочные' : 'Смартфоны'}`); hapticFeedback('heavy');
-    await afterAction();
   });
 
   // Сколько мест роли уже нанято в бизнесе (для проверки обязательных ролей на клиенте;
@@ -992,12 +982,17 @@ export default function App() {
 
   const refreshBusinessOffers = async () => {
     if (!pid) return;
-    const { data, error } = await supabase.rpc('business_shop_state_rpc', { p_player_id: pid });
-    if (!error && data) {
-      const [{ data: autostock }, { data: casinoBusiness }] = await Promise.all([
-        supabase.rpc('business_autostock_state_rpc', { p_player_id: pid }),
-        supabase.rpc('casino_business_state_rpc', { p_player_id: pid }),
-      ]);
+    const { data: results, error } = await (supabase as any).rpcBatch([
+      { name: 'business_shop_state_rpc' },
+      { name: 'business_autostock_state_rpc' },
+      { name: 'casino_business_state_rpc' },
+    ]);
+    if (!error && Array.isArray(results)) {
+      const [shopResult, autostockResult, casinoResult] = results as any[];
+      const data = shopResult.data;
+      const autostock = autostockResult.data;
+      const casinoBusiness = casinoResult.data;
+      if (shopResult.error || !data) return;
       setBusinessOffers({ ...data, autostock: autostock?.businesses || [], casinoBusiness: casinoBusiness?.owned ? casinoBusiness : null });
       setCarHealth(Number(data.personal_car_health ?? 100));
     }
@@ -1030,7 +1025,7 @@ export default function App() {
       ...b, stock: { ...(b.stock || {}), taxi_cars: data.cars }, cash_balance: Number(data.taxi_cash),
     } : b));
     showMsg(`${data.model_name} куплен для автопарка за ${Number(data.price).toLocaleString('ru-RU')} ₽`);
-    await Promise.all([loadData(true), refreshVehicleState()]);
+    await refreshVehicleState();
   });
 
   const transferBusinessCash = (businessId: string, amount: number, direction: 'deposit' | 'withdraw') => action(async () => {
@@ -1058,7 +1053,7 @@ export default function App() {
     const energyMessage = Number(data.energy_restored) > 0 ? ` · +${Number(data.energy_restored)} энергии` : '';
     const bonusMessage = data.coffee_bonus_until ? ` · +10% к заработку на ${Number(data.coffee_bonus_minutes)} мин` : '';
     showMsg(`${data.product_name} ×${data.quantity}: −${Number(data.total).toLocaleString('ru-RU')} ₽${energyMessage}${bonusMessage}`);
-    await Promise.all([refreshBusinessOffers(), refreshProfile()]);
+    await refreshBusinessOffers();
   });
 
   const restockBusinessProduct = (businessId: string, productId: string, quantity: number) => action(async () => {
@@ -1099,7 +1094,6 @@ export default function App() {
     if (data?.error) throw new Error(data.error);
     setMoney(Number(data.money)); setCarHealth(Number(data.car_health));
     showMsg(`Машина отремонтирована за ${Number(data.cost).toLocaleString('ru-RU')} ₽`);
-    await refreshProfile();
   });
 
   const repairTaxiCarAtShop = (shopId: string, taxiBusinessId: string, carIndex: number) => action(async () => {
@@ -1136,7 +1130,7 @@ export default function App() {
     const { data, error } = await supabase.rpc('sell_business_to_state_rpc', { p_player_id: pid, p_biz_id: biz.id });
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
-    showMsg(`Бизнес продан государству за ${Number(data?.refund ?? 0).toLocaleString('ru-RU')} ₽`); loadData(true); loadBusinessCatalog(); loadMarket(); await afterAction();
+    showMsg(`Бизнес продан государству за ${Number(data?.refund ?? 0).toLocaleString('ru-RU')} ₽`); loadData(true); loadBusinessCatalog(); loadMarket();
   });
 
   const cancelLot = (item: any) => action(async () => {
@@ -1196,8 +1190,7 @@ export default function App() {
     }
     const modelName = vehicleState.models.find((item: any) => item.model_id === model)?.model_name || model;
     showMsg(`Заказ: ${modelName} ×${amount}`); hapticFeedback('heavy');
-    await afterAction();
-    await refreshVehicleState();
+    await Promise.all([pollMyBizs(), refreshVehicleState()]);
   });
 
   const startBuild = () => action(async () => {
@@ -1217,7 +1210,6 @@ export default function App() {
       if (Number(data.fine) > 0) showMsg(`Нет прораба: x3 времени + ${data.fine}₽/час простоя`, true);
     }
     showMsg("Стройка началась!"); hapticFeedback('heavy');
-    await afterAction();
   });
 
   const work = () => action(async () => {
@@ -1239,10 +1231,23 @@ export default function App() {
     if (data?.error) return showMsg(data.error, true);
     if (data?.daily_mission_sync_error) showMsg('Работа засчитана, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
     setMoney(Number(data.money));
+    if (data.energy != null) setEnergy(Number(data.energy));
+    if (data.level != null) {
+      setCareer((current: any) => ({
+        ...current,
+        level: Number(data.level),
+        xp: Number(data.xp) || 0,
+        xp_to_next: Number(data.xp_to_next) || current.xp_to_next,
+        unlocked: Array.isArray(data.unlocked) ? data.unlocked : current.unlocked,
+      }));
+    }
     window.dispatchEvent(new CustomEvent('zhituha:work-reward', { detail: Number(data.work_pay) }));
     advanceMissionProgress('work_5');
     hapticFeedback('medium');
-    await afterAction(); // мгновенное обновление цифр с сервера
+    // The work RPC already returns the exact wallet, energy, XP and level.
+    // The mission counter is updated optimistically; only reload it if the
+    // server reports that its daily-mission repair path failed.
+    if (data?.daily_mission_sync_error) void refreshDailyMissions();
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }
   });
 
@@ -1313,7 +1318,7 @@ export default function App() {
     if (data?.error) throw new Error(data.error);
     advanceMissionProgress('profession_1');
     advanceMissionProgress('work_5');
-    await Promise.all([refreshProfile(true), refreshDailyMissions()]);
+    await refreshProfile(true);
     if (data.pending_reward) {
       showMsg('Находка готова — выбери, что с ней сделать');
       hapticFeedback('heavy');
@@ -1360,7 +1365,7 @@ export default function App() {
     if (data?.daily_mission_sync_error) showMsg('Продажа прошла, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
     setMoney(Number(data.money));
     advanceMissionProgress('sell_1');
-    await Promise.all([refreshProfile(true), refreshDailyMissions()]);
+    await refreshProfile(true);
     showMsg(data?.daily_mission_sync_error
       ? 'Продажа прошла, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.'
       : `Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, Boolean(data?.daily_mission_sync_error), data?.daily_mission_sync_error ? undefined : 'reward');
@@ -1373,8 +1378,17 @@ export default function App() {
     
     setBrewEnd(data.brew_end);
     if (data.money != null) setMoney(Number(data.money)); // деньги списывает сервер — синхронизируем баланс сразу
+    setMyBizs(current => current.map(b => b.id === cafe.id
+      ? { ...b, coffee_balance: Number(b.coffee_balance || 0) + Number(data.owner_share || 0) }
+      : b));
+    const ownCafeRole = allWorkers.find((worker: any) => worker.business_id === cafe.id && worker.player_id === pid)?.role;
+    if (ownCafeRole === 'Бариста') setTipBalance(current => current + 60);
+    else if (ownCafeRole === 'Помощник бариста') setTipBalance(current => current + 30);
+    else if (!allWorkers.some((worker: any) => worker.business_id === cafe.id && worker.player_id === pid)) {
+      // If the worker list is stale, reconcile the tip wallet once.
+      void refreshProfile();
+    }
     showMsg(`Кофе готовится (15 сек)...`); hapticFeedback('heavy');
-    await afterAction();
   });
 
   const collect = () => action(async () => {
@@ -1388,7 +1402,6 @@ export default function App() {
       setMoney(Number(data.money));
       setMyBizs(prev => prev.map(b => b.id === coffeeBiz.id ? { ...b, coffee_balance: 0 } : b));
       showMsg(`Собрано ${data.collected}`, false, 'reward'); hapticFeedback('medium');
-      await afterAction();
     }
   });
 
@@ -1409,7 +1422,6 @@ export default function App() {
       ...(data.cash_balance != null ? { cash_balance: Number(data.cash_balance) } : {}),
     } : b));
     showMsg(`Пассивный доход улучшен до уровня ${data.level}!`);
-    await afterAction();
   });
 
   const collectBusinessPassive = (bizId: string) => action(async () => {
@@ -1419,7 +1431,6 @@ export default function App() {
     setMoney(Number(data.money));
     setMyBizs(prev => prev.map(b => b.id === bizId ? { ...b, passive_balance: 0, passive_updated_at: data.passive_updated_at } : b));
     showMsg(`Пассивный доход собран: ${Number(data.collected).toLocaleString('ru-RU')} ₽`, false, 'reward');
-    await afterAction();
   });
 
   const hire = (bizId: string, roleName: string, salary: number) => action(async () => {
@@ -1437,7 +1448,7 @@ export default function App() {
       }
     }
     showMsg("Вы устроены!"); setBoardOpen(false); hapticFeedback('medium');
-    await Promise.all([pollWorkers(), afterAction()]);
+    await pollWorkers();
   });
 
   const fire = (workerId: string) => action(async () => {
@@ -1446,7 +1457,6 @@ export default function App() {
     if (data && data.error) throw new Error(data.error);
     setAllWorkers(data.workers || []);
     showMsg("Сотрудник уволен."); hapticFeedback('heavy');
-    await afterAction();
   });
 
   const quit = () => action(async () => {
@@ -1457,7 +1467,6 @@ export default function App() {
     setMyJob(null); 
     setAllWorkers((current) => current.filter((worker) => worker.player_id !== pid));
     setQuitOpen(false); setBoardOpen(false); showMsg("Вы уволились."); hapticFeedback('heavy');
-    await afterAction();
   });
 
   const buyPhone = (buy: boolean) => action(async () => {
@@ -1469,9 +1478,7 @@ export default function App() {
     setMoney(data.money);
     setMarketSlots(data.market_slots);
     setPhone(buy);
-    await sync({ phone_count: buy ? 1 : 0 }); // синхронизируем счётчик телефонов с БД
     showMsg(buy ? "Куплено! +1 слот" : `Сдан за 1400`); hapticFeedback('heavy');
-    await afterAction();
   });
 
   const listItem = () => action(async () => {
@@ -1486,9 +1493,9 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
 
-    setSellOpen(false); setSellSource(null); setTab('market'); loadData(true); loadMarket();
+    setSellOpen(false); setSellSource(null); setTab('market'); loadMarket();
     showMsg("Выставлено!"); hapticFeedback('medium');
-    await afterAction();
+    await Promise.all([refreshProfile(), pollMyBizs()]);
   });
 
   const buyLot = (item: any) => action(async () => {
@@ -1497,13 +1504,13 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
 
-    if (item.item_type === 'phone') { setPhone(true); await sync({ phone_count: 1 }); }
-    if (item.item_type === 'car') { setHasCar(true); setCarModel(item.item_data); await sync({ car_model: item.item_data }); }
-    if (item.item_type === 'house') { setHasHouse(true); setHouseType(item.item_data); await sync({ house_type: item.item_data }); }
+    setMoney(Number(data.money));
+    if (item.item_type === 'phone') setPhone(true);
+    if (item.item_type === 'car') { setHasCar(true); setCarModel(item.item_data); setCarHealth(100); }
+    if (item.item_type === 'house') { setHasHouse(true); setHouseType(item.item_data); }
+    setMarket(current => current.filter((lot: any) => lot.id !== item.id));
 
     showMsg(`Покупка успешна!`); hapticFeedback('heavy');
-    await loadData(true);
-    loadMarket(); await afterAction();
   });
 
   const inviteFriend = () => {
@@ -1546,7 +1553,6 @@ export default function App() {
     setMoney(data.money);
     setRefBalance(0);
     showMsg(`Собрано ${data.collected} с рефералов!`, false, 'reward'); hapticFeedback('heavy'); setRefOpen(false);
-    await afterAction();
   });
 
   const collectTips = () => action(async () => {
@@ -1557,7 +1563,6 @@ export default function App() {
     setMoney(data.money);
     setTipBalance(0);
     showMsg(`Собрано ${data.collected}₽ чаевых!`, false, 'reward'); hapticFeedback('heavy');
-    await afterAction();
   });
 
   const handleAvatar = () => {
@@ -1580,7 +1585,6 @@ export default function App() {
     // Деньги начисляет сервер — ставим точный баланс из ответа (сервер возвращает money).
     setMoney(Number(data.money != null ? data.money : money + data.amount));
     showMsg(`+${data.amount} монет!`); setPromoOpen(false); setPromoInput('');
-    await afterAction();
   });
 
   const resetGame = () => action(async () => {
@@ -1603,14 +1607,14 @@ export default function App() {
   };
 
   const app = useMemo(() => ({
-    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, phone, hasCar, carModel, energy, currentDistrict, travelToDistrict, taxiRide, requestTaxiRide, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, setAllWorkers, allBiz, setAllBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, refreshProfile, avatarId, tgId, setInNick, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, returnBoostUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, dailyMissions, boostEnd, claimDaily, claimDailyMission, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, inviteFamily, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
+    user, tg, startParam, proc, toast, tab, setTab, hapticFeedback, nick, money, setMoney, phone, hasCar, carModel, energy, currentDistrict, travelToDistrict, taxiRide, requestTaxiRide, hasHouse, houseType, refBalance, tipBalance, myRefCount, myBizs, activeBizType, setActiveBizType: chooseBizType, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, setMarketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, vehicleState, refreshVehicleState, buyTaxiVehicle, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, setAllWorkers, allBiz, setAllBiz, selCafe, setSelCafe, boardOpen, setBoardOpen, sellOpen, setSellOpen, sellPrice, setSellPrice, sellItemType, setSellItemType, sellItemData, setSellItemData, sellSource, setSellSource, quitOpen, setQuitOpen, refOpen, setRefOpen, refreshProfile, avatarId, tgId, setInNick, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, returnBoostUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, workPay, bizBonusPercent, modifierOpen, setModifierOpen, isDailyOpen, setIsDailyOpen, dailyStreak, dailyMissions, boostEnd, claimDaily, claimDailyMission, promoOpen, setPromoOpen, promoInput, setPromoInput, redeemPromo, adminTab, setAdminTab, role, supabase, showMsg, skipTutorial, drinkTutorialCoffee, action, work, buyCoffee, collect, orderCar, startBuild, hire, fire, quit, buyPhone, listItem, buyLot, inviteFriend, inviteFamily, collectRefBonus, collectTips, handleAvatar, openAdmin, verifySubscription, selectGender, reg, claimTutorialReward, cancelLot, sellBusiness, collectTaxi, orderPhones, loadData,
     maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance,
     settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled,
     bugOpen, setBugOpen, bugText, setBugText, submitBug, resetGame, quickBuyBiz, upgradeBusinessPassive, collectBusinessPassive, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, leaseBusinessLocation, finishBusinessLease, createBusinessAuction, bidBusinessAuction, activeBizId, setActiveBizId,
     career, selectProfession, selectTaxiCar, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory,
     adminDeleteMarketLot, loadMarket
   }), [
-    user, tg, startParam, proc, toast, tab, nick, money, phone, hasCar, carModel, energy, currentDistrict, travelToDistrict, taxiRide, requestTaxiRide, hasHouse, houseType, refBalance, tipBalance, myRefs, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, leaseBusinessLocation, finishBusinessLease, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, refreshProfile, avatarId, tgId, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, returnBoostUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, dailyMissions, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, career, selectProfession, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
+    user, tg, startParam, proc, toast, tab, nick, money, phone, hasCar, carModel, energy, currentDistrict, taxiRide, requestTaxiRide, hasHouse, houseType, refBalance, tipBalance, myRefCount, myBizs, activeBizType, chooseBizType, activeBizId, businessCatalog, loadBusinessCatalog, purchaseBusinessLocation, leaseBusinessLocation, finishBusinessLease, createBusinessAuction, bidBusinessAuction, vehicleState, refreshVehicleState, buyTaxiVehicle, carOrderEnd, carTimeLeft, buildEnd, buildTimeLeft, phoneProdEnd, phoneProdTimeLeft, marketTab, businessOffers, refreshBusinessOffers, upgradeCasinoBusiness, buyBusinessProduct, restockBusinessProduct, setBusinessProductPrice, configureBusinessAutostock, transferBusinessCash, repairPersonalCarAtShop, repairTaxiCarAtShop, carHealth, players, referralLeaderboard, referralLeaderboardUnavailable, market, myJob, allWorkers, allBiz, selCafe, boardOpen, sellOpen, sellPrice, sellItemType, sellItemData, sellSource, quitOpen, refOpen, refreshProfile, avatarId, tgId, selG, inNick, brewEnd, bLeft, coffeeBonusUntil, returnBoostUntil, pid, onboardStep, tutorialWorkClicks, marketSlots, premiumBalance, premiumUntil, ownedCosmetics, profileFrame, profileBackground, donateAction, buyStars, openAdmin, workPay, bizBonusPercent, modifierOpen, isDailyOpen, dailyStreak, dailyMissions, boostEnd, promoOpen, promoInput, adminTab, role, bugOpen, bugText, showMsg, maintenanceEnabled, maintenanceAdmin, maintenanceBypass, maintenanceBusy, maintenanceError, setMaintenance, settingsOpen, setSettingsOpen, soundEnabled, changeSoundEnabled, vibrationEnabled, changeVibrationEnabled, career, selectProfession, startProfessionCycle, stepProfessionCycle, finishProfessionCycle, claimProfessionReward, sellInventory
   ]);
 
   const activeBiz = myBizs.find(b => b.id === activeBizId) || myBizs.find(b => b.biz_type === activeBizType);

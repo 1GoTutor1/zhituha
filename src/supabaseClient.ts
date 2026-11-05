@@ -7,6 +7,23 @@ const client = createClient(supabaseUrl as string, supabaseAnonKey as string);
 
 export const supabase = new Proxy(client, {
   get(target, property) {
+    if (property === 'rpcBatch') {
+      return async (requests: { name: string; args?: Record<string, unknown> }[]) => {
+        const initData = (window as any).Telegram?.WebApp?.initData || '';
+        try {
+          const response = await fetch('/api/rpc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'read_batch', args: { requests }, init_data: initData }),
+          });
+          const result = await response.json();
+          if (!response.ok) return { data: null, error: { message: result?.error || 'RPC request failed' } };
+          return { data: result.data, error: null };
+        } catch (error) {
+          return { data: null, error: { message: error instanceof Error ? error.message : 'RPC request failed' } };
+        }
+      };
+    }
     if (property === 'rpc') {
       return async (name: string, args: Record<string, unknown> = {}) => {
         const initData = (window as any).Telegram?.WebApp?.initData || '';

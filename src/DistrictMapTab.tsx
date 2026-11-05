@@ -22,12 +22,14 @@ export const DistrictMapTab = ({ app }: { app: any }) => {
     setLoading(true);
     try {
       setLoadError('');
-      const [catalogResult, shopResult, taxiResult, restStateResult] = await Promise.all([
-        app.supabase.rpc('business_catalog_rpc', { p_player_id: app.pid }),
-        app.supabase.rpc('business_shop_state_rpc', { p_player_id: app.pid }),
-        app.supabase.rpc('district_taxi_options_rpc', { p_player_id: app.pid }),
-        app.supabase.rpc('district_rest_state_rpc', { p_player_id: app.pid }),
+      const { data: results, error } = await app.supabase.rpcBatch([
+        { name: 'business_catalog_rpc' },
+        { name: 'business_shop_state_rpc' },
+        { name: 'district_taxi_options_rpc' },
+        { name: 'district_rest_state_rpc' },
       ]);
+      if (error) throw error;
+      const [catalogResult, shopResult, taxiResult, restStateResult] = results as any[];
       if (catalogResult.error) throw catalogResult.error;
       if (catalogResult.data?.error) throw new Error(catalogResult.data.error);
       if (shopResult.error) throw shopResult.error;

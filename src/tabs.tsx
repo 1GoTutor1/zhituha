@@ -55,7 +55,7 @@ export const AppModals = ({ app }: { app: any }) => (
     <Modal open={app.refOpen} onClose={() => app.setRefOpen(false)}>
       <Gift size={40} color="#c0453a" style={{ marginBottom: 15 }} /><h3 style={{ marginTop: 0, fontSize: 20 }}>Рефералка</h3>
       <Btn variant="purple" onClick={app.inviteFriend} style={{ background: 'linear-gradient(135deg, #c0453a 0%, #be185d 100%)', color: '#fdf1ec', marginBottom: 15, padding: 12 }}><UserPlus size={20} /> Пригласить друга</Btn>
-      <p style={{ color: '#6b5f45', fontSize: 14, marginBottom: 10 }}>Приглашено друзей: <b>{app.myRefs.length}</b></p>
+      <p style={{ color: '#6b5f45', fontSize: 14, marginBottom: 10 }}>Приглашено друзей: <b>{app.myRefCount}</b></p>
       <div style={{ background: 'rgba(63,157,85,0.10)', padding: 12, borderRadius: 8, marginBottom: 12, border: '1px solid rgba(63,157,85,0.3)', textAlign: 'left' }}><b style={{ color: '#27804d', fontSize: 13 }}>Бонусы за приглашения</b><p style={{ margin: '5px 0 0', fontSize: 12, lineHeight: 1.45 }}>Новому игроку — +1 000 ₽ к старту. Тебе — 500 ₽ и 10 жетонов, когда друг зайдёт в два разных дня и завершит первую работу. Затем 14 дней начисляется 5% с его оплаты за работу и собранной кассы кофейни — максимум 10 000 ₽ с одного друга. С каждой его покупки за Stars тебе навсегда начисляется ещё 10% жетонами.</p></div>
       <div style={{ background: 'rgba(192,69,58,0.08)', padding: 15, borderRadius: 8, marginBottom: 15, border: '1px solid rgba(192,69,58,0.25)' }}><p style={{ margin: '0 0 5px 0', fontSize: 13, color: '#c0453a' }}>Игровой бонус: 5% с доходов приглашённых</p><p style={{ margin: 0, fontSize: 24, color: '#c0453a', fontWeight: 'bold', fontFamily: 'Russo One' }}>{app.refBalance} <Coins size={18} style={{ display: 'inline' }} /></p></div>
       <Btn variant="primary" onClick={app.collectRefBonus} disabled={app.proc || app.refBalance <= 0} style={{ background: app.refBalance > 0 ? 'linear-gradient(135deg, #3f9d55 0%, #059669 100%)' : '#e7d9b8', marginBottom: 10 }}>Собрать 5%</Btn>
@@ -1911,7 +1911,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
     </div>
     {section === 'stats' && <div className="profile-section-card" style={S.card}>
       <h3 style={{ marginTop: 0 }}>{'\u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430'}</h3>
-      <p>{'\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u043E'}: <b>{app.myRefs.length}</b></p>
+      <p>{'\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u043E'}: <b>{app.myRefCount}</b></p>
       <p>{'\u0420\u0435\u0444\u0435\u0440\u0430\u043B\u044C\u043D\u044B\u0439 \u0431\u0430\u043B\u0430\u043D\u0441'}: <b>{Number(app.refBalance || 0).toLocaleString('ru-RU')} {'\u20BD'}</b></p>
       <p>{'\u041E\u0442\u043A\u0440\u044B\u0442\u044B\u0445 \u043F\u0440\u043E\u0444\u0435\u0441\u0441\u0438\u0439'}: <b>{(app.career?.unlocked || ['miner']).length}</b> / {PLAYER_PROFESSIONS.length}</p>
       <button onClick={() => app.setTab('inventory')} style={{ ...S.btnSecondary, width: '100%' }}>{'\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C'}</button>

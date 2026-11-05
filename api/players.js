@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       sb.from('players').select(playerSelection).eq('telegram_id', String(user.id)).maybeSingle(),
       readMaintenance(sb),
       action === 'me'
-        ? sb.from('players').select('nickname').eq('referred_by', String(user.id))
+        ? sb.from('players').select('id', { count: 'exact', head: true }).eq('referred_by', String(user.id))
         : Promise.resolve({ data: null, error: null }),
     ]);
     const { data: player, error: playerError } = playerResult;
@@ -166,12 +166,24 @@ export default async function handler(req, res) {
         if (activity.return_boost_until) player.return_boost_until = activity.return_boost_until;
         returnBonus = activity.return_bonus || null;
       }
-      const { data: professionState, error: professionError } = await sb.rpc('profession_state_rpc', { p_player_id: player.id });
+      const [professionResult, taxiFleetResult, missionResult] = await Promise.all([
+        sb.rpc('profession_state_rpc', { p_player_id: player.id }),
+        sb.rpc('taxi_fleet_rpc', { p_player_id: player.id }),
+        sb.rpc('daily_missions_state_rpc', { p_player_id: player.id })
+          .catch(error => ({ data: null, error })),
+      ]);
+      const { data: professionState, error: professionError } = professionResult;
       if (professionError) throw professionError;
-      const { data: taxiFleet, error: taxiFleetError } = await sb.rpc('taxi_fleet_rpc', { p_player_id: player.id });
+      const { data: taxiFleet, error: taxiFleetError } = taxiFleetResult;
       if (taxiFleetError) throw taxiFleetError;
       if (professionState) professionState.taxi_fleet = taxiFleet;
-      return res.status(200).json({ player, referrals: referralsResult.data || [], profession: professionState, return_bonus: returnBonus });
+      return res.status(200).json({
+        player,
+        referrals_count: referralsResult.count || 0,
+        profession: professionState,
+        daily_missions: missionResult.error ? null : missionResult.data?.missions || [],
+        return_bonus: returnBonus,
+      });
     }
     if (action === 'admin_grant_cosmetic') {
       if (!['admin', 'superadmin'].includes(player.role)) return res.status(403).json({ error: 'Admin access required' });
