@@ -20,11 +20,18 @@ export async function readMaintenance(sb) {
       .maybeSingle();
     // A not-yet-applied maintenance migration must never lock the whole game.
     // PostgREST can report a missing table before the schema cache refreshes.
-    if (error && ['PGRST116', 'PGRST205', '42P01'].includes(error.code)) {
-      setMaintenanceCache(false);
-      return false;
+    if (error) {
+      console.error('Maintenance flag unavailable:', {
+        message: error.message,
+        code: error.code || null,
+      });
+      // A settings-read problem must not take down profile loading. Keep the
+      // last known value when possible; if this instance has no cached value,
+      // fail open as we already do for a not-yet-applied migration.
+      if (maintenanceCache === null) setMaintenanceCache(false);
+      else maintenanceCacheUntil = Date.now() + MAINTENANCE_CACHE_MS;
+      return maintenanceCache;
     }
-    if (error) throw error;
     setMaintenanceCache(Boolean(data?.maintenance_enabled));
     return maintenanceCache;
   })();
