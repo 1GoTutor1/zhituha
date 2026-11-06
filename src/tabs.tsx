@@ -856,9 +856,9 @@ export const MarketTab = ({ app }: { app: any }) => {
       </div>
       
       <div className="market-category-tabs" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#fbf4e4', padding: 5, borderRadius: 8 }}>
-        {['items', 'cars', 'realestate', 'numbers', 'shops'].map((t: any) => (
+        {['items', 'cars', 'realestate', 'shops'].map((t: any) => (
           <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, minWidth: 0, padding: '8px 2px', fontSize: 10, whiteSpace: 'nowrap', border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3d7ea6' : 'transparent', color: app.marketTab === t ? '#f0f7fb' : '#6b5f45', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
-            {t === 'items' ? '\u041f\u0440\u0435\u0434\u043c\u0435\u0442\u044b' : t === 'cars' ? '\u0410\u0432\u0442\u043e' : t === 'realestate' ? '\u0416\u0438\u043b\u044c\u0451' : t === 'numbers' ? '\u041d\u043e\u043c\u0435\u0440\u0430' : '\u041c\u0430\u0433\u0430\u0437\u0438\u043d\u044b'}
+            {t === 'items' ? '\u041f\u0440\u0435\u0434\u043c\u0435\u0442\u044b' : t === 'cars' ? '\u0410\u0432\u0442\u043e' : t === 'realestate' ? '\u0416\u0438\u043b\u044c\u0451' : '\u041c\u0430\u0433\u0430\u0437\u0438\u043d\u044b'}
           </button>
         ))}
       </div>
@@ -924,10 +924,10 @@ export const MarketTab = ({ app }: { app: any }) => {
 
       </> : <>
           {(() => {
-            const visibleLots = app.market.filter((m: any) => app.marketTab === 'numbers'
-              ? m.item_type === 'phone_number' || m.item_type === 'car_number'
-              : m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house'));
-            const title = app.marketTab === 'numbers' ? '\u041d\u043e\u043c\u0435\u0440\u0430 \u0438\u0433\u0440\u043e\u043a\u043e\u0432' : app.marketTab === 'items' ? '\u041b\u043e\u0442\u044b (\u041f\u0440\u0435\u0434\u043c\u0435\u0442\u044b)' : app.marketTab === 'cars' ? '\u041b\u043e\u0442\u044b (\u0410\u0432\u0442\u043e)' : '\u041b\u043e\u0442\u044b (\u0416\u0438\u043b\u044c\u0451)';
+            const visibleLots = app.market.filter((m: any) => app.marketTab === 'items'
+              ? ['phone', 'phone_number', 'car_number'].includes(m.item_type)
+              : m.item_type === (app.marketTab === 'cars' ? 'car' : 'house'));
+            const title = app.marketTab === 'items' ? '\u041b\u043e\u0442\u044b (\u041f\u0440\u0435\u0434\u043c\u0435\u0442\u044b)' : app.marketTab === 'cars' ? '\u041b\u043e\u0442\u044b (\u0410\u0432\u0442\u043e)' : '\u041b\u043e\u0442\u044b (\u0416\u0438\u043b\u044c\u0451)';
             return <><h3 style={{ color: '#6b5f45', fontSize: 16, marginBottom: 10 }}>{title}</h3>
               {visibleLots.length === 0 && <p style={{ color: '#6b5f45' }}>{'\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043b\u043e\u0442\u043e\u0432.'}</p>}
               {visibleLots.map((item: any) => <MarketItem key={item.id} item={item} app={app} type={item.item_type} />)}

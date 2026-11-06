@@ -277,7 +277,7 @@ export default function App() {
   const [businessCatalog, setBusinessCatalog] = useState<any>({ owned_count: 0, limit: 3, locations: [] });
   const [vehicleState, setVehicleState] = useState<any>({ models: [], dealers: [] });
   const chooseBizType = (type: typeof activeBizType) => { setActiveBizType(type); setActiveBizId(null); };
-  const [marketTab, setMarketTab] = useState<'items' | 'cars' | 'realestate' | 'numbers' | 'shops'>('items');
+  const [marketTab, setMarketTab] = useState<'items' | 'cars' | 'realestate' | 'shops'>('items');
   const [businessOffers, setBusinessOffers] = useState<any>({ products: [], shops: [], repair_shops: [] });
   const [players, setPlayers] = useState<any[]>([]);
   const [referralLeaderboard, setReferralLeaderboard] = useState<any[]>([]);
@@ -486,7 +486,7 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
     await Promise.all([refreshNumberCollection(), loadMarket()]);
-    setMarketTab('numbers');
+    setMarketTab('items');
     setTab('market');
     showMsg('\u041d\u043e\u043c\u0435\u0440 \u0432\u044b\u0441\u0442\u0430\u0432\u043b\u0435\u043d \u043d\u0430 \u0440\u044b\u043d\u043e\u043a');
   });
