@@ -19,6 +19,7 @@ const CLIENT_RPCS = new Set([
   'business_catalog_rpc', 'purchase_business_location_rpc', 'start_business_lease_rpc', 'finish_business_lease_rpc', 'sell_business_to_state_rpc',
   'create_business_auction_rpc', 'bid_business_auction_rpc',
   'business_shop_state_rpc', 'business_cash_transfer_rpc', 'business_shop_restock_rpc', 'business_shop_set_price_rpc', 'business_shop_buy_rpc',
+  'phone_numbers_state_rpc', 'spin_phone_number_rpc', 'sell_phone_number_to_state_rpc', 'activate_phone_number_rpc', 'spin_car_plate_rpc', 'resolve_car_plate_spin_rpc', 'activate_car_number_rpc', 'sell_car_number_to_state_rpc',
   'business_autostock_state_rpc', 'business_autostock_configure_rpc',
   'business_sales_history_rpc',
   'casino_business_state_rpc', 'casino_business_upgrade_rpc',

@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   const sb = getServiceClient();
   const { action } = req.body || {};
   try {
-    const meFields = 'id, role, is_subscribed, is_banned, nickname, gender, avatar_id, money, phone_count, has_car, car_model, car_health, energy, current_district, has_house, house_type, referral_balance, daily_streak, boost_end, onboarding_step, market_slots, premium_balance, premium_until, owned_cosmetics, profile_frame, profile_background, coffee_bonus_until, return_boost_until, brew_end, tip_balance, last_claim, player_level, player_xp, active_profession, unlocked_professions';
+    const meFields = 'id, role, is_subscribed, is_banned, nickname, gender, avatar_id, money, phone_count, has_car, car_model, car_plate, car_health, energy, current_district, has_house, house_type, referral_balance, daily_streak, boost_end, onboarding_step, market_slots, premium_balance, premium_until, owned_cosmetics, profile_frame, profile_background, coffee_bonus_until, return_boost_until, brew_end, tip_balance, last_claim, player_level, player_xp, active_profession, unlocked_professions';
     const profileRefreshFields = 'id, role, is_subscribed, is_banned, money, referral_balance, tip_balance, boost_end, brew_end, coffee_bonus_until, return_boost_until, phone_count, has_car, car_model, car_health, energy, current_district, has_house, house_type, market_slots, premium_balance, premium_until, owned_cosmetics, profile_frame, profile_background, nickname_changed_at';
     const playerSelection = action === 'me' ? meFields
       : action === 'profile_refresh' ? profileRefreshFields

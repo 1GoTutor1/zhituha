@@ -16,8 +16,123 @@ import { DISTRICTS, districtForLocation, RETIRED_LOCATION_KEYS } from './distric
 
 const coffeeBonusMinutes = (productId: string) => productId === 'coffee_small' ? 5 : productId === 'coffee_medium' ? 7 : 9;
 
+const CarPlate = ({ plate, compact = false }: { plate: string; compact?: boolean }) => {
+  const match = String(plate || '').toUpperCase().match(/^([\u0410-\u042fA-Z])(\d{3})([\u0410-\u042fA-Z]{2})\s*(\d{2,3})$/);
+  if (!match) return <div className={'ru-license-plate' + (compact ? ' is-compact' : '')}>{plate}</div>;
+  const latinMap: Record<string, string> = { '\u0410': 'A', '\u0412': 'B', '\u0415': 'E', '\u041a': 'K', '\u041c': 'M', '\u041d': 'H', '\u041e': 'O', '\u0420': 'P', '\u0421': 'C', '\u0422': 'T', '\u0423': 'Y', '\u0425': 'X' };
+  const latin = (value: string) => [...value].map(letter => latinMap[letter] || letter).join('');
+  const glyphPaths: Record<string, string[]> = {
+    A: ['M5.5 70.5 L22 5.5 L38.5 70.5', 'M12 48 H32'], B: ['M7 5.5 V70.5', 'M7 5.5 H24 Q38 5.5 38 21.5 Q38 37.5 24 37.5 H7', 'M22 37.5 Q39 37.5 39 54 Q39 70.5 23 70.5 H7'],
+    C: ['M38 11 H18 Q7 11 7 22 V54 Q7 70 19 70 H38'], E: ['M38 5.5 H7 V70.5 H38', 'M8 38 H31'], H: ['M7 5.5 V70.5', 'M38 5.5 V70.5', 'M7 38 H38'],
+    K: ['M7 5.5 V70.5', 'M38 5.5 L12 37.5 L39 70.5'], M: ['M6 70.5 V5.5 L22 37.5 L38 5.5 V70.5'], O: ['M18 5.5 H28 Q38 5.5 38 16 V60 Q38 70.5 28 70.5 H18 Q7 70.5 7 60 V16 Q7 5.5 18 5.5 Z'],
+    P: ['M7 70.5 V5.5 H24 Q38 5.5 38 21 V25 Q38 38 24 38 H7'], R: ['M7 70.5 V5.5 H24 Q38 5.5 38 21 V25 Q38 38 24 38 H7', 'M22 38 L39 70.5'],
+    S: ['M38 9 H18 Q7 9 7 20 V28 Q7 38 18 38 H28 Q39 38 39 49 V59 Q39 70.5 28 70.5 H7'], T: ['M5.5 5.5 H39', 'M22 5.5 V70.5'], X: ['M7 5.5 L38 70.5', 'M38 5.5 L7 70.5'], Y: ['M7 5.5 L22.5 37.5 L38 5.5', 'M22.5 37.5 V70.5'],
+    '0': ['M18 5.5 H28 Q38 5.5 38 16 V60 Q38 70.5 28 70.5 H18 Q7 70.5 7 60 V16 Q7 5.5 18 5.5 Z'], '1': ['M10 16 L22 5.5 V70.5', 'M9 70.5 H37'], '2': ['M7 19 Q7 5.5 19 5.5 H27 Q38 5.5 38 17 V28 L7 59 V70.5 H39'],
+    '3': ['M7 5.5 H27 Q38 5.5 38 17 V28 Q38 35 29 38 Q39 41 39 50 V59 Q39 70.5 27 70.5 H7'], '4': ['M30 70.5 V5.5', 'M7 44 H39', 'M7 44 L30 5.5'], '5': ['M38 5.5 H9 V35 H27 Q39 35 39 47 V59 Q39 70.5 27 70.5 H7'],
+    '6': ['M37 7 H19 Q7 7 7 19 V58 Q7 70.5 19 70.5 H27 Q39 70.5 39 59 V49 Q39 39 27 39 H7'], '7': ['M7 9 H39 L15 70.5'], '8': ['M19 37.5 C11 37.5 7 31 7 21.5 C7 11 11.5 5.5 22.5 5.5 C33 5.5 38 11 38 21.5 C38 31 33 37.5 25 37.5 C16 37.5 7 42 7 54 C7 65 12 70.5 22.5 70.5 C33 70.5 39 65 39 54 C39 42 30 37.5 19 37.5'],
+    '9': ['M39 38 H18 Q7 38 7 27 V17 Q7 5.5 19 5.5 H27 Q39 5.5 39 17 V58 Q39 70.5 27 70.5 H10'], U: ['M7 5.5 V59 Q7 70.5 19 70.5 H27 Q39 70.5 39 59 V5.5'],
+  };
+  const glyph = (char: string, x: number, y: number, scale = 1, strokeWidth = 11) => (
+    <g key={char + '-' + x + '-' + y} transform={'translate(' + x + ' ' + y + ') scale(' + scale + ')'} fill="none" stroke="#101010" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      {(glyphPaths[char] || []).map((path, index) => <path key={index} d={path} />)}
+    </g>
+  );
+  const [firstLetter, digits, lastLetters, region] = [latin(match[1]), match[2], latin(match[3]), match[4]];
+  const mainGlyphs = [glyph(firstLetter, 18, 18), ...digits.split('').map((char, index) => glyph(char, 82 + index * 48, 18)), ...lastLetters.split('').map((char, index) => glyph(char, 248 + index * 52, 18))];
+  const regionScale = 58 / 77;
+  const regionStep = 37;
+  const regionStart = 394 + (126 - (region.length * regionStep - 3)) / 2;
+  const regionGlyphs = region.split('').map((char, index) => glyph(char, regionStart + index * regionStep, 8, regionScale, 12));
+  const rusGlyphs = ['R', 'U', 'S'].map((char, index) => glyph(char, 424 + index * 14, 80, 20 / 76, 11.5));
+  return <svg className={'ru-license-plate' + (compact ? ' is-compact' : '')} viewBox="0 0 520 112" role="img" aria-label={'Vehicle plate ' + match[1] + ' ' + digits + ' ' + match[3] + ', region ' + region}>
+    <rect x="1.75" y="1.75" width="516.5" height="108.5" rx="5" fill="#fff" stroke="#111" strokeWidth="3.5" />
+    {mainGlyphs}
+    <path d="M394 3.5 V108.5" stroke="#111" strokeWidth="3" />
+    {regionGlyphs}
+    {rusGlyphs}
+    <path d="M466 82 H490 V98 H466 Z" fill="#fff" /><path d="M466 87.333 H490 V92.666 H466 Z" fill="#244b9b" /><path d="M466 92.666 H490 V98 H466 Z" fill="#d52b32" />
+  </svg>;
+};
+
+const phoneNumberMultipliers = (value: string) => {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('7')) digits = digits.slice(1);
+  const prefix = digits.slice(0, 3);
+  const tail = digits.slice(3);
+  let prefixMultiplier = 1;
+  let prefixReason = 'обычный префикс';
+  if (prefix.length === 3 && /^([0-9])\1{2}$/.test(prefix)) { prefixMultiplier = 3; prefixReason = `три одинаковые цифры ${prefix}`; }
+  else if (prefix.length === 3 && prefix === [...prefix].reverse().join('')) { prefixMultiplier = 2; prefixReason = `зеркальный префикс ${prefix}`; }
+  else if (prefix[0] === prefix[1] || prefix[1] === prefix[2]) { prefixMultiplier = 1.5; prefixReason = `пара цифр в ${prefix}`; }
+
+  const counts = new Map<string, number>();
+  let run = 1; let maxRun = 1;
+  for (let i = 0; i < tail.length; i += 1) {
+    counts.set(tail[i], (counts.get(tail[i]) || 0) + 1);
+    if (i > 0) { run = tail[i] === tail[i - 1] ? run + 1 : 1; maxRun = Math.max(maxRun, run); }
+  }
+  const maxRepeat = Math.max(0, ...counts.values());
+  const pairCount = [...counts.values()].filter(count => count === 2).length;
+  let bodyMultiplier = 1;
+  let bodyReason = 'обычная комбинация';
+  const offer = (multiplier: number, reason: string) => { if (multiplier > bodyMultiplier) { bodyMultiplier = multiplier; bodyReason = reason; } };
+  if (maxRepeat === 7) offer(32, 'все семь цифр одинаковые');
+  else if (maxRepeat === 6) offer(16, 'шесть одинаковых цифр');
+  else if (maxRepeat === 5) offer(8, 'пять одинаковых цифр');
+  else if (maxRepeat === 4) offer(4, 'четыре одинаковые цифры');
+  else if (maxRepeat === 3) offer(2.5, 'три одинаковые цифры');
+  else if (pairCount >= 2) offer(1.5, 'две пары цифр');
+  else if (maxRepeat === 2) offer(1.2, 'одна пара цифр');
+  if (maxRun >= 7) offer(10, 'семь одинаковых подряд');
+  else if (maxRun >= 6) offer(6, 'шесть одинаковых подряд');
+  else if (maxRun >= 5) offer(3, 'пять одинаковых подряд');
+  else if (maxRun >= 4) offer(2, 'четыре одинаковых подряд');
+  if (tail.length === 7 && tail === [...tail].reverse().join('')) offer(8, 'палиндром из семи цифр');
+  if (tail.length === 7 && tail[0] === tail[2] && tail[0] === tail[4] && tail[0] === tail[6] && tail[1] === tail[3] && tail[1] === tail[5]) offer(7, 'чередующийся рисунок цифр');
+  const lastFour = tail.slice(-4);
+  if (lastFour === '7777') offer(10, 'последние четыре цифры — 7777');
+  else if (['0000', '8888', '9999'].includes(lastFour)) offer(8, `последние четыре цифры — ${lastFour}`);
+  else if (['1234','2345','3456','4567','5678','6789','9876','8765','7654','6543','5432','4321'].includes(lastFour)) offer(5, `последние цифры идут подряд: ${lastFour}`);
+  else if (['1212','3434','5656','7878','9090'].includes(lastFour)) offer(4, `повторяющаяся пара ${lastFour}`);
+  return { prefixMultiplier, prefixReason, bodyMultiplier, bodyReason, totalMultiplier: prefixMultiplier * bodyMultiplier };
+};
+
+const carPlateMultipliers = (plate: string) => {
+  const match = String(plate || '').toUpperCase().match(/^([А-Я])(\d{3})([А-Я]{2})\s*(\d{2,3})$/);
+  if (!match) return { digitMultiplier: 1, digitReason: 'обычная комбинация', letterMultiplier: 1, letterReason: 'обычные буквы', regionMultiplier: 1, regionReason: 'обычный регион', totalMultiplier: 1 };
+  const [, firstLetter, digits, lastLetters, region] = match;
+  const letters = firstLetter + lastLetters;
+  let digitMultiplier = 1; let digitReason = 'обычные цифры';
+  if (digits === '777') { digitMultiplier = 12; digitReason = '777 — особая комбинация'; }
+  else if (['001','888'].includes(digits)) { digitMultiplier = 8; digitReason = `${digits} — редкая комбинация`; }
+  else if (digits === '999') { digitMultiplier = 7; digitReason = '999 — три девятки'; }
+  else if (digits === '555') { digitMultiplier = 6; digitReason = '555 — три пятёрки'; }
+  else if (digits === '007') { digitMultiplier = 5; digitReason = '007 — особая комбинация'; }
+  else if (/^(\d)\1{2}$/.test(digits)) { digitMultiplier = 4; digitReason = `${digits} — три одинаковые цифры`; }
+  else if (/^[1-9]00$/.test(digits)) { digitMultiplier = 2.5; digitReason = `${digits} — круглая комбинация`; }
+  else if (digits[0] === digits[1] || digits[1] === digits[2]) { digitMultiplier = 1.5; digitReason = 'пара одинаковых цифр'; }
+  else if (['123','321'].includes(digits)) { digitMultiplier = 2; digitReason = 'цифры идут по порядку'; }
+  let letterMultiplier = 1; let letterReason = 'обычные буквы';
+  if (letters[0] === letters[1] && letters[1] === letters[2]) { letterMultiplier = 8; letterReason = 'три одинаковые буквы'; }
+  else if (letters[0] === letters[1] || letters[1] === letters[2] || letters[0] === letters[2]) { letterMultiplier = 2; letterReason = 'повтор букв'; }
+  if (['А','М','О'].includes(firstLetter)) { letterMultiplier *= 1.2; letterReason += ` · ${firstLetter} похожа на латинскую`; }
+  const regionMultiplier = ['77','99','777'].includes(region) ? 2 : 1;
+  const regionReason = regionMultiplier > 1 ? `регион ${region}` : `регион ${region}`;
+  return { digitMultiplier, digitReason, letterMultiplier, letterReason, regionMultiplier, regionReason, totalMultiplier: digitMultiplier * letterMultiplier * regionMultiplier };
+};
+
+const CarNumberCollection = ({ app }: { app: any }) => {
+  const numbers = app.numberCollection?.car_numbers || [];
+  if (!numbers.length) return <div className="gibdd-empty">Пока нет автомобильных номеров. Крути номер — и решай, что с ним делать.</div>;
+  return <div className="gibdd-number-list">{numbers.map((number: any) => <article className="gibdd-number-row" key={number.id}>
+    <div className="gibdd-number-plate"><CarPlate plate={number.plate} compact /><small>{number.is_active ? 'Сейчас стоит на машине' : `Государство оценило в ${Number(number.estimated_value).toLocaleString('ru-RU')} ₽`}</small></div>
+    <div className="gibdd-number-actions">{app.hasCar && !number.is_active && <button type="button" disabled={app.proc} onClick={() => app.activateCarNumber(number.id)}>Установить</button>}<button type="button" className="is-sell" disabled={app.proc || number.is_active} onClick={() => app.sellCarNumber(number.id)}>{number.is_active ? 'На машине' : 'Продать'}</button></div>
+  </article>)}</div>;
+};
+
 export const AppModals = ({ app }: { app: any }) => (
   <>
+    {app.carPlateRoll && (() => { const factors = carPlateMultipliers(app.carPlateRoll.plate); const capped = Number(app.carPlateRoll.estimated_value) < 1000 * factors.totalMultiplier; return <Modal open onClose={() => {}} contentStyle={{ maxWidth: 360, textAlign: 'center' }}><div className="number-roll-reveal"><div className="number-roll-kicker">НОВЫЙ НОМЕР АВТО</div><CarPlate plate={app.carPlateRoll.plate} /><p>Множители, которые дали цену</p><div className="number-multiplier-breakdown"><span><b>Цифры {app.carPlateRoll.plate.match(/\d{3}/)?.[0]}</b><small>{factors.digitReason}</small><strong>×{String(factors.digitMultiplier).replace('.', ',')}</strong></span><span><b>Буквы</b><small>{factors.letterReason}</small><strong>×{String(factors.letterMultiplier).replace('.', ',')}</strong></span><span><b>Регион</b><small>{factors.regionReason}</small><strong>×{String(factors.regionMultiplier).replace('.', ',')}</strong></span><div className="number-multiplier-total">Итоговый множитель <b>×{String(factors.totalMultiplier).replace('.', ',')}</b></div></div><p>Оценка государства · база 1 000 ₽</p><strong>{Number(app.carPlateRoll.estimated_value).toLocaleString('ru-RU')} ₽</strong>{capped && <small>Достигнут лимит оценки: 100 000 ₽.</small>}<small>{app.hasCar ? 'Можно сохранить, поставить на свою машину или продать государству.' : 'Машины нет — сохрани номер в коллекцию или продай государству.'}</small><Btn variant="secondary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(app.carPlateRoll.roll_id, 'keep')}>Сохранить в коллекцию</Btn>{app.hasCar && <Btn variant="primary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(app.carPlateRoll.roll_id, 'activate')}>Поставить на машину</Btn>}<Btn variant="secondary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(app.carPlateRoll.roll_id, 'sell')}>Продать государству</Btn></div></Modal>; })()}
     {app.career?.pending_reward?.item && <Modal open onClose={() => {}} contentStyle={{ maxWidth: 390, padding: 18, backgroundImage: 'none' }}>
       {(() => {
         const item = app.career.pending_reward.item;
@@ -446,6 +561,10 @@ export const HomeTab = ({ app }: { app: any }) => {
         </button>
       </div>
 
+      {app.currentDistrict === 'center' && <button type="button" className="home-gibdd-card" onClick={() => app.setTab('gibdd')}>
+        <span className="home-gibdd-icon"><CarFront size={23} /></span><span className="home-gibdd-copy"><b>ГИБДД</b><small>Крути номера · машина не нужна</small></span><ChevronRight size={20} />
+      </button>}
+
       {(app.role === 'admin' || app.role === 'superadmin') && <>
         <button onClick={app.openAdmin} style={{ width: '100%', marginBottom: 10, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 10, border: '2px solid #8f302b', background: 'linear-gradient(180deg, #c94b40, #a9322a)', color: '#fff4e0', boxShadow: '0 4px 0 rgba(90,35,30,.35)', fontFamily: 'Russo One, sans-serif', fontSize: 14, cursor: 'pointer' }}><ShieldAlert size={20} /> Панель администратора</button>
         <button onClick={() => app.setMaintenance(true)} disabled={app.maintenanceBusy || app.maintenanceEnabled} style={{ width: '100%', marginBottom: 18, padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 10, border: '1px solid rgba(61,126,166,.45)', background: 'rgba(61,126,166,.12)', color: '#2f5f7d', fontWeight: 700, cursor: app.maintenanceBusy || app.maintenanceEnabled ? 'default' : 'pointer', opacity: app.maintenanceEnabled ? .55 : 1 }}><Wrench size={18} /> {app.maintenanceEnabled ? 'Техработы включены' : 'Закрыть игру на техработы'}</button>
@@ -661,6 +780,9 @@ export const MarketTab = ({ app }: { app: any }) => {
                 <div><b>{product.product_name}</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Остаток: {product.quantity}</div><strong>{Number(product.retail_price).toLocaleString('ru-RU')} ₽</strong>{String(product.product_id).startsWith('coffee_') && <div style={{ fontSize: 11, color: '#327b45', marginTop: 3 }}>Выпей: +{Number(product.energy_restore) || 0} энергии · +10% к заработку на {coffeeBonusMinutes(product.product_id)} мин</div>}</div>
                 <button type="button" disabled={app.proc || own || shop.status !== 'open' || product.quantity < 1} onClick={() => { setShopPurchase({ shop, product }); setShopQuantity(1); }} style={{ border: 0, borderRadius: 8, padding: '9px 12px', color: '#fff', background: own || shop.status !== 'open' ? '#777181' : '#3f9d55', fontWeight: 700, whiteSpace: 'nowrap' }}>{own ? 'Твой магазин' : 'Купить'}</button>
               </div>)}
+              {shop.biz_type === 'minimarket' && <div style={{ padding: 10, borderRadius: 9, background: 'rgba(135,89,190,.08)', textAlign: 'left' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}><div><b>Номерной автомат</b><div style={{ fontSize: 12, color: '#6b5f45' }}>Случайный +7 номер · комиссия кассиру, доход магазина облагается налогом</div></div><button type="button" disabled={app.proc || own || shop.status !== 'open' || app.money < 2500} onClick={() => app.spinPhoneNumber(shop.business_id)} style={{ border: 0, borderRadius: 8, padding: '9px 12px', color: '#fff', background: own || shop.status !== 'open' ? '#777181' : '#8150a8', fontWeight: 700, whiteSpace: 'nowrap' }}>Крутить · 2 500 ₽</button></div>
+              </div>}
             </div>
           </section>;
         })}
@@ -688,6 +810,9 @@ export const MarketTab = ({ app }: { app: any }) => {
               <Btn variant="primary" disabled={app.proc || app.money < Number(shopPurchase.product.retail_price) * shopQuantity || shopQuantity > Number(shopPurchase.product.quantity)} onClick={() => { app.buyBusinessProduct(shopPurchase.shop.business_id, shopPurchase.product.product_id, shopQuantity); setShopPurchase(null); }}>{String(shopPurchase.product.product_id).startsWith('coffee_') ? 'Купить и выпить' : 'Подтвердить покупку'}</Btn>
             </div>
           </>}
+        </Modal>
+        <Modal open={!!app.phoneNumberRoll} onClose={() => app.setPhoneNumberRoll(null)} contentStyle={{ maxWidth: 360, textAlign: 'center' }}>
+          {app.phoneNumberRoll && (() => { const factors = phoneNumberMultipliers(app.phoneNumberRoll.number); return <div className="number-roll-reveal"><div className="number-roll-kicker">ТВОЙ НОВЫЙ НОМЕР</div><div className="number-roll-display">{app.phoneNumberRoll.number}</div><p>Что повлияло на оценку</p><div className="number-multiplier-breakdown"><span><b>Префикс</b><small>{factors.prefixReason}</small><strong>×{String(factors.prefixMultiplier).replace('.', ',')}</strong></span><span><b>Комбинация цифр</b><small>{factors.bodyReason}</small><strong>×{String(factors.bodyMultiplier).replace('.', ',')}</strong></span><div className="number-multiplier-total">Итоговый множитель <b>×{String(factors.totalMultiplier).replace('.', ',')}</b></div></div><p>Оценка государства · база 1 000 ₽</p><strong>{Number(app.phoneNumberRoll.estimated_value).toLocaleString('ru-RU')} ₽</strong><small>Номер сохранён в инвентаре. Продать или установить его можно там.</small><Btn variant="primary" onClick={() => app.setPhoneNumberRoll(null)}>Забрать номер</Btn></div>; })()}
         </Modal>
       </> : <>
 
@@ -952,7 +1077,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
                 {currentStock.taxi_cars?.map((car: any, i: number) => (
                   <div key={i} className="taxi-fleet-car" style={{ background: 'rgba(90,70,40,0.08)', padding: 10, borderRadius: 12 }}>
                     <VehicleArtwork modelId={car.model} />
-                    <div className="taxi-fleet-info"><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}><span style={{ fontWeight: 'bold' }}>{car.model_name || vehicleName(car.model)}</span><span style={{ color: car.health > 50 ? '#3f9d55' : car.health > 0 ? '#b06a15' : '#c0453a' }}>{car.health}%</span></div>
+                    <div className="taxi-fleet-info"><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}><span style={{ fontWeight: 'bold' }}>{car.model_name || vehicleName(car.model)}</span><span style={{ color: car.health > 50 ? '#3f9d55' : car.health > 0 ? '#b06a15' : '#c0453a' }}>{car.health}%</span></div>{car.plate && <CarPlate plate={car.plate} compact />}
                     {car.health < 100 && <div style={{ marginTop: 7, display: 'grid', gap: 5 }}>
                       {(app.businessOffers?.repair_shops || []).map((shop: any) => <button key={shop.business_id} type="button" disabled={app.proc || shop.status !== 'open' || Number(activeBiz.cash_balance || 0) < vehicleRepairPrice(car.model)} onClick={() => app.repairTaxiCarAtShop(shop.business_id, activeBiz.id, i)} style={{ border: '1px solid #3d7ea6', borderRadius: 8, padding: 8, background: 'rgba(61,126,166,.08)', color: '#2f6a94', textAlign: 'left' }}>В {shop.business_name} · ремонт {vehicleRepairPrice(car.model).toLocaleString('ru-RU')} ₽ {shop.status !== 'open' ? '· закрыта' : `· касса ${Number(activeBiz.cash_balance || 0).toLocaleString('ru-RU')} ₽`}</button>)}
                       {!(app.businessOffers?.repair_shops || []).length && <small style={{ color: '#6b5f45' }}>Для ремонта нужна автомастерская с механиком.</small>}
@@ -2023,6 +2148,19 @@ export const ShopTab = ({ app }: { app: any }) => {
   );
 };
 
+export const GibddTab = ({ app }: { app: any }) => (
+  <div className="game-tab game-tab-gibdd">
+    <button type="button" className="gibdd-back" onClick={() => app.setTab('home')}>← На главную</button>
+    <header className="gibdd-header"><span className="gibdd-badge"><CarFront size={23} /></span><div><div className="gibdd-kicker">ГОСАВТОИНСПЕКЦИЯ</div><h1>ГИБДД</h1></div></header>
+    {app.currentDistrict === 'center' ? <>
+      <p className="gibdd-intro">Крути красивые автомобильные номера в центре. Своя машина не нужна: сохраняй номер в коллекцию, продавай государству или поставь на авто позже.</p>
+      <section className="gibdd-spin-card"><div><b>Случайный госномер</b><small>Формат · А 000 АА 77</small></div><button type="button" disabled={app.proc || app.money < 3000} onClick={app.spinCarPlate}>Крутить · 3 000 ₽</button><p>Номер после каждой попытки можно сохранить, продать или установить на свою машину.</p></section>
+      <div className="gibdd-collection-heading"><div><span>ТВОЯ КОЛЛЕКЦИЯ</span><small>{(app.numberCollection?.car_numbers || []).length} номеров</small></div><CarFront size={18} /></div>
+      <CarNumberCollection app={app} />
+    </> : <section className="gibdd-away-card"><b>ГИБДД находится в центре</b><p>Вернись в центральный район, чтобы крутить номера.</p><button type="button" onClick={() => app.setTab('district_map')}>Открыть карту районов</button></section>}
+  </div>
+);
+
 export const InventoryTab = ({ app }: { app: any }) => {
   const [selected, setSelected] = useState<any>(null);
   const [quantity, setQuantity] = useState(1);
@@ -2053,7 +2191,9 @@ export const InventoryTab = ({ app }: { app: any }) => {
       </button>;
     })}</div> : <div className="inventory-empty"><Backpack size={38} /><b>Пока пусто</b><span>Предметы из профессий будут появляться здесь.</span></div>}
     {app.phone ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div><Btn variant="purple" onClick={() => { app.setSellItemType('phone'); app.setSellItemData('phone'); app.setSellPrice(String(DEFAULT_SELL_PHONE)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить</Btn><Btn variant="primary" onClick={() => app.buyPhone(false)} disabled={app.proc}>Сдать (+1400)</Btn></div> : null}
-    {app.hasCar ? <div className="inventory-personal-vehicle" style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><VehicleArtwork modelId={app.carModel} className="inventory-vehicle-art" /><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>{app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'lada' ? 'Ока' : app.carModel === 'toyota' ? 'Тойота' : 'Автомобиль')}</div><div style={{ fontSize: 12, color: '#3f9d55', marginTop: 4 }}>Состояние: {app.carHealth}%</div></div></div>{app.carHealth < 100 && <Btn variant="secondary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Найти автомастерскую</Btn>}<Btn variant="purple" onClick={() => { const base = Number(app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.base_price || 0); app.setSellItemType('car'); app.setSellItemData(app.carModel); app.setSellPrice(String(base || (app.carModel === 'lada' ? DEFAULT_SELL_LADA : DEFAULT_SELL_TOYOTA))); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
+    {!!(app.numberCollection?.numbers || []).length && <section style={{ ...S.card, maxWidth: 'none', display: 'grid', gap: 10 }}><div style={{ textAlign: 'left' }}><b>Коллекция номеров</b><small style={{ display: 'block', color: '#6b5f45', marginTop: 3 }}>Номера можно собирать без смартфона и продавать государству по примерной цене.</small></div>{app.numberCollection.numbers.map((number: any) => <div key={number.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 10, borderRadius: 10, background: 'rgba(90,70,40,.06)', textAlign: 'left' }}><div><b style={{ fontVariantNumeric: 'tabular-nums' }}>{number.number}</b><small style={{ display: 'block', color: '#6b5f45' }}>Оценка · {Number(number.estimated_value).toLocaleString('ru-RU')} ₽{number.is_active ? ' · установлен' : ''}</small></div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'end' }}>{app.phone && !number.is_active && <button type="button" disabled={app.proc} onClick={() => app.activatePhoneNumber(number.id)} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#3d7ea6', color: 'white' }}>Установить</button>}<button type="button" disabled={app.proc} onClick={() => app.sellPhoneNumber(number.id)} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#e6dfd2', color: '#372e24' }}>Продать</button></div></div>)}</section>}
+    <section className="gibdd-inventory-section"><div className="gibdd-collection-heading"><div><span>АВТОМОБИЛЬНЫЕ НОМЕРА</span><small>{(app.numberCollection?.car_numbers || []).length} номеров</small></div><CarFront size={18} /></div><CarNumberCollection app={app} /></section>
+    {app.hasCar ? <div className="inventory-personal-vehicle" style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><VehicleArtwork modelId={app.carModel} className="inventory-vehicle-art" /><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>{app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'lada' ? 'Ока' : app.carModel === 'toyota' ? 'Тойота' : 'Автомобиль')}</div><div style={{ fontSize: 12, color: '#3f9d55', marginTop: 4 }}>Состояние: {app.carHealth}%</div></div></div><div><small className="plate-caption">ГОСУДАРСТВЕННЫЙ НОМЕР</small>{app.numberCollection?.car_plate ? <CarPlate plate={app.numberCollection.car_plate} /> : <small>Номер назначается…</small>}</div><Btn variant="secondary" disabled={app.proc || app.money < 3000} onClick={app.spinCarPlate}>Перебросить номер · 3 000 ₽</Btn>{app.carHealth < 100 && <Btn variant="secondary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Найти автомастерскую</Btn>}<Btn variant="purple" onClick={() => { const base = Number(app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.base_price || 0); app.setSellItemType('car'); app.setSellItemData(app.carModel); app.setSellPrice(String(base || (app.carModel === 'lada' ? DEFAULT_SELL_LADA : DEFAULT_SELL_TOYOTA))); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
     {app.hasHouse ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Building size={32} color="#b06a15" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Квартира</div></div></div><Btn variant="purple" onClick={() => { app.setSellItemType('house'); app.setSellItemData(app.houseType); app.setSellPrice(String(DEFAULT_SELL_APARTMENT)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
     <Modal open={!!selected} onClose={closeStack} contentStyle={{ maxWidth: 360 }}>
       {selected && (() => { const rarity = PROFESSION_RARITIES[selected.rarity as keyof typeof PROFESSION_RARITIES] || PROFESSION_RARITIES.common; const amount = Math.max(1, Math.min(Number(selected.quantity) || 1, Number(quantity) || 1)); return <div className="inventory-item-detail">
