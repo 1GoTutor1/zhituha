@@ -97,6 +97,46 @@ const phoneNumberMultipliers = (value: string) => {
   return { prefixMultiplier, prefixReason, bodyMultiplier, bodyReason, totalMultiplier: prefixMultiplier * bodyMultiplier };
 };
 
+const CAR_PLATE_RECOGNIZED_SERIES: Record<string, { multiplier: number; reason: string }> = {
+  'ААА': { multiplier: 8, reason: 'знаковая серия ААА' },
+  'АМР': { multiplier: 7, reason: 'легендарная серия АМР' },
+  'ЕКХ': { multiplier: 7, reason: 'легендарная серия ЕКХ' },
+  'АУЕ': { multiplier: 7, reason: 'редкая буквенная комбинация АУЕ' },
+  'ХКХ': { multiplier: 6, reason: 'узнаваемая серия ХКХ' },
+  'ВОР': { multiplier: 5, reason: 'читаемое слово ВОР' },
+  'ХАМ': { multiplier: 5, reason: 'читаемое слово ХАМ' },
+  'АМО': { multiplier: 4, reason: 'узнаваемая серия АМО' },
+  'АММ': { multiplier: 4, reason: 'узнаваемая серия АММ' },
+  'АОО': { multiplier: 4, reason: 'узнаваемая серия АОО' },
+  'АРМ': { multiplier: 4, reason: 'узнаваемая серия АРМ' },
+  'АТК': { multiplier: 4, reason: 'узнаваемая серия АТК' },
+  'ВКР': { multiplier: 4, reason: 'узнаваемая серия ВКР' },
+  'ВМР': { multiplier: 4, reason: 'узнаваемая серия ВМР' },
+  'ВОО': { multiplier: 4, reason: 'узнаваемая серия ВОО' },
+  'ЕКР': { multiplier: 4, reason: 'узнаваемая серия ЕКР' },
+  'ЕОО': { multiplier: 4, reason: 'узнаваемая серия ЕОО' },
+  'ЕРЕ': { multiplier: 4, reason: 'узнаваемая серия ЕРЕ' },
+  'ККХ': { multiplier: 4, reason: 'узнаваемая серия ККХ' },
+  'КММ': { multiplier: 4, reason: 'узнаваемая серия КММ' },
+  'КМР': { multiplier: 4, reason: 'узнаваемая серия КМР' },
+  'КОО': { multiplier: 4, reason: 'узнаваемая серия КОО' },
+  'ММР': { multiplier: 4, reason: 'узнаваемая серия ММР' },
+  'МОО': { multiplier: 4, reason: 'узнаваемая серия МОО' },
+  'ОКО': { multiplier: 4, reason: 'узнаваемая серия ОКО' },
+  'ООА': { multiplier: 4, reason: 'узнаваемая серия ООА' },
+  'ООН': { multiplier: 4, reason: 'узнаваемая серия ООН' },
+  'ООС': { multiplier: 4, reason: 'узнаваемая серия ООС' },
+  'ОРР': { multiplier: 4, reason: 'узнаваемая серия ОРР' },
+  'ОСК': { multiplier: 4, reason: 'узнаваемая серия ОСК' },
+  'ОСМ': { multiplier: 4, reason: 'узнаваемая серия ОСМ' },
+  'ОТТ': { multiplier: 4, reason: 'узнаваемая серия ОТТ' },
+  'САС': { multiplier: 4, reason: 'узнаваемая серия САС' },
+  'СКР': { multiplier: 4, reason: 'узнаваемая серия СКР' },
+  'СОО': { multiplier: 4, reason: 'узнаваемая серия СОО' },
+  'ССС': { multiplier: 8, reason: 'три одинаковые буквы ССС' },
+  'ООО': { multiplier: 8, reason: 'знаковая серия ООО' },
+};
+
 const carPlateMultipliers = (plate: string) => {
   const match = String(plate || '').toUpperCase().match(/^([А-Я])(\d{3})([А-Я]{2})\s*(\d{2,3})$/);
   if (!match) return { digitMultiplier: 1, digitReason: 'обычная комбинация', letterMultiplier: 1, letterReason: 'обычные буквы', regionMultiplier: 1, regionReason: 'обычный регион', totalMultiplier: 1 };
@@ -115,7 +155,9 @@ const carPlateMultipliers = (plate: string) => {
   let letterMultiplier = 1; let letterReason = 'обычные буквы';
   const letterOrder = 'АВЕКМНОРСТУХ';
   const letterIndexes = [...letters].map(letter => letterOrder.indexOf(letter));
-  if (letters[0] === letters[1] && letters[1] === letters[2]) { letterMultiplier = 8; letterReason = 'три одинаковые буквы'; }
+  const recognizedSeries = CAR_PLATE_RECOGNIZED_SERIES[letters];
+  if (recognizedSeries) { letterMultiplier = recognizedSeries.multiplier; letterReason = recognizedSeries.reason; }
+  else if (letters[0] === letters[1] && letters[1] === letters[2]) { letterMultiplier = 8; letterReason = 'три одинаковые буквы'; }
   else if (letters[0] === letters[1] || letters[1] === letters[2] || letters[0] === letters[2]) { letterMultiplier = 2.5; letterReason = 'пара одинаковых букв'; }
   else if (letterIndexes.every((value, index) => value >= 0 && (index === 0 || value === letterIndexes[index - 1] + 1)) || letterIndexes.every((value, index) => value >= 0 && (index === 0 || value === letterIndexes[index - 1] - 1))) { letterMultiplier = 3; letterReason = 'буквы идут подряд'; }
   if (['А','М','О'].includes(firstLetter)) { letterMultiplier *= 1.2; letterReason += ` · ${firstLetter} похожа на латинскую`; }
