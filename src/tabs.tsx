@@ -123,16 +123,82 @@ const carPlateMultipliers = (plate: string) => {
 
 const CarNumberCollection = ({ app }: { app: any }) => {
   const numbers = app.numberCollection?.car_numbers || [];
-  if (!numbers.length) return <div className="gibdd-empty">Пока нет автомобильных номеров. Крути номер — и решай, что с ним делать.</div>;
-  return <div className="gibdd-number-list">{numbers.map((number: any) => <article className="gibdd-number-row" key={number.id}>
-    <div className="gibdd-number-plate"><CarPlate plate={number.plate} compact /><small>{number.is_active ? 'Сейчас стоит на машине' : `Государство оценило в ${Number(number.estimated_value).toLocaleString('ru-RU')} ₽`}</small></div>
-    <div className="gibdd-number-actions">{app.hasCar && !number.is_active && <button type="button" disabled={app.proc} onClick={() => app.activateCarNumber(number.id)}>Установить</button>}<button type="button" className="is-sell" disabled={app.proc || number.is_active} onClick={() => app.sellCarNumber(number.id)}>{number.is_active ? 'На машине' : 'Продать'}</button></div>
-  </article>)}</div>;
+  const [listingNumber, setListingNumber] = useState<any>(null);
+  const [listingPrice, setListingPrice] = useState('');
+  const openListing = (number: any) => { setListingNumber(number); setListingPrice(String(Math.max(1, Number(number.estimated_value) || 1))); };
+  const closeListing = () => setListingNumber(null);
+  const submitListing = () => {
+    const price = Number(listingPrice);
+    if (!listingNumber || !Number.isSafeInteger(price) || price < 1 || price > 100000000) return;
+    const number = listingNumber;
+    closeListing();
+    app.listNumberMarketLot('car_number', number.id, price);
+  };
+  if (!numbers.length) return <div className="gibdd-empty">{'\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0430\u0432\u0442\u043e\u043c\u043e\u0431\u0438\u043b\u044c\u043d\u044b\u0445 \u043d\u043e\u043c\u0435\u0440\u043e\u0432. \u041a\u0440\u0443\u0442\u0438 \u043d\u043e\u043c\u0435\u0440 \u0438 \u0440\u0435\u0448\u0430\u0439, \u0447\u0442\u043e \u0441 \u043d\u0438\u043c \u0434\u0435\u043b\u0430\u0442\u044c.'}</div>;
+  return <>
+    <div className="gibdd-number-list">{numbers.map((number: any) => <article className="gibdd-number-row" key={number.id}>
+      <div className="gibdd-number-plate"><CarPlate plate={number.plate} compact /><small>{number.is_active ? '\u0421\u0435\u0439\u0447\u0430\u0441 \u0441\u0442\u043e\u0438\u0442 \u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0435' : '\u0413\u043e\u0441\u0443\u0434\u0430\u0440\u0441\u0442\u0432\u043e \u043e\u0446\u0435\u043d\u0438\u043b\u043e \u0432'} {number.is_active ? '' : Number(number.estimated_value).toLocaleString('ru-RU') + ' \u20bd'}</small></div>
+      <div className="gibdd-number-actions">{!number.is_active && <button type="button" disabled={app.proc} onClick={() => openListing(number)}>{'\u041d\u0430 \u0440\u044b\u043d\u043e\u043a'}</button>}{app.hasCar && !number.is_active && <button type="button" disabled={app.proc} onClick={() => app.activateCarNumber(number.id)}>{'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c'}</button>}<button type="button" className="is-sell" disabled={app.proc || number.is_active} onClick={() => app.sellCarNumber(number.id)}>{number.is_active ? '\u041d\u0430 \u043c\u0430\u0448\u0438\u043d\u0435' : '\u041f\u0440\u043e\u0434\u0430\u0442\u044c'}</button></div>
+    </article>)}</div>
+    <Modal open={!!listingNumber} onClose={closeListing} contentStyle={{ maxWidth: 360 }}>
+      {listingNumber && <div style={{ display: 'grid', gap: 12, textAlign: 'left' }}><h3 style={{ margin: 0 }}>{'\u0412\u044b\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043d\u043e\u043c\u0435\u0440 \u043d\u0430 \u0440\u044b\u043d\u043e\u043a'}</h3><CarPlate plate={listingNumber.plate} /><small>{'\u041e\u0446\u0435\u043d\u043a\u0430 \u0433\u043e\u0441\u0443\u0434\u0430\u0440\u0441\u0442\u0432\u0430'} {'\u00b7'} {Number(listingNumber.estimated_value).toLocaleString('ru-RU')} {'\u20bd'}</small><label htmlFor="car-number-market-price">{'\u0426\u0435\u043d\u0430 \u043f\u0440\u043e\u0434\u0430\u0436\u0438'}, {'\u20bd'}</label><input id="car-number-market-price" type="number" min={1} max={100000000} step={1} value={listingPrice} onChange={event => setListingPrice(event.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 8 }}><Btn variant="secondary" onClick={closeListing}>{'\u041e\u0442\u043c\u0435\u043d\u0430'}</Btn><Btn variant="primary" disabled={app.proc || !Number.isSafeInteger(Number(listingPrice)) || Number(listingPrice) < 1 || Number(listingPrice) > 100000000} onClick={submitListing}>{'\u0412\u044b\u0441\u0442\u0430\u0432\u0438\u0442\u044c'}</Btn></div></div>}
+    </Modal>
+  </>;
+};
+
+const NumberSpinScreen = ({ app }: { app: any }) => {
+  const spin = app.numberSpinScreen;
+  if (!spin) return null;
+  const spinning = spin.stage === 'spinning';
+  const isCar = spin.type === 'car';
+  const roll = isCar ? app.carPlateRoll : app.phoneNumberRoll;
+  const factors = roll ? (isCar ? carPlateMultipliers(roll.plate) : phoneNumberMultipliers(roll.number)) : null;
+  const factorData: any = factors;
+  const capped = Boolean(isCar && roll && factors && Number(roll.estimated_value) < 1000 * factors.totalMultiplier);
+  const closePhone = () => { app.setPhoneNumberRoll(null); app.setNumberSpinScreen(null); };
+
+  return <div className={`number-spin-screen${isCar ? ' is-car' : ' is-phone'}`} role="dialog" aria-modal="true" aria-label={isCar ? 'Крутка автомобильного номера' : 'Крутка телефонного номера'}>
+    <div className="number-spin-shell">
+      <header className="number-spin-header">
+        <div className="number-spin-brand"><span>Ж</span><div><b>Житуха</b><small>{isCar ? 'ГИБДД · ГОСНОМЕР' : 'НОМЕРНОЙ АВТОМАТ'}</small></div></div>
+        {!isCar && !spinning && <button type="button" onClick={closePhone}>Закрыть</button>}
+      </header>
+      <main className="number-spin-content">
+        <div className="number-spin-eyebrow">{isCar ? 'НОВЫЙ АВТОМОБИЛЬНЫЙ НОМЕР' : 'НОВЫЙ МОБИЛЬНЫЙ НОМЕР'}</div>
+        {spinning ? <>
+          <h1>{isCar ? 'Подбираем госномер' : 'Подбираем номер'}</h1>
+          <p>Секунду — проверяем комбинацию и её стоимость</p>
+          <div className={`number-spin-machine is-spinning${isCar ? ' plate-machine' : ' phone-machine'}`} aria-live="polite">
+            <div className="number-spin-reel">{isCar ? 'А 000 АА 77' : '+7 900 000-00-00'}</div>
+            <i className="number-spin-glow" />
+          </div>
+          <div className="number-spin-progress"><i /></div>
+          <small>Номер скоро появится здесь</small>
+        </> : roll && factors ? <>
+          <h1>Выпал красивый номер</h1>
+          {isCar ? <CarPlate plate={roll.plate} /> : <div className="number-spin-phone-result">{roll.number}</div>}
+          <section className="number-spin-factors">
+            <div><span>{isCar ? `Цифры ${roll.plate.match(/\d{3}/)?.[0]}` : 'Префикс'}</span><small>{isCar ? factorData.digitReason : factorData.prefixReason}</small><b>×{String(isCar ? factorData.digitMultiplier : factorData.prefixMultiplier).replace('.', ',')}</b></div>
+            <div><span>{isCar ? 'Буквы' : 'Комбинация цифр'}</span><small>{isCar ? factorData.letterReason : factorData.bodyReason}</small><b>×{String(isCar ? factorData.letterMultiplier : factorData.bodyMultiplier).replace('.', ',')}</b></div>
+            {isCar && <div><span>Регион</span><small>{factorData.regionReason}</small><b>×{String(factorData.regionMultiplier).replace('.', ',')}</b></div>}
+            <div className="number-spin-total"><span>Итоговый множитель</span><b>×{String(factorData.totalMultiplier).replace('.', ',')}</b></div>
+          </section>
+          <div className="number-spin-estimate"><small>Примерная цена государству</small><strong>{Number(roll.estimated_value).toLocaleString('ru-RU')} ₽</strong></div>
+          {capped && <small className="number-spin-cap-note">Достигнут лимит оценки: 100 000 ₽.</small>}
+          {isCar ? <div className="number-spin-actions">
+            <Btn variant="primary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(roll.roll_id, 'keep')}>Сохранить в коллекцию</Btn>
+            {app.hasCar && <Btn variant="secondary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(roll.roll_id, 'activate')}>Установить на машину</Btn>}
+            <Btn variant="secondary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(roll.roll_id, 'sell')}>Продать государству</Btn>
+          </div> : <div className="number-spin-actions"><Btn variant="primary" onClick={closePhone}>Забрать в коллекцию</Btn><small>Продать или выставить на рынок можно в инвентаре.</small></div>}
+        </> : null}
+      </main>
+    </div>
+  </div>;
 };
 
 export const AppModals = ({ app }: { app: any }) => (
   <>
-    {app.carPlateRoll && (() => { const factors = carPlateMultipliers(app.carPlateRoll.plate); const capped = Number(app.carPlateRoll.estimated_value) < 1000 * factors.totalMultiplier; return <Modal open onClose={() => {}} contentStyle={{ maxWidth: 360, textAlign: 'center' }}><div className="number-roll-reveal"><div className="number-roll-kicker">НОВЫЙ НОМЕР АВТО</div><CarPlate plate={app.carPlateRoll.plate} /><p>Множители, которые дали цену</p><div className="number-multiplier-breakdown"><span><b>Цифры {app.carPlateRoll.plate.match(/\d{3}/)?.[0]}</b><small>{factors.digitReason}</small><strong>×{String(factors.digitMultiplier).replace('.', ',')}</strong></span><span><b>Буквы</b><small>{factors.letterReason}</small><strong>×{String(factors.letterMultiplier).replace('.', ',')}</strong></span><span><b>Регион</b><small>{factors.regionReason}</small><strong>×{String(factors.regionMultiplier).replace('.', ',')}</strong></span><div className="number-multiplier-total">Итоговый множитель <b>×{String(factors.totalMultiplier).replace('.', ',')}</b></div></div><p>Оценка государства · база 1 000 ₽</p><strong>{Number(app.carPlateRoll.estimated_value).toLocaleString('ru-RU')} ₽</strong>{capped && <small>Достигнут лимит оценки: 100 000 ₽.</small>}<small>{app.hasCar ? 'Можно сохранить, поставить на свою машину или продать государству.' : 'Машины нет — сохрани номер в коллекцию или продай государству.'}</small><Btn variant="secondary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(app.carPlateRoll.roll_id, 'keep')}>Сохранить в коллекцию</Btn>{app.hasCar && <Btn variant="primary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(app.carPlateRoll.roll_id, 'activate')}>Поставить на машину</Btn>}<Btn variant="secondary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(app.carPlateRoll.roll_id, 'sell')}>Продать государству</Btn></div></Modal>; })()}
+    <NumberSpinScreen app={app} />
     {app.career?.pending_reward?.item && <Modal open onClose={() => {}} contentStyle={{ maxWidth: 390, padding: 18, backgroundImage: 'none' }}>
       {(() => {
         const item = app.career.pending_reward.item;
@@ -591,28 +657,27 @@ export const HomeTab = ({ app }: { app: any }) => {
 };
 
 export const MarketItem = ({ item, app, type }: any) => {
+  let numberData: any = null;
+  if (type === 'phone_number' || type === 'car_number') {
+    try { numberData = JSON.parse(String(item.item_data || '{}')); } catch { numberData = {}; }
+  }
   const itemKey = String(item.item_data || '').split(':').pop() || '';
-  const marketArt = type === 'car' ? VEHICLE_ART[itemKey] || VEHICLE_ART.lada
-    : type === 'house' ? '/images/market-panelka.jpg' : null;
+  const marketArt = type === 'car' ? VEHICLE_ART[itemKey] || VEHICLE_ART.lada : type === 'house' ? '/images/market-panelka.jpg' : null;
+  const title = type === 'phone_number' ? '\u0422\u0435\u043b\u0435\u0444\u043e\u043d\u043d\u044b\u0439 \u043d\u043e\u043c\u0435\u0440'
+    : type === 'car_number' ? '\u0410\u0432\u0442\u043e\u043c\u043e\u0431\u0438\u043b\u044c\u043d\u044b\u0439 \u043d\u043e\u043c\u0435\u0440'
+    : type === 'car' ? (app.vehicleState?.models?.find((model: any) => model.model_id === itemKey)?.model_name || (itemKey === 'lada' ? '\u041e\u043a\u0430' : '\u0422\u043e\u0439\u043e\u0442\u0430'))
+    : type === 'house' ? '\u041a\u0432\u0430\u0440\u0442\u0438\u0440\u0430' : itemKey === 'button' ? '\u041a\u043d\u043e\u043f\u043e\u0447\u043d\u044b\u0439 \u0442\u0435\u043b.' : itemKey === 'smartphone' ? '\u0421\u043c\u0430\u0440\u0442\u0444\u043e\u043d' : '\u0422\u0435\u043b\u0435\u0444\u043e\u043d';
   return <div className="market-item-card" style={{ backgroundColor: '#21172e', color: '#f5effa', padding: 15, borderRadius: 14, border: '1px solid rgba(232,195,140,.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
     <div className="market-item-main" style={{ textAlign: 'left' }}>
       {marketArt && <img className="market-item-art" src={marketArt} alt="" aria-hidden="true" loading="lazy" />}
-      <div className="market-item-copy">
-      <div style={{ fontSize: 16, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>
-        {(() => { return type === 'car'
-          ? (app.vehicleState?.models?.find((model: any) => model.model_id === itemKey)?.model_name || (itemKey === 'lada' ? 'Ока' : 'Тойота'))
-          : type === 'house' ? 'Квартира' : (itemKey === 'button' ? 'Кнопочный тел.' : itemKey === 'smartphone' ? 'Смартфон' : 'Телефон'); })()}
-      </div>
-      <div style={{ fontSize: 12, color: '#b9acc7', marginTop: 4 }}>Продавец: {item.seller_name}</div>
+      <div className="market-item-copy"><div style={{ fontSize: 16, fontWeight: 'bold' }}>{title}</div>
+        {numberData?.number && (type === 'car_number' ? <div style={{ marginTop: 8 }}><CarPlate plate={numberData.number} compact /></div> : <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, letterSpacing: 1, fontVariantNumeric: 'tabular-nums' }}>{numberData.number}</div>)}
+        {numberData?.estimated_value && <div style={{ fontSize: 11, color: '#b9acc7', marginTop: 4 }}>{'\u041e\u0446\u0435\u043d\u043a\u0430 \u0433\u043e\u0441\u0443\u0434\u0430\u0440\u0441\u0442\u0432\u0430'} {'\u00b7'} {Number(numberData.estimated_value).toLocaleString('ru-RU')} {'\u20bd'}</div>}
+        <div style={{ fontSize: 12, color: '#b9acc7', marginTop: 4 }}>{'\u041f\u0440\u043e\u0434\u0430\u0432\u0435\u0446'}: {item.seller_name}</div>
       </div>
     </div>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-      <span style={{ color: '#f2c27f', fontWeight: 'bold', fontFamily: 'Russo One, Impact, sans-serif' }}>{item.price.toLocaleString('ru-RU')} ₽</span>
-      {item.seller_id !== app.pid ? (
-        <Btn variant="primary" onClick={() => app.buyLot(item)} disabled={app.proc} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>Купить</Btn>
-      ) : (
-        <button onClick={() => app.cancelLot(item)} style={{ background: 'transparent', border: 'none', color: '#c0453a', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Снять с продажи</button>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}><span style={{ color: '#f2c27f', fontWeight: 'bold', fontFamily: 'Russo One, Impact, sans-serif' }}>{Number(item.price).toLocaleString('ru-RU')} ?</span>
+      {item.seller_id !== app.pid ? <Btn variant="primary" onClick={() => app.buyLot(item)} disabled={app.proc} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>{'\u041a\u0443\u043f\u0438\u0442\u044c'}</Btn> : <button onClick={() => app.cancelLot(item)} disabled={app.proc} style={{ background: 'transparent', border: 'none', color: '#c0453a', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>{'\u0421\u043d\u044f\u0442\u044c \u0441 \u043f\u0440\u043e\u0434\u0430\u0436\u0438'}</button>}
     </div>
   </div>;
 };
@@ -746,9 +811,9 @@ export const MarketTab = ({ app }: { app: any }) => {
       </div>
       
       <div className="market-category-tabs" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#fbf4e4', padding: 5, borderRadius: 8 }}>
-        {['items', 'cars', 'realestate', 'shops'].map((t: any) => (
-          <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, minWidth: 0, padding: '8px 3px', fontSize: 11, whiteSpace: 'nowrap', border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3d7ea6' : 'transparent', color: app.marketTab === t ? '#f0f7fb' : '#6b5f45', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
-            {t === 'items' ? 'Предметы' : t === 'cars' ? 'Авто' : t === 'realestate' ? 'Жильё' : 'Магазины'}
+        {['items', 'cars', 'realestate', 'numbers', 'shops'].map((t: any) => (
+          <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, minWidth: 0, padding: '8px 2px', fontSize: 10, whiteSpace: 'nowrap', border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3d7ea6' : 'transparent', color: app.marketTab === t ? '#f0f7fb' : '#6b5f45', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
+            {t === 'items' ? '\u041f\u0440\u0435\u0434\u043c\u0435\u0442\u044b' : t === 'cars' ? '\u0410\u0432\u0442\u043e' : t === 'realestate' ? '\u0416\u0438\u043b\u044c\u0451' : t === 'numbers' ? '\u041d\u043e\u043c\u0435\u0440\u0430' : '\u041c\u0430\u0433\u0430\u0437\u0438\u043d\u044b'}
           </button>
         ))}
       </div>
@@ -811,17 +876,19 @@ export const MarketTab = ({ app }: { app: any }) => {
             </div>
           </>}
         </Modal>
-        <Modal open={!!app.phoneNumberRoll} onClose={() => app.setPhoneNumberRoll(null)} contentStyle={{ maxWidth: 360, textAlign: 'center' }}>
-          {app.phoneNumberRoll && (() => { const factors = phoneNumberMultipliers(app.phoneNumberRoll.number); return <div className="number-roll-reveal"><div className="number-roll-kicker">ТВОЙ НОВЫЙ НОМЕР</div><div className="number-roll-display">{app.phoneNumberRoll.number}</div><p>Что повлияло на оценку</p><div className="number-multiplier-breakdown"><span><b>Префикс</b><small>{factors.prefixReason}</small><strong>×{String(factors.prefixMultiplier).replace('.', ',')}</strong></span><span><b>Комбинация цифр</b><small>{factors.bodyReason}</small><strong>×{String(factors.bodyMultiplier).replace('.', ',')}</strong></span><div className="number-multiplier-total">Итоговый множитель <b>×{String(factors.totalMultiplier).replace('.', ',')}</b></div></div><p>Оценка государства · база 1 000 ₽</p><strong>{Number(app.phoneNumberRoll.estimated_value).toLocaleString('ru-RU')} ₽</strong><small>Номер сохранён в инвентаре. Продать или установить его можно там.</small><Btn variant="primary" onClick={() => app.setPhoneNumberRoll(null)}>Забрать номер</Btn></div>; })()}
-        </Modal>
-      </> : <>
 
-      <h3 style={{ color: '#6b5f45', fontSize: 16, marginBottom: 10 }}>{app.marketTab === 'items' ? 'Лоты (Предметы)' : app.marketTab === 'cars' ? 'Лоты (Авто)' : 'Лоты (Жилье)'}</h3>
-      {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).length === 0 && <p style={{ color: '#6b5f45' }}>Пусто...</p>}
-      {app.market.filter((m: any) => m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house')).map((item: any) => (
-        <MarketItem key={item.id} item={item} app={app} type={item.item_type} />
-      ))}
-      </>}
+      </> : <>
+          {(() => {
+            const visibleLots = app.market.filter((m: any) => app.marketTab === 'numbers'
+              ? m.item_type === 'phone_number' || m.item_type === 'car_number'
+              : m.item_type === (app.marketTab === 'items' ? 'phone' : app.marketTab === 'cars' ? 'car' : 'house'));
+            const title = app.marketTab === 'numbers' ? '\u041d\u043e\u043c\u0435\u0440\u0430 \u0438\u0433\u0440\u043e\u043a\u043e\u0432' : app.marketTab === 'items' ? '\u041b\u043e\u0442\u044b (\u041f\u0440\u0435\u0434\u043c\u0435\u0442\u044b)' : app.marketTab === 'cars' ? '\u041b\u043e\u0442\u044b (\u0410\u0432\u0442\u043e)' : '\u041b\u043e\u0442\u044b (\u0416\u0438\u043b\u044c\u0451)';
+            return <><h3 style={{ color: '#6b5f45', fontSize: 16, marginBottom: 10 }}>{title}</h3>
+              {visibleLots.length === 0 && <p style={{ color: '#6b5f45' }}>{'\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043b\u043e\u0442\u043e\u0432.'}</p>}
+              {visibleLots.map((item: any) => <MarketItem key={item.id} item={item} app={app} type={item.item_type} />)}
+            </>;
+          })()}
+        </>}
     </div>
   );
 };
@@ -2165,6 +2232,21 @@ export const InventoryTab = ({ app }: { app: any }) => {
   const [selected, setSelected] = useState<any>(null);
   const [quantity, setQuantity] = useState(1);
   const [confirmRareSale, setConfirmRareSale] = useState(false);
+  const [numberToList, setNumberToList] = useState<any>(null);
+  const [numberListingPrice, setNumberListingPrice] = useState('');
+  const openNumberListing = (number: any, type: 'phone_number' | 'car_number') => {
+    setNumberToList({ ...number, type });
+    setNumberListingPrice(String(Math.max(1, Number(number.estimated_value) || 1)));
+  };
+  const closeNumberListing = () => setNumberToList(null);
+  const submitNumberListing = () => {
+    if (!numberToList) return;
+    const price = Number(numberListingPrice);
+    if (!Number.isSafeInteger(price) || price < 1 || price > 100000000) { app.showMsg('\u0423\u043a\u0430\u0436\u0438 \u0446\u0435\u043d\u0443 \u043e\u0442 1 \u0434\u043e 100 000 000 \u20bd', true); return; }
+    const listing = numberToList;
+    closeNumberListing();
+    app.listNumberMarketLot(listing.type, listing.id, price);
+  };
   useEffect(() => {
     try { localStorage.removeItem('zhituha_inventory_new'); } catch {}
     window.dispatchEvent(new Event('zhituha:inventory-seen'));
@@ -2191,10 +2273,20 @@ export const InventoryTab = ({ app }: { app: any }) => {
       </button>;
     })}</div> : <div className="inventory-empty"><Backpack size={38} /><b>Пока пусто</b><span>Предметы из профессий будут появляться здесь.</span></div>}
     {app.phone ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div><Btn variant="purple" onClick={() => { app.setSellItemType('phone'); app.setSellItemData('phone'); app.setSellPrice(String(DEFAULT_SELL_PHONE)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить</Btn><Btn variant="primary" onClick={() => app.buyPhone(false)} disabled={app.proc}>Сдать (+1400)</Btn></div> : null}
-    {!!(app.numberCollection?.numbers || []).length && <section style={{ ...S.card, maxWidth: 'none', display: 'grid', gap: 10 }}><div style={{ textAlign: 'left' }}><b>Коллекция номеров</b><small style={{ display: 'block', color: '#6b5f45', marginTop: 3 }}>Номера можно собирать без смартфона и продавать государству по примерной цене.</small></div>{app.numberCollection.numbers.map((number: any) => <div key={number.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 10, borderRadius: 10, background: 'rgba(90,70,40,.06)', textAlign: 'left' }}><div><b style={{ fontVariantNumeric: 'tabular-nums' }}>{number.number}</b><small style={{ display: 'block', color: '#6b5f45' }}>Оценка · {Number(number.estimated_value).toLocaleString('ru-RU')} ₽{number.is_active ? ' · установлен' : ''}</small></div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'end' }}>{app.phone && !number.is_active && <button type="button" disabled={app.proc} onClick={() => app.activatePhoneNumber(number.id)} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#3d7ea6', color: 'white' }}>Установить</button>}<button type="button" disabled={app.proc} onClick={() => app.sellPhoneNumber(number.id)} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#e6dfd2', color: '#372e24' }}>Продать</button></div></div>)}</section>}
+    {!!(app.numberCollection?.numbers || []).length && <section style={{ ...S.card, maxWidth: 'none', display: 'grid', gap: 10 }}><div style={{ textAlign: 'left' }}><b>Коллекция номеров</b><small style={{ display: 'block', color: '#6b5f45', marginTop: 3 }}>Номера можно собирать без смартфона и продавать государству по примерной цене.</small></div>{app.numberCollection.numbers.map((number: any) => <div key={number.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 10, borderRadius: 10, background: 'rgba(90,70,40,.06)', textAlign: 'left' }}><div><b style={{ fontVariantNumeric: 'tabular-nums' }}>{number.number}</b><small style={{ display: 'block', color: '#6b5f45' }}>Оценка · {Number(number.estimated_value).toLocaleString('ru-RU')} ₽{number.is_active ? ' · установлен' : ''}</small></div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'end' }}>{app.phone && !number.is_active && <button type="button" disabled={app.proc} onClick={() => app.activatePhoneNumber(number.id)} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#3d7ea6', color: 'white' }}>Установить</button>}<button type="button" disabled={app.proc || number.is_active} onClick={() => openNumberListing(number, 'phone_number')} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#3d7ea6', color: 'white' }}>{'\u041d\u0430 \u0440\u044b\u043d\u043e\u043a'}</button><button type="button" disabled={app.proc} onClick={() => app.sellPhoneNumber(number.id)} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#e6dfd2', color: '#372e24' }}>Продать</button></div></div>)}</section>}
     <section className="gibdd-inventory-section"><div className="gibdd-collection-heading"><div><span>АВТОМОБИЛЬНЫЕ НОМЕРА</span><small>{(app.numberCollection?.car_numbers || []).length} номеров</small></div><CarFront size={18} /></div><CarNumberCollection app={app} /></section>
     {app.hasCar ? <div className="inventory-personal-vehicle" style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><VehicleArtwork modelId={app.carModel} className="inventory-vehicle-art" /><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>{app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'lada' ? 'Ока' : app.carModel === 'toyota' ? 'Тойота' : 'Автомобиль')}</div><div style={{ fontSize: 12, color: '#3f9d55', marginTop: 4 }}>Состояние: {app.carHealth}%</div></div></div><div><small className="plate-caption">ГОСУДАРСТВЕННЫЙ НОМЕР</small>{app.numberCollection?.car_plate ? <CarPlate plate={app.numberCollection.car_plate} /> : <small>Номер назначается…</small>}</div><Btn variant="secondary" disabled={app.proc || app.money < 3000} onClick={app.spinCarPlate}>Перебросить номер · 3 000 ₽</Btn>{app.carHealth < 100 && <Btn variant="secondary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Найти автомастерскую</Btn>}<Btn variant="purple" onClick={() => { const base = Number(app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.base_price || 0); app.setSellItemType('car'); app.setSellItemData(app.carModel); app.setSellPrice(String(base || (app.carModel === 'lada' ? DEFAULT_SELL_LADA : DEFAULT_SELL_TOYOTA))); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
     {app.hasHouse ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Building size={32} color="#b06a15" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Квартира</div></div></div><Btn variant="purple" onClick={() => { app.setSellItemType('house'); app.setSellItemData(app.houseType); app.setSellPrice(String(DEFAULT_SELL_APARTMENT)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
+    <Modal open={!!numberToList} onClose={closeNumberListing} contentStyle={{ maxWidth: 360 }}>
+      {numberToList && <div style={{ display: 'grid', gap: 12, textAlign: 'left' }}>
+        <h3 style={{ margin: 0 }}>{'\u0412\u044b\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043d\u043e\u043c\u0435\u0440 \u043d\u0430 \u0440\u044b\u043d\u043e\u043a'}</h3>
+        {numberToList.type === 'car_number' ? <CarPlate plate={numberToList.number} /> : <b style={{ fontSize: 20, letterSpacing: 1 }}>{numberToList.number}</b>}
+        <small>{'\u041e\u0446\u0435\u043d\u043a\u0430 \u0433\u043e\u0441\u0443\u0434\u0430\u0440\u0441\u0442\u0432\u0430'} {'\u00b7'} {Number(numberToList.estimated_value).toLocaleString('ru-RU')} {'\u20bd'}</small>
+        <label htmlFor="number-market-price">{'\u0426\u0435\u043d\u0430 \u043f\u0440\u043e\u0434\u0430\u0436\u0438'}, {'\u20bd'}</label>
+        <input id="number-market-price" type="number" min={1} max={100000000} step={1} value={numberListingPrice} onChange={event => setNumberListingPrice(event.target.value)} style={S.input} />
+        <div style={{ display: 'flex', gap: 8 }}><Btn variant="secondary" onClick={closeNumberListing}>{'\u041e\u0442\u043c\u0435\u043d\u0430'}</Btn><Btn variant="primary" disabled={app.proc || !Number.isSafeInteger(Number(numberListingPrice)) || Number(numberListingPrice) < 1 || Number(numberListingPrice) > 100000000} onClick={submitNumberListing}>{'\u0412\u044b\u0441\u0442\u0430\u0432\u0438\u0442\u044c'}</Btn></div>
+      </div>}
+    </Modal>
     <Modal open={!!selected} onClose={closeStack} contentStyle={{ maxWidth: 360 }}>
       {selected && (() => { const rarity = PROFESSION_RARITIES[selected.rarity as keyof typeof PROFESSION_RARITIES] || PROFESSION_RARITIES.common; const amount = Math.max(1, Math.min(Number(selected.quantity) || 1, Number(quantity) || 1)); return <div className="inventory-item-detail">
         <div className="inventory-item-model" style={{ '--rarity-color': rarity.color } as React.CSSProperties}><ItemArtwork item={selected} size={140} /></div>

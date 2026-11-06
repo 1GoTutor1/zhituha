@@ -5,7 +5,7 @@ import { getServiceClient } from './_supabase.js';
 const CLIENT_RPCS = new Set([
   'update_profile_rpc', 'work_rpc', 'verify_work_captcha_rpc', 'drink_tutorial_coffee_rpc', 'claim_tutorial_reward_rpc', 'claim_daily_reward_rpc', 'finish_business_timer_rpc',
   'taxi_collect_rpc', 'start_phone_order_rpc',
-  'cancel_lot_rpc', 'start_car_order_rpc', 'start_build_rpc',
+  'cancel_lot_rpc', 'list_number_market_lot_rpc', 'buy_number_market_lot_rpc', 'start_car_order_rpc', 'start_build_rpc',
   'upgrade_business_passive_rpc', 'upgrade_leased_business_passive_rpc', 'collect_business_passive_rpc',
   'buy_coffee_rpc', 'collect_coffee_cash_rpc', 'hire_worker_rpc', 'fire_worker_rpc', 'quit_job_rpc',
   'buy_phone_rpc', 'list_item_rpc', 'buy_market_item', 'collect_ref_bonus_rpc', 'collect_tips_rpc',
