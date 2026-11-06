@@ -155,7 +155,7 @@ export const BIZ_JOBS: Record<string, { role: string, salary: number, max: numbe
     { role: 'Бариста', salary: 60, max: 1 },
     { role: 'Помощник бариста', salary: 30, max: 1 }
   ],
-  salon: [{ role: 'Механик', salary: 10000, max: 2 }, { role: 'Продавец', salary: 15000, max: 1 }],
+  salon: [{ role: 'Механик', salary: 3, max: 2 }, { role: 'Продавец', salary: 5, max: 1 }],
   phone_factory: [{ role: 'Сборщик', salary: 10000, max: 2 }, { role: 'Инженер', salary: 15000, max: 1 }],
   minimarket: [{ role: 'Кассир', salary: 5, max: 1 }],
   auto_repair: [{ role: 'Механик', salary: 3, max: 1 }],

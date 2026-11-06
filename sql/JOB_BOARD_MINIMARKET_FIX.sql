@@ -30,8 +30,8 @@ begin
     elsif p_role='Помощник бариста' and p_salary=30 then allowed:=1;
     else return 'Для кофейни выбери доступную вакансию'; end if;
   elsif b.biz_type='salon' then
-    if p_role='Механик' and p_salary=10000 then allowed:=2;
-    elsif p_role='Продавец' and p_salary=15000 then allowed:=1;
+    if p_role='Механик' and p_salary in (3,10000) then allowed:=2;
+    elsif p_role='Продавец' and p_salary in (5,15000) then allowed:=1;
     else return 'Для автосалона выбери доступную вакансию'; end if;
   elsif b.biz_type='phone_factory' then
     if p_role='Сборщик' and p_salary=10000 then allowed:=2;

@@ -180,11 +180,11 @@ begin
       allowed := 1;
     else return 'Такой роли в кофейне нет'; end if;
   elsif b.biz_type = 'salon' then
-    if p_role = 'Механик' then
-      if p_salary <> 10000 then return 'Зарплата механика фиксирована: 10000'; end if;
+      if p_role = 'Механик' then
+        if p_salary <> 3 and p_salary <> 10000 then return 'Механику положено 3% с продажи авто'; end if;
       allowed := 2;
-    elsif p_role = 'Продавец' then
-      if p_salary <> 15000 then return 'Зарплата продавца фиксирована: 15000'; end if;
+      elsif p_role = 'Продавец' then
+        if p_salary <> 5 and p_salary <> 15000 then return 'Продавцу положено 5% с продажи авто'; end if;
       allowed := 1;
     else return 'Такой роли в автосалоне нет'; end if;
   elsif b.biz_type = 'phone_factory' then
