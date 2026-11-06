@@ -401,7 +401,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
           {(bank?.transactions || []).map((transaction: Transaction) => <div key={transaction.id} style={{ ...S.card, marginBottom: 8, padding: 12, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}><div><b style={{ fontSize: 12 }}>{({ cash_deposit: 'Внесение наличных', cash_withdraw: 'Снятие наличных', transfer_out: 'Перевод отправлен', transfer_in: 'Перевод получен', transfer_fee: 'Комиссия за перевод', deposit_open: 'Открытие вклада', deposit_payout: 'Выплата вклада', deposit_early_close: 'Досрочное закрытие', stock_buy: 'Покупка акций', stock_sell: 'Продажа акций', stock_dividend: 'Дивиденды по акциям', loan_issued: 'Выдача кредита', loan_repayment: 'Погашение кредита', loan_foreclosure: 'Изъятие залога' } as Record<string,string>)[transaction.operation] || transaction.operation}</b><div style={{ color: '#8a806c', fontSize: 10, marginTop: 3 }}>{dateTime(transaction.created_at)}</div></div><span style={{ color: Number(transaction.amount) >= 0 ? '#3f9d55' : '#c0453a', fontWeight: 700, whiteSpace: 'nowrap' }}>{Number(transaction.amount) > 0 ? '+' : ''}{money(transaction.amount)}</span></div>)}
         </>}
       </>}
-      <div style={{ color: '#958b78', fontSize: 10, textAlign: 'center', margin: '15px 0 5px' }}><Clock3 size={12} style={{ verticalAlign: 'middle' }} /> Котировки обновляются раз в минуту</div>
+      <div style={{ color: '#958b78', fontSize: 10, textAlign: 'center', margin: '15px 0 5px' }}><Clock3 size={12} style={{ verticalAlign: 'middle' }} /> Котировки обновляются раз в 5 минут</div>
     </div>
   );
 };
