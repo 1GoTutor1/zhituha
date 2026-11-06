@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Житуха — путь игрока</title>
+<style>
+  *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#100b17}
+  body{display:grid;place-items:center;font-family:Inter,"Arial",sans-serif;color:#fff}
+  .frame{position:relative;width:1080px;height:1920px;overflow:hidden;background:#100b17;isolation:isolate}
+  svg{display:block;width:100%;height:100%}
+  .scene{opacity:0;transition:none}
+  .hud{position:absolute;inset:62px 58px auto;display:flex;justify-content:space-between;align-items:center;z-index:10}
+  .brand{display:flex;align-items:center;gap:15px;font-size:27px;font-weight:900;letter-spacing:.2px}
+  .brandMark{display:grid;place-items:center;width:60px;height:60px;border-radius:20px;background:#ff9727;color:#201525;font-size:35px;box-shadow:0 8px 25px #ff972733}
+  .brand small{display:block;color:#b8aebe;font-size:14px;letter-spacing:1.8px;margin-top:4px}
+  .hud-pill{border:1px solid #ffffff2a;border-radius:30px;padding:14px 19px;background:#1b1423d9;color:#ffbb55;font-weight:800;font-size:17px}
+  .caption{position:absolute;left:70px;right:70px;bottom:210px;z-index:10;text-align:center;font-weight:900;line-height:1.08;letter-spacing:-1.5px;font-size:57px;text-shadow:0 5px 24px #08050bd9;opacity:0}
+  .caption span{color:#ffad39}
+  .subcaption{position:absolute;left:90px;right:90px;bottom:145px;z-index:10;text-align:center;color:#d1c7d8;font-size:23px;font-weight:600;line-height:1.35;opacity:0}
+  .progress{position:absolute;left:62px;right:62px;bottom:71px;height:5px;background:#ffffff24;border-radius:10px;z-index:11;overflow:hidden}
+  .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff8d22,#ffd363);border-radius:10px}
+  .grain{pointer-events:none;position:absolute;inset:0;z-index:9;opacity:.06;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.65'/%3E%3C/svg%3E")}
+</style>
+</head>
+<body>
+<main class="frame">
+<svg viewBox="0 0 1080 1920" role="img" aria-label="Игрок начинает с первой работы и открывает собственный бизнес">
+<defs>
+  <linearGradient id="night" x2="0" y2="1"><stop stop-color="#17111f"/><stop offset=".55" stop-color="#342039"/><stop offset="1" stop-color="#100d17"/></linearGradient>
+  <linearGradient id="dawn" x2="0" y2="1"><stop stop-color="#39203c"/><stop offset=".52" stop-color="#bf654d"/><stop offset="1" stop-color="#24172d"/></linearGradient>
+  <linearGradient id="shopglow" x2="0" y2="1"><stop stop-color="#ffba56"/><stop offset="1" stop-color="#f27531"/></linearGradient>
+  <linearGradient id="hoodie" x2="0" y2="1"><stop stop-color="#373340"/><stop offset="1" stop-color="#1e1b27"/></linearGradient>
+  <linearGradient id="card" x2="0" y2="1"><stop stop-color="#2c2038"/><stop offset="1" stop-color="#191320"/></linearGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="18" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="shadow" x="-.4" y="-.4" width="1.8" height="1.8"><feGaussianBlur in="SourceAlpha" stdDeviation="10"/><feOffset dy="12"/><feComponentTransfer><feFuncA type="linear" slope=".28"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <g id="windows"><rect width="55" height="82" rx="5" fill="#11121a" stroke="#6b5a63" stroke-width="6"/><rect x="8" y="8" width="17" height="66" rx="2" fill="#f7a951"/><rect x="30" y="8" width="17" height="66" rx="2" fill="#f4c274"/></g>
+  <g id="playerLegLeft"><path d="M-25 340 Q-35 420 -47 525 L-13 530 Q11 444 22 363Z" fill="#292630" stroke="#17151d" stroke-width="7"/><path d="M-48 514 Q-73 525 -69 546 Q-43 559 -5 548 L-9 526Z" fill="#e6d8c5" stroke="#15131a" stroke-width="7"/></g>
+  <g id="playerLegRight"><path d="M17 356 Q26 424 51 520 L85 511 Q77 421 55 342Z" fill="#302d37" stroke="#17151d" stroke-width="7"/><path d="M49 511 Q50 538 69 547 Q99 550 112 533 Q110 519 84 509Z" fill="#e6d8c5" stroke="#15131a" stroke-width="7"/></g>
+  <g id="playerBody"><path d="M-77 150 Q-60 132 -29 128 L37 128 Q73 136 86 167 L103 333 Q47 366 -56 347 Q-91 320 -99 280Z" fill="url(#hoodie)" stroke="#17151d" stroke-width="9"/><path d="M-44 132 Q-42 105 -20 96 L20 96 Q48 108 47 143 L21 166 L-28 160Z" fill="#25222d" stroke="#17151d" stroke-width="7"/></g>
+  <g id="playerArmLeft"><path d="M-73 168 Q-105 181 -111 223 L-119 302 Q-116 324 -96 325 Q-78 322 -79 300 L-69 236Z" fill="#373340" stroke="#17151d" stroke-width="8"/><path d="M-120 300 Q-135 318 -120 336 Q-102 344 -91 326 L-96 309Z" fill="#d49d78" stroke="#17151d" stroke-width="6"/></g>
+  <g id="playerArmRight"><path d="M66 167 Q98 179 108 220 L127 294 Q130 315 110 322 Q90 323 85 304 L67 242Z" fill="#373340" stroke="#17151d" stroke-width="8"/><path d="M110 299 Q132 302 139 322 Q137 340 117 341 Q99 334 99 316Z" fill="#d49d78" stroke="#17151d" stroke-width="6"/></g>
+  <g id="playerHead"><path d="M-51 31 Q-47 -29 0 -31 Q53 -30 56 29 L49 98 Q33 132 2 136 Q-34 128 -48 95Z" fill="#d9aa87" stroke="#17151d" stroke-width="8"/><path d="M-54 32 Q-72 1 -45 -27 Q-29 -48 0 -44 Q24 -58 48 -35 Q65 -18 54 16 Q43 2 28 0 Q7 10 -10 -1 Q-28 18 -54 32Z" fill="#25232d" stroke="#17151d" stroke-width="8" stroke-linejoin="round"/><ellipse cx="-20" cy="58" rx="4.5" ry="6" fill="#211c25"/><ellipse cx="20" cy="58" rx="4.5" ry="6" fill="#211c25"/><path d="M-8 91 Q0 95 8 91" fill="none" stroke="#704c45" stroke-width="4" stroke-linecap="round"/><path d="M-19 148 Q0 165 19 148" fill="none" stroke="#b6aabb" stroke-width="4"/></g>
+</defs>
+
+<!-- SCENE 1 / city entry -->
+<g class="scene" id="scene0">
+ <rect width="1080" height="1920" fill="url(#night)"/>
+ <circle cx="810" cy="360" r="180" fill="#ffd08b" opacity=".1" filter="url(#glow)"/><circle cx="810" cy="360" r="80" fill="#ffd08b" opacity=".25"/>
+ <g opacity=".7" fill="#211a29"><path d="M0 800h175V500h140v300h142V380h175v420h126V550h130v250h120v500H0Z"/><path d="M0 1060h1080v860H0Z" fill="#15121b"/></g>
+ <g opacity=".76"><use href="#windows" x="30" y="590"/><use href="#windows" x="185" y="590"/><use href="#windows" x="505" y="475"/><use href="#windows" x="685" y="475"/><use href="#windows" x="835" y="640"/><use href="#windows" x="975" y="640"/></g>
+ <path d="M0 1370 Q300 1300 520 1370 T1080 1350 V1920 H0Z" fill="#29212d"/><path d="M0 1560 Q300 1490 1080 1570" fill="none" stroke="#423143" stroke-width="14"/>
+ <g fill="#ffc163" opacity=".8"><circle cx="128" cy="1382" r="10"/><circle cx="930" cy="1400" r="11"/><circle cx="694" cy="1367" r="7"/></g>
+ <g id="entryAvatar" transform="translate(280 1000) scale(1.45)"></g>
+ <path d="M230 1550h600" stroke="#dca66a" stroke-width="5" stroke-dasharray="28 24" opacity=".45"/>
+</g>
+
+<!-- SCENE 2 / first work -->
+<g class="scene" id="scene1">
+ <rect width="1080" height="1920" fill="url(#dawn)"/>
+ <circle cx="830" cy="380" r="145" fill="#ffbe72" opacity=".48"/>
+ <g fill="#292033"><path d="M0 700h180V420h190v280h110V500h170v200h180V380h250v320h100v520H0Z"/><path d="M0 1140h1080v780H0Z" fill="#17141d"/></g>
+ <g opacity=".7"><use href="#windows" x="22" y="490"/><use href="#windows" x="198" y="490"/><use href="#windows" x="512" y="570"/><use href="#windows" x="825" y="450"/><use href="#windows" x="972" y="450"/></g>
+ <path d="M0 1320h1080v600H0Z" fill="#28232d"/><path d="M0 1570h1080" stroke="#65515c" stroke-width="8"/>
+ <!-- Delivery counter -->
+ <g transform="translate(690 1250)" filter="url(#shadow)"><rect x="-178" y="80" width="355" height="280" rx="22" fill="#39313a" stroke="#17151d" stroke-width="10"/><rect x="-145" y="-35" width="290" height="150" rx="18" fill="#c9864f" stroke="#251a24" stroke-width="9"/><path d="M-145 25h290M0-35v150" stroke="#e9ad6c" stroke-width="8"/><path d="M-115 110h230" stroke="#4a2d25" stroke-width="8"/></g>
+ <g id="workAvatar" transform="translate(360 980) scale(1.35)"></g>
+ <g id="deliveryPackage" transform="translate(485 1330)"><rect x="-56" y="-65" width="112" height="100" rx="15" fill="#ff9727"/><path d="M-25-64v-26h50v26" fill="none" stroke="#ffce83" stroke-width="8"/><path d="M-20-28h40M-20 0h40" stroke="#6b3c25" stroke-width="8"/></g>
+ <g id="earnedCoins" opacity="0"><circle cx="710" cy="975" r="36" fill="#ffd34e"/><text x="710" y="987" text-anchor="middle" fill="#6b4517" font-size="32" font-weight="900">₽</text><circle cx="780" cy="910" r="24" fill="#ffd34e"/><text x="780" y="919" text-anchor="middle" fill="#6b4517" font-size="20" font-weight="900">₽</text></g>
+</g>
+
+<!-- SCENE 3 / opens coffee business -->
+<g class="scene" id="scene2">
+ <rect width="1080" height="1920" fill="#17111e"/>
+ <rect y="0" width="1080" height="1000" fill="url(#dawn)" opacity=".7"/>
+ <g fill="#211a29"><path d="M0 660h170V400h240v260h140V330h190v330h100V440h240v220h100v650H0Z"/></g>
+ <g id="coffeeShop" transform="translate(530 1150)" filter="url(#shadow)">
+   <path d="M-350-200h700v510h-700Z" fill="#26202b" stroke="#100d15" stroke-width="14"/>
+   <path d="M-380-210h760v90h-760Z" fill="#ff962b" stroke="#261923" stroke-width="10"/>
+   <path d="M-300-119h600v85h-600Z" fill="#f5c16e"/><text x="0" y="-59" text-anchor="middle" fill="#241826" font-size="48" font-weight="900" letter-spacing="4">КОФЕ</text>
+   <rect x="-290" y="-15" width="220" height="325" rx="8" fill="#482c3e" stroke="#a56b5c" stroke-width="9"/><rect x="-42" y="-15" width="220" height="325" rx="8" fill="#f2a957" opacity=".85"/><path d="M-180-10v315m250-315v315" stroke="#dfa16a" stroke-width="8"/>
+   <rect x="205" y="95" width="95" height="215" rx="8" fill="#3a2534"/><circle cx="274" cy="204" r="6" fill="#ffd773"/>
+ </g>
+ <g id="openAvatar" transform="translate(275 1000) scale(1.28)"></g>
+ <g id="shopBell" opacity="0" transform="translate(900 900)"><path d="M-45 20 Q-45-25 0-25 Q45-25 45 20Z" fill="#ffd45f"/><path d="M-55 20h110M0-35v-15" stroke="#ffe5a1" stroke-width="9" stroke-linecap="round"/></g>
+ <g transform="translate(800 1460)"><rect x="-220" y="-80" width="440" height="160" rx="32" fill="url(#card)" stroke="#ff9a2d" stroke-width="3"/><text x="0" y="-14" text-anchor="middle" fill="#fff" font-size="32" font-weight="900">МОЯ КОФЕЙНЯ</text><text x="0" y="32" text-anchor="middle" fill="#d2a7ff" font-size="21" font-weight="700">ОТКРЫТА</text></g>
+</g>
+
+<!-- SCENE 4 / serves a customer -->
+<g class="scene" id="scene3">
+ <rect width="1080" height="1920" fill="#180f1c"/>
+ <circle cx="850" cy="420" r="200" fill="#f79b56" opacity=".27" filter="url(#glow)"/>
+ <g fill="#251d2a"><path d="M0 500h220V280h180v220h135V330h180v170h170V250h195v250h100v800H0Z"/></g>
+ <g opacity=".8"><use href="#windows" x="32" y="350"/><use href="#windows" x="222" y="350"/><use href="#windows" x="580" y="390"/><use href="#windows" x="785" y="315"/><use href="#windows" x="968" y="315"/></g>
+ <path d="M0 1110h1080v810H0Z" fill="#221925"/>
+ <g transform="translate(540 1190)" filter="url(#shadow)"><rect x="-420" y="0" width="840" height="290" rx="24" fill="#392938" stroke="#100d14" stroke-width="12"/><rect x="-420" y="-52" width="840" height="85" rx="18" fill="#dfa66c"/><path d="M-320 42v248m235-248v248m235-248v248" stroke="#241a26" stroke-width="14"/><path d="M-385 290h770" stroke="#d5b18b" stroke-width="14"/></g>
+ <g id="ownerAvatar" transform="translate(320 850) scale(1.13)"></g>
+ <!-- customer -->
+ <g id="customerAvatar" transform="translate(735 875) scale(1.08)"></g>
+ <g id="cup" transform="translate(0 0)" filter="url(#shadow)"><path d="M-46-50h88l-8 112h-70Z" fill="#f6e9d5" stroke="#462f35" stroke-width="7"/><path d="M42-30q45-3 35 32q-8 24-40 18" fill="none" stroke="#f6e9d5" stroke-width="12"/><path d="M-36-36h67" stroke="#673d39" stroke-width="8"/><ellipse cy="-37" rx="41" ry="9" fill="#493035"/></g>
+ <g id="saleSpark" opacity="0"><circle cx="585" cy="1055" r="54" fill="#ffc93d" opacity=".22"/><text x="585" y="1065" text-anchor="middle" fill="#ffd25c" font-size="46" font-weight="900">+₽</text></g>
+ <g opacity=".9"><rect x="94" y="335" width="892" height="100" rx="26" fill="#201827" stroke="#ffffff20" stroke-width="2"/><text x="540" y="399" text-anchor="middle" fill="#f8edfb" font-size="25" font-weight="800">ПЕРВЫЙ КЛИЕНТ. ПЕРВАЯ ПРОДАЖА.</text></g>
+</g>
+
+<!-- SCENE 5 / map, expansion, close -->
+<g class="scene" id="scene4">
+ <rect width="1080" height="1920" fill="#15101c"/>
+ <rect width="1080" height="1050" fill="url(#dawn)" opacity=".55"/>
+ <g fill="#211a29"><path d="M0 640h140V390h185v250h130V280h190v360h150V420h170v220h115v500H0Z"/></g>
+ <g id="cityGlow" opacity=".35" fill="#ffab52" filter="url(#glow)"><circle cx="184" cy="550" r="20"/><circle cx="690" cy="480" r="20"/><circle cx="900" cy="570" r="24"/></g>
+ <path d="M0 1130h1080v790H0Z" fill="#251c2c"/>
+ <g id="mapCard" transform="translate(540 820)" filter="url(#shadow)">
+   <rect x="-360" y="-210" width="720" height="440" rx="38" fill="url(#card)" stroke="#684c73" stroke-width="4"/>
+   <path d="M-235-120h470M-235 5h470M-105-170v330M45-170v330" stroke="#584563" stroke-width="11" stroke-linecap="round"/>
+   <path d="M-285-190L-145 170M-5-190L160 170M215-170L-260 90" stroke="#45364f" stroke-width="7"/>
+   <circle id="pinOne" cx="-145" cy="-120" r="28" fill="#ff9a2c" stroke="#ffda91" stroke-width="7"/><circle id="pinTwo" cx="166" cy="70" r="28" fill="#6cdb9c" stroke="#d3ffe3" stroke-width="7"/>
+   <text x="0" y="292" text-anchor="middle" fill="#fff" font-size="28" font-weight="900">ТВОИ РЕШЕНИЯ — ТВОЙ ГОРОД</text>
+ </g>
+ <g id="finalAvatar" transform="translate(340 1180) scale(1.12)"></g>
+ <g id="growthShop" transform="translate(785 1230) scale(.7)"><rect x="-110" y="-110" width="220" height="230" rx="18" fill="#342537" stroke="#ff9c31" stroke-width="9"/><path d="M-130-112h260v52h-260Z" fill="#ff9c31"/><rect x="-75" y="-26" width="55" height="92" fill="#ffc171"/><rect x="20" y="-26" width="55" height="92" fill="#563d5a"/><text x="0" y="95" text-anchor="middle" fill="#fdf4e6" font-size="20" font-weight="900">КОФЕ</text></g>
+ <g id="ctaCard" transform="translate(540 1510)" opacity="0"><rect x="-390" y="-122" width="780" height="250" rx="42" fill="#201827" stroke="#ff9b2e" stroke-width="3" filter="url(#shadow)"/><text x="0" y="-36" text-anchor="middle" fill="#fff" font-size="57" font-weight="950">ЖИТУХА</text><text x="0" y="18" text-anchor="middle" fill="#d9cfe0" font-size="24" font-weight="700">ИГРА ПРО БОЛЬШУЮ ЖИЗНЬ</text><rect x="-245" y="58" width="490" height="67" rx="33" fill="#ff9727"/><text x="0" y="101" text-anchor="middle" fill="#211624" font-size="25" font-weight="900">@zhituha_bot</text></g>
+</g>
+</svg>
+<div class="hud"><div class="brand"><div class="brandMark">Ж</div><div>Житуха<small>ИГРА ПРО БОЛЬШУЮ ЖИЗНЬ</small></div></div><div class="hud-pill">● ТВОЙ ГОРОД</div></div>
+<div class="caption" id="caption"></div><div class="subcaption" id="subcaption"></div>
+<div class="progress"><i id="progress"></i></div><div class="grain"></div>
+</main>
+<script>
+(() => {
+  const D=27, scenes=[...document.querySelectorAll('.scene')];
+  const actorIds=['entryAvatar','workAvatar','openAvatar','ownerAvatar','customerAvatar','finalAvatar'];
+  const actorMarkup=id=>`<g id="${id}LeftLeg"><use href="#playerLegLeft"/></g><g id="${id}RightLeg"><use href="#playerLegRight"/></g><use href="#playerBody"/><g id="${id}LeftArm"><use href="#playerArmLeft"/></g><g id="${id}RightArm"><use href="#playerArmRight"/></g><use href="#playerHead"/>`;
+  actorIds.forEach(id=>{document.getElementById(id).innerHTML=actorMarkup(id)});
+  const captions=[
+    ['В ЭТОМ ГОРОДЕ','всё начинается с тебя.'],
+    ['ПЕРВАЯ РАБОТА.','Первые деньги — твои.'],
+    ['СВОЁ ДЕЛО','Открой кофейню и собери команду.'],
+    ['ТЫ ОТКРЫЛСЯ.','Пополняй запас. Продавай. Расти.'],
+    ['', '']
+  ];
+  const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+  const smooth=x=>{x=clamp(x);return x*x*(3-2*x)};
+  const wave=(t,speed=1)=>Math.sin(t*speed*2*Math.PI);
+  const set=(id,attr,value)=>{const el=document.getElementById(id);if(el)el.setAttribute(attr,String(value))};
+  const transform=(id,x,y,scale=1,rotate=0)=>set(id,'transform',`translate(${x} ${y}) rotate(${rotate}) scale(${scale})`);
+  function renderAt(t){
+    t=clamp(t,0,D-.001); const idx=Math.min(4,Math.floor(t/5.4)); const local=(t-idx*5.4)/5.4;
+    scenes.forEach((scene,i)=>{scene.style.opacity=i===idx?1:0});
+    const text=captions[idx];const cap=document.getElementById('caption'), sub=document.getElementById('subcaption');
+    cap.innerHTML=`${text[0]}${idx===0?'':idx===2?'':'<br><span>'+text[1]+'</span>'}`;
+    sub.textContent=idx===0?text[1]:'';
+    const fade=smooth(local/.04)*(1-smooth((local-.96)/.04));cap.style.opacity=fade;sub.style.opacity=fade;
+    document.getElementById('progress').style.width=`${100*t/D}%`;
+    if(idx===0){const walk=clamp(local/.7),stride=wave(t,1.35)*(1-walk*.86);transform('entryAvatar',220+230*walk+10*wave(t,1.8),1100+5*Math.abs(wave(t,1.8)),1.43,Math.min(8,18*(1-walk)));pose('entryAvatar',stride*25,-stride*25,stride*8,-stride*8);}
+    if(idx===1){const phase=t*1.35,reach=smooth((local-.25)/.36);transform('workAvatar',355+15*wave(phase),1030+6*Math.abs(wave(phase)),1.36,2*wave(phase));pose('workAvatar',wave(phase)*5,wave(phase+0.5)*5,-12+5*wave(phase),-6-30*reach);transform('deliveryPackage',485+125*reach,1330-70*reach,1);set('earnedCoins','opacity',smooth((local-.62)/.12));}
+    if(idx===2){const phase=t*1.1;transform('openAvatar',270+5*wave(phase),1015+4*wave(phase),1.29,2*wave(phase));pose('openAvatar',0,0,-24+4*wave(phase),3*wave(phase));set('shopBell','opacity',smooth((local-.72)/.1));}
+    if(idx===3){const reach=smooth((local-.32)/.22);transform('ownerAvatar',330+50*reach,850+5*wave(t,1),1.13,2*wave(t,.7));transform('customerAvatar',760-42*reach,875+4*wave(t,.8),1.08,-3*reach);pose('ownerAvatar',0,0,-20+8*reach,3*wave(t));pose('customerAvatar',0,0,-24*(1-reach),3*wave(t,.9));transform('cup',560+100*reach,1165-25*reach,1,0);set('saleSpark','opacity',smooth((local-.58)/.1));}
+    if(idx===4){const u=clamp(local/.7);transform('finalAvatar',330+110*u+4*wave(t),1180+4*Math.abs(wave(t)),1.12,3*wave(t,.45));pose('finalAvatar',wave(t,.6)*4,-wave(t,.6)*4,-8+wave(t,.3)*3,3*wave(t,.5));set('cityGlow','opacity',.25+.17*(.5+.5*wave(t,.25)));set('pinOne','r',25+5*(.5+.5*wave(t,1.2)));set('pinTwo','r',25+5*(.5+.5*wave(t,1.1)));set('ctaCard','opacity',smooth((local-.42)/.18));}
+  }
+  function pose(id,leftLeg,rightLeg,leftArm,rightArm){
+    const rotate=(part,angle,x,y)=>set(id+part,'transform',`rotate(${angle} ${x} ${y})`);
+    rotate('LeftLeg',leftLeg,0,350);rotate('RightLeg',rightLeg,24,350);
+    rotate('LeftArm',leftArm,-72,170);rotate('RightArm',rightArm,66,170);
+  }
+  window.renderAt=renderAt;renderAt(0);
+})();
+</script>
+</body>
+</html>

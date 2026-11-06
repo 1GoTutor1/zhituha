@@ -1,0 +1,233 @@
+{
+  "duration": 85.29,
+  "fps": 30,
+  "shots": {
+    "shot01": {
+      "start": 0,
+      "end": 2.995
+    },
+    "shot02": {
+      "start": 2.995,
+      "end": 5.74
+    },
+    "shot03": {
+      "start": 5.74,
+      "end": 6.39
+    },
+    "shot04": {
+      "start": 6.39,
+      "end": 7.54
+    },
+    "shot05": {
+      "start": 7.54,
+      "end": 11.18
+    },
+    "shot06": {
+      "start": 11.18,
+      "end": 17.05
+    },
+    "shot07": {
+      "start": 17.05,
+      "end": 21.56
+    },
+    "shot08": {
+      "start": 21.56,
+      "end": 25.93
+    },
+    "shot09": {
+      "start": 25.93,
+      "end": 28.81
+    },
+    "shot10": {
+      "start": 28.81,
+      "end": 29.66
+    },
+    "shot11": {
+      "start": 29.66,
+      "end": 46.46
+    },
+    "shot12": {
+      "start": 46.46,
+      "end": 51.84
+    },
+    "shot13": {
+      "start": 51.84,
+      "end": 57.94
+    },
+    "shot14": {
+      "start": 57.94,
+      "end": 68.73
+    },
+    "shot15": {
+      "start": 68.73,
+      "end": 85.29
+    }
+  },
+  "speech": [
+    {
+      "speaker": "narrator",
+      "file": "narration-01.wav",
+      "start": 0,
+      "end": 6.24,
+      "text": "Антон устал. Каждый день одно и то же. Работа, дом, работа.",
+      "scene": "Дом"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-02.wav",
+      "start": 6.79,
+      "end": 10.63,
+      "text": "На карте оставалось всего пятнадцать тысяч рублей.",
+      "scene": "Баланс"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-03.wav",
+      "start": 11.18,
+      "end": 15.9,
+      "text": "И он даже не представлял, что скоро рискнёт почти всеми своими деньгами.",
+      "scene": "Взгляд в окно"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-04.wav",
+      "start": 17.05,
+      "end": 21.21,
+      "text": "Однажды он заметил рабочих, которые каждое утро спешили на смену.",
+      "scene": "Рабочие"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-05.wav",
+      "start": 21.56,
+      "end": 25.08,
+      "text": "Многие даже не успевали купить горячий кофе.",
+      "scene": "Кофе"
+    },
+    {
+      "speaker": "anton",
+      "file": "anton-01.wav",
+      "start": 25.93,
+      "end": 28.81,
+      "text": "А что, если продавать им кофе?..",
+      "scene": "Идея"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-06.wav",
+      "start": 29.66,
+      "end": 36.62,
+      "text": "На следующий день Антон купил старый термос, складной стол, тележку и всё необходимое.",
+      "scene": "Покупки"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-07.wav",
+      "start": 37.07,
+      "end": 41.71,
+      "text": "На старт он выделил восемь с половиной тысяч рублей.",
+      "scene": "Чек"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-08.wav",
+      "start": 42.06,
+      "end": 44.86,
+      "text": "У него осталось всего шесть с половиной.",
+      "scene": "Остаток"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-09.wav",
+      "start": 46.46,
+      "end": 51.34,
+      "text": "В половине шестого утра Антон уже стоял возле заводской проходной.",
+      "scene": "Проходная"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-10.wav",
+      "start": 51.84,
+      "end": 53.68,
+      "text": "Люди проходили мимо.",
+      "scene": "Ожидание"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-11.wav",
+      "start": 54.28,
+      "end": 57.24,
+      "text": "Десять человек. Двадцать. Тридцать.",
+      "scene": "Ожидание"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-12.wav",
+      "start": 57.94,
+      "end": 60.26,
+      "text": "Никто не останавливался.",
+      "scene": "Ожидание"
+    },
+    {
+      "speaker": "buyer",
+      "file": "buyer-01.wav",
+      "start": 61.66,
+      "end": 62.62,
+      "text": "Горячий?",
+      "scene": "Продажа"
+    },
+    {
+      "speaker": "anton",
+      "file": "anton-02.wav",
+      "start": 62.97,
+      "end": 64.81,
+      "text": "Да, только налил.",
+      "scene": "Продажа"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-13.wav",
+      "start": 65.61,
+      "end": 68.73,
+      "text": "Наконец первая продажа. Сто рублей.",
+      "scene": "Продажа"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-14.wav",
+      "start": 69.28,
+      "end": 73.04,
+      "text": "Но примерно тридцать из них — себестоимость самого кофе.",
+      "scene": "Себестоимость"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-15.wav",
+      "start": 74.44,
+      "end": 78.36,
+      "text": "Антон смотрел на термос и думал только об одном.",
+      "scene": "Финал"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-16.wav",
+      "start": 79.01,
+      "end": 83.09,
+      "text": "Что он будет делать, если остальной кофе так никто и не купит?",
+      "scene": "Финал"
+    }
+  ],
+  "effects": {
+    "phoneBuzz": 6.39,
+    "roomEnd": 17.05,
+    "factoryStart": 46.46,
+    "factoryEnd": 68.73,
+    "coffeePour": 62.42,
+    "saleStart": 65.61,
+    "saleEnd": 68.73,
+    "costStart": 69.28,
+    "costEnd": 73.04,
+    "receiptStart": 37.07,
+    "receiptEnd": 44.86
+  }
+}

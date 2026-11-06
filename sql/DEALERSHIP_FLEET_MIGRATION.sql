@@ -179,7 +179,7 @@ create or replace function public.list_item_rpc(
   p_seller_id uuid,p_item_type text,p_item_data text,p_price bigint,
   p_source text,p_bonus_slots integer default 0)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
-declare p public.players; b public.businesses; used integer; cap integer; car_allowed boolean:=false; vehicle_base bigint;
+declare p public.players; b public.businesses; used integer; cap integer; car_allowed boolean:=false; vehicle_base bigint; stock_key text;
 begin
   if p_price is null or p_price<=0 or p_price>100000000 then return jsonb_build_object('error','Некорректная цена'); end if;
   if p_source is null or p_source not in ('personal','stock') then return jsonb_build_object('error','Некорректный источник товара'); end if;
@@ -212,8 +212,13 @@ begin
           or coalesce((x.stock->>p_item_data)::integer,0)>0)))
       order by x.created_at limit 1 for update;
     if not found then return jsonb_build_object('error','Нет подходящего бизнеса-склада'); end if;
-    if coalesce((b.stock->>p_item_data)::integer,0)<1 then return jsonb_build_object('error','На складе нет этого товара'); end if;
-    update public.businesses set stock=jsonb_set(coalesce(stock,'{}'::jsonb),array[p_item_data],to_jsonb((stock->>p_item_data)::integer-1)) where id=b.id;
+    stock_key:=p_item_data;
+    if p_item_type='house' then
+      stock_key:=case when coalesce((b.stock->>'apartments')::integer,0)>0
+          or not (coalesce(b.stock,'{}'::jsonb) ? 'apartment') then 'apartments' else 'apartment' end;
+    end if;
+    if coalesce((b.stock->>stock_key)::integer,0)<1 then return jsonb_build_object('error','На складе нет этого товара'); end if;
+    update public.businesses set stock=jsonb_set(coalesce(stock,'{}'::jsonb),array[stock_key],to_jsonb((stock->>stock_key)::integer-1)) where id=b.id;
   else
     if p_item_type='phone' and coalesce(p.phone_count,0)<1 then return jsonb_build_object('error','У тебя нет телефона'); end if;
     if p_item_type='car' and not coalesce(p.has_car,false) then return jsonb_build_object('error','У тебя нет машины'); end if;
@@ -235,7 +240,8 @@ create or replace function public.buy_market_item(
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 declare m public.market_items; buyer public.players; real_data text; source text; seller_business public.businesses;
   payout bigint; mech_count integer:=0; seller_count integer:=0; mech_pool bigint:=0; seller_pool bigint:=0;
-  owner_payout bigint; car_allowed boolean:=false;
+  owner_payout bigint; car_allowed boolean:=false; seller_has_premium boolean:=false;
+  effective_commission integer:=5; commission_amount bigint; day_index integer;
 begin
   if p_commission_percent is null or p_commission_percent not in (0,5) then return jsonb_build_object('error','Некорректная комиссия рынка'); end if;
   select * into m from public.market_items where id=p_item_id for update;
@@ -243,6 +249,10 @@ begin
   if m.seller_id=p_buyer_id then return jsonb_build_object('error','Нельзя купить собственный лот'); end if;
   select * into buyer from public.players where id=p_buyer_id for update;
   if not found then return jsonb_build_object('error','Покупатель не найден'); end if;
+  select coalesce(premium_until > statement_timestamp(), false) into seller_has_premium
+    from public.players where id=m.seller_id;
+  day_index:=mod(timezone('Europe/Moscow',statement_timestamp())::date-date '1970-01-01',7);
+  if seller_has_premium or day_index=6 then effective_commission:=0; end if;
   if coalesce(buyer.money,0)<m.price then return jsonb_build_object('error','Не хватает денег'); end if;
   real_data:=split_part(m.item_data,':',2); source:=split_part(m.item_data,':',1);
   if m.item_type='car' then car_allowed:=real_data in ('lada','toyota') or exists(select 1 from public.business_vehicle_catalog where model_id=real_data); end if;
@@ -270,7 +280,8 @@ begin
     car_health=case when m.item_type='car' then 100 else car_health end,
     has_house=case when m.item_type='house' then true else has_house end,
     house_type=case when m.item_type='house' then real_data else house_type end where id=p_buyer_id;
-  payout:=m.price-floor(m.price*p_commission_percent/100.0);
+  commission_amount:=floor(m.price*effective_commission/100.0);
+  payout:=m.price-commission_amount;
   owner_payout:=payout;
   if m.item_type='car' and source='stock' then
     select count(*) into mech_count from public.business_workers where business_id=seller_business.id and role='Механик';
@@ -293,12 +304,13 @@ begin
     perform public.change_stats(m.seller_id,owner_payout,0);
   end if;
   return jsonb_build_object('success',true,'item_type',m.item_type,'item_data',real_data,
-    'money',buyer.money-m.price,'seller_proceeds',owner_payout,'business_id',seller_business.id);
+    'money',buyer.money-m.price,'seller_proceeds',owner_payout,'business_id',seller_business.id,
+    'market_commission_percent',effective_commission,'market_commission',commission_amount);
 end $$;
 
 create or replace function public.cancel_lot_rpc(p_player_id uuid,p_item_id uuid,p_add_stock boolean default false)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
-declare m public.market_items; b public.businesses; real_data text; source text;
+declare m public.market_items; b public.businesses; real_data text; source text; stock_key text;
 begin
   select * into m from public.market_items where id=p_item_id and seller_id=p_player_id for update;
   if not found then return jsonb_build_object('error','Лот не найден'); end if;
@@ -323,8 +335,13 @@ begin
       has_house=case when m.item_type='house' then true else has_house end,
       house_type=case when m.item_type='house' then real_data else house_type end where id=p_player_id;
   elsif p_add_stock then
-    update public.businesses set stock=jsonb_set(coalesce(stock,'{}'::jsonb),array[real_data],
-      to_jsonb(coalesce((stock->>real_data)::integer,0)+1)) where id=b.id;
+    stock_key:=real_data;
+    if m.item_type='house' then
+      stock_key:=case when coalesce((b.stock->>'apartments')::integer,0)>0
+          or not (coalesce(b.stock,'{}'::jsonb) ? 'apartment') then 'apartments' else 'apartment' end;
+    end if;
+    update public.businesses set stock=jsonb_set(coalesce(stock,'{}'::jsonb),array[stock_key],
+      to_jsonb(coalesce((stock->>stock_key)::integer,0)+1)) where id=b.id;
   end if;
   return jsonb_build_object('success',true,'item_type',m.item_type,'item_data',real_data,'source_business_id',m.source_business_id);
 end $$;

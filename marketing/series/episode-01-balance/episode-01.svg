@@ -1,0 +1,153 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <defs>
+    <linearGradient id="wall" x2="0" y2="1"><stop stop-color="#262a36"/><stop offset="1" stop-color="#464047"/></linearGradient>
+    <linearGradient id="lamp" x2="0" y2="1"><stop stop-color="#ffcf85" stop-opacity=".48"/><stop offset="1" stop-color="#ffcf85" stop-opacity="0"/></linearGradient>
+    <linearGradient id="phoneScreen" x2="0" y2="1"><stop stop-color="#f6f3eb"/><stop offset="1" stop-color="#e8e5dc"/></linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ead5bf"/><stop offset=".58" stop-color="#dfc2a7"/><stop offset="1" stop-color="#c7a58d"/></linearGradient>
+    <pattern id="grain" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="4" cy="7" r="1.3" fill="#fff" opacity=".055"/><circle cx="18" cy="20" r="1" fill="#05070c" opacity=".12"/><path d="M12 3v2M23 10h2" stroke="#fff" opacity=".04"/></pattern>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#08090e" flood-opacity=".42"/></filter>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="32"/></filter>
+    <clipPath id="screen"><rect x="-124" y="-268" width="248" height="536" rx="30"/></clipPath>
+    <style>
+      .outline{stroke:#171a21;stroke-width:10;stroke-linejoin:round;stroke-linecap:round}
+      .ink{fill:none;stroke:#252832;stroke-width:9;stroke-linecap:round;stroke-linejoin:round}
+      #torso{transform-box:fill-box;transform-origin:50% 100%;animation:breathe 3.8s ease-in-out infinite}
+      #head{transform-box:fill-box;transform-origin:50% 90%;animation:headbob 3.8s ease-in-out infinite}
+      #eyes{transform-box:fill-box;transform-origin:center;animation:blink 5.2s linear infinite}
+      #phoneRig{transform-box:view-box;animation:lift 7s cubic-bezier(.2,.7,.2,1) forwards}
+      #phone{transform-box:fill-box;transform-origin:center;animation:turn 7s cubic-bezier(.2,.7,.2,1) forwards}
+      #screenReveal{animation:screenOn 7s linear forwards}
+      #hand,#reach-arm,#reach-arm-outline{animation:handOut 7s ease forwards}
+      #glowShape{animation:glowIn 7s linear forwards}
+      @keyframes breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.012)}}
+      @keyframes headbob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(5px) rotate(-.35deg)}}
+      @keyframes blink{0%,16%,18%,49%,51%,82%,84%,100%{transform:scaleY(1)}17%,50%,83%{transform:scaleY(.08)}}
+      @keyframes lift{0%,18%{transform:translate(700px,1180px)}48%,100%{transform:translate(800px,915px)}}
+      @keyframes turn{0%,18%{transform:rotate(76deg)}48%,100%{transform:rotate(0deg)}}
+      @keyframes screenOn{0%,38%{opacity:1}48%,100%{opacity:0}}
+      @keyframes handOut{0%,55%{opacity:1}72%,100%{opacity:0}}
+      @keyframes glowIn{0%,39%{opacity:0}50%,100%{opacity:.23}}
+    </style>
+  </defs>
+
+  <!-- Ночная кухня: цельная векторная сцена без внешних изображений -->
+  <rect width="1080" height="1920" fill="url(#wall)"/>
+  <animate attributeName="viewBox" values="0 0 1080 1920;0 0 1080 1920;640 580 360 640;640 580 360 640" keyTimes="0;.55;.72;1" dur="7s" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1" fill="freeze"/>
+  <path d="M0 0h1080v110H0z" fill="#20232d"/>
+  <path d="M0 1110h1080v810H0z" fill="#282730"/>
+  <path d="M0 1110h1080" stroke="#56505a" stroke-width="9"/>
+
+  <!-- окно и холодный ночной свет -->
+  <g filter="url(#shadow)">
+    <rect x="93" y="170" width="385" height="475" rx="10" fill="#b7a58a"/>
+    <rect x="111" y="188" width="349" height="439" fill="#252f43" stroke="#e0cfb1" stroke-width="9"/>
+    <circle cx="383" cy="268" r="38" fill="#e5d9c4"/>
+    <path d="M116 522h70V411h42v151h42V370h51v192h44V443h43v119h45v65H116z" fill="#131a27"/>
+    <g fill="#e6cfa7" opacity=".75"><path d="M197 451h10v16h-10zM197 481h10v16h-10zM283 408h10v16h-10zM283 438h10v16h-10zM369 478h10v16h-10zM424 464h10v16h-10z"/></g>
+    <path d="M280 193v432M114 400h343" stroke="#e0cfb1" stroke-width="10"/>
+  </g>
+  <path d="M0 610q270-130 540 5v560H0z" fill="#7890a0" opacity=".065"/>
+
+  <!-- кухонный шкаф и тусклая лампа -->
+  <path d="M650 156h430v520H650z" fill="#37343b" stroke="#201f27" stroke-width="14"/>
+  <path d="M666 174h195v476H666zM876 174h188v476H876z" fill="#49444a" stroke="#27252c" stroke-width="8"/>
+  <path d="M843 385h12M858 385h12" stroke="#b5a68f" stroke-width="12" stroke-linecap="round"/>
+  <path d="M546 126h165v15H546z" fill="#292831"/>
+  <path d="M585 140h87l71 260H514z" fill="url(#lamp)"/>
+  <path d="M608 143q20 42 43 0" fill="#e7bc7d" opacity=".8"/>
+  <path d="M605 148h48" stroke="#24232a" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- холодильник с коротким списком покупок -->
+  <g filter="url(#shadow)">
+    <rect x="816" y="715" width="225" height="475" rx="16" fill="#a5a5a0" stroke="#24252b" stroke-width="12"/>
+    <path d="M827 945h204" stroke="#67686a" stroke-width="8"/>
+    <path d="M1008 800v94M1008 980v126" stroke="#55565a" stroke-width="10" stroke-linecap="round"/>
+    <rect x="850" y="766" width="143" height="120" rx="5" fill="#e5ddca" transform="rotate(-4 850 766)"/>
+    <text x="862" y="803" fill="#4a4540" font-family="Arial,sans-serif" font-size="22" font-weight="700" transform="rotate(-4 862 803)">КУПИТЬ</text>
+    <path d="M867 826h94M867 851h70" stroke="#9a8e7a" stroke-width="5" stroke-linecap="round" transform="rotate(-4 867 826)"/>
+    <path d="M938 846l11 10 21-23" fill="none" stroke="#a45b4f" stroke-width="5" transform="rotate(-4 938 846)"/>
+  </g>
+
+  <!-- стул -->
+  <path d="M185 936q0-55 58-55h458q61 0 61 61v405H185z" fill="#67594f" stroke="#24232a" stroke-width="13" filter="url(#shadow)"/>
+  <path d="M209 967h532v348H209z" fill="#756457"/>
+
+  <!-- Анто в лаконичном стиле референса: круглая голова и жёлтое худи -->
+  <g id="torso">
+    <path d="M430 718h105l20 94q-68 42-145 0z" fill="#f2f0e9" stroke="#20232a" stroke-width="7"/>
+    <path d="M293 838q56-56 188-56 136 0 205 58l81 435H210z" fill="#e6a52e" stroke="#24242a" stroke-width="9" stroke-linejoin="round"/>
+    <path d="M393 790q-13 73 39 112l48 35 47-36q50-39 38-111-37 23-86 23-50 0-86-23z" fill="#d18a22" stroke="#24242a" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M447 840l31 39 32-39M477 879v91M510 879v91" fill="none" stroke="#343039" stroke-width="6" stroke-linecap="round"/>
+    <path d="M392 1075q86 18 174 0l19 112H375z" fill="#d89125" stroke="#9b6722" stroke-width="6" stroke-linejoin="round"/>
+    <!-- тонкий рукав вытягивается к телефону -->
+    <path id="reach-arm-outline" d="M610 900 Q705 940 825 1082" fill="none" stroke="#24242a" stroke-width="34" stroke-linecap="round">
+      <animate attributeName="d" dur="7s" fill="freeze" values="M610 900 Q705 940 825 1082;M610 900 Q700 870 910 850" keyTimes="0;.48"/>
+    </path>
+    <path id="reach-arm" d="M610 900 Q705 940 825 1082" fill="none" stroke="#e6a52e" stroke-width="25" stroke-linecap="round">
+      <animate attributeName="d" dur="7s" fill="freeze" values="M610 900 Q705 940 825 1082;M610 900 Q700 870 910 850" keyTimes="0;.48"/>
+    </path>
+    <path d="M270 1038q-23 89-27 194" fill="none" stroke="#b77b22" stroke-width="7" stroke-linecap="round"/>
+  </g>
+
+  <!-- Круглая голова, простые черты и взъерошенная чёлка -->
+  <g id="head">
+    <ellipse cx="480" cy="590" rx="145" ry="151" fill="#f1eee9" stroke="#24242a" stroke-width="9"/>
+    <path d="M345 548q-17-54 20-92l-5-23q30 5 47-18 15 22 37 11 17-30 39-13 20-26 40-4 29-15 44 14 30-7 39 22 28 1 30 29 22 20 7 45-24-12-44-34-23 39-61 53-61 22-114-7-12 37-47 64z" fill="#30313a" stroke="#202127" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M366 456l-14-26 32 13M414 430l-3-31 27 24M466 418l13-31 14 34M524 418l22-26 5 36M581 438l29-18-5 34" fill="#30313a" stroke="#202127" stroke-width="6" stroke-linejoin="round"/>
+    <!-- усталые полуприкрытые глаза, мешки и грустный рот -->
+    <g id="eyes">
+      <path d="M405 579q18-13 37 0M507 579q18-13 37 0" fill="none" stroke="#24242a" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="424" cy="588" r="7" fill="#24242a"/><circle cx="526" cy="588" r="7" fill="#24242a"/>
+      <path d="M410 603q15 8 30 2M512 603q15 8 30 2" fill="none" stroke="#aaa2a0" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <path d="M459 670q21-11 43 0" fill="none" stroke="#24242a" stroke-width="6" stroke-linecap="round"/>
+  </g>
+
+  <!-- стол и недоступная корзина продуктов -->
+  <path d="M0 1270l1080-58v708H0z" fill="#9d8974" stroke="#292730" stroke-width="13"/>
+  <path d="M0 1313l1080-58" stroke="#c1ac91" stroke-width="8"/>
+  <g opacity=".95">
+    <path d="M92 1143h128l-12 116H103z" fill="#b9a88f" stroke="#484047" stroke-width="8"/>
+    <path d="M118 1141q5-55 38-55 32 0 38 55" fill="none" stroke="#484047" stroke-width="8"/>
+    <path d="M125 1180l66 1M133 1203l52 1" stroke="#8a7968" stroke-width="6"/>
+    <path d="M109 1143l38 35 45-36" fill="none" stroke="#756659" stroke-width="6"/>
+    <circle cx="147" cy="1146" r="13" fill="#819166"/><path d="M147 1140q-24-30-34-8 11 16 34 8M147 1140q15-31 29-16-4 19-29 16" fill="#77845e"/>
+  </g>
+  <path d="M0 1270l1080-58v708H0z" fill="url(#grain)" opacity=".8"/>
+
+  <!-- телефон: лежит экраном вниз, Анто поднимает и открывает банк -->
+  <ellipse id="glowShape" cx="670" cy="875" rx="260" ry="330" fill="#f7c879" filter="url(#glow)" opacity="0"/>
+  <g id="phoneRig" transform="translate(700 1180)">
+    <g id="phone" transform="rotate(76)">
+      <rect x="-153" y="-300" width="306" height="600" rx="45" fill="#11141a" stroke="#efe8dc" stroke-width="12" filter="url(#shadow)"/>
+      <rect x="-137" y="-284" width="274" height="568" rx="34" fill="#d8d9d5"/>
+      <g clip-path="url(#screen)">
+        <rect x="-124" y="-268" width="248" height="536" fill="url(#phoneScreen)"/>
+        <rect x="-124" y="-268" width="248" height="66" fill="#e4e1d8"/>
+        <text x="-101" y="-225" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#28303a">МОЙ БАНК</text>
+        <text x="-100" y="-161" font-family="Arial,sans-serif" font-size="20" fill="#64656a">Основной счёт</text>
+        <rect x="-103" y="-137" width="206" height="99" rx="16" fill="#536e83"/>
+        <text x="-82" y="-93" font-family="Arial,sans-serif" font-size="17" fill="#e4e7e5">МОЯ КАРТА</text>
+        <text x="-82" y="-60" font-family="Arial,sans-serif" font-size="23" font-weight="700" fill="#fff">••••  1500</text>
+        <text x="-101" y="13" font-family="Arial,sans-serif" font-size="22" fill="#555960">Баланс</text>
+        <text x="-102" y="68" font-family="Arial,sans-serif" font-size="48" font-weight="800" fill="#242832">15 000 ₽</text>
+        <path d="M-100 94h200" stroke="#cbc9c2" stroke-width="3"/>
+        <text x="-100" y="132" font-family="Arial,sans-serif" font-size="18" fill="#686970">До зарплаты — 12 дней</text>
+        <rect x="-105" y="156" width="210" height="90" rx="14" fill="#eee4d9"/>
+        <text x="-89" y="185" font-family="Arial,sans-serif" font-size="16" fill="#55545a">Продукты: 18 740 ₽</text>
+        <text x="-89" y="217" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#a34f43">Не хватает 3 740 ₽</text>
+        <rect id="screenReveal" x="-124" y="-268" width="248" height="536" fill="#151923" opacity="1"/>
+      </g>
+      <rect x="-42" y="-274" width="84" height="9" rx="5" fill="#11141a"/>
+      <circle cx="0" cy="267" r="5" fill="#85878a"/>
+    </g>
+    <!-- пальцы обхватывают бок телефона -->
+    <g id="hand">
+      <path d="M133-72q31-16 44 16l20 58q8 23-14 32-21 8-31-15l-24-59q-8-21 5-32z" fill="#f1eee9" stroke="#202127" stroke-width="7" stroke-linejoin="round"/>
+      <path d="M145-30q22 6 37 28M141-5q22 7 35 29" fill="none" stroke="#777982" stroke-width="5" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- тихий рефлекс лампы и экранный отсвет -->
+  <path d="M0 0h1080v1920H0z" fill="url(#grain)" opacity=".7" pointer-events="none"/>
+</svg>

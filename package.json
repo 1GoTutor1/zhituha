@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "episode:align": "node marketing/series/episode-01-balance/audio/align-subtitles.mjs",
+    "episode:render": "node marketing/series/episode-01-balance/render-video.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

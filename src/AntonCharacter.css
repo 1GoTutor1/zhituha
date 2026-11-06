@@ -1,0 +1,101 @@
+.anton-svg {
+  display: block;
+  overflow: visible;
+  flex: none;
+}
+
+.anton-face,
+.anton-hand {
+  fill: #f8f7f3;
+  stroke: #25292d;
+  stroke-width: 2.2;
+}
+
+.anton-hair { fill: #25292d; }
+
+.anton-hood,
+.anton-hoodie-body {
+  fill: #30343b;
+  stroke: #25292d;
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+
+.anton-strings {
+  fill: none;
+  stroke: #666c73;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.anton-pocket {
+  fill: none;
+  stroke: #25292d;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.anton-arm-line,
+.anton-leg {
+  fill: none;
+  stroke: #30343b;
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+
+.anton-leg { stroke-width: 13; }
+.anton-foot { fill: #30343b; }
+
+.anton-eye { fill: #25292d; transition: transform 260ms cubic-bezier(.2, .75, .25, 1); }
+.anton-eye-left { transform-origin: 226px 106px; }
+.anton-eye-right { transform-origin: 274px 106px; }
+.anton-happy-eyes,
+.anton-mouth-neutral,
+.anton-mouth-happy,
+.anton-mouth-sad {
+  fill: none;
+  stroke: #25292d;
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  opacity: 0;
+}
+
+.anton-mouth-neutral { opacity: 1; }
+.anton-mouth-animated { fill: #25292d; }
+
+.anton-arm-line,
+#leftArm,
+#rightArm,
+#head { transition: transform 260ms ease; }
+
+#leftArm { transform-origin: 190px 192px; }
+#rightArm { transform-origin: 310px 192px; }
+#head { transform-origin: 250px 105px; }
+
+.anton-svg[data-state='idle'] #anton { animation: anton-idle 3.4s ease-in-out infinite; transform-origin: 250px 250px; }
+.anton-svg[data-state='happy'] .anton-mouth-neutral { opacity: 0; }
+.anton-svg[data-state='happy'] .anton-mouth-happy,
+.anton-svg[data-state='happy'] .anton-happy-eyes { opacity: 1; }
+.anton-svg[data-state='happy'] .anton-eye { opacity: 0; }
+.anton-svg[data-state='happy'] #leftArm { transform: rotate(18deg); }
+.anton-svg[data-state='happy'] #rightArm { transform: rotate(-18deg); }
+.anton-svg[data-state='sad'] .anton-mouth-neutral { opacity: 0; }
+.anton-svg[data-state='sad'] .anton-mouth-sad { opacity: 1; }
+.anton-svg[data-state='sad'] #head { transform: rotate(-7deg); }
+.anton-svg[data-state='surprised'] .anton-eye-left { transform: translateX(-2.5px) scale(1.18); }
+.anton-svg[data-state='surprised'] .anton-eye-right { transform: translateX(2.5px) scale(1.18); }
+.anton-svg[data-state='surprised'] #head { transform: rotate(-5deg); }
+
+@keyframes anton-idle {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(1.5px) rotate(.25deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anton-svg *,
+  .anton-svg #anton {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}

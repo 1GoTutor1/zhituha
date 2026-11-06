@@ -43,6 +43,7 @@ const CLIENT_RPCS = new Set([
 const READ_BATCH_RPCS = new Set([
   'business_catalog_rpc', 'business_shop_state_rpc', 'business_autostock_state_rpc',
   'casino_business_state_rpc', 'business_vehicle_state_rpc', 'family_state_rpc',
+  'season_pass_state_rpc',
   'black_market_state_rpc', 'bank_get_state_rpc', 'district_taxi_options_rpc',
   'district_rest_state_rpc', 'district_state_rpc', 'district_taxi_ride_state_rpc',
 ]);

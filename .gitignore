@@ -1,3 +1,5 @@
 dist/
 zhituha-casino.bundle
 node_modules/
+artifacts/
+marketing/series/episode-01-balance/audio/.alignment-cache/

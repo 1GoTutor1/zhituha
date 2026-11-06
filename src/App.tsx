@@ -445,8 +445,8 @@ export default function App() {
         setLoading(false);
       }
       
-      // Экономия трафика: свои бизнесы берём целиком (нужен owner_id для маппинга),
-      // чужие — только карточки кафе (id/имя/воркер) + все воркеры.
+      // Загружаем только свои бизнесы и текущее место работы. Общий список
+      // компаний и работников нужен лишь после открытия доски вакансий.
       const profileResponse = await fetch('/api/players', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'me', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
@@ -456,17 +456,24 @@ export default function App() {
       const d = profileResult.player;
       setProfileLookupFailed(false);
       if (!d) { if (user?.first_name) setInNick(user.first_name); return; }
+      if (d.is_banned) { setIsBanned(true); setLoading(false); return; }
       if (profileResult.return_bonus?.granted) {
         showMsg('С возвращением! Начислено 5 000 ₽ и +15% к игровому заработку на 2 часа.');
       }
-      const [myBRes, allBizRes, wRes] = await Promise.all([
+      const [myBRes, wRes] = await Promise.all([
         supabase.from('businesses').select('*').eq('owner_id', d.id),
-        supabase.from('businesses').select('id, owner_id, owner_name, biz_type, business_name, worker_id, worker_name, coffee_balance, last_collected'),
-        supabase.from('business_workers').select('*')
+        supabase.from('business_workers')
+          .select('id, business_id, player_id, player_name, role, salary')
+          .eq('player_id', d.id)
       ]);
+      const currentJob = wRes.data?.[0] || null;
+      const employerRes = currentJob
+        ? await supabase.from('businesses')
+          .select('id, owner_id, owner_name, biz_type, business_name, worker_id, worker_name, coffee_balance, last_collected')
+          .eq('id', currentJob.business_id)
+          .maybeSingle()
+        : null;
 
-      if (d.is_banned) { setIsBanned(true); setLoading(false); return; }
-      
       setPid(d.id); setNick(d.nickname); setGender(d.gender); setAvatarId(d.avatar_id || 1);
       setRole(d.role || 'player'); setMoney(Number(d.money));
       setPhone(Number(d.phone_count) > 0); setHasCar(d.has_car || false); setCarModel(d.car_model || 'none'); setCarHealth(Number(d.car_health ?? 100));
@@ -512,12 +519,9 @@ export default function App() {
         setBuildEnd(Number(myBRes.data.find((x: any) => x.biz_type === 'construction')?.build_end) || 0);
         setPhoneProdEnd(Number(myBRes.data.find((x: any) => x.biz_type === 'phone_factory')?.build_end) || 0);
       }
-      if (allBizRes.data) setAllBiz(allBizRes.data);
-      
-      if (wRes.data) {
-        setAllWorkers(wRes.data);
-        setMyJob(wRes.data.find((w: any) => w.player_id === d.id) || null);
-      }
+      setAllBiz(employerRes?.data ? [employerRes.data] : []);
+      if (!pid) setAllWorkers(currentJob ? [currentJob] : []);
+      setMyJob(currentJob);
     } catch (e) {
       console.error(e);
       if (!silent && !pid) setProfileLookupFailed(true);
@@ -580,36 +584,35 @@ export default function App() {
     showMsg(`${data.ride.car_name} едет к тебе. Списание: ${data.ride.fare} ₽.`);
   });
 
-  const loadMarket = async (force = false) => {
-    const cache = marketLeaderboardCache.current;
-    if (!force && cache.until > Date.now()) {
-      setPlayers(cache.money);
-      setReferralLeaderboard(cache.referrals);
-      setReferralLeaderboardUnavailable(cache.referralsUnavailable);
-    } else {
-      if (!cache.pending) {
-        cache.pending = (async () => {
-          const leaderboardResponse = await fetch('/api/players', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'leaderboard', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
-          });
-          const leaderboard = await leaderboardResponse.json();
-          if (leaderboardResponse.ok) cache.money = leaderboard.players || [];
-          cache.referrals = Array.isArray(leaderboard.referrals) ? leaderboard.referrals : [];
-          cache.referralsUnavailable = !leaderboardResponse.ok || leaderboard.referrals_unavailable === true;
-          setPlayers(cache.money);
-          setReferralLeaderboard(cache.referrals);
-          setReferralLeaderboardUnavailable(cache.referralsUnavailable);
-          if (leaderboardResponse.ok) cache.until = Date.now() + 60_000;
-        })().finally(() => { cache.pending = null; });
+  const loadMarket = async (force = false, includeLeaderboard = true) => {
+    if (includeLeaderboard) {
+      const cache = marketLeaderboardCache.current;
+      if (!force && cache.until > Date.now()) {
+        setPlayers(cache.money);
+        setReferralLeaderboard(cache.referrals);
+        setReferralLeaderboardUnavailable(cache.referralsUnavailable);
+      } else {
+        if (!cache.pending) {
+          cache.pending = (async () => {
+            const leaderboardResponse = await fetch('/api/players', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'leaderboard', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+            });
+            const leaderboard = await leaderboardResponse.json();
+            if (leaderboardResponse.ok) cache.money = leaderboard.players || [];
+            cache.referrals = Array.isArray(leaderboard.referrals) ? leaderboard.referrals : [];
+            cache.referralsUnavailable = !leaderboardResponse.ok || leaderboard.referrals_unavailable === true;
+            setPlayers(cache.money);
+            setReferralLeaderboard(cache.referrals);
+            setReferralLeaderboardUnavailable(cache.referralsUnavailable);
+            if (leaderboardResponse.ok) cache.until = Date.now() + 60_000;
+          })().finally(() => { cache.pending = null; });
+        }
+        await cache.pending;
       }
-      await cache.pending;
     }
     const mRes = await supabase.from('market_items').select('*').order('created_at', { ascending: false });
     if (mRes.data) setMarket(mRes.data);
-    // Business offers are loaded once by the tab effect. Loading them here too
-    // used to issue the same three RPCs twice whenever the market was opened.
-    if (pid) void refreshVehicleState();
   };
 
   useEffect(() => { 
@@ -726,13 +729,12 @@ export default function App() {
     setCurrentDistrict(data.current_district);
     setEnergy(Number(data.energy));
     if (data.personal_car_health != null) setCarHealth(Number(data.personal_car_health));
-    if (data.personal_car_health != null) setCarHealth(Number(data.personal_car_health));
     showMsg(`Ты приехал: ${data.district_name} · −${data.energy_spent} энергии`);
   });
 
   useEffect(() => {
-    if (tab === 'market') { loadMarket(); refreshBusinessOffers(); loadBusinessCatalog(); }
-    if (tab === 'business') { refreshBusinessOffers(); refreshVehicleState(); }
+    if (tab === 'market') { loadMarket(); refreshMarketData(); }
+    if (tab === 'business') refreshMarketData();
     if (tab === 'shop') { refreshProfile(); pollMyBizs(); }
     if (tab === 'inventory') { refreshProfile(true); pollMyBizs(); }
     if (['business', 'jobs', 'cafe'].includes(tab)) {
@@ -746,7 +748,6 @@ export default function App() {
         void refreshWorkData();
       };
       refreshVisibleWorkData();
-      if (tab === 'business') loadBusinessCatalog();
       const int = setInterval(refreshVisibleWorkData, POLL);
       document.addEventListener('visibilitychange', refreshVisibleWorkData);
       return () => {
@@ -1041,6 +1042,29 @@ export default function App() {
     if (!pid) return;
     const { data, error } = await supabase.rpc('business_vehicle_state_rpc', { p_player_id: pid });
     if (!error && data) setVehicleState(data);
+  };
+
+  const refreshMarketData = async () => {
+    if (!pid) return;
+    const { data: results, error } = await (supabase as any).rpcBatch([
+      { name: 'business_shop_state_rpc' },
+      { name: 'business_autostock_state_rpc' },
+      { name: 'casino_business_state_rpc' },
+      { name: 'business_vehicle_state_rpc' },
+      { name: 'business_catalog_rpc' },
+    ]);
+    if (error || !Array.isArray(results)) return;
+    const [shopResult, autostockResult, casinoResult, vehicleResult, catalogResult] = results as any[];
+    if (!shopResult?.error && shopResult?.data) {
+      setBusinessOffers({
+        ...shopResult.data,
+        autostock: autostockResult?.error ? [] : autostockResult?.data?.businesses || [],
+        casinoBusiness: !casinoResult?.error && casinoResult?.data?.owned ? casinoResult.data : null,
+      });
+      setCarHealth(Number(shopResult.data.personal_car_health ?? 100));
+    }
+    if (!vehicleResult?.error && vehicleResult?.data) setVehicleState(vehicleResult.data);
+    if (!catalogResult?.error && catalogResult?.data) setBusinessCatalog(catalogResult.data);
   };
 
   const buyTaxiVehicle = (dealerId: string, modelId: string) => action(async () => {
@@ -1562,7 +1586,9 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data && data.error) throw new Error(data.error);
 
-    setSellOpen(false); setSellSource(null); setTab('market'); loadMarket();
+    setSellOpen(false); setSellSource(null);
+    if (tab !== 'market') setTab('market');
+    else void loadMarket();
     showMsg("Выставлено!"); hapticFeedback('medium');
     await Promise.all([refreshProfile(), pollMyBizs()]);
   });

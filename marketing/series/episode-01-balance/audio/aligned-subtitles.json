@@ -1,0 +1,408 @@
+{
+  "version": 1,
+  "provider": "ElevenLabs Forced Alignment API with local phrase-boundary fallback",
+  "endpoint": "/v1/forced-alignment",
+  "language": "ru",
+  "generatedAt": "2026-11-01T15:41:51.360Z",
+  "timingSource": "word-level forced alignment for unchanged lines; regenerated character lines use waveform voice-activity boundaries for the displayed phrase edges",
+  "sources": [
+    {
+      "speaker": "narrator",
+      "file": "narration-01.wav",
+      "text": "Антон устал. Каждый день одно и то же. Работа, дом, работа.",
+      "start": 0,
+      "sha256": "8331168e8eed816f330f2d96ba136925a122b7076097d529dbe44f6454c02736",
+      "loss": 0.9252512010477357,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-02.wav",
+      "text": "На карте оставалось всего пятнадцать тысяч рублей.",
+      "start": 6.79,
+      "sha256": "339095951bed71fdaa02887c1fcfe7a8997c542143e9f360a535af48745eb7f7",
+      "loss": 0.9888479995727539,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-03.wav",
+      "text": "И он даже не представлял, что скоро рискнёт почти всеми своими деньгами.",
+      "start": 11.18,
+      "sha256": "31dbaae41ca3426eb875f16933baf7e434797792a1a25169f06d1545eaa8c557",
+      "loss": 0.8940799766116672,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-04.wav",
+      "text": "Однажды он заметил рабочих, которые каждое утро спешили на смену.",
+      "start": 17.05,
+      "sha256": "647b92b2555238288f4de8c65fa7199f107b6d726ce063d826b2af8a99a42c00",
+      "loss": 0.8391639122596154,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-05.wav",
+      "text": "Многие даже не успевали купить горячий кофе.",
+      "start": 21.56,
+      "sha256": "02167670349efce46c74f411b41385ad1c5d7006b2d0e48b5df97e6a0c8bd6ff",
+      "loss": 1.0551298314874822,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-06.wav",
+      "text": "На следующий день Антон купил старый термос, складной стол, тележку и всё необходимое.",
+      "start": 29.66,
+      "sha256": "338d923ba76b89eae5ffba6833793eb4261ed3dd2081e1ba5f6e6790c94261ef",
+      "loss": 1.0302792926167332,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-07.wav",
+      "text": "На старт он выделил восемь с половиной тысяч рублей.",
+      "start": 37.07,
+      "sha256": "d117b84217cb6431a1c1dab83de2d55c3e7846c84267931ec79f7c28d9620adc",
+      "loss": 0.7399385892427884,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-08.wav",
+      "text": "У него осталось всего шесть с половиной.",
+      "start": 42.06,
+      "sha256": "21b8a372e65831bb26a197184b83b859a9d0b3074db7cdd8863429c43dfbe876",
+      "loss": 1.1224914073944092,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-09.wav",
+      "text": "В половине шестого утра Антон уже стоял возле заводской проходной.",
+      "start": 46.46,
+      "sha256": "a5d98ec321db3761dee5cda6845fed74e1ac14051056284f4145fe9c8608ac96",
+      "loss": 0.6649041031346177,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-10.wav",
+      "text": "Люди проходили мимо.",
+      "start": 51.84,
+      "sha256": "df38025be76cb1f1b0a7946fa38fec504c7f074b1b7b0c3753e871c9ec55d3b8",
+      "loss": 0.8844175338745117,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-11.wav",
+      "text": "Десять человек. Двадцать. Тридцать.",
+      "start": 54.28,
+      "sha256": "ba984182d0a30037bf2c6a4bdc3da417560c2df9ed15720bfc9ac90df11c12b4",
+      "loss": 0.6795667920793805,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-12.wav",
+      "text": "Никто не останавливался.",
+      "start": 57.94,
+      "sha256": "fbc521fa1f1317b8cc1dfacd23669fdc2c9dae726e2f47e0f4c98f9c586d2b31",
+      "loss": 0.662428061167399,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-13.wav",
+      "text": "Наконец первая продажа. Сто рублей.",
+      "start": 65.61,
+      "sha256": "bded8ddfd1d47ce5783ad667910f887a28b2a1a81188614a2042113a9c5d07db",
+      "loss": 0.8312705993652344,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-14.wav",
+      "text": "Но примерно тридцать из них — себестоимость самого кофе.",
+      "start": 69.28,
+      "sha256": "566590a023ed222f13ac4f935097c6729b81956dfdcf7f0cfc3e1260500c26b7",
+      "loss": 0.915261949811663,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-15.wav",
+      "text": "Антон смотрел на термос и думал только об одном.",
+      "start": 74.44,
+      "sha256": "e6688025c32e7e550197e040fe167efa5beeb82543da1d1cfdb5ea5fcb484fac",
+      "loss": 0.7101678450902303,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-16.wav",
+      "text": "Что он будет делать, если остальной кофе так никто и не купит?",
+      "start": 79.01,
+      "sha256": "a143a5f284b1306b9f895dc630088cfb30ad9551434f4dfd0c6eedc81610b628",
+      "loss": 0.943179315136325,
+      "timingMethod": "elevenlabs-forced-alignment"
+    },
+    {
+      "speaker": "anton",
+      "file": "anton-01.wav",
+      "text": "А что, если продавать им кофе?..",
+      "start": 25.93,
+      "sha256": "95a6a16325ef63258dbd0b8b097f4540ab9f1f5bc18df9762d3c5069fa305327",
+      "loss": null,
+      "timingMethod": "local-vad-phrase-boundary"
+    },
+    {
+      "speaker": "anton",
+      "file": "anton-02.wav",
+      "text": "Да, только налил.",
+      "start": 62.97,
+      "sha256": "76f40cddb6bc365c244f7a4d7c8dee022463d261e91508f75ad4f227815c5641",
+      "loss": null,
+      "timingMethod": "local-vad-phrase-boundary"
+    },
+    {
+      "speaker": "buyer",
+      "file": "buyer-01.wav",
+      "text": "Горячий?",
+      "start": 61.66,
+      "sha256": "7e035124252e860464193de57cb7ce7738e4a28e0c81247d6ce8b43387a2eca8",
+      "loss": null,
+      "timingMethod": "local-vad-phrase-boundary"
+    }
+  ],
+  "cues": [
+    {
+      "speaker": "narrator",
+      "file": "narration-01.wav",
+      "start": 0.5,
+      "end": 1.44,
+      "text": "Антон устал.",
+      "wordCount": 3,
+      "alignmentLoss": 0.9252512010477357
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-01.wav",
+      "start": 1.44,
+      "end": 3.74,
+      "text": "Каждый день одно и то же.",
+      "wordCount": 12,
+      "alignmentLoss": 0.9252512010477357
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-01.wav",
+      "start": 3.74,
+      "end": 6.18,
+      "text": "Работа, дом, работа.",
+      "wordCount": 6,
+      "alignmentLoss": 0.9252512010477357
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-02.wav",
+      "start": 7.21,
+      "end": 10.43,
+      "text": "На карте оставалось всего пятнадцать\nтысяч рублей.",
+      "wordCount": 13,
+      "alignmentLoss": 0.9888479995727539
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-03.wav",
+      "start": 11.7,
+      "end": 15.879999999999999,
+      "text": "И он даже не представлял, что скоро\nрискнёт почти всеми своими деньгами.",
+      "wordCount": 23,
+      "alignmentLoss": 0.8940799766116672
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-04.wav",
+      "start": 17.41,
+      "end": 21.15,
+      "text": "Однажды он заметил рабочих, которые\nкаждое утро спешили на смену.",
+      "wordCount": 19,
+      "alignmentLoss": 0.8391639122596154
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-05.wav",
+      "start": 22.08,
+      "end": 25.04,
+      "text": "Многие даже не успевали купить горячий\nкофе.",
+      "wordCount": 13,
+      "alignmentLoss": 1.0551298314874822
+    },
+    {
+      "speaker": "anton",
+      "file": "anton-01.wav",
+      "start": 26.33,
+      "end": 28.81,
+      "text": "А что, если продавать им кофе?..",
+      "wordCount": 6,
+      "alignmentLoss": null
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-06.wav",
+      "start": 30.18,
+      "end": 35.62,
+      "text": "На следующий день Антон купил старый\nтермос, складной стол, тележку и всё",
+      "wordCount": 24,
+      "alignmentLoss": 1.0302792926167332
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-06.wav",
+      "start": 35.62,
+      "end": 36.4,
+      "text": "необходимое.",
+      "wordCount": 1,
+      "alignmentLoss": 1.0302792926167332
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-07.wav",
+      "start": 37.910000000000004,
+      "end": 41.41,
+      "text": "На старт он выделил восемь с половиной\nтысяч рублей.",
+      "wordCount": 17,
+      "alignmentLoss": 0.7399385892427884
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-08.wav",
+      "start": 42.400000000000006,
+      "end": 44.82,
+      "text": "У него осталось всего шесть с\nполовиной.",
+      "wordCount": 13,
+      "alignmentLoss": 1.1224914073944092
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-09.wav",
+      "start": 46.92,
+      "end": 51.32,
+      "text": "В половине шестого утра Антон уже\nстоял возле заводской проходной.",
+      "wordCount": 19,
+      "alignmentLoss": 0.6649041031346177
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-10.wav",
+      "start": 52.34,
+      "end": 53.6,
+      "text": "Люди проходили мимо.",
+      "wordCount": 5,
+      "alignmentLoss": 0.8844175338745117
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-11.wav",
+      "start": 54.86,
+      "end": 55.72,
+      "text": "Десять человек.",
+      "wordCount": 3,
+      "alignmentLoss": 0.6795667920793805
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-11.wav",
+      "start": 55.72,
+      "end": 56.480000000000004,
+      "text": "Двадцать.",
+      "wordCount": 2,
+      "alignmentLoss": 0.6795667920793805
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-11.wav",
+      "start": 56.480000000000004,
+      "end": 57.18,
+      "text": "Тридцать.",
+      "wordCount": 2,
+      "alignmentLoss": 0.6795667920793805
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-12.wav",
+      "start": 58.4,
+      "end": 59.96,
+      "text": "Никто не останавливался.",
+      "wordCount": 5,
+      "alignmentLoss": 0.662428061167399
+    },
+    {
+      "speaker": "buyer",
+      "file": "buyer-01.wav",
+      "start": 61.72,
+      "end": 62.48,
+      "text": "Горячий?",
+      "wordCount": 1,
+      "alignmentLoss": null
+    },
+    {
+      "speaker": "anton",
+      "file": "anton-02.wav",
+      "start": 63.33,
+      "end": 64.81,
+      "text": "Да, только налил.",
+      "wordCount": 3,
+      "alignmentLoss": null
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-13.wav",
+      "start": 65.95,
+      "end": 67.51,
+      "text": "Наконец первая продажа.",
+      "wordCount": 5,
+      "alignmentLoss": 0.8312705993652344
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-13.wav",
+      "start": 67.51,
+      "end": 68.69,
+      "text": "Сто рублей.",
+      "wordCount": 4,
+      "alignmentLoss": 0.8312705993652344
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-14.wav",
+      "start": 69.78,
+      "end": 73,
+      "text": "Но примерно тридцать из них —\nсебестоимость самого кофе.",
+      "wordCount": 17,
+      "alignmentLoss": 0.915261949811663
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-15.wav",
+      "start": 75.32,
+      "end": 78.34,
+      "text": "Антон смотрел на термос и думал только\nоб одном.",
+      "wordCount": 17,
+      "alignmentLoss": 0.7101678450902303
+    },
+    {
+      "speaker": "narrator",
+      "file": "narration-16.wav",
+      "start": 79.33,
+      "end": 82.89,
+      "text": "Что он будет делать, если остальной\nкофе так никто и не купит?",
+      "wordCount": 23,
+      "alignmentLoss": 0.943179315136325
+    }
+  ]
+}

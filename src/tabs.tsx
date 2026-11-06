@@ -1063,6 +1063,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
               ) : (
                 <p style={{ margin: '8px 0 0', color: '#9ee6a9', fontSize: 13, textAlign: 'center' }}>Максимальный уровень</p>
               )}
+              {activeBiz.biz_type === 'coffee' && <small style={{ display: 'block', marginTop: 8, color: '#d2c5a7', lineHeight: 1.4 }}>Это улучшение пассивного дохода кофейни. Временный бонус +10% даёт покупка напитка в магазинах игроков.</small>}
             </div>
           )}
 
@@ -1202,7 +1203,7 @@ export const AdminTab = ({ app }: { app: any }) => {
   }, [app.adminTab, logsFilter, activeLogsPlayerQuery]);
 
   useEffect(() => {
-    if (app.adminTab === 'market') void app.loadMarket();
+    if (app.adminTab === 'market') void app.loadMarket(false, false);
   }, [app.adminTab]);
 
   const loadAdminPlayers = async (page = adminPlayersPage, query = activeSearchQ) => {
@@ -1490,7 +1491,7 @@ export const AdminTab = ({ app }: { app: any }) => {
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ ...S.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, textAlign: 'left' }}>
             <div><b>Лоты на рынке</b><div style={{ color: '#6b5f45', fontSize: 12 }}>Товар вернётся на склад; если бизнес закрыт, появится предупреждение</div></div>
-            <Btn variant="secondary" onClick={() => void app.loadMarket(true)} disabled={app.proc} style={{ width: 'auto', padding: '7px 10px', fontSize: 12 }}><RefreshCw size={14} /></Btn>
+            <Btn variant="secondary" onClick={() => void app.loadMarket(true, false)} disabled={app.proc} style={{ width: 'auto', padding: '7px 10px', fontSize: 12 }}><RefreshCw size={14} /></Btn>
           </div>
           {app.market.length === 0 && <p style={{ color: '#6b5f45' }}>Активных лотов нет.</p>}
           {app.market.map((lot: any) => {
@@ -1889,14 +1890,17 @@ export const ProfileTab = ({ app }: { app: any }) => {
   useEffect(() => {
     let cancelled = false;
     if (!app.pid) return;
-    void app.supabase.rpc('family_state_rpc', { p_player_id: app.pid }).then(({ data, error }: any) => {
-      if (!cancelled && !error && !data?.error) {
-        setFamilyProfile(data.family || null);
-        setFamilyAwards(data.awards || []);
+    void app.supabase.rpcBatch([
+      { name: 'family_state_rpc' },
+      { name: 'season_pass_state_rpc' },
+    ]).then(({ data: results, error }: any) => {
+      if (cancelled || error || !Array.isArray(results)) return;
+      const [familyResult, seasonResult] = results;
+      if (!familyResult?.error && !familyResult?.data?.error) {
+        setFamilyProfile(familyResult.data?.family || null);
+        setFamilyAwards(familyResult.data?.awards || []);
       }
-    }).catch(() => {});
-    void app.supabase.rpc('season_pass_state_rpc', { p_player_id: app.pid }).then(({ data, error }: any) => {
-      if (!cancelled && !error && !data?.error) setPassState(data);
+      if (!seasonResult?.error && !seasonResult?.data?.error) setPassState(seasonResult.data);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [app.pid, app.supabase]);
@@ -2076,7 +2080,7 @@ const NicknameSettings = ({ app }: { app: any }) => {
     if (!app.pid) return;
     void fetch('/api/players', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'me', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+      body: JSON.stringify({ action: 'profile_refresh', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
     }).then(response => response.json()).then(result => {
       if (active && result.player) setChangedAt(result.player.nickname_changed_at || null);
     }).catch(() => {}).finally(() => { if (active) setStatusLoaded(true); });

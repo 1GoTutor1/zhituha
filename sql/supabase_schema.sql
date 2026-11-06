@@ -211,6 +211,12 @@ begin
       if p_salary <> 5 then return 'Ставка механика фиксирована: 5% кассы'; end if;
       allowed := 1;
     else return 'Такой роли в таксопарке нет'; end if;
+  elsif b.biz_type = 'minimarket' then
+    if p_role <> 'Кассир' or p_salary <> 5 then return 'Кассиру положено 5% с продаж'; end if;
+    allowed := 1;
+  elsif b.biz_type = 'auto_repair' then
+    if p_role <> 'Механик' or p_salary <> 3 then return 'Механику положено 3% с ремонта'; end if;
+    allowed := 1;
   else return 'Неизвестный тип бизнеса'; end if;
 
   select count(*) into cnt from business_workers
@@ -1129,7 +1135,7 @@ create or replace function public.list_item_rpc(
   p_seller_id uuid, p_item_type text, p_item_data text, p_price bigint,
   p_source text, p_bonus_slots int default 0)
 returns jsonb language plpgsql security definer as $$
-declare p players; b businesses; used int; cap int;
+declare p players; b businesses; used int; cap int; stock_key text;
 begin
   if p_price is null or p_price <= 0 or p_price > 100000000 then return jsonb_build_object('error','цена?'); end if;
   if p_source not in ('personal','stock') then return jsonb_build_object('error','source?'); end if;
@@ -1154,9 +1160,14 @@ begin
                                         when 'phone' then 'phone_factory' end
       for update;
     if not found then return jsonb_build_object('error','нет бизнеса-склада'); end if;
-    if coalesce((b.stock->>p_item_data)::int, 0) < 1 then return jsonb_build_object('error','склад пуст'); end if;
-    update businesses set stock = jsonb_set(stock, array[p_item_data],
-      to_jsonb((stock->>p_item_data)::int - 1)) where id = b.id;
+    stock_key := p_item_data;
+    if p_item_type = 'house' then
+      stock_key := case when coalesce((b.stock->>'apartments')::int, 0) > 0
+          or not (coalesce(b.stock, '{}'::jsonb) ? 'apartment') then 'apartments' else 'apartment' end;
+    end if;
+    if coalesce((b.stock->>stock_key)::int, 0) < 1 then return jsonb_build_object('error','склад пуст'); end if;
+    update businesses set stock = jsonb_set(coalesce(stock, '{}'::jsonb), array[stock_key],
+      to_jsonb((stock->>stock_key)::int - 1)) where id = b.id;
   elsif p_source = 'personal' then
     if p_item_type = 'phone' and coalesce(p.phone_count,0) < 1 then return jsonb_build_object('error','нет телефона'); end if;
     if p_item_type = 'car'   and not p.has_car   then return jsonb_build_object('error','нет машины'); end if;
@@ -1264,7 +1275,7 @@ end $$;
 -- Снять лот: вернуть товар (личное имущество или на склад) и DELETE строки лота.
 create or replace function public.cancel_lot_rpc(p_player_id uuid, p_item_id uuid, p_add_stock boolean default false)
 returns jsonb language plpgsql security definer as $$
-declare m market_items; b businesses; real_data text; src text;
+declare m market_items; b businesses; real_data text; src text; stock_key text;
 begin
   select * into m from market_items where id = p_item_id and seller_id = p_player_id for update;
   if not found then return jsonb_build_object('error','лот не найден'); end if;
@@ -1287,8 +1298,13 @@ begin
                                         when 'phone' then 'phone_factory' end
       for update;
     if found then
-      update businesses set stock = jsonb_set(coalesce(stock,'{}'), array[real_data],
-        to_jsonb(coalesce((stock->>real_data)::int, 0) + 1)) where id = b.id;
+      stock_key := real_data;
+      if m.item_type = 'house' then
+        stock_key := case when coalesce((b.stock->>'apartments')::int, 0) > 0
+            or not (coalesce(b.stock, '{}'::jsonb) ? 'apartment') then 'apartments' else 'apartment' end;
+      end if;
+      update businesses set stock = jsonb_set(coalesce(stock,'{}'::jsonb), array[stock_key],
+        to_jsonb(coalesce((stock->>stock_key)::int, 0) + 1)) where id = b.id;
     end if;
   end if;
   return jsonb_build_object('success', true, 'item_type', m.item_type, 'item_data', real_data);
@@ -1919,7 +1935,7 @@ end $$;
 revoke execute on all functions in schema public from public, anon, authenticated;
 grant execute on all functions in schema public to service_role;
 
--- Независимый от открытых клиентов цикл: переход раундов проверяется каждую секунду.
+-- Независимый от открытых клиентов цикл: переход раундов проверяется каждые пять секунд.
 create extension if not exists pg_cron;
 select cron.schedule('casino-live-tick', '5 seconds', $$select public.casino_tick_rpc();$$);
 

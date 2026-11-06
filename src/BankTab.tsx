@@ -20,7 +20,10 @@ type BankApp = {
   vehicleState?: { models?: { model_id: string; model_name: string; base_price: number }[] };
   hasHouse: boolean;
   myBizs: OwnedBusiness[];
-  supabase: { rpc: (name: string, args: Record<string, unknown>) => Promise<RpcReply> };
+  supabase: {
+    rpc: (name: string, args: Record<string, unknown>) => Promise<RpcReply>;
+    rpcBatch: (requests: { name: string; args?: Record<string, unknown> }[]) => Promise<RpcReply>;
+  };
   setMoney?: (value: number) => void;
   hapticFeedback?: (style: 'light' | 'medium' | 'heavy') => void;
   showMsg?: (message: string, error?: boolean) => void;
@@ -93,7 +96,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const [recipient, setRecipient] = useState('');
   const [transferAmount, setTransferAmount] = useState('1000');
   const [depositAmount, setDepositAmount] = useState('1000');
-  const [sharesAmount, setSharesAmount] = useState('1');
+  const [sharesAmounts, setSharesAmounts] = useState<Record<string, string>>({});
   const [collateral, setCollateral] = useState<'car' | 'house' | 'business' | ''>('');
   const [collateralBusinessId, setCollateralBusinessId] = useState('');
   const [leasedBusinessIds, setLeasedBusinessIds] = useState<Set<string> | null>(null);
@@ -102,12 +105,34 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const [repaymentAmount, setRepaymentAmount] = useState('1000');
   const lastForeclosureSeen = useRef<number | null>(null);
 
-  const loadBank = useCallback(async (quiet = false) => {
+  const loadBank = useCallback(async (quiet = false, loadLeaseInfo = false) => {
     if (!app.pid) return;
     if (!quiet) setLoading(true);
     try {
-      const { data, error: rpcError } = await app.supabase.rpc('bank_get_state_rpc', { p_player_id: app.pid });
-      if (rpcError) throw new Error(bankErrorText(rpcError.message));
+      let data: any;
+      if (loadLeaseInfo) {
+        const { data: results, error: batchError } = await app.supabase.rpcBatch([
+          { name: 'bank_get_state_rpc' },
+          { name: 'business_catalog_rpc' },
+        ]);
+        if (batchError) throw new Error(bankErrorText(batchError.message));
+        const [bankResult, catalogResult] = (results || []) as any[];
+        if (!bankResult || bankResult.error) throw new Error(bankErrorText(bankResult?.error?.message || 'Не удалось загрузить банк'));
+        data = bankResult.data;
+        if (catalogResult?.error || catalogResult?.data?.error || !Array.isArray(catalogResult?.data?.locations)) {
+          setLeaseCheckError(catalogResult?.error?.message || catalogResult?.data?.error || 'Не удалось проверить каталог бизнеса');
+          setLeasedBusinessIds(new Set());
+        } else {
+          setLeaseCheckError('');
+          setLeasedBusinessIds(new Set(catalogResult.data.locations
+            .filter((location: any) => location.lease_active && location.business_id)
+            .map((location: any) => String(location.business_id))));
+        }
+      } else {
+        const { data: bankData, error: rpcError } = await app.supabase.rpc('bank_get_state_rpc', { p_player_id: app.pid });
+        if (rpcError) throw new Error(bankErrorText(rpcError.message));
+        data = bankData;
+      }
       if (!data || typeof data !== 'object') throw new Error('Ответ банка пустой');
       const state = data as BankState & { error?: string };
       if (state.error) throw new Error(state.error);
@@ -130,36 +155,14 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   }, [app.pid, app.supabase, app.setMoney]);
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(() => { void loadBank(); }, 0);
+    setLeasedBusinessIds(null);
+    setLeaseCheckError('');
+    const initialLoad = window.setTimeout(() => { void loadBank(false, true); }, 0);
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadBank(true);
     }, 5 * 60_000);
     return () => { window.clearTimeout(initialLoad); window.clearInterval(timer); };
   }, [loadBank]);
-
-  useEffect(() => {
-    if (!app.pid) return;
-    let cancelled = false;
-    setLeasedBusinessIds(null);
-    setLeaseCheckError('');
-    void app.supabase.rpc('business_catalog_rpc', { p_player_id: app.pid }).then(({ data, error }) => {
-      if (cancelled) return;
-      const catalog = data as { error?: string; locations?: any[] } | null;
-      if (error || catalog?.error || !Array.isArray(catalog?.locations)) {
-        setLeaseCheckError(error?.message || catalog?.error || 'Не удалось проверить каталог бизнеса');
-        setLeasedBusinessIds(new Set());
-        return;
-      }
-      setLeasedBusinessIds(new Set(catalog.locations
-        .filter((location: any) => location.lease_active && location.business_id)
-        .map((location: any) => String(location.business_id))));
-    }).catch((error: unknown) => {
-      if (cancelled) return;
-      setLeaseCheckError(error instanceof Error ? error.message : 'Не удалось проверить каталог бизнеса');
-      setLeasedBusinessIds(new Set());
-    });
-    return () => { cancelled = true; };
-  }, [app.pid, app.supabase]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
@@ -201,7 +204,6 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const holdings = useMemo(() => new Map<string, Holding>((bank?.holdings || []).map(holding => [holding.symbol, holding])), [bank?.holdings]);
   const deposits = bank?.deposits || [];
   const loan = bank?.loan || null;
-  const sharesToTrade = Math.max(1, Math.floor(Number(sharesAmount) || 1));
   const stockPortfolio = bank?.holdings || [];
   const serverNowMs = clockNow + serverClockOffset;
   const nextMarketTickMs = (Math.floor(serverNowMs / 300_000) + 1) * 300_000;
@@ -308,18 +310,19 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
             </div>
             <div style={{ color: '#80745e', fontSize: 10, marginTop: 8 }}>В общей прибыли учтены закрытые сделки, открытая позиция после комиссии и уже выплаченные дивиденды.</div>
           </div>
-          <label style={{ display: 'block', color: '#6b5f45', fontSize: 12, margin: '8px 0 5px' }}>Количество акций</label>
-          <input type="number" min="1" max="10000" step="1" value={sharesAmount} onChange={event => setSharesAmount(event.target.value)} style={S.input} />
           {stocks.map(stock => {
             const holding = holdings.get(stock.symbol);
             const shares = Number(holding?.shares) || 0;
+            const sharesAmount = sharesAmounts[stock.symbol] ?? '1';
+            const sharesToTrade = Math.max(1, Math.floor(Number(sharesAmount) || 1));
             const costBasis = Number(holding?.cost_basis) || 0;
             const sellValue = Number(holding?.liquidation_value ?? Math.floor(shares * stock.price * 0.99));
             const openProfit = sellValue - costBasis;
             const realizedProfit = Number(holding?.realized_profit) || 0;
             const purchaseGross = stock.price * sharesToTrade;
-            const purchaseFee = Math.ceil(purchaseGross * 0.01);
-            const purchaseTotal = purchaseGross + purchaseFee;
+            const purchaseTotal = Math.ceil(stock.price * 1.05) * sharesToTrade;
+            const purchaseFee = purchaseTotal - purchaseGross;
+            const maxAffordableShares = Math.min(1000000, Math.floor(Number(bank?.balance || 0) / Math.max(1, Math.ceil(stock.price * 1.05))));
             const change = stock.previous_price ? ((stock.price - stock.previous_price) / stock.previous_price) * 100 : 0;
             const color = change >= 0 ? '#3f9d55' : '#c0453a';
             const activityChange = stock.previous_activity > 0
@@ -331,6 +334,8 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
                 <div><b>{STOCK_LABELS[stock.symbol] || stock.title}</b><div style={{ fontSize: 11, color: '#6b5f45', marginTop: 3 }}>У тебя: {shares.toLocaleString('ru-RU')} шт.</div></div>
                 <div style={{ textAlign: 'right' }}><b style={{ fontSize: 17 }}>{money(stock.price)}</b><div style={{ color, fontSize: 11 }}>{change >= 0 ? '+' : ''}{change.toFixed(2)}% за 5 мин.</div></div>
               </div>
+              <label style={{ display: 'block', color: '#6b5f45', fontSize: 12, margin: '10px 0 5px' }}>Количество для {STOCK_LABELS[stock.symbol] || stock.title}</label>
+              <input aria-label={`Количество акций: ${STOCK_LABELS[stock.symbol] || stock.title}`} type="number" inputMode="numeric" min="1" max="1000000" step="1" value={sharesAmount} onChange={event => setSharesAmounts(current => ({ ...current, [stock.symbol]: event.target.value }))} style={S.input} />
               <div style={{ margin: '10px 0' }}><StockChart history={stock.history || []} color={color} /><div style={{ display: 'flex', justifyContent: 'space-between', color: '#8a806c', fontSize: 10 }}><span>−5 ч</span><span>Сейчас</span></div><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7, padding: '7px 9px', borderRadius: 7, background: 'rgba(61,126,166,.07)', fontSize: 11 }}><span style={{ color: '#6b5f45' }}>Следующее обновление котировки</span><b style={{ color: '#3d7ea6', fontVariantNumeric: 'tabular-nums' }}>{marketTickCountdown}</b></div></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, marginBottom: 8, color: activityChange >= 0 ? '#2c7a3c' : '#b83229' }}><span>Спрос в отрасли за последний час</span><b>{activityChange >= 0 ? '+' : ''}{activityChange.toFixed(0)}%</b></div>
               <div style={{ padding: 9, borderRadius: 8, background: 'rgba(63,157,85,.07)', color: '#2c7a3c', fontSize: 11, marginBottom: 9 }}>Последний дивиденд: {money(Number(stock.last_dividend_per_share || 0))} на акцию · {lastDividendYield.toFixed(2)}% от цены за день</div>
@@ -341,10 +346,14 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, marginTop: 4 }}><span style={{ color: '#6b5f45' }}>Уже зафиксировано продажами</span><b style={{ color: realizedProfit >= 0 ? '#2c7a3c' : '#b83229' }}>{realizedProfit > 0 ? '+' : ''}{money(realizedProfit)}</b></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, marginTop: 4 }}><span style={{ color: '#6b5f45' }}>Дивиденды по этой акции</span><b style={{ color: '#2c7a3c' }}>+{money(Number(holding?.dividends_received || 0))}</b></div>
               </div>
-              <div style={{ fontSize: 11, color: '#6b5f45', marginBottom: 8 }}>Покупка: {money(purchaseGross)} + комиссия {money(purchaseFee)} = {money(purchaseTotal)} · продажа сейчас: {money(Math.floor(stock.price * sharesToTrade * 0.99))}</div>
+              <div style={{ fontSize: 11, color: '#6b5f45', marginBottom: 8 }}>Покупка: {money(purchaseGross)} + спред 5% ({money(purchaseFee)}) = {money(purchaseTotal)} · продажа сейчас: {money(Math.floor(stock.price * sharesToTrade * 0.95))}</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Btn variant="secondary" disabled={busy || sharesToTrade > 10000 || Number(bank?.balance) < purchaseTotal} onClick={() => void run('bank_buy_stock_rpc', { p_symbol: stock.symbol, p_shares: sharesToTrade }, 'Акции куплены')} style={{ flex: 1, padding: 9 }}>Купить</Btn>
+                <Btn variant="secondary" disabled={busy || sharesToTrade > 1000000 || Number(bank?.balance) < purchaseTotal} onClick={() => void run('bank_buy_stock_rpc', { p_symbol: stock.symbol, p_shares: sharesToTrade }, 'Акции куплены')} style={{ flex: 1, padding: 9 }}>Купить</Btn>
                 <Btn variant="primary" disabled={busy || shares < sharesToTrade} onClick={() => void run('bank_sell_stock_rpc', { p_symbol: stock.symbol, p_shares: sharesToTrade }, 'Акции проданы')} style={{ flex: 1, padding: 9 }}>Продать</Btn>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                <button type="button" disabled={maxAffordableShares < 1} onClick={() => setSharesAmounts(current => ({ ...current, [stock.symbol]: String(maxAffordableShares) }))} style={{ border: 0, background: 'none', color: '#3d7ea6', cursor: 'pointer', fontSize: 11 }}>Максимум купить · {maxAffordableShares.toLocaleString('ru-RU')}</button>
+                {shares > 0 && <button type="button" onClick={() => setSharesAmounts(current => ({ ...current, [stock.symbol]: String(Math.min(1000000, shares)) }))} style={{ border: 0, background: 'none', color: '#3d7ea6', cursor: 'pointer', fontSize: 11 }}>Продать всё · {Math.min(1000000, shares).toLocaleString('ru-RU')}</button>}
               </div>
             </div>;
           })}

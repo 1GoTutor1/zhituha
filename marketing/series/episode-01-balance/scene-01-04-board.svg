@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1928" viewBox="0 0 1120 1928">
+  <defs>
+    <g id="anton-v4-head">
+      <circle cx="250" cy="105" r="72.5" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+      <path d="M180 91 C174 75 178 59 190 52 C194 43 204 40 214 44 C222 28 237 23 249 31 C261 22 278 26 284 40 C299 42 309 59 305 78 C304 85 300 90 296 93 C288 84 281 81 274 81 C263 88 253 86 247 80 C237 88 225 86 219 81 C205 91 192 88 180 91Z" fill="#25292D"/>
+      <circle cx="226" cy="106" r="4.2" fill="#25292D"/><circle cx="274" cy="106" r="4.2" fill="#25292D"/>
+      <path d="M239 133 Q250 139 261 133" fill="none" stroke="#25292D" stroke-width="2.8" stroke-linecap="round"/>
+    </g>
+    <g id="anton-v4-head-looking">
+      <circle cx="250" cy="105" r="72.5" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+      <path d="M180 91 C174 75 178 59 190 52 C194 43 204 40 214 44 C222 28 237 23 249 31 C261 22 278 26 284 40 C299 42 309 59 305 78 C304 85 300 90 296 93 C288 84 281 81 274 81 C263 88 253 86 247 80 C237 88 225 86 219 81 C205 91 192 88 180 91Z" fill="#25292D"/>
+      <circle cx="234" cy="106" r="4.2" fill="#25292D"/><circle cx="282" cy="106" r="4.2" fill="#25292D"/>
+      <path d="M239 133 Q250 139 261 133" fill="none" stroke="#25292D" stroke-width="2.8" stroke-linecap="round"/>
+    </g>
+    <g id="anton-v4-hoodie">
+      <path d="M207 177 Q207 155 227 151 L273 151 Q293 155 293 177 L280 194 Q250 204 220 194Z" fill="#30343B"/>
+      <path d="M207 174 Q250 162 293 174 Q315 181 315 204 L321 326 Q322 352 300 355 L200 355 Q178 352 179 326 L185 204 Q185 181 207 174Z" fill="#30343B" stroke="#25292D" stroke-width="2.2" stroke-linejoin="round"/>
+      <path d="M239 190 L238 210 M261 190 L262 210" fill="none" stroke="#666C73" stroke-width="2" stroke-linecap="round"/>
+      <path d="M218 292 Q250 300 282 292 L282 321 Q250 331 218 321Z" fill="none" stroke="#25292D" stroke-width="2" stroke-linejoin="round"/>
+    </g>
+    <g id="anton-v4-arms-down">
+      <path d="M190 192 Q178 245 179 337 M310 192 Q322 245 321 337" fill="none" stroke="#30343B" stroke-width="9" stroke-linecap="round"/>
+      <circle cx="179" cy="341" r="10" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+      <circle cx="321" cy="341" r="10" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+    </g>
+    <g id="night-window">
+      <rect x="0" y="0" width="210" height="270" rx="8" fill="#222B3B" stroke="#D5D2CC" stroke-width="8"/>
+      <circle cx="152" cy="63" r="25" fill="#E9E2D2"/>
+      <path d="M0 207h34v-47h28v63h36v-82h30v82h38v-43h44v82H0Z" fill="#151922"/>
+      <path d="M105 2v264M2 140h205" fill="none" stroke="#D5D2CC" stroke-width="6"/>
+      <path d="M43 190h8v12h-8zM114 168h8v12h-8zM174 218h8v12h-8z" fill="#E9D5AA"/>
+    </g>
+    <g id="thermos">
+      <path d="M12 24h42l7 130q0 13-13 13H18q-13 0-13-13Z" fill="#30343B" stroke="#25292D" stroke-width="3"/>
+      <rect x="17" y="10" width="32" height="19" rx="5" fill="#30343B" stroke="#25292D" stroke-width="3"/>
+      <path d="M13 56h40" stroke="#666C73" stroke-width="4"/>
+    </g>
+  </defs>
+
+  <rect width="1120" height="1928" fill="#E9E7E2"/>
+
+  <!-- Сцена 1 · ночь, Антон за кухонным столом -->
+  <svg x="24" y="24" width="520" height="924" viewBox="0 0 520 924">
+    <rect width="520" height="924" rx="18" fill="#171A22"/>
+    <text x="22" y="34" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="15" font-weight="700">01 · 00:00–00:06 · НОЧЬ ДОМА</text>
+    <rect x="0" y="55" width="520" height="570" fill="#20242D"/>
+    <use href="#night-window" x="28" y="92" width="200" height="258"/>
+    <path d="M36 408h440" stroke="#2D3239" stroke-width="2"/>
+    <rect x="174" y="493" width="194" height="182" rx="32" fill="#252A32"/>
+    <rect x="194" y="511" width="154" height="115" rx="22" fill="#30343B"/>
+    <path d="M203 625v110M338 625v110" stroke="#252A32" stroke-width="14" stroke-linecap="round"/>
+    <path d="M140 676v178M390 676v178" stroke="#30343B" stroke-width="14" stroke-linecap="round"/>
+    <g transform="translate(32 273) scale(.88)">
+      <!-- согнутые ноги задают сидячую позу, силуэт V4 сохранён -->
+      <path d="M222 350 Q217 376 187 383 L184 440 M278 350 Q283 376 313 383 L316 440" fill="none" stroke="#30343B" stroke-width="13" stroke-linecap="round"/>
+      <ellipse cx="177" cy="447" rx="21" ry="9" fill="#30343B"/><ellipse cx="323" cy="447" rx="21" ry="9" fill="#30343B"/>
+      <use href="#anton-v4-hoodie"/>
+      <g transform="rotate(-4 250 105)"><use href="#anton-v4-head"/></g>
+      <path d="M190 192 Q165 164 192 130" fill="none" stroke="#30343B" stroke-width="9" stroke-linecap="round"/>
+      <circle cx="193" cy="125" r="10" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+      <path d="M310 192 Q322 245 321 337" fill="none" stroke="#30343B" stroke-width="9" stroke-linecap="round"/>
+      <circle cx="321" cy="341" r="10" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+    </g>
+    <!-- стол перекрывает колени и визуально закрепляет посадку -->
+    <path d="M0 662h520v262H0Z" fill="#6B625A"/>
+    <path d="M0 662h520" stroke="#A89A88" stroke-width="8"/>
+    <path d="M0 690h520" stroke="#564F49" stroke-width="3"/>
+    <rect x="374" y="632" width="76" height="17" rx="6" fill="#30343B"/>
+    <rect x="388" y="635" width="48" height="10" rx="4" fill="#25292D"/>
+    <text x="24" y="893" fill="#D5D2CC" font-family="Arial,sans-serif" font-size="13">Сидит молча. Ладонь у виска, телефон лежит на столе.</text>
+  </svg>
+
+  <!-- Сцена 2 · отдельная вставка телефона с банковским экраном -->
+  <svg x="576" y="24" width="520" height="924" viewBox="0 0 520 924">
+    <rect width="520" height="924" rx="18" fill="#222630"/>
+    <text x="22" y="34" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="15" font-weight="700">02 · 00:06–00:13 · ВСТАВКА ТЕЛЕФОНА</text>
+    <path d="M0 625 Q154 584 289 626 T520 625V924H0Z" fill="#30343B"/>
+    <!-- статичный кадр только с рукой и телефоном, без Антона -->
+    <g transform="rotate(-5 267 485)">
+      <rect x="115" y="150" width="290" height="600" rx="34" fill="#111419" stroke="#25292D" stroke-width="5"/>
+      <rect x="128" y="165" width="264" height="570" rx="25" fill="#F8F7F3"/>
+      <path d="M128 190q0-25 25-25h214q25 0 25 25v72H128Z" fill="#E9E7E2"/>
+      <text x="157" y="211" fill="#30343B" font-family="Arial,sans-serif" font-size="19" font-weight="700">МОЙ БАНК</text>
+      <text x="158" y="307" fill="#73777A" font-family="Arial,sans-serif" font-size="16">Основной счёт</text>
+      <rect x="151" y="327" width="218" height="99" rx="14" fill="#30343B"/>
+      <text x="171" y="359" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="14">МОЯ КАРТА</text>
+      <text x="171" y="397" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="22" font-weight="700">•••• 1500</text>
+      <text x="157" y="477" fill="#73777A" font-family="Arial,sans-serif" font-size="18">Баланс</text>
+      <text x="153" y="530" fill="#25292D" font-family="Arial,sans-serif" font-size="39" font-weight="700">15 000 ₽</text>
+      <path d="M155 550h210" stroke="#D4D2CD" stroke-width="2"/>
+      <text x="157" y="591" fill="#73777A" font-family="Arial,sans-serif" font-size="15">До зарплаты — 12 дней</text>
+      <rect x="151" y="620" width="218" height="66" rx="10" fill="#E9E7E2"/>
+      <text x="166" y="648" fill="#555B61" font-family="Arial,sans-serif" font-size="14">Продукты: 18 740 ₽</text>
+      <text x="166" y="672" fill="#555B61" font-family="Arial,sans-serif" font-size="14">Не хватает 3 740 ₽</text>
+      <!-- V4: простая белая кисть с тонким контуром -->
+      <path d="M358 542q29-13 43 13l23 45q8 17-9 26-17 8-27-10l-29-47q-9-16-1-27Z" fill="#F8F7F3" stroke="#25292D" stroke-width="3"/>
+    </g>
+    <path d="M77 387q-19 20 0 39M91 372q-20 35 0 70" fill="none" stroke="#A8ADB1" stroke-width="4" stroke-linecap="round"/>
+    <text x="22" y="893" fill="#D5D2CC" font-family="Arial,sans-serif" font-size="13">Вибрация → рука поднимает телефон → крупно баланс 15 000 ₽.</text>
+  </svg>
+
+  <!-- Сцена 3 · взгляд из окна и монтажная склейка к проходной -->
+  <svg x="24" y="980" width="520" height="924" viewBox="0 0 520 924">
+    <rect width="520" height="924" rx="18" fill="#20242D"/>
+    <text x="22" y="34" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="15" font-weight="700">03 · 00:13–00:19 · ИДЕЯ И ПРОХОДНАЯ</text>
+    <rect x="0" y="55" width="520" height="375" fill="#20242D"/>
+    <use href="#night-window" x="286" y="83" width="205" height="270"/>
+    <g transform="translate(-65 42) scale(.7)">
+      <use href="#anton-v4-hoodie"/>
+      <use href="#anton-v4-arms-down"/>
+      <use href="#anton-v4-head-looking"/>
+    </g>
+    <path d="M0 430 L520 398 V924 H0Z" fill="#D9D9D4"/>
+    <path d="M0 430L520 398" stroke="#F8F7F3" stroke-width="7"/>
+    <text x="21" y="466" fill="#30343B" font-family="Arial,sans-serif" font-size="13" font-weight="700">МОНТАЖНАЯ СКЛЕЙКА</text>
+    <!-- проходная завода и ранняя смена -->
+    <path d="M0 525h520v120H0Z" fill="#AEB5B3"/>
+    <path d="M25 524v-53h144v53M347 524v-53h144v53" fill="#C8CBC6" stroke="#59636A" stroke-width="7"/>
+    <path d="M0 651h520M36 620v140M98 620v140M160 620v140M222 620v140M284 620v140M346 620v140M408 620v140M470 620v140" stroke="#59636A" stroke-width="5"/>
+    <path d="M0 755h520v169H0Z" fill="#B8B7B0"/>
+    <!-- трое рабочих с кофе: простые формы, без мелких лицевых деталей -->
+    <g stroke="#30343B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <g><circle cx="125" cy="574" r="19" fill="#F8F7F3"/><path d="M125 594v80M125 615l-22 26M125 615l24 8M125 674l-16 43M125 674l18 43" fill="none"/><path d="M146 619h17v20h-17z" fill="#F8F7F3"/></g>
+      <g><circle cx="258" cy="570" r="19" fill="#F8F7F3"/><path d="M258 590v83M258 612l-22 28M258 612l25 8M258 673l-18 44M258 673l17 44" fill="none"/><path d="M280 615h17v20h-17z" fill="#F8F7F3"/></g>
+      <g><circle cx="390" cy="576" r="19" fill="#F8F7F3"/><path d="M390 596v78M390 617l-23 25M390 617l24 8M390 674l-17 43M390 674l18 43" fill="none"/><path d="M412 622h17v20h-17z" fill="#F8F7F3"/></g>
+    </g>
+    <path d="M68 717h384" stroke="#8D918E" stroke-width="4"/>
+    <rect x="22" y="790" width="476" height="90" rx="14" fill="#F8F7F3"/>
+    <text x="43" y="826" fill="#30343B" font-family="Arial,sans-serif" font-size="18" font-weight="700">«А что, если продавать им кофе?..»</text>
+    <text x="43" y="855" fill="#73777A" font-family="Arial,sans-serif" font-size="13">Сначала взгляд Антона, затем ранняя смена у ворот.</text>
+  </svg>
+
+  <!-- Сцена 4 · решение и первая закупка -->
+  <svg x="576" y="980" width="520" height="924" viewBox="0 0 520 924">
+    <rect width="520" height="924" rx="18" fill="#E3E1DB"/>
+    <text x="22" y="34" fill="#30343B" font-family="Arial,sans-serif" font-size="15" font-weight="700">04 · 00:19–00:25 · РЕШЕНИЕ</text>
+    <rect x="0" y="55" width="520" height="475" fill="#D4D3CE"/>
+    <rect x="345" y="98" width="150" height="235" fill="#BAC3C7" stroke="#F8F7F3" stroke-width="7"/>
+    <circle cx="451" cy="144" r="19" fill="#E9E2D2"/>
+    <path d="M351 281h48v-52h32v76h56v-66h23v88H351Z" fill="#89939A"/>
+    <g transform="translate(-70 275) scale(.65)">
+      <use href="#anton-v4-hoodie"/>
+      <use href="#anton-v4-arms-down"/>
+      <use href="#anton-v4-head"/>
+    </g>
+    <path d="M0 546h520v378H0Z" fill="#867A6B"/>
+    <path d="M0 546h520" stroke="#C4B7A4" stroke-width="9"/>
+    <!-- термос, рабочий стол и стаканы — предметы сцены, не инфографика -->
+    <g transform="translate(154 375) scale(.9)"><use href="#thermos"/></g>
+    <g fill="#F8F7F3" stroke="#30343B" stroke-width="3" stroke-linejoin="round">
+      <path d="M245 474h47l-5 62q-2 8-18 8t-18-8z"/><path d="M308 474h47l-5 62q-2 8-18 8t-18-8z"/><path d="M371 474h47l-5 62q-2 8-18 8t-18-8z"/>
+    </g>
+    <g fill="none" stroke="#30343B" stroke-width="3"><path d="M292 484q18-4 18 15t-18 15M355 484q18-4 18 15t-18 15M418 484q18-4 18 15t-18 15"/></g>
+    <path d="M382 365l101 8-6 72-101-8z" fill="#F8F7F3" stroke="#30343B" stroke-width="2"/>
+    <text x="392" y="394" fill="#73777A" font-family="Arial,sans-serif" font-size="12">ПЕРВАЯ ЗАКУПКА</text>
+    <text x="392" y="419" fill="#30343B" font-family="Arial,sans-serif" font-size="18" font-weight="700">8 500 ₽</text>
+    <text x="22" y="884" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="13">Антон раскладывает термос и стаканы. Сумма — на чеке.</text>
+  </svg>
+</svg>

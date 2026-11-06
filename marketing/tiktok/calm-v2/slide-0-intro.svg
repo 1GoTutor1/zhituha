@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+<defs>
+  <linearGradient id="bg" x2=".8" y2="1"><stop stop-color="#211a2b"/><stop offset=".58" stop-color="#17131f"/><stop offset="1" stop-color="#11151a"/></linearGradient>
+  <radialGradient id="glow"><stop stop-color="#59416b" stop-opacity=".48"/><stop offset="1" stop-color="#211a2b" stop-opacity="0"/></radialGradient>
+  <linearGradient id="arrow" x2="1"><stop stop-color="#dfc687"/><stop offset="1" stop-color="#bd9f68"/></linearGradient>
+</defs>
+<rect width="1080" height="1920" fill="url(#bg)"/>
+<ellipse cx="760" cy="760" rx="650" ry="600" fill="url(#glow)"/>
+<circle cx="908" cy="390" r="3" fill="#dfc687" opacity=".32"/><circle cx="164" cy="1290" r="2" fill="#dfc687" opacity=".28"/>
+<text x="76" y="104" fill="#d9c9e8" font-family="Arial,sans-serif" font-size="25" font-weight="700" letter-spacing="5">ЖИТУХА</text>
+<text x="1004" y="104" text-anchor="end" fill="#9b91a4" font-family="Arial,sans-serif" font-size="21" letter-spacing="2">ЛИЧНЫЙ ПРОЕКТ</text>
+<path d="M76 144H1004" stroke="#ffffff" stroke-opacity=".12"/>
+<text x="540" y="690" text-anchor="middle" fill="#bcb2c5" font-family="Arial,sans-serif" font-size="38" font-weight="400">Сделал свою</text>
+<text x="540" y="800" text-anchor="middle" fill="#f4efe9" font-family="Arial,sans-serif" font-size="82" font-weight="700">Telegram-игру.</text>
+<path d="M410 858H670" stroke="#dfc687" stroke-opacity=".62" stroke-width="2"/>
+<text x="540" y="953" text-anchor="middle" fill="#d7cfdd" font-family="Arial,sans-serif" font-size="34">Ваше продвижение может</text>
+<text x="540" y="1000" text-anchor="middle" fill="#d7cfdd" font-family="Arial,sans-serif" font-size="34">помочь ей вырасти.</text>
+<g fill="none" stroke="url(#arrow)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".84">
+  <path d="M450 1115H630M590 1075l40 40-40 40"/>
+</g>
+<text x="540" y="1220" text-anchor="middle" fill="#9b91a4" font-family="Arial,sans-serif" font-size="23" letter-spacing="1.5">ЛИСТАЙ ДАЛЬШЕ</text>
+<path d="M76 1822H1004" stroke="#ffffff" stroke-opacity=".14"/>
+<text x="76" y="1872" fill="#8e8495" font-family="Arial,sans-serif" font-size="19" letter-spacing="2">ЖИТУХА</text>
+<text x="1004" y="1872" text-anchor="end" fill="#8e8495" font-family="Arial,sans-serif" font-size="19">00 / 03</text>
+</svg>

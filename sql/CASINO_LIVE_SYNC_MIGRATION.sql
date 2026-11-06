@@ -1,5 +1,5 @@
 ﻿-- Casino live-loop patch. Apply once in Supabase SQL Editor after the base casino schema.
--- Supabase Cron supports a 1-second schedule on supported Postgres versions.
+-- Supabase Cron supports interval schedules on supported Postgres versions.
 create extension if not exists pg_cron;
 
 alter table public.casino_rounds

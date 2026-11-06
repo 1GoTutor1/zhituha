@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+<defs>
+  <linearGradient id="bg" x2=".8" y2="1"><stop stop-color="#211a2b"/><stop offset=".55" stop-color="#17131f"/><stop offset="1" stop-color="#11151a"/></linearGradient>
+  <radialGradient id="glow"><stop stop-color="#59416b" stop-opacity=".55"/><stop offset="1" stop-color="#211a2b" stop-opacity="0"/></radialGradient>
+  <linearGradient id="green" x2="1"><stop stop-color="#86d2a0"/><stop offset="1" stop-color="#4fa77b"/></linearGradient>
+  <filter id="shadow" x="-.2" y="-.2" width="1.4" height="1.5"><feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#08060b" flood-opacity=".5"/></filter>
+</defs>
+<rect width="1080" height="1920" fill="url(#bg)"/><ellipse cx="760" cy="510" rx="590" ry="470" fill="url(#glow)"/>
+<circle cx="938" cy="325" r="2" fill="#e5bd70" opacity=".5"/><circle cx="100" cy="650" r="3" fill="#e5bd70" opacity=".35"/>
+<text x="76" y="104" fill="#d9c9e8" font-family="Arial,sans-serif" font-size="25" font-weight="700" letter-spacing="5">ЖИТУХА</text>
+<text x="1004" y="104" text-anchor="end" fill="#9b91a4" font-family="Arial,sans-serif" font-size="21" letter-spacing="2">ИГРА ПРО БОЛЬШУЮ ЖИЗНЬ</text>
+<path d="M76 144H1004" stroke="#ffffff" stroke-opacity=".12"/>
+<text x="76" y="250" fill="#f4efe9" font-family="Arial,sans-serif" font-size="72" font-weight="700">Начни с работы.</text>
+<text x="76" y="338" fill="#f4efe9" font-family="Arial,sans-serif" font-size="72" font-weight="700">Дальше — твоя история.</text>
+<text x="80" y="402" fill="#bcb2c5" font-family="Arial,sans-serif" font-size="29">Выбирай профессию, выполняй заказы</text>
+<text x="80" y="443" fill="#bcb2c5" font-family="Arial,sans-serif" font-size="29">и прокачивай уровень в своём темпе.</text>
+<g filter="url(#shadow)">
+  <rect x="76" y="520" width="928" height="1040" rx="38" fill="#211a2b" stroke="#52435e" stroke-width="2"/>
+  <text x="122" y="594" fill="#91869b" font-family="Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="3">ТВОЯ ПРОФЕССИЯ</text>
+  <text x="122" y="674" fill="#f5f1f7" font-family="Arial,sans-serif" font-size="54" font-weight="700">Курьер</text>
+  <rect x="824" y="625" width="130" height="54" rx="27" fill="#30273a"/><text x="889" y="660" fill="#91c7dc" text-anchor="middle" font-family="Arial,sans-serif" font-size="21" font-weight="700">УР. 16</text>
+  <text x="122" y="744" fill="#ded7e5" font-family="Arial,sans-serif" font-size="23" font-weight="700">Уровень 16</text><text x="954" y="744" text-anchor="end" fill="#b3aabb" font-family="Arial,sans-serif" font-size="22">206 / 840 XP</text>
+  <rect x="122" y="768" width="832" height="13" rx="7" fill="#352d3c"/><rect x="122" y="768" width="205" height="13" rx="7" fill="url(#green)"/>
+  <rect x="122" y="823" width="832" height="210" rx="26" fill="#c8cebd"/>
+  <circle cx="862" cy="880" r="28" fill="#d2b364" opacity=".9"/><g transform="translate(143 -40)"><path d="M320 930l75-42 75 42v75l-75 43-75-43z" fill="none" stroke="#9b642b" stroke-width="12" stroke-linejoin="round"/><path d="M320 930l75 45 75-45M395 975v73m-28-104 74-43" fill="none" stroke="#9b642b" stroke-width="10" stroke-linejoin="round"/></g><text x="152" y="1005" fill="#566050" font-family="Arial,sans-serif" font-size="19" font-weight="700" letter-spacing="2">КУРЬЕР</text>
+  <text x="122" y="1100" fill="#f2edf5" font-family="Arial,sans-serif" font-size="26" font-weight="700">Задания на сегодня</text><text x="954" y="1100" text-anchor="end" fill="#a99daf" font-family="Arial,sans-serif" font-size="19">Обновятся в полночь UTC</text>
+  <path d="M122 1125H954" stroke="#ffffff" stroke-opacity=".1"/>
+  <text x="122" y="1175" fill="#e8e1eb" font-family="Arial,sans-serif" font-size="22" font-weight="700">Поработай 5 раз</text><text x="122" y="1210" fill="#aa9fb3" font-family="Arial,sans-serif" font-size="19">0/5 · награда 500 ₽</text><rect x="122" y="1231" width="700" height="8" rx="4" fill="#3b3342"/>
+  <path d="M122 1268H954" stroke="#ffffff" stroke-opacity=".1"/>
+  <text x="122" y="1318" fill="#e8e1eb" font-family="Arial,sans-serif" font-size="22" font-weight="700">Продай предмет из инвентаря</text><text x="122" y="1353" fill="#aa9fb3" font-family="Arial,sans-serif" font-size="19">0/1 · награда 700 ₽</text><rect x="122" y="1374" width="700" height="8" rx="4" fill="#3b3342"/>
+  <rect x="122" y="1423" width="832" height="86" rx="23" fill="url(#green)"/><text x="538" y="1477" text-anchor="middle" fill="#11241a" font-family="Arial,sans-serif" font-size="25" font-weight="700">Начать работу</text>
+</g>
+<text x="76" y="1660" fill="#dfc687" font-family="Arial,sans-serif" font-size="21" font-weight="700" letter-spacing="3">РАБОТА · ПРОФЕССИИ · ЕЖЕДНЕВНЫЕ ЦЕЛИ</text>
+<text x="76" y="1772" fill="#f4efe9" font-family="Arial,sans-serif" font-size="32" font-weight="700">Твой путь начинается с первого дела.</text>
+<path d="M76 1822H1004" stroke="#ffffff" stroke-opacity=".14"/><text x="76" y="1872" fill="#8e8495" font-family="Arial,sans-serif" font-size="19" letter-spacing="2">ЖИТУХА</text><text x="1004" y="1872" text-anchor="end" fill="#8e8495" font-family="Arial,sans-serif" font-size="19">01 / 03</text>
+</svg>

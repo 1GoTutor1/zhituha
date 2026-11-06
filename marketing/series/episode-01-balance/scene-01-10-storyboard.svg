@@ -1,0 +1,223 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="2016" viewBox="0 0 1560 2016">
+  <defs>
+    <g id="v4-head-neutral">
+      <circle cx="250" cy="105" r="72.5" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+      <path d="M180 91 C174 75 178 59 190 52 C194 43 204 40 214 44 C222 28 237 23 249 31 C261 22 278 26 284 40 C299 42 309 59 305 78 C304 85 300 90 296 93 C288 84 281 81 274 81 C263 88 253 86 247 80 C237 88 225 86 219 81 C205 91 192 88 180 91Z" fill="#25292D"/>
+      <circle cx="226" cy="106" r="4.2" fill="#25292D"/><circle cx="274" cy="106" r="4.2" fill="#25292D"/>
+      <path d="M242 134 L258 134" fill="none" stroke="#25292D" stroke-width="2.8" stroke-linecap="round"/>
+    </g>
+    <g id="v4-head-thinking">
+      <circle cx="250" cy="105" r="72.5" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+      <path d="M180 91 C174 75 178 59 190 52 C194 43 204 40 214 44 C222 28 237 23 249 31 C261 22 278 26 284 40 C299 42 309 59 305 78 C304 85 300 90 296 93 C288 84 281 81 274 81 C263 88 253 86 247 80 C237 88 225 86 219 81 C205 91 192 88 180 91Z" fill="#25292D"/>
+      <circle cx="234" cy="106" r="4.2" fill="#25292D"/><circle cx="282" cy="106" r="4.2" fill="#25292D"/>
+      <path d="M242 134 L258 134" fill="none" stroke="#25292D" stroke-width="2.8" stroke-linecap="round"/>
+    </g>
+    <g id="v4-hoodie">
+      <path d="M207 177 Q207 155 227 151 L273 151 Q293 155 293 177 L280 194 Q250 204 220 194Z" fill="#30343B"/>
+      <path d="M207 174 Q250 162 293 174 Q315 181 315 204 L321 326 Q322 352 300 355 L200 355 Q178 352 179 326 L185 204 Q185 181 207 174Z" fill="#30343B" stroke="#25292D" stroke-width="2.2" stroke-linejoin="round"/>
+      <path d="M239 190 L238 210 M261 190 L262 210" fill="none" stroke="#666C73" stroke-width="2" stroke-linecap="round"/>
+      <path d="M218 292 Q250 300 282 292 L282 321 Q250 331 218 321Z" fill="none" stroke="#25292D" stroke-width="2" stroke-linejoin="round"/>
+    </g>
+    <g id="v4-arms-down">
+      <path d="M190 192 Q178 245 179 337 M310 192 Q322 245 321 337" fill="none" stroke="#30343B" stroke-width="9" stroke-linecap="round"/>
+      <circle cx="179" cy="341" r="10" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+      <circle cx="321" cy="341" r="10" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+    </g>
+    <g id="night-window">
+      <rect x="0" y="0" width="210" height="270" rx="8" fill="#222B3B" stroke="#D5D2CC" stroke-width="8"/>
+      <circle cx="152" cy="63" r="25" fill="#E9E2D2"/>
+      <path d="M0 207h34v-47h28v63h36v-82h30v82h38v-43h44v82H0Z" fill="#151922"/>
+      <path d="M105 2v264M2 140h205" fill="none" stroke="#D5D2CC" stroke-width="6"/>
+      <path d="M43 190h8v12h-8zM114 168h8v12h-8zM174 218h8v12h-8z" fill="#E9D5AA"/>
+    </g>
+    <g id="thermos">
+      <path d="M12 24h42l7 130q0 13-13 13H18q-13 0-13-13Z" fill="#30343B" stroke="#25292D" stroke-width="3"/>
+      <rect x="17" y="10" width="32" height="19" rx="5" fill="#30343B" stroke="#25292D" stroke-width="3"/>
+      <path d="M13 56h40" stroke="#666C73" stroke-width="4"/>
+    </g>
+  
+    <g id="v4-seated-legs" fill="none" stroke="#30343B" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"><path d="M222 350 Q217 376 187 383 L184 440 M278 350 Q283 376 313 383 L316 440"/><path d="M161 447h33M306 447h33" stroke-width="17"/></g>
+    <g id="window-night"><use href="#night-window"/></g>
+    <g id="small-thermos"><use href="#thermos"/></g>
+    <g id="cup"><path d="M0 0h38l-4 53q-1 7-15 7T4 53Z" fill="#F8F7F3" stroke="#30343B" stroke-width="2.5" stroke-linejoin="round"/><path d="M38 10q15-3 15 12t-18 13" fill="none" stroke="#30343B" stroke-width="2.5"/><path d="M5 10h28" stroke="#8C6047" stroke-width="4"/></g>
+  </defs>
+  <rect width="1560" height="2016" fill="#E9E7E2"/>
+<svg x="24" y="24" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#1B1F28"/>
+    <text x="14" y="22" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="12" font-weight="700">01 · 00:00–00:03</text>
+    <use href="#window-night" x="201" y="65" width="136" height="175"/>
+    <rect x="95" y="275" width="174" height="115" rx="24" fill="#252A32"/>
+    <path d="M112 411v112M252 411v112" stroke="#30343B" stroke-width="10" stroke-linecap="round"/>
+    <g transform="translate(8 143) scale(.67)">
+      <use href="#v4-hoodie"/>
+      <g transform="rotate(-5 250 105)"><use href="#v4-head-neutral"/></g>
+      <path d="M190 192 C218 243 235 310 300 365 C278 337 237 280 207 145" fill="none" stroke="#30343B" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M300 365 Q263 310 207 145" fill="none" stroke="#F8F7F3" stroke-width="10" stroke-linecap="round"/>
+      <ellipse cx="207" cy="145" rx="13" ry="17" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2" transform="rotate(-18 207 145)"/>
+    </g>
+    <path d="M0 390h360v250H0Z" fill="#6B625A"/><path d="M0 390h360" stroke="#A89A88" stroke-width="7"/>
+    <rect x="247" y="376" width="54" height="12" rx="5" fill="#30343B" transform="rotate(-5 274 382)"/>
+    <text x="14" y="603" fill="#E8E3DA" font-family="Arial,sans-serif" font-size="10">ОБЩИЙ · Антон сидит; локоть на столе, ладонь у щеки</text>
+    <text x="14" y="622" fill="#C6C0B7" font-family="Arial,sans-serif" font-size="10">Камера: неподвижно, затем медленный наезд</text>
+  </svg>
+<svg x="408" y="24" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#1B1F28"/>
+    <text x="14" y="22" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="12" font-weight="700">02 · 00:03–00:06</text>
+    <rect x="57" y="101" width="246" height="286" rx="42" fill="#252A32"/>
+    <g transform="translate(-48 99) scale(.82)">
+      <use href="#v4-hoodie"/>
+      <g transform="rotate(-6 250 105)"><use href="#v4-head-neutral"/></g>
+      <path d="M190 192 C218 238 235 300 290 348 C273 320 233 266 202 145" fill="none" stroke="#30343B" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M290 348 Q252 291 202 145" fill="none" stroke="#F8F7F3" stroke-width="10" stroke-linecap="round"/>
+      <ellipse cx="202" cy="145" rx="13" ry="17" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2" transform="rotate(-18 202 145)"/>
+    </g>
+    <path d="M0 386h360v254H0Z" fill="#6B625A"/><path d="M0 386h360" stroke="#A89A88" stroke-width="7"/>
+    <rect x="250" y="372" width="54" height="12" rx="5" fill="#30343B"/>
+    <text x="14" y="603" fill="#E8E3DA" font-family="Arial,sans-serif" font-size="10">СРЕДНИЙ · локоть на столе, ладонь поддерживает щёку</text>
+    <text x="14" y="622" fill="#C6C0B7" font-family="Arial,sans-serif" font-size="10">Камера: тихий наезд к лицу и телефону</text>
+  </svg>
+<svg x="792" y="24" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#252A32"/>
+    <text x="14" y="22" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="12" font-weight="700">03 · 00:06–00:08</text>
+    <rect y="320" width="360" height="320" fill="#756A60"/><path d="M0 320h360" stroke="#A89A88" stroke-width="7"/>
+    <g transform="rotate(-8 181 340)">
+      <rect x="87" y="267" width="188" height="96" rx="18" fill="#30343B" stroke="#171A20" stroke-width="4"/>
+      <rect x="102" y="280" width="158" height="69" rx="10" fill="#25292D"/>
+      <circle cx="181" cy="355" r="3" fill="#858A8E"/>
+    </g>
+    <path d="M58 287q-18 19 0 38M72 273q-18 34 0 66" fill="none" stroke="#C5C8C7" stroke-width="4" stroke-linecap="round"/>
+    <text x="14" y="603" fill="#E8E3DA" font-family="Arial,sans-serif" font-size="10">ДЕТАЛЬ · телефон коротко вибрирует на столе</text>
+    <text x="14" y="622" fill="#C6C0B7" font-family="Arial,sans-serif" font-size="10">Камера: фиксированный крупный план</text>
+  </svg>
+<svg x="1176" y="24" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#252A32"/>
+    <text x="14" y="22" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="12" font-weight="700">04 · 00:08–00:10</text>
+    <rect y="320" width="360" height="320" fill="#756A60"/><path d="M0 320h360" stroke="#A89A88" stroke-width="7"/>
+    <rect x="102" y="267" width="174" height="96" rx="18" fill="#30343B" stroke="#171A20" stroke-width="4" transform="rotate(-8 189 315)"/>
+    <path d="M360 296 Q321 298 278 323" fill="none" stroke="#30343B" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="274" cy="324" r="10" fill="#F8F7F3" stroke="#25292D" stroke-width="2.2"/>
+    <text x="14" y="603" fill="#E8E3DA" font-family="Arial,sans-serif" font-size="10">КРУПНЫЙ · рука берёт телефон со стола</text>
+    <text x="14" y="622" fill="#C6C0B7" font-family="Arial,sans-serif" font-size="10">Камера: плавный наклон вслед за рукой</text>
+  </svg>
+<svg x="24" y="688" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#252A32"/>
+    <text x="14" y="22" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="12" font-weight="700">05 · 00:10–00:12</text>
+    <rect x="61" y="82" width="238" height="442" rx="30" fill="#111419" stroke="#30343B" stroke-width="4"/>
+    <rect x="73" y="96" width="214" height="414" rx="20" fill="#F8F7F3"/>
+    <path d="M73 116q0-20 20-20h174q20 0 20 20v62H73Z" fill="#E9E7E2"/>
+    <text x="94" y="140" fill="#30343B" font-family="Arial,sans-serif" font-size="16" font-weight="700">МОЙ БАНК</text>
+    <text x="94" y="242" fill="#73777A" font-family="Arial,sans-serif" font-size="15">Баланс</text>
+    <text x="90" y="294" fill="#25292D" font-family="Arial,sans-serif" font-size="34" font-weight="700">15 000 ₽</text>
+    <path d="M94 318h172" stroke="#D4D2CD" stroke-width="2"/>
+    <text x="94" y="349" fill="#73777A" font-family="Arial,sans-serif" font-size="13">Основной счёт</text>
+    <text x="14" y="603" fill="#E8E3DA" font-family="Arial,sans-serif" font-size="10">ЭКСТРЕМАЛЬНО КРУПНЫЙ · баланс 15 000 ₽</text>
+    <text x="14" y="622" fill="#C6C0B7" font-family="Arial,sans-serif" font-size="10">Камера: мягкое приближение, затем пауза</text>
+  </svg>
+<svg x="408" y="688" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#1B1F28"/>
+    <text x="14" y="22" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="12" font-weight="700">06 · 00:12–00:15</text>
+    <use href="#window-night" x="201" y="78" width="143" height="184"/>
+    <rect x="28" y="333" width="169" height="91" rx="22" fill="#252A32"/>
+    <g transform="translate(-57 197) scale(.7)">
+      <use href="#v4-seated-legs"/><use href="#v4-hoodie"/><use href="#v4-arms-down"/><g transform="rotate(4 250 105)"><use href="#v4-head-thinking"/></g>
+    </g>
+    <path d="M0 423h360v217H0Z" fill="#6B625A"/><path d="M0 423h360" stroke="#A89A88" stroke-width="7"/>
+    <text x="14" y="603" fill="#E8E3DA" font-family="Arial,sans-serif" font-size="10">СРЕДНИЙ · Антон поворачивает голову и взгляд к окну</text>
+    <text x="14" y="622" fill="#C6C0B7" font-family="Arial,sans-serif" font-size="10">Камера: плавный пан вправо к луне</text>
+  </svg>
+<svg x="792" y="688" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#CCD0CF"/>
+    <text x="14" y="22" fill="#30343B" font-family="Arial,sans-serif" font-size="12" font-weight="700">07 · 00:15–00:17</text>
+    <rect y="52" width="360" height="250" fill="#B6C0C4"/>
+    <path d="M0 259h360v97H0Z" fill="#7D898F"/>
+    <path d="M25 259v-132h130v132M206 259v-164h129v164" fill="#9AA5A8" stroke="#59636A" stroke-width="6"/>
+    <path d="M0 357h360v283H0Z" fill="#A8A79F"/>
+    <path d="M0 418h360M34 384v180M94 384v180M154 384v180M214 384v180M274 384v180M334 384v180" stroke="#59636A" stroke-width="4"/>
+    <g stroke="#30343B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <g><circle cx="98" cy="310" r="17" fill="#F8F7F3"/><path d="M98 327v77m0-53-21 23m21-23 22 17m-22 36-14 38m14-38 17 38" fill="none"/></g>
+      <g><circle cx="191" cy="292" r="17" fill="#F8F7F3"/><path d="M191 309v78m0-53-21 23m21-23 22 17m-22 36-14 38m14-38 17 38" fill="none"/></g>
+      <g><circle cx="282" cy="315" r="17" fill="#F8F7F3"/><path d="M282 332v77m0-53-21 23m21-23 22 17m-22 36-14 38m14-38 17 38" fill="none"/></g>
+    </g>
+    <text x="14" y="603" fill="#30343B" font-family="Arial,sans-serif" font-size="10">ОБЩИЙ · рабочие идут к заводской проходной</text>
+    <text x="14" y="622" fill="#59636A" font-family="Arial,sans-serif" font-size="10">Камера: короткий плавный трекинг за сменой</text>
+  </svg>
+<svg x="1176" y="688" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#D6D5D0"/>
+    <text x="14" y="22" fill="#30343B" font-family="Arial,sans-serif" font-size="12" font-weight="700">08 · 00:17–00:19</text>
+    <path d="M0 470h360v170H0Z" fill="#8C8174"/>
+    <g opacity=".45" fill="#70797C">
+      <circle cx="57" cy="161" r="25"/><path d="M25 190q32-19 64 0l12 203H12z"/>
+      <circle cx="307" cy="174" r="24"/><path d="M276 201q31-17 62 0l15 190h-91z"/>
+    </g>
+    <path d="M104 284h152l-14 177q-4 18-62 18t-62-18Z" fill="#F8F7F3" stroke="#30343B" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M256 313q65-10 62 56-3 47-71 42" fill="none" stroke="#30343B" stroke-width="5"/>
+    <path d="M116 310h127" stroke="#8C6047" stroke-width="9"/>
+    <path d="M152 265q-14-22 0-43M190 260q-14-22 0-43M222 266q-14-22 0-43" fill="none" stroke="#F8F7F3" stroke-width="4" stroke-linecap="round"/>
+    <text x="14" y="603" fill="#30343B" font-family="Arial,sans-serif" font-size="10">ДЕТАЛЬ · стакан кофе в руке рабочего</text>
+    <text x="14" y="622" fill="#59636A" font-family="Arial,sans-serif" font-size="10">Камера: статичный крупный план</text>
+  </svg>
+<svg x="24" y="1352" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#1B1F28"/>
+    <text x="14" y="22" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="12" font-weight="700">09 · 00:19–00:21</text>
+    <use href="#window-night" x="219" y="78" width="127" height="164"/>
+    <rect x="27" y="341" width="169" height="82" rx="22" fill="#252A32"/>
+    <g transform="translate(-57 197) scale(.7)">
+      <use href="#v4-seated-legs"/><use href="#v4-hoodie"/><use href="#v4-arms-down"/><g transform="rotate(-4 250 105)"><use href="#v4-head-thinking"/><ellipse cx="250" cy="134" rx="5" ry="7" fill="#25292D"/></g>
+    </g>
+    <path d="M0 423h360v217H0Z" fill="#6B625A"/><path d="M0 423h360" stroke="#A89A88" stroke-width="7"/>
+    <rect x="247" y="397" width="55" height="12" rx="5" fill="#30343B"/>
+    <rect x="18" y="475" width="324" height="69" rx="12" fill="#F8F7F3"/>
+    <text x="33" y="504" fill="#30343B" font-family="Arial,sans-serif" font-size="12" font-weight="700">«А что, если продавать им кофе?..»</text>
+    <text x="14" y="603" fill="#E8E3DA" font-family="Arial,sans-serif" font-size="10">СРЕДНИЙ КРУПНЫЙ · заинтересовался, приподнял голову и говорит</text>
+    <text x="14" y="622" fill="#C6C0B7" font-family="Arial,sans-serif" font-size="10">Камера: почти статично, лёгкий наезд</text>
+  </svg>
+<svg x="408" y="1352" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#1B1F28"/>
+    <text x="14" y="22" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="12" font-weight="700">10 · 00:21–00:23</text>
+    <rect y="390" width="360" height="250" fill="#6B625A"/><path d="M0 390h360" stroke="#A89A88" stroke-width="7"/>
+    <rect x="89" y="154" width="182" height="296" rx="25" fill="#111419" stroke="#30343B" stroke-width="4" transform="rotate(-7 180 302)"/>
+    <rect x="100" y="169" width="160" height="266" rx="16" fill="#F8F7F3" transform="rotate(-7 180 302)"/>
+    <text x="124" y="250" fill="#73777A" font-family="Arial,sans-serif" font-size="14">Баланс</text>
+    <text x="119" y="291" fill="#25292D" font-family="Arial,sans-serif" font-size="24" font-weight="700">15 000 ₽</text>
+    <path d="M350 322 Q306 307 257 328" fill="none" stroke="#30343B" stroke-width="12" stroke-linecap="round"/>
+    <circle cx="255" cy="329" r="9" fill="#F8F7F3" stroke="#25292D" stroke-width="2"/>
+    <text x="14" y="603" fill="#E8E3DA" font-family="Arial,sans-serif" font-size="10">ДЕТАЛЬ · пауза, затем касание экрана — Антон решается на покупку</text>
+    <text x="14" y="622" fill="#C6C0B7" font-family="Arial,sans-serif" font-size="10">Камера: неподвижный крупный план, мягкая пауза</text>
+  </svg>
+<svg x="792" y="1352" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#D9D7D1"/>
+    <text x="14" y="22" fill="#30343B" font-family="Arial,sans-serif" font-size="12" font-weight="700">11 · 00:23–00:25</text>
+    <rect y="394" width="360" height="246" fill="#827767"/><path d="M0 394h360" stroke="#C3B7A6" stroke-width="8"/>
+    <text x="18" y="75" fill="#59636A" font-family="Arial,sans-serif" font-size="11" font-weight="700">ПЕРВЫЙ НАБОР ДЛЯ ПРОДАЖИ</text>
+    <g transform="translate(25 278) scale(.9)"><use href="#small-thermos"/></g>
+    <g transform="translate(101 280)">
+      <path d="M0 45h68l-8 64H12Z" fill="#30343B" stroke="#25292D" stroke-width="3"/>
+      <circle cx="18" cy="116" r="9" fill="#25292D"/><circle cx="52" cy="116" r="9" fill="#25292D"/>
+      <path d="M17 46V25h38v21M28 22V10h17v12" fill="none" stroke="#30343B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g transform="translate(204 345) scale(.72)"><use href="#cup"/></g>
+    <g transform="translate(250 345) scale(.72)"><use href="#cup"/></g>
+    <g transform="translate(296 345) scale(.72)"><use href="#cup"/></g>
+    <path d="M34 364l118-11" stroke="#30343B" stroke-width="2"/>
+    <path d="M266 207h22v14h-22z" fill="#A89A88"/>
+    <path d="M228 218l104 7-5 69-104-7z" fill="#F8F7F3" stroke="#30343B" stroke-width="2"/>
+    <text x="238" y="246" fill="#73777A" font-family="Arial,sans-serif" font-size="10">ЧЕК · ВСЕ ПОКУПКИ</text>
+    <text x="238" y="271" fill="#30343B" font-family="Arial,sans-serif" font-size="18" font-weight="700">8 500 ₽</text>
+    <text x="14" y="603" fill="#F8F7F3" font-family="Arial,sans-serif" font-size="10">ДЕТАЛЬ · стартовый комплект, не полноценная кофейня</text>
+    <text x="14" y="622" fill="#E8E3DA" font-family="Arial,sans-serif" font-size="10">Камера: короткая склейка на чек 8 500 ₽</text>
+  </svg>
+<svg x="1176" y="1352" width="360" height="640" viewBox="0 0 360 640">
+    <rect width="360" height="640" rx="15" fill="#EEECE7"/>
+    <text x="24" y="56" fill="#30343B" font-family="Arial,sans-serif" font-size="17" font-weight="700">ФИНАНСОВАЯ ГРАФИКА</text>
+    <path d="M28 91h304v210H28Z" fill="#F8F7F3" stroke="#30343B" stroke-width="2"/>
+    <path d="M48 126h148M48 151h220M48 176h185M48 201h220M48 226h170" stroke="#B9B6AF" stroke-width="5" stroke-linecap="round"/>
+    <path d="M48 255h260" stroke="#30343B" stroke-width="2"/>
+    <text x="48" y="283" fill="#30343B" font-family="Arial,sans-serif" font-size="18" font-weight="700">8 500 ₽</text>
+    <text x="24" y="352" fill="#59636A" font-family="Arial,sans-serif" font-size="13" font-weight="700">РАСХОДЫ — БОЛЬШОЙ КАССОВЫЙ ЧЕК</text>
+    <rect x="28" y="382" width="304" height="126" rx="14" fill="#F8F7F3" stroke="#30343B" stroke-width="2"/>
+    <text x="48" y="423" fill="#59636A" font-family="Arial,sans-serif" font-size="13">ЕЖЕДНЕВНЫЙ ДОХОД</text>
+    <path d="M48 451h142M48 474h236" stroke="#B9B6AF" stroke-width="5" stroke-linecap="round"/>
+    <text x="24" y="550" fill="#30343B" font-family="Arial,sans-serif" font-size="12">Все суммы — только из финансовой модели.</text>
+    <text x="24" y="574" fill="#30343B" font-family="Arial,sans-serif" font-size="12">Единая валюта сериала: рубли (₽).</text>
+  </svg>
+</svg>

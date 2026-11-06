@@ -1,0 +1,511 @@
+{
+  "reference_file": "narrator-v3-locked.wav",
+  "reference_sha256": "A534E727357EA0BB61FEB5A4B9FF29FB7EB216520F14C7E31F7D50B7749A7CC6",
+  "reference_duration_seconds": 16.8,
+  "final_file": "narrator-v3-final.wav",
+  "final_duration_seconds": 16.461,
+  "alignment": {
+    "model": "Xenova/whisper-small (local ASR; no audio upload)",
+    "method": "Whisper word-level timestamp decode on a temporary 16 kHz analysis copy; timestamps are model estimates, not forced phoneme alignment.",
+    "locked_transcript": "Антон устал каждый день, одно и то же работа, дом, работа. На карте оставалось в его 15 тысяч рублей, и он даже не представлял, что скоро рискнет почти всеми своими деньгами.",
+    "final_transcript": "Антон устал каждый день, одно и то же, работа, дом, работа. На карте оставалось в его 15 тысяч рублей, и он даже не представлял, что скоро рискнет почти всеми своими деньгами.",
+    "locked_word_timestamps": [
+      {
+        "text": "Антон",
+        "start_seconds": 0.2,
+        "end_seconds": 0.82
+      },
+      {
+        "text": "устал",
+        "start_seconds": 0.82,
+        "end_seconds": 2.2
+      },
+      {
+        "text": "каждый",
+        "start_seconds": 2.2,
+        "end_seconds": 2.58
+      },
+      {
+        "text": "день,",
+        "start_seconds": 2.58,
+        "end_seconds": 3.06
+      },
+      {
+        "text": "одно",
+        "start_seconds": 3.46,
+        "end_seconds": 3.6
+      },
+      {
+        "text": "и",
+        "start_seconds": 3.6,
+        "end_seconds": 3.78
+      },
+      {
+        "text": "то",
+        "start_seconds": 3.78,
+        "end_seconds": 4.02
+      },
+      {
+        "text": "же",
+        "start_seconds": 4.02,
+        "end_seconds": 5.16
+      },
+      {
+        "text": "работа,",
+        "start_seconds": 5.16,
+        "end_seconds": 5.9
+      },
+      {
+        "text": "дом,",
+        "start_seconds": 6.06,
+        "end_seconds": 6.64
+      },
+      {
+        "text": "работа.",
+        "start_seconds": 6.82,
+        "end_seconds": 7.8
+      },
+      {
+        "text": "На",
+        "start_seconds": 7.96,
+        "end_seconds": 8.16
+      },
+      {
+        "text": "карте",
+        "start_seconds": 8.16,
+        "end_seconds": 8.56
+      },
+      {
+        "text": "оставалось",
+        "start_seconds": 8.56,
+        "end_seconds": 8.98
+      },
+      {
+        "text": "в",
+        "start_seconds": 8.98,
+        "end_seconds": 9.14
+      },
+      {
+        "text": "его",
+        "start_seconds": 9.14,
+        "end_seconds": 9.72
+      },
+      {
+        "text": "15",
+        "start_seconds": 9.72,
+        "end_seconds": 10.28
+      },
+      {
+        "text": "тысяч",
+        "start_seconds": 10.28,
+        "end_seconds": 10.72
+      },
+      {
+        "text": "рублей,",
+        "start_seconds": 10.72,
+        "end_seconds": 11.28
+      },
+      {
+        "text": "и",
+        "start_seconds": 11.82,
+        "end_seconds": 11.98
+      },
+      {
+        "text": "он",
+        "start_seconds": 11.98,
+        "end_seconds": 12.26
+      },
+      {
+        "text": "даже",
+        "start_seconds": 12.26,
+        "end_seconds": 12.26
+      },
+      {
+        "text": "не",
+        "start_seconds": 12.42,
+        "end_seconds": 12.76
+      },
+      {
+        "text": "представлял,",
+        "start_seconds": 12.76,
+        "end_seconds": 13.28
+      },
+      {
+        "text": "что",
+        "start_seconds": 13.38,
+        "end_seconds": 13.74
+      },
+      {
+        "text": "скоро",
+        "start_seconds": 13.74,
+        "end_seconds": 14.02
+      },
+      {
+        "text": "рискнет",
+        "start_seconds": 14.02,
+        "end_seconds": 15.02
+      },
+      {
+        "text": "почти",
+        "start_seconds": 15.02,
+        "end_seconds": 15.52
+      },
+      {
+        "text": "всеми",
+        "start_seconds": 15.52,
+        "end_seconds": 15.8
+      },
+      {
+        "text": "своими",
+        "start_seconds": 15.8,
+        "end_seconds": 16
+      },
+      {
+        "text": "деньгами.",
+        "start_seconds": 16.2,
+        "end_seconds": 16.64
+      }
+    ],
+    "final_word_timestamps": [
+      {
+        "text": "Антон",
+        "start_seconds": 0.2,
+        "end_seconds": 0.82
+      },
+      {
+        "text": "устал",
+        "start_seconds": 0.82,
+        "end_seconds": 2.1
+      },
+      {
+        "text": "каждый",
+        "start_seconds": 2.1,
+        "end_seconds": 2.48
+      },
+      {
+        "text": "день,",
+        "start_seconds": 2.48,
+        "end_seconds": 2.96
+      },
+      {
+        "text": "одно",
+        "start_seconds": 3.36,
+        "end_seconds": 3.5
+      },
+      {
+        "text": "и",
+        "start_seconds": 3.5,
+        "end_seconds": 3.68
+      },
+      {
+        "text": "то",
+        "start_seconds": 3.68,
+        "end_seconds": 3.92
+      },
+      {
+        "text": "же,",
+        "start_seconds": 3.92,
+        "end_seconds": 4.58
+      },
+      {
+        "text": "работа,",
+        "start_seconds": 4.98,
+        "end_seconds": 5.72
+      },
+      {
+        "text": "дом,",
+        "start_seconds": 5.86,
+        "end_seconds": 6.46
+      },
+      {
+        "text": "работа.",
+        "start_seconds": 6.62,
+        "end_seconds": 7.5
+      },
+      {
+        "text": "На",
+        "start_seconds": 7.66,
+        "end_seconds": 7.86
+      },
+      {
+        "text": "карте",
+        "start_seconds": 7.86,
+        "end_seconds": 8.26
+      },
+      {
+        "text": "оставалось",
+        "start_seconds": 8.26,
+        "end_seconds": 8.66
+      },
+      {
+        "text": "в",
+        "start_seconds": 8.66,
+        "end_seconds": 8.84
+      },
+      {
+        "text": "его",
+        "start_seconds": 8.84,
+        "end_seconds": 9.44
+      },
+      {
+        "text": "15",
+        "start_seconds": 9.44,
+        "end_seconds": 9.98
+      },
+      {
+        "text": "тысяч",
+        "start_seconds": 9.98,
+        "end_seconds": 10.44
+      },
+      {
+        "text": "рублей,",
+        "start_seconds": 10.44,
+        "end_seconds": 10.98
+      },
+      {
+        "text": "и",
+        "start_seconds": 11.54,
+        "end_seconds": 11.68
+      },
+      {
+        "text": "он",
+        "start_seconds": 11.68,
+        "end_seconds": 11.96
+      },
+      {
+        "text": "даже",
+        "start_seconds": 11.96,
+        "end_seconds": 11.96
+      },
+      {
+        "text": "не",
+        "start_seconds": 12.12,
+        "end_seconds": 12.5
+      },
+      {
+        "text": "представлял,",
+        "start_seconds": 12.5,
+        "end_seconds": 13
+      },
+      {
+        "text": "что",
+        "start_seconds": 13.08,
+        "end_seconds": 13.46
+      },
+      {
+        "text": "скоро",
+        "start_seconds": 13.46,
+        "end_seconds": 13.72
+      },
+      {
+        "text": "рискнет",
+        "start_seconds": 13.72,
+        "end_seconds": 14.7
+      },
+      {
+        "text": "почти",
+        "start_seconds": 14.7,
+        "end_seconds": 15.18
+      },
+      {
+        "text": "всеми",
+        "start_seconds": 15.18,
+        "end_seconds": 15.48
+      },
+      {
+        "text": "своими",
+        "start_seconds": 15.48,
+        "end_seconds": 15.7
+      },
+      {
+        "text": "деньгами.",
+        "start_seconds": 15.86,
+        "end_seconds": 16.32
+      }
+    ],
+    "pronunciation_note": "The expected script says «всего пятнадцать тысяч рублей». Whisper-small transcribed «в его 15 тысяч рублей» on both versions; Whisper-tiny transcribed «всего 15 тысяч рублей». Ambiguous ASR result: the phrase was left untouched and needs human listening before any local re-record."
+  },
+  "measured_quiet_regions_locked": [
+    {
+      "start": 0.743917,
+      "end": 0.825042,
+      "duration": 0.081125
+    },
+    {
+      "start": 1.09533,
+      "end": 1.94046,
+      "duration": 0.84513
+    },
+    {
+      "start": 2.65475,
+      "end": 3.17738,
+      "duration": 0.52263
+    },
+    {
+      "start": 4.10446,
+      "end": 4.89779,
+      "duration": 0.79333
+    },
+    {
+      "start": 5.54004,
+      "end": 5.87354,
+      "duration": 0.3335
+    },
+    {
+      "start": 6.22308,
+      "end": 6.59671,
+      "duration": 0.37363
+    },
+    {
+      "start": 7.10796,
+      "end": 7.83917,
+      "duration": 0.73121
+    },
+    {
+      "start": 9.33167,
+      "end": 9.42592,
+      "duration": 0.09425
+    },
+    {
+      "start": 9.80496,
+      "end": 10.0421,
+      "duration": 0.23714
+    },
+    {
+      "start": 10.883,
+      "end": 11.4197,
+      "duration": 0.5367
+    },
+    {
+      "start": 11.5916,
+      "end": 11.7565,
+      "duration": 0.1649
+    },
+    {
+      "start": 14.3074,
+      "end": 14.4015,
+      "duration": 0.0941
+    },
+    {
+      "start": 14.4761,
+      "end": 14.8329,
+      "duration": 0.3568
+    },
+    {
+      "start": 16.5862,
+      "end": 16.8,
+      "duration": 0.2138
+    }
+  ],
+  "silence_detection": {
+    "tool": "FFmpeg silencedetect",
+    "threshold_db": -42,
+    "min_region_seconds": 0.08,
+    "note": "Low-level intervals only; not a claim that every interval is a word boundary."
+  },
+  "edits": [
+    {
+      "source_silence": [
+        1.09533,
+        1.94046
+      ],
+      "removed_seconds": 0.1016,
+      "ratio": 0.12,
+      "reason": "shorten only the tail of a long between-sentence quiet region"
+    },
+    {
+      "source_silence": [
+        4.10446,
+        4.89779
+      ],
+      "removed_seconds": 0.0952,
+      "ratio": 0.12,
+      "reason": "slight trim at phrase transition"
+    },
+    {
+      "source_silence": [
+        7.10796,
+        7.83917
+      ],
+      "removed_seconds": 0.0877,
+      "ratio": 0.12,
+      "reason": "slight trim at sentence transition"
+    },
+    {
+      "source_silence": [
+        14.4761,
+        14.8329
+      ],
+      "removed_seconds": 0.0428,
+      "ratio": 0.12,
+      "reason": "slight trim of an internal micro-pause"
+    }
+  ],
+  "processing": "No TTS regeneration, pitch/speed change, EQ, compression, denoise, or breath removal. Four center cuts are entirely inside quiet regions, joined with 3 ms crossfades. Locked master is unchanged.",
+  "director_sheet": {
+    "reference": "CODEX ? VOICE DIRECTOR V3",
+    "duration_seconds": 16.8,
+    "note": "??? ??????? ???? ? ??????? ???????????? ????????? ?? ??????, ?? ?????????? ??????? ????. ??????????? word-level ??????? ????????? ? alignment.* ? ???????? ??????? Whisper, ?? forced alignment.",
+    "cues": [
+      {
+        "start": 0,
+        "end": 1.35,
+        "text": "????? ?????."
+      },
+      {
+        "start": 1.35,
+        "end": 2.05,
+        "text": "?????"
+      },
+      {
+        "start": 2.05,
+        "end": 3.05,
+        "text": "?????? ????."
+      },
+      {
+        "start": 3.05,
+        "end": 4.45,
+        "text": "???? ? ?? ??."
+      },
+      {
+        "start": 4.45,
+        "end": 6.85,
+        "text": "??????, ???, ??????."
+      },
+      {
+        "start": 6.85,
+        "end": 7.35,
+        "text": "?????????? ?????"
+      },
+      {
+        "start": 7.35,
+        "end": 10.65,
+        "text": "?? ????? ?????????? ????? ?????????? ????? ??????."
+      },
+      {
+        "start": 10.65,
+        "end": 11.35,
+        "text": "?????"
+      },
+      {
+        "start": 11.35,
+        "end": 16.8,
+        "text": "? ?? ???? ?? ???????????, ??? ????? ??????? ????? ????? ?????? ????????."
+      }
+    ],
+    "review": {
+      "source_duration_seconds": 16.8,
+      "candidate_duration_seconds": 16.461,
+      "source_file_available": "narrator-v3-master.wav",
+      "requested_filename_status": "???? narrator-v3-master(1).wav ???????? ? ??????? ? Downloads ?? ??????; ??????????? ??????????? narrator-v3-master.wav, ??????????????? ????? ???????? ????????? ? ???.",
+      "voice_regenerated": false,
+      "source_modified": false,
+      "candidate_edits": "?????? ?????????? ?????? ???????? ??????, ?????? ????? 12% ?????????? ?????; ?????????? 3 ??. ???????? ?????? ?????, ?? pitch ? ?? ???????? ????.",
+      "limitations": [
+        "Whisper-small ????????? ??????? ??????? ???????????? ??? ?? ????; Whisper-tiny ????????? ???????. ????? ???????? ?????? ? director_sheet.cues, ????? ?? ??????????????????.",
+        "Whisper-small ??? ????? ?????? ??????? ????????????; ??? ??????? ?????? ??????? ?????? ???????????? ?????????.",
+        "?????? ??????? ???? ?? ??????? ? ???????????? ???????? ????????? ?? ????????????. ???????????? ASR ??????? ? ?????? ???????? ??? ???????."
+      ]
+    }
+  }
+}

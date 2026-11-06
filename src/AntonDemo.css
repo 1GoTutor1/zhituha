@@ -1,0 +1,55 @@
+.anton-demo {
+  display: flex;
+  min-height: 100vh;
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 24px 16px;
+  color: #25292d;
+  background: #f3f2ef;
+  font-family: 'Rubik', 'Segoe UI', sans-serif;
+}
+
+.anton-demo h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+}
+
+.anton-demo-character {
+  width: min(500px, 90vw);
+  height: auto;
+  max-height: calc(100vh - 150px);
+}
+
+.anton-demo-states {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.anton-demo-states button {
+  min-width: 84px;
+  padding: 10px 15px;
+  border: 1px solid #c7c8c7;
+  border-radius: 999px;
+  color: #34383c;
+  background: #f8f7f3;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.anton-demo-states button.is-active {
+  border-color: #30343b;
+  color: #f8f7f3;
+  background: #30343b;
+}
+
+@media (max-height: 680px) {
+  .anton-demo { gap: 8px; }
+  .anton-demo-character { max-height: calc(100vh - 125px); }
+}
