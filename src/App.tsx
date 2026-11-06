@@ -189,7 +189,7 @@ export default function App() {
   const [numberCollection, setNumberCollection] = useState<any>({ numbers: [], car_plate: null });
   const [phoneNumberRoll, setPhoneNumberRoll] = useState<any>(null);
   const [carPlateRoll, setCarPlateRoll] = useState<any>(null);
-  const [numberSpinScreen, setNumberSpinScreen] = useState<{ type: 'phone' | 'car'; stage: 'spinning' | 'result' } | null>(null);
+  const [numberSpinScreen, setNumberSpinScreen] = useState<{ type: 'phone' | 'car'; stage: 'spinning' | 'stopping' | 'result' } | null>(null);
   const [tgId, setTgId] = useState('');
   const [toast, setToast] = useState<{ msg: string, err: boolean, id: number } | null>(null);
   const [workCaptchaImage, setWorkCaptchaImage] = useState('');
@@ -385,7 +385,7 @@ export default function App() {
     if (!error && data) {
       setNumberCollection(data);
       setCarPlateRoll(data.pending_car_plate || null);
-      if (data.pending_car_plate) setNumberSpinScreen({ type: 'car', stage: 'result' });
+      if (data.pending_car_plate) setNumberSpinScreen(current => current ?? { type: 'car', stage: 'result' });
     }
   };
 
@@ -397,12 +397,12 @@ export default function App() {
     setNumberSpinScreen({ type: 'phone', stage: 'spinning' });
     try {
       const request = supabase.rpc('spin_phone_number_rpc', { p_player_id: pid, p_business_id: businessId });
-      const [{ data, error }] = await Promise.all([request, new Promise(resolve => setTimeout(resolve, 1500))]);
+      const [{ data, error }] = await Promise.all([request, new Promise(resolve => setTimeout(resolve, 850))]);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setMoney(Number(data.money));
       setPhoneNumberRoll(data);
-      setNumberSpinScreen({ type: 'phone', stage: 'result' });
+      setNumberSpinScreen({ type: 'phone', stage: 'stopping' });
       await refreshNumberCollection();
     } catch (error) {
       setNumberSpinScreen(null);
@@ -431,12 +431,12 @@ export default function App() {
     setNumberSpinScreen({ type: 'car', stage: 'spinning' });
     try {
       const request = supabase.rpc('spin_car_plate_rpc', { p_player_id: pid });
-      const [{ data, error }] = await Promise.all([request, new Promise(resolve => setTimeout(resolve, 1800))]);
+      const [{ data, error }] = await Promise.all([request, new Promise(resolve => setTimeout(resolve, 850))]);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setMoney(Number(data.money));
       setCarPlateRoll(data);
-      setNumberSpinScreen({ type: 'car', stage: 'result' });
+      setNumberSpinScreen({ type: 'car', stage: 'stopping' });
       await refreshNumberCollection();
     } catch (error) {
       setNumberSpinScreen(null);

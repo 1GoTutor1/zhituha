@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
 import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront, Crown, Ticket, LockKeyhole, Check, Medal, Sparkles } from 'lucide-react';
 import { 
   getAvatar, BUILDING_PRICE,
@@ -113,8 +113,11 @@ const carPlateMultipliers = (plate: string) => {
   else if (digits[0] === digits[1] || digits[1] === digits[2]) { digitMultiplier = 1.5; digitReason = 'пара одинаковых цифр'; }
   else if (['123','321'].includes(digits)) { digitMultiplier = 2; digitReason = 'цифры идут по порядку'; }
   let letterMultiplier = 1; let letterReason = 'обычные буквы';
+  const letterOrder = 'АВЕКМНОРСТУХ';
+  const letterIndexes = [...letters].map(letter => letterOrder.indexOf(letter));
   if (letters[0] === letters[1] && letters[1] === letters[2]) { letterMultiplier = 8; letterReason = 'три одинаковые буквы'; }
-  else if (letters[0] === letters[1] || letters[1] === letters[2] || letters[0] === letters[2]) { letterMultiplier = 2; letterReason = 'повтор букв'; }
+  else if (letters[0] === letters[1] || letters[1] === letters[2] || letters[0] === letters[2]) { letterMultiplier = 2.5; letterReason = 'пара одинаковых букв'; }
+  else if (letterIndexes.every((value, index) => value >= 0 && (index === 0 || value === letterIndexes[index - 1] + 1)) || letterIndexes.every((value, index) => value >= 0 && (index === 0 || value === letterIndexes[index - 1] - 1))) { letterMultiplier = 3; letterReason = 'буквы идут подряд'; }
   if (['А','М','О'].includes(firstLetter)) { letterMultiplier *= 1.2; letterReason += ` · ${firstLetter} похожа на латинскую`; }
   const regionMultiplier = ['77','99','777'].includes(region) ? 2 : 1;
   const regionReason = regionMultiplier > 1 ? `регион ${region}` : `регион ${region}`;
@@ -146,10 +149,55 @@ const CarNumberCollection = ({ app }: { app: any }) => {
   </>;
 };
 
+const SLOT_ROW_HEIGHT = 34;
+const NumberSpinMachine = ({ isCar, targetValue, stopping, onSettled }: { isCar: boolean; targetValue: string | null; stopping: boolean; onSettled: () => void }) => {
+  const target = targetValue || (isCar ? 'А000АА 77' : '+7 900 000-00-00');
+  const reels = useMemo(() => Array.from(target).map((char, index) => {
+    if (!/[0-9А-Я]/i.test(char)) return { char, index, symbols: null as string[] | null, targetIndex: -1 };
+    const alphabet = /\d/.test(char) ? '0123456789' : 'АВЕКМНОРСТУХ';
+    const cycle = Array.from({ length: 12 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]);
+    cycle[9] = char;
+    return { char, index, symbols: [...cycle, ...cycle], targetIndex: 9 };
+  }), [target]);
+  const trackRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const onSettledRef = useRef(onSettled);
+  onSettledRef.current = onSettled;
+
+  useLayoutEffect(() => {
+    if (!stopping || !targetValue) return;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const animations = trackRefs.current.flatMap((track, index) => {
+      const reel = reels[index];
+      if (!track || !reel?.symbols) return [];
+      const matrix = getComputedStyle(track).transform.match(/matrix(?:3d)?\(([^)]+)\)/)?.[1].split(',').map(Number);
+      const currentY = matrix ? (matrix.length === 16 ? matrix[13] : matrix[5]) : 0;
+      track.style.animation = 'none';
+      track.style.transform = `translate3d(0, ${currentY}px, 0)`;
+      void track.offsetHeight;
+      const currentRow = Math.max(0, -currentY / SLOT_ROW_HEIGHT);
+      const targetRow = currentRow < reel.targetIndex ? reel.targetIndex : reel.targetIndex + 12;
+      const animation = track.animate([
+        { transform: `translate3d(0, ${currentY}px, 0)` },
+        { transform: `translate3d(0, ${-targetRow * SLOT_ROW_HEIGHT}px, 0)` },
+      ], { duration: reducedMotion ? 0 : 760 + (index % 6) * 80, delay: reducedMotion ? 0 : index * 38, easing: 'cubic-bezier(.12,.72,.16,1)', fill: 'forwards' });
+      return [animation];
+    });
+    if (!animations.length) { onSettledRef.current(); return; }
+    Promise.all(animations.map(animation => animation.finished.catch(() => undefined))).then(() => onSettledRef.current());
+    return () => animations.forEach(animation => animation.cancel());
+  }, [stopping, targetValue, reels]);
+
+  return <div className={`number-spin-machine is-spinning${stopping ? ' is-stopping' : ''}${isCar ? ' plate-machine' : ' phone-machine'}`} role="img" aria-label={isCar ? 'Барабаны автомобильного номера' : 'Барабаны телефонного номера'}>
+    <div className="number-spin-window" aria-hidden="true">{reels.map((reel, index) => reel.symbols ? <span className="number-slot-cell" key={index}><span ref={element => { trackRefs.current[index] = element; }} className="number-slot-track" style={{ '--slot-speed': `${1.05 + (index % 7) * .19}s`, '--slot-delay': `-${(index % 9) * .13}s` } as React.CSSProperties}>{reel.symbols.map((symbol, row) => <i key={row}>{symbol}</i>)}</span></span> : <span className="number-slot-separator" key={index}>{reel.char}</span>)}</div>
+    <i className="number-spin-glow" />
+    <span className="number-spin-indicator" aria-hidden="true" />
+  </div>;
+};
+
 const NumberSpinScreen = ({ app }: { app: any }) => {
   const spin = app.numberSpinScreen;
   if (!spin) return null;
-  const spinning = spin.stage === 'spinning';
+  const spinning = spin.stage !== 'result';
   const isCar = spin.type === 'car';
   const roll = isCar ? app.carPlateRoll : app.phoneNumberRoll;
   const factors = roll ? (isCar ? carPlateMultipliers(roll.plate) : phoneNumberMultipliers(roll.number)) : null;
@@ -166,14 +214,11 @@ const NumberSpinScreen = ({ app }: { app: any }) => {
       <main className="number-spin-content">
         <div className="number-spin-eyebrow">{isCar ? 'НОВЫЙ АВТОМОБИЛЬНЫЙ НОМЕР' : 'НОВЫЙ МОБИЛЬНЫЙ НОМЕР'}</div>
         {spinning ? <>
-          <h1>{isCar ? 'Подбираем госномер' : 'Подбираем номер'}</h1>
-          <p>Секунду — проверяем комбинацию и её стоимость</p>
-          <div className={`number-spin-machine is-spinning${isCar ? ' plate-machine' : ' phone-machine'}`} aria-live="polite">
-            <div className="number-spin-reel">{isCar ? 'А 000 АА 77' : '+7 900 000-00-00'}</div>
-            <i className="number-spin-glow" />
-          </div>
-          <div className="number-spin-progress"><i /></div>
-          <small>Номер скоро появится здесь</small>
+          <h1>{spin.stage === 'stopping' ? 'Останавливаем барабаны' : isCar ? 'Крутим госномер' : 'Крутим номер'}</h1>
+          <p>{spin.stage === 'stopping' ? 'Фиксируем выпавшую комбинацию' : 'Каждая цифра и буква крутится отдельно'}</p>
+          <NumberSpinMachine isCar={isCar} targetValue={spin.stage === 'stopping' && roll ? (isCar ? roll.plate : roll.number) : null} stopping={spin.stage === 'stopping'} onSettled={() => app.setNumberSpinScreen({ type: spin.type, stage: 'result' })} />
+          <div className={`number-spin-progress${spin.stage === 'stopping' ? ' is-stopping' : ''}`}><i /></div>
+          <small>{spin.stage === 'stopping' ? 'Номер уже определён' : 'Сверяем комбинацию и её цену'}</small>
         </> : roll && factors ? <>
           <h1>Выпал красивый номер</h1>
           {isCar ? <CarPlate plate={roll.plate} /> : <div className="number-spin-phone-result">{roll.number}</div>}
