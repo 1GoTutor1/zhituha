@@ -306,6 +306,13 @@ export default function App() {
   const [quitOpen, setQuitOpen] = useState(false);
   const [refOpen, setRefOpen] = useState(false);
   const lock = useRef(false);
+  const numberCollectionCache = useRef<{
+    playerId: string | null;
+    data: any | null;
+    updatedAt: number;
+    generation: number;
+    pending: Promise<void> | null;
+  }>({ playerId: null, data: null, updatedAt: 0, generation: 0, pending: null });
   const marketLeaderboardCache = useRef<{
     until: number;
     money: any[];
@@ -379,14 +386,42 @@ export default function App() {
     try { await fn(); } catch (e: any) { showMsg(e.message || "Ошибка", true); } finally { lock.current = false; setProc(false); }
   };
 
-  const refreshNumberCollection = async () => {
+  const refreshNumberCollection = async (force = false) => {
     if (!pid) return;
-    const { data, error } = await supabase.rpc('phone_numbers_state_rpc', { p_player_id: pid });
-    if (!error && data) {
+    const cache = numberCollectionCache.current;
+    if (cache.playerId !== pid) {
+      cache.playerId = pid;
+      cache.data = null;
+      cache.updatedAt = 0;
+      cache.pending = null;
+      cache.generation++;
+    }
+    const apply = (data: any) => {
       setNumberCollection(data);
       setCarPlateRoll(data.pending_car_plate || null);
       if (data.pending_car_plate) setNumberSpinScreen(current => current ?? { type: 'car', stage: 'result' });
+    };
+    const pendingPlateExpiresAt = cache.data?.pending_car_plate?.expires_at
+      ? Date.parse(cache.data.pending_car_plate.expires_at)
+      : Number.POSITIVE_INFINITY;
+    if (!force && cache.data && Date.now() - cache.updatedAt < 5_000 && pendingPlateExpiresAt > Date.now()) {
+      apply(cache.data);
+      return;
     }
+    if (!force && cache.pending) return cache.pending;
+
+    const generation = ++cache.generation;
+    const request = (async () => {
+      const { data, error } = await supabase.rpc('phone_numbers_state_rpc', { p_player_id: pid });
+      if (!error && data && generation === cache.generation) {
+        cache.data = data;
+        cache.updatedAt = Date.now();
+        apply(data);
+      }
+    })();
+    cache.pending = request;
+    try { await request; }
+    finally { if (cache.pending === request) cache.pending = null; }
   };
 
   useEffect(() => {
@@ -403,7 +438,20 @@ export default function App() {
       setMoney(Number(data.money));
       setPhoneNumberRoll(data);
       setNumberSpinScreen({ type: 'phone', stage: 'stopping' });
-      await refreshNumberCollection();
+      const cache = numberCollectionCache.current;
+      if (cache.playerId === pid) {
+        cache.generation++;
+        cache.pending = null;
+        if (cache.data && Date.now() - cache.updatedAt < 5_000) {
+          const number = { id: data.number_id, number: data.number, estimated_value: data.estimated_value, is_active: false, created_at: new Date().toISOString() };
+          const nextCollection = { ...cache.data, numbers: [number, ...(cache.data.numbers || []).filter((entry: any) => entry.id !== number.id)] };
+          cache.data = nextCollection;
+          cache.updatedAt = Date.now();
+          setNumberCollection(nextCollection);
+        } else {
+          cache.updatedAt = 0;
+        }
+      }
     } catch (error) {
       setNumberSpinScreen(null);
       throw error;
@@ -420,7 +468,7 @@ export default function App() {
       setNumberSpinScreen(null);
     }
     showMsg(`Номер продан государству · +${Number(data.price).toLocaleString('ru-RU')} ₽`);
-    await refreshNumberCollection();
+    await refreshNumberCollection(true);
   });
 
   const activatePhoneNumber = (numberId: string) => action(async () => {
@@ -428,7 +476,7 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
     showMsg('Номер установлен на телефон');
-    await refreshNumberCollection();
+    await refreshNumberCollection(true);
   });
 
   const spinCarPlate = () => action(async () => {
@@ -441,7 +489,12 @@ export default function App() {
       setMoney(Number(data.money));
       setCarPlateRoll(data);
       setNumberSpinScreen({ type: 'car', stage: 'stopping' });
-      await refreshNumberCollection();
+      const cache = numberCollectionCache.current;
+      if (cache.playerId === pid) {
+        cache.generation++;
+        cache.pending = null;
+        cache.updatedAt = 0;
+      }
     } catch (error) {
       setNumberSpinScreen(null);
       throw error;
@@ -456,7 +509,7 @@ export default function App() {
     setCarPlateRoll(null);
     setNumberSpinScreen(null);
     showMsg(choice === 'sell' ? `Номер продан государству · +${Number(data.price).toLocaleString('ru-RU')} ₽` : choice === 'activate' ? `Номер ${data.plate} установлен на автомобиль` : 'Номер сохранён в коллекции');
-    await refreshNumberCollection();
+    await refreshNumberCollection(true);
   });
 
   const activateCarNumber = (numberId: string) => action(async () => {
@@ -464,7 +517,7 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
     showMsg(`Номер ${data.plate} установлен на автомобиль`);
-    await refreshNumberCollection();
+    await refreshNumberCollection(true);
   });
 
   const sellCarNumber = (numberId: string) => action(async () => {
@@ -473,7 +526,7 @@ export default function App() {
     if (data?.error) throw new Error(data.error);
     setMoney(Number(data.money));
     showMsg(`Номер продан государству · +${Number(data.price).toLocaleString('ru-RU')} ₽`);
-    await refreshNumberCollection();
+    await refreshNumberCollection(true);
   });
 
   // Обновление ТОЛЬКО безопасных полей профиля игрока.
@@ -493,7 +546,7 @@ export default function App() {
       setPhoneNumberRoll(null);
       setNumberSpinScreen(null);
     }
-    await Promise.all([refreshNumberCollection(), loadMarket()]);
+    await Promise.all([refreshNumberCollection(true), loadMarket()]);
     setMarketTab('items');
     setTab('market');
     showMsg('\u041d\u043e\u043c\u0435\u0440 \u0432\u044b\u0441\u0442\u0430\u0432\u043b\u0435\u043d \u043d\u0430 \u0440\u044b\u043d\u043e\u043a');
@@ -746,6 +799,17 @@ export default function App() {
 
   // Обновление профиля игрока (деньги/энергия/таймеры) — отдельный лёгкий запрос,
   // чтобы не тянуть ради этого все бизнесы.
+  const refreshProfessionState = async () => {
+    if (!pid) return;
+    const { data, error } = await supabase.rpc('profession_state_rpc', { p_player_id: pid });
+    if (error || data?.error) {
+      console.error('Profession state refresh failed:', error?.message || data.error);
+      return null;
+    }
+    if (data) setCareer(data);
+    return data;
+  };
+
   const refreshProfile = async (includeProfession = false) => {
     if (!user?.id || !pid) return;
     const response = await fetch('/api/players', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: includeProfession ? 'me' : 'profile_refresh', init_data: (window as any).Telegram?.WebApp?.initData || '' }) });
@@ -860,7 +924,10 @@ export default function App() {
     if (tab === 'market') { loadMarket(); refreshMarketData(); }
     if (tab === 'business') refreshMarketData();
     if (tab === 'shop') { refreshProfile(); pollMyBizs(); }
-    if (tab === 'inventory') { refreshProfile(true); pollMyBizs(); }
+    if (tab === 'inventory') {
+      void Promise.all([refreshProfile(), refreshProfessionState()]);
+      void pollMyBizs();
+    }
     if (['business', 'jobs', 'cafe'].includes(tab)) {
       const refreshWorkData = async () => {
         const businesses = await pollMyBizs();
@@ -1322,7 +1389,7 @@ export default function App() {
     if (data && data.error) throw new Error(data.error);
 
     if (data.item_type === 'phone_number' || data.item_type === 'car_number') {
-      await Promise.all([refreshNumberCollection(), loadMarket()]);
+      await Promise.all([refreshNumberCollection(true), loadMarket()]);
       showMsg('\u041d\u043e\u043c\u0435\u0440 \u0432\u0435\u0440\u043d\u0443\u0442 \u0432 \u043a\u043e\u043b\u043b\u0435\u043a\u0446\u0438\u044e');
       return;
     }
@@ -1416,7 +1483,6 @@ export default function App() {
     if (data?.ignored) return;
     if (data?.blocked) return showMsg('Слишком много неверных ответов. Подожди минуту.', true);
     if (data?.error) return showMsg(data.error, true);
-    if (data?.daily_mission_sync_error) showMsg('Работа засчитана, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
     setMoney(Number(data.money));
     if (data.energy != null) setEnergy(Number(data.energy));
     if (data.level != null) {
@@ -1431,10 +1497,7 @@ export default function App() {
     window.dispatchEvent(new CustomEvent('zhituha:work-reward', { detail: Number(data.work_pay) }));
     advanceMissionProgress('work_5');
     hapticFeedback('medium');
-    // The work RPC already returns the exact wallet, energy, XP and level.
-    // The mission counter is updated optimistically; only reload it if the
-    // server reports that its daily-mission repair path failed.
-    if (data?.daily_mission_sync_error) void refreshDailyMissions();
+    // The action and mission progress commit together; update the visible count immediately.
     if (onboardStep === 0) { if (tutorialWorkClicks >= 2) { setTutorialWorkClicks(0); await advanceTutorial(1); } else setTutorialWorkClicks(c => c + 1); }
   });
 
@@ -1540,7 +1603,8 @@ export default function App() {
     }
     advanceMissionProgress('profession_1');
     advanceMissionProgress('work_5');
-    await refreshProfile(true);
+    if (data.money != null) setMoney(Number(data.money));
+    await refreshProfessionState();
     if (data.pending_reward) {
       showMsg('Находка готова — выбери, что с ней сделать');
       hapticFeedback('heavy');
@@ -1572,7 +1636,7 @@ export default function App() {
     const { data, error } = await supabase.rpc('claim_profession_reward_rpc', { p_player_id: pid, p_choice: choice });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    await refreshProfile(true);
+    await refreshProfessionState();
     if (choice === 'sell') setMoney(Number(data.money));
     if (choice === 'inventory') {
       try { localStorage.setItem('zhituha_inventory_new', '1'); } catch {}
@@ -1588,13 +1652,10 @@ export default function App() {
     const { data, error } = await supabase.rpc('sell_inventory_rpc', { p_player_id: pid, p_item_id: itemId, p_quantity: quantity });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    if (data?.daily_mission_sync_error) showMsg('Продажа прошла, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.', true);
     setMoney(Number(data.money));
     advanceMissionProgress('sell_1');
-    await refreshProfile(true);
-    showMsg(data?.daily_mission_sync_error
-      ? 'Продажа прошла, но квест не синхронизировался. Проверь sql/DAILY_MISSIONS_SYNC_FIX.sql в Supabase.'
-      : `Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, Boolean(data?.daily_mission_sync_error), data?.daily_mission_sync_error ? undefined : 'reward');
+    await refreshProfessionState();
+    showMsg(`Продано за ${Number(data.proceeds).toLocaleString('ru-RU')} ₽`, false, 'reward');
   });
 
   const buyCoffee = (cafe: any) => action(async () => {
@@ -1733,7 +1794,7 @@ export default function App() {
       if (data?.error) throw new Error(data.error);
       setMoney(Number(data.money));
       setMarket((current: any[]) => current.filter((lot) => lot.id !== item.id));
-      await refreshNumberCollection();
+      await refreshNumberCollection(true);
       showMsg(`\u041d\u043e\u043c\u0435\u0440 \u043a\u0443\u043f\u043b\u0435\u043d \u00b7 \u043d\u0430\u043b\u043e\u0433 ${Number(data.income_tax || 0).toLocaleString('ru-RU')} \u20bd`);
       return;
     }
