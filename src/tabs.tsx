@@ -237,7 +237,13 @@ const NumberSpinMachine = ({ isCar, targetValue, stopping, onSettled }: { isCar:
 };
 
 const NumberSpinScreen = ({ app }: { app: any }) => {
+  const [phoneListingOpen, setPhoneListingOpen] = useState(false);
+  const [phoneListingPrice, setPhoneListingPrice] = useState('');
   const spin = app.numberSpinScreen;
+  useEffect(() => {
+    setPhoneListingOpen(false);
+    setPhoneListingPrice('');
+  }, [spin?.type, app.phoneNumberRoll?.number_id]);
   if (!spin) return null;
   const spinning = spin.stage !== 'result';
   const isCar = spin.type === 'car';
@@ -246,6 +252,18 @@ const NumberSpinScreen = ({ app }: { app: any }) => {
   const factorData: any = factors;
   const capped = Boolean(isCar && roll && factors && Number(roll.estimated_value) < 1000 * factors.totalMultiplier);
   const closePhone = () => { app.setPhoneNumberRoll(null); app.setNumberSpinScreen(null); };
+  const openPhoneListing = () => {
+    setPhoneListingPrice(String(Math.max(1, Number(roll?.estimated_value) || 1)));
+    setPhoneListingOpen(true);
+  };
+  const submitPhoneListing = () => {
+    const price = Number(phoneListingPrice);
+    if (!Number.isSafeInteger(price) || price < 1 || price > 100000000) {
+      app.showMsg('Укажи цену от 1 до 100 000 000 ₽', true);
+      return;
+    }
+    app.listNumberMarketLot('phone_number', roll.number_id, price);
+  };
 
   return <div className={`number-spin-screen${isCar ? ' is-car' : ' is-phone'}`} role="dialog" aria-modal="true" aria-label={isCar ? 'Крутка автомобильного номера' : 'Крутка телефонного номера'}>
     <div className="number-spin-shell">
@@ -276,7 +294,22 @@ const NumberSpinScreen = ({ app }: { app: any }) => {
             <Btn variant="primary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(roll.roll_id, 'keep')}>Сохранить в коллекцию</Btn>
             {app.hasCar && <Btn variant="secondary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(roll.roll_id, 'activate')}>Установить на машину</Btn>}
             <Btn variant="secondary" disabled={app.proc} onClick={() => app.resolveCarPlateRoll(roll.roll_id, 'sell')}>Продать государству</Btn>
-          </div> : <div className="number-spin-actions"><Btn variant="primary" onClick={closePhone}>Забрать в коллекцию</Btn><small>Продать или выставить на рынок можно в инвентаре.</small></div>}
+          </div> : <div className="number-spin-actions">
+            <Btn variant="primary" disabled={app.proc} onClick={closePhone}>Оставить в коллекции</Btn>
+            {!phoneListingOpen ? <>
+              <Btn variant="secondary" disabled={app.proc} onClick={openPhoneListing}>Выставить на рынок</Btn>
+              <Btn variant="secondary" disabled={app.proc} onClick={() => app.sellPhoneNumber(roll.number_id)}>Продать государству</Btn>
+              <small>Номер уже сохранён в коллекции. Его можно оставить, выставить игрокам или продать государству.</small>
+            </> : <div style={{ display: 'grid', gap: 8, textAlign: 'left' }}>
+              <label htmlFor="phone-spin-market-price">Цена на рынке, ₽</label>
+              <input id="phone-spin-market-price" type="number" min={1} max={100000000} step={1} inputMode="numeric" value={phoneListingPrice} onChange={event => setPhoneListingPrice(event.target.value)} style={S.input} />
+              <small>Оценка государства: {Number(roll.estimated_value).toLocaleString('ru-RU')} ₽</small>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn variant="secondary" disabled={app.proc} onClick={() => setPhoneListingOpen(false)}>Назад</Btn>
+                <Btn variant="primary" disabled={app.proc || !Number.isSafeInteger(Number(phoneListingPrice)) || Number(phoneListingPrice) < 1 || Number(phoneListingPrice) > 100000000} onClick={submitPhoneListing}>Выставить</Btn>
+              </div>
+            </div>}
+          </div>}
         </> : null}
       </main>
     </div>

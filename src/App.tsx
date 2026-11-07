@@ -415,6 +415,10 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
     setMoney(Number(data.money));
+    if (phoneNumberRoll?.number_id === numberId) {
+      setPhoneNumberRoll(null);
+      setNumberSpinScreen(null);
+    }
     showMsg(`Номер продан государству · +${Number(data.price).toLocaleString('ru-RU')} ₽`);
     await refreshNumberCollection();
   });
@@ -485,6 +489,10 @@ export default function App() {
     });
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
+    if (numberType === 'phone_number' && phoneNumberRoll?.number_id === numberId) {
+      setPhoneNumberRoll(null);
+      setNumberSpinScreen(null);
+    }
     await Promise.all([refreshNumberCollection(), loadMarket()]);
     setMarketTab('items');
     setTab('market');
