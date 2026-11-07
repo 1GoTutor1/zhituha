@@ -140,8 +140,10 @@ begin
     return jsonb_build_object('error','Эта модель не подходит автосалону'); end if;
   if coalesce((dealer.stock->>v.model_id)::integer,0)<1 then return jsonb_build_object('error','Автомобиль закончился'); end if;
   cars:=case when jsonb_typeof(taxi.stock->'taxi_cars')='array' then taxi.stock->'taxi_cars' else '[]'::jsonb end;
-  if jsonb_array_length(cars)>=2 then
-    return jsonb_build_object('error','Сначала найми водителя: парк может иметь по одной машине на водителя'); end if;
+  select count(*)::integer into count_drivers
+    from public.business_workers where business_id=taxi.id and role='Водитель';
+  if jsonb_array_length(cars)>=count_drivers then
+    return jsonb_build_object('error','Для каждой машины нужен отдельный водитель. Найми ещё водителя, чтобы расширить парк'); end if;
   price:=v.base_price;
   if coalesce(taxi.cash_balance,0)<price then return jsonb_build_object('error','В кассе таксопарка не хватает денег'); end if;
   select count(*) into mech_count from public.business_workers where business_id=dealer.id and role='Механик';

@@ -1226,7 +1226,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
           </>)}
 
           {app.activeBizType === 'taxi' && (<>
-              <p style={{ color: '#6b5f45', fontSize: 15, margin: '5px 0 15px 0' }}>Машин в парке: <b>{currentStock.taxi_cars?.length || 0}</b></p>
+              <p style={{ color: '#6b5f45', fontSize: 15, margin: '5px 0 15px 0' }}>Машин в парке: <b>{currentStock.taxi_cars?.length || 0}</b> · водителей: <b>{app.allWorkers?.filter((w: any) => w.business_id === activeBiz.id && w.role === 'Водитель').length || 0}</b><small style={{ display: 'block', marginTop: 4, fontSize: 12 }}>Одна машина на одного водителя — найми водителей, чтобы расширить парк.</small></p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 15 }}>
                 {currentStock.taxi_cars?.map((car: any, i: number) => (
                   <div key={i} className="taxi-fleet-car" style={{ background: 'rgba(90,70,40,0.08)', padding: 10, borderRadius: 12 }}>
@@ -1247,7 +1247,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
                 if (!offers.length) return null;
                 return <section key={dealer.business_id} style={{ padding: 10, marginBottom: 8, borderRadius: 10, background: 'rgba(90,70,40,.06)', textAlign: 'left' }}>
                   <b>{dealer.business_name}</b><small style={{ display: 'block', color: '#6b5f45' }}>Владелец: {dealer.owner_name || 'игрок'} · класс {dealer.salon_class === 'low' ? 'низкий' : dealer.salon_class === 'mid' ? 'средний' : 'высокий'}</small>
-                  {offers.map((model: any) => <button key={model.model_id} type="button" disabled={app.proc || (currentStock.taxi_cars?.length || 0) >= 2 || Number(activeBiz.cash_balance || 0) < Number(model.base_price) || String(dealer.owner_id) === String(app.pid)} onClick={() => app.buyTaxiVehicle(dealer.business_id, model.model_id)} className="taxi-dealer-offer" style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6, padding: 8, border: '1px solid #3d7ea6', borderRadius: 8, background: '#fffaf0', color: '#2f2a1d', textAlign: 'left' }}><VehicleArtwork modelId={model.model_id} /><span>{model.model_name} · {model.quantity} шт.</span><b>{Number(model.base_price).toLocaleString('ru-RU')} ₽</b></button>)}
+                  {offers.map((model: any) => <button key={model.model_id} type="button" disabled={app.proc || (currentStock.taxi_cars?.length || 0) >= (app.allWorkers?.filter((w: any) => w.business_id === activeBiz.id && w.role === 'Водитель').length || 0) || Number(activeBiz.cash_balance || 0) < Number(model.base_price) || String(dealer.owner_id) === String(app.pid)} onClick={() => app.buyTaxiVehicle(dealer.business_id, model.model_id)} className="taxi-dealer-offer" style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6, padding: 8, border: '1px solid #3d7ea6', borderRadius: 8, background: '#fffaf0', color: '#2f2a1d', textAlign: 'left' }}><VehicleArtwork modelId={model.model_id} /><span>{model.model_name} · {model.quantity} шт.</span><b>{Number(model.base_price).toLocaleString('ru-RU')} ₽</b></button>)}
                 </section>;
               })}
               {(app.vehicleState?.dealers || []).length === 0 && <small style={{ color: '#6b5f45' }}>Нет автосалонов с машинами в наличии.</small>}

@@ -300,8 +300,8 @@ begin
       order by w.created_at limit 1;
     if taxi_worker.id is null then return jsonb_build_object('error','Нужно устроиться водителем в таксопарк'); end if;
     select * into taxi_biz from public.businesses where id=taxi_worker.business_id for update;
-    select c.car into taxi_car from jsonb_array_elements(coalesce(taxi_biz.stock->'taxi_cars','[]'::jsonb)) with ordinality as c(car,position)
-      where coalesce((c.car->>'health')::int,0)>0 order by c.position limit 1;
+    select taxi_car_row.car into taxi_car from jsonb_array_elements(coalesce(taxi_biz.stock->'taxi_cars','[]'::jsonb)) with ordinality as taxi_car_row(car,position)
+      where coalesce((taxi_car_row.car->>'health')::int,0)>0 order by taxi_car_row.position limit 1;
     if taxi_car is null then return jsonb_build_object('error','В таксопарке нет исправной машины'); end if;
     taxi_fare := case when coalesce(taxi_car->>'class', taxi_car->>'model') in ('business','bmw','mercedes') then 900
       when coalesce(taxi_car->>'class', taxi_car->>'model') in ('comfort','toyota','camry') then 700 else 500 end;

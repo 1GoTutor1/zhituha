@@ -226,7 +226,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Районы ещё не установлены в Supabase. Выполни sql/DISTRICTS_ENERGY_MIGRATION.sql после миграций бизнеса.' });
       }
       if (['profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc', 'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc', 'sell_inventory_rpc', 'taxi_fleet_rpc', 'select_taxi_car_rpc'].includes(name)
-          && ['PGRST202', '42883', '42P01', '42703'].includes(error.code)) {
+          && ['PGRST202', '42883', '42P01'].includes(error.code)) {
         return res.status(400).json({ error: 'Обновление профессий ещё не установлено в Supabase. Проверьте миграцию sql/PROFESSIONS_INVENTORY_MIGRATION.sql.' });
       }
       if (['profession_state_rpc', 'select_profession_rpc', 'start_profession_cycle_rpc', 'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc', 'sell_inventory_rpc', 'taxi_fleet_rpc', 'select_taxi_car_rpc'].includes(name)) {
