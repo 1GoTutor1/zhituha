@@ -148,7 +148,7 @@ export const getDayModifier = () => {
 //        Без инженера: время x3 + 3000₽ простоя станка.
 // CONSTRUCTION: дом — Строитель 10000/место (макс 3, обязателен), Прораб 20000 (макс 1).
 //        Без прораба: время x3 + 5000₽/час из кассы.
-// TAXI: Водитель 10% от кассы (макс 2, без них доход 0), Механик 5% (макс 1;
+// TAXI: Водитель 10% от кассы (макс 5, без них доход 0), Механик 5% (макс 1;
 //        без него износ 50%/час вместо 8%/час).
 export const BIZ_JOBS: Record<string, { role: string, salary: number, max: number }[]> = {
   coffee: [
@@ -159,7 +159,7 @@ export const BIZ_JOBS: Record<string, { role: string, salary: number, max: numbe
   phone_factory: [{ role: 'Сборщик', salary: 10000, max: 2 }, { role: 'Инженер', salary: 15000, max: 1 }],
   minimarket: [{ role: 'Кассир', salary: 5, max: 1 }],
   auto_repair: [{ role: 'Механик', salary: 3, max: 1 }],
-  taxi: [{ role: 'Водитель', salary: 10, max: 2 }, { role: 'Механик', salary: 5, max: 1 }], // % от кассы
+  taxi: [{ role: 'Водитель', salary: 10, max: 5 }, { role: 'Механик', salary: 5, max: 1 }], // % от кассы
   construction: [{ role: 'Строитель', salary: 10000, max: 3 }, { role: 'Прораб', salary: 20000, max: 1 }]
 };
 

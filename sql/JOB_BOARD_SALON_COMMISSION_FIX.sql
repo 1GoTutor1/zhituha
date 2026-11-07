@@ -44,7 +44,7 @@ begin
     elsif p_role = 'Прораб' and p_salary = 20000 then allowed := 1;
     else return 'Для стройтреста выбери доступную вакансию'; end if;
   elsif b.biz_type = 'taxi' then
-    if p_role = 'Водитель' and p_salary = 10 then allowed := 2;
+    if p_role = 'Водитель' and p_salary = 10 then allowed := 5;
     elsif p_role = 'Механик' and p_salary = 5 then allowed := 1;
     else return 'Для таксопарка выбери доступную вакансию'; end if;
   else

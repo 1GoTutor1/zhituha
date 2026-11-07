@@ -206,7 +206,7 @@ begin
   elsif b.biz_type = 'taxi' then
     if p_role = 'Водитель' then
       if p_salary <> 10 then return 'Ставка водителя фиксирована: 10% кассы'; end if;
-      allowed := 2;
+      allowed := 5;
     elsif p_role = 'Механик' then
       if p_salary <> 5 then return 'Ставка механика фиксирована: 5% кассы'; end if;
       allowed := 1;
