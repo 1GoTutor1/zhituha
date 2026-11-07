@@ -1241,7 +1241,10 @@ export default function App() {
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
     setMyBizs(current => current.map(b => b.id === businessId ? { ...b, cash_balance: Number(data.cash_balance) } : b));
-    showMsg(`Закупка выполнена: осталось ${data.quantity} шт.`);
+    const discountNote = Number(data.discount_percent) > 0
+      ? ` · скидка ${Number(data.discount_percent)}% (−${Number(data.discount_amount).toLocaleString('ru-RU')} ₽)`
+      : '';
+    showMsg(`Закуплено ${Number(data.purchased_quantity ?? quantity)} шт. · списано ${Number(data.cost).toLocaleString('ru-RU')} ₽${discountNote} · на складе ${data.quantity} шт.`);
     await Promise.all([refreshBusinessOffers(), pollMyBizs()]);
   });
 

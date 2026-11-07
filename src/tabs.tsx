@@ -15,6 +15,7 @@ import { getProfileBackground, PROFILE_BACKGROUND_NAMES } from './profileBackgro
 import { DISTRICTS, districtForLocation, RETIRED_LOCATION_KEYS } from './districts';
 
 const coffeeBonusMinutes = (productId: string) => productId === 'coffee_small' ? 5 : productId === 'coffee_medium' ? 7 : 9;
+const bulkRestockDiscountPercent = (quantity: number) => quantity >= 500 ? 5 : quantity >= 250 ? 4 : quantity >= 100 ? 2 : 0;
 
 const CarPlate = ({ plate, compact = false }: { plate: string; compact?: boolean }) => {
   const match = String(plate || '').toUpperCase().match(/^([\u0410-\u042fA-Z])(\d{3})([\u0410-\u042fA-Z]{2})\s*(\d{2,3})$/);
@@ -1316,8 +1317,15 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
                 const restockDraft = restockDrafts[product.product_id] ?? '50';
                 const restockQuantity = Number(restockDraft);
                 const validRestockQuantity = Number.isSafeInteger(restockQuantity) && restockQuantity >= 1 && restockQuantity <= 500;
-                const customRestockCost = Number(product.wholesale_price) * restockQuantity;
-                const quickRestockAmounts = [50, 100, 250];
+                const restockQuote = (quantity: number) => {
+                  const baseCost = Number(product.wholesale_price) * quantity;
+                  const discountPercent = bulkRestockDiscountPercent(quantity);
+                  const discountAmount = Math.floor(baseCost * discountPercent / 100);
+                  return { baseCost, discountPercent, discountAmount, cost: baseCost - discountAmount };
+                };
+                const customRestock = restockQuote(validRestockQuantity ? restockQuantity : 0);
+                const autoRefill = restockQuote(Number(autoDraft.refill) || 0);
+                const quickRestockAmounts = [50, 100, 250, 500];
                 return <div key={product.product_id} style={{ padding: 11, borderRadius: 10, background: 'rgba(90,70,40,.06)', marginBottom: 9 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><b>{product.product_name}</b><span>На складе: {product.quantity}</span></div>
                   <small style={{ color: '#6b5f45' }}>Опт {Number(product.wholesale_price).toLocaleString('ru-RU')} ₽/шт.</small>
@@ -1327,18 +1335,18 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
                     <input type="number" min={product.min_price} max={product.max_price} value={draft} onChange={event => setShopPriceDrafts(current => ({ ...current, [product.product_id]: event.target.value }))} style={{ ...S.input, flex: 1, margin: 0, padding: 9, fontSize: 15 }} />
                     <button type="button" disabled={app.proc || Number(draft) === Number(product.retail_price)} onClick={() => app.setBusinessProductPrice(activeBiz.id, product.product_id, Number(draft))} style={{ border: 0, borderRadius: 8, padding: '0 12px', color: '#fff', background: '#3d7ea6', fontWeight: 700 }}>Сохранить</button>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7, marginTop: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 7, marginTop: 8 }}>
                     {quickRestockAmounts.map(quantity => {
-                      const cost = Number(product.wholesale_price) * quantity;
-                      return <button key={quantity} type="button" disabled={app.proc || Number(activeBiz.cash_balance || 0) < cost} onClick={() => app.restockBusinessProduct(activeBiz.id, product.product_id, quantity)} style={{ border: '1px solid #3d7ea6', borderRadius: 8, padding: 8, color: '#2f6a94', background: 'rgba(61,126,166,.08)' }}>+{quantity} · {cost.toLocaleString('ru-RU')} ₽</button>;
+                      const quote = restockQuote(quantity);
+                      return <button key={quantity} type="button" disabled={app.proc || Number(activeBiz.cash_balance || 0) < quote.cost} onClick={() => app.restockBusinessProduct(activeBiz.id, product.product_id, quantity)} style={{ border: '1px solid #3d7ea6', borderRadius: 8, padding: 8, color: '#2f6a94', background: 'rgba(61,126,166,.08)', fontSize: 11 }}>+{quantity} · {quote.cost.toLocaleString('ru-RU')} ₽{quote.discountPercent > 0 ? ` (−${quote.discountPercent}%)` : ''}</button>;
                     })}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 7, alignItems: 'end', marginTop: 8 }}>
                     <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Своё количество · 1–500
                       <input aria-label={`Количество закупки: ${product.product_name}`} type="number" inputMode="numeric" min={1} max={500} step={1} value={restockDraft} onChange={event => setRestockDrafts(current => ({ ...current, [product.product_id]: event.target.value }))} style={{ ...S.input, margin: 0, padding: 9, fontSize: 15 }} />
                     </label>
-                    <button type="button" disabled={app.proc || !validRestockQuantity || Number(activeBiz.cash_balance || 0) < customRestockCost} onClick={() => app.restockBusinessProduct(activeBiz.id, product.product_id, restockQuantity)} style={{ border: 0, borderRadius: 8, padding: '10px 12px', color: '#fff', background: '#3d7ea6', fontWeight: 700 }}>Закупить</button>
-                    <small style={{ gridColumn: '1 / -1', color: Number(activeBiz.cash_balance || 0) < customRestockCost ? '#b33a32' : '#6b5f45' }}>{validRestockQuantity ? `Итого: ${customRestockCost.toLocaleString('ru-RU')} ₽ из кассы` : 'Введи целое количество от 1 до 500.'}{validRestockQuantity && Number(activeBiz.cash_balance || 0) < customRestockCost ? ' · Не хватает денег в кассе.' : ''}</small>
+                    <button type="button" disabled={app.proc || !validRestockQuantity || Number(activeBiz.cash_balance || 0) < customRestock.cost} onClick={() => app.restockBusinessProduct(activeBiz.id, product.product_id, restockQuantity)} style={{ border: 0, borderRadius: 8, padding: '10px 12px', color: '#fff', background: '#3d7ea6', fontWeight: 700 }}>Закупить</button>
+                    <small style={{ gridColumn: '1 / -1', color: Number(activeBiz.cash_balance || 0) < customRestock.cost ? '#b33a32' : '#6b5f45' }}>{validRestockQuantity ? `Итого: ${customRestock.cost.toLocaleString('ru-RU')} ₽ из кассы${customRestock.discountPercent ? ` · скидка ${customRestock.discountPercent}% (−${customRestock.discountAmount.toLocaleString('ru-RU')} ₽)` : ''}` : 'Введи целое количество от 1 до 500.'}{validRestockQuantity && Number(activeBiz.cash_balance || 0) < customRestock.cost ? ' · Не хватает денег в кассе.' : ''}</small>
                   </div>
                   <div style={{ marginTop: 10, paddingTop: 9, borderTop: '1px solid rgba(90,70,40,.12)' }}>
                     <b style={{ fontSize: 13 }}>Автопополнение {rule ? '· включено' : ''}</b>
@@ -1354,7 +1362,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
                       <button type="button" disabled={app.proc || (!rule && enabledRules >= autostock.slots) || !Number.isSafeInteger(Number(autoDraft.threshold)) || !Number.isSafeInteger(Number(autoDraft.refill)) || Number(autoDraft.refill) <= Number(autoDraft.threshold)} onClick={() => app.configureBusinessAutostock(activeBiz.id, product.product_id, Number(autoDraft.threshold), Number(autoDraft.refill), true)} style={{ flex: 1, border: 0, borderRadius: 7, padding: 8, background: '#ff9824', fontWeight: 700 }}>{rule ? 'Сохранить' : 'Включить'}</button>
                       {rule && <button type="button" disabled={app.proc} onClick={() => app.configureBusinessAutostock(activeBiz.id, product.product_id, 0, 1, false)} style={{ border: '1px solid #aaa', borderRadius: 7, padding: '8px 10px', background: 'transparent' }}>Отключить</button>}
                     </div>
-                    {rule && <small style={{ display: 'block', marginTop: 5, color: '#6b5f45' }}>Закупка пойдёт из кассы: {(Number(product.wholesale_price) * Number(rule.refill_quantity)).toLocaleString('ru-RU')} ₽</small>}
+                    {rule && <small style={{ display: 'block', marginTop: 5, color: '#6b5f45' }}>Автозакупка из кассы: {autoRefill.cost.toLocaleString('ru-RU')} ₽{autoRefill.discountPercent ? ` · скидка ${autoRefill.discountPercent}%` : ''}</small>}
                   </div>
                 </div>;
               })}
