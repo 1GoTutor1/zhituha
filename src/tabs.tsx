@@ -1135,6 +1135,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
           const available = location.status === 'available';
           const purchasable = ['coffee','salon','taxi','construction','minimarket','auto_repair','casino'].includes(location.biz_type);
           const leaseEligible = ['coffee','minimarket','salon','taxi','auto_repair'].includes(location.biz_type);
+          const alreadyOwnType = (app.myBizs || []).some((business: any) => business.biz_type === location.biz_type);
           const businessArt = BUSINESS_ART[location.biz_type];
           const price = location.price == null ? null : Number(location.price);
           const leaseDownPayment = price == null ? null : Math.ceil(price * 0.25);
@@ -1143,7 +1144,7 @@ export const BusinessTab = ({ app, activeBiz, currentStock }: any) => {
             <div className="business-location-info"><b>{location.business_name}</b><small>{district.name} · {leased ? `В аренде с выкупом · осталось ${Number(location.lease_remaining).toLocaleString('ru-RU')} ₽` : owned ? 'Твой бизнес' : available ? 'Свободно у государства' : `Владелец: ${location.owner_name || 'занято'}`}</small></div>
             <div className="business-location-action" style={available && leaseEligible ? { display: 'grid', gap: 5, textAlign: 'right' } : undefined}>
               {owned ? <button onClick={() => { app.setActiveBizType(location.biz_type); app.setActiveBizId(location.business_id); setBusinessView('mine'); }}>Управлять</button>
-                : available && purchasable && price != null ? <>
+                : available && purchasable && price != null ? alreadyOwnType ? <span>У тебя уже есть бизнес этого типа</span> : <>
                   {!stateOwned && <button disabled={app.proc || app.businessCatalog?.owned_count >= 3 || app.money < price} onClick={() => app.purchaseBusinessLocation(location.location_key)}>Купить · {price.toLocaleString('ru-RU')} ₽</button>}
                   {leaseEligible && <button title="Взнос 25%; половина выручки пойдёт в выкуп" disabled={app.proc || app.businessCatalog?.owned_count >= 3 || app.money < Number(leaseDownPayment)} onClick={() => {
                     if (!window.confirm(`Внести ${Number(leaseDownPayment).toLocaleString('ru-RU')} ₽ (25%)? Половина учитываемой выручки бизнеса будет идти в выкуп.`)) return;
