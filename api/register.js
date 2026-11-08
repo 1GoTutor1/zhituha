@@ -48,7 +48,8 @@ export default async function handler(req, res) {
     let referrerId = null;
     const rawReferrer = typeof req.body?.referrer_id === 'string' ? req.body.referrer_id : '';
     if (/^\d{1,20}$/.test(rawReferrer) && rawReferrer !== telegramId) {
-      const { data: referrer, error } = await sb.from('players').select('id').eq('telegram_id', rawReferrer).maybeSingle();
+      const { data: referrer, error } = await sb.from('players').select('id')
+        .eq('telegram_id', rawReferrer).or('is_banned.is.null,is_banned.eq.false').maybeSingle();
       if (error) throw error;
       referrerId = referrer?.id || null;
     }
@@ -73,7 +74,18 @@ export default async function handler(req, res) {
       onboarding_step: 0,
       market_slots: 3,
     }).select('*').single();
-    if (insertError) throw insertError;
+    if (insertError) {
+      // Telegram can retry the registration request while an earlier request
+      // is still inserting the same account. Recover the winner of that race
+      // instead of failing the player's onboarding with a duplicate-key error.
+      if (insertError.code === '23505') {
+        const { data: recovered, error: recoveryError } = await sb.from('players')
+          .select('*').eq('telegram_id', telegramId).maybeSingle();
+        if (recoveryError) throw recoveryError;
+        if (recovered) return res.status(200).json({ player: recovered, referred: false, recovered: true });
+      }
+      throw insertError;
+    }
 
     return res.status(201).json({ player, referred: !!referrerId });
   } catch (error) {
