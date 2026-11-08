@@ -36,7 +36,7 @@ export default async function handler(req, res) {
       const { data: profiles, error: profilesError } = await sb.from('players')
         .select('id, profile_background, owned_cosmetics').in('id', playerIds);
       if (profilesError) throw profilesError;
-      const allowedBackgrounds = new Set(['background_panelka', 'background_brick', 'background_concrete']);
+      const allowedBackgrounds = new Set(['background_panelka', 'background_brick', 'background_concrete', 'background_night_route', 'background_family_timenewromans']);
       for (const profile of profiles || []) {
         const background = profile.profile_background;
         if (allowedBackgrounds.has(background) && Array.isArray(profile.owned_cosmetics)

@@ -3,6 +3,7 @@ export const PROFILE_BACKGROUND_NAMES: Record<string, string> = {
   background_brick: 'Кирпичный дом',
   background_panelka: 'Панелька',
   background_night_route: 'Ночной маршрут',
+  background_family_timenewromans: 'Победители семейного сезона',
 };
 
 export const getProfileBackground = (id?: string | null) => {
@@ -38,10 +39,21 @@ export const getProfileBackground = (id?: string | null) => {
       };
     case 'background_night_route':
       return {
-        backgroundColor: '#171922',
-        backgroundImage: 'radial-gradient(ellipse at 18% 14%, rgba(235,167,66,.18), transparent 25%),linear-gradient(28deg, transparent 0 47%, rgba(230,169,75,.22) 47.4% 48.1%, transparent 48.5%),linear-gradient(150deg, transparent 0 56%, rgba(72,173,177,.18) 56.4% 57.1%, transparent 57.5%),linear-gradient(145deg,#191b25,#242330 55%,#171922)',
-        backgroundSize: 'auto,100% 100%,100% 100%,auto',
+        backgroundColor: '#101522',
+        backgroundImage: 'linear-gradient(rgba(13,17,27,.3),rgba(13,17,27,.3)),url("/images/background-night-route.webp")',
+        backgroundSize: 'cover,cover',
+        backgroundPosition: 'center,center',
         backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      };
+    case 'background_family_timenewromans':
+      return {
+        backgroundColor: '#1b101d',
+        backgroundImage: 'linear-gradient(rgba(20,12,22,.22),rgba(20,12,22,.22)),url("/images/family-timenewromans-season-winner.webp")',
+        backgroundSize: 'cover,cover',
+        backgroundPosition: 'center,center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
       };
     default:
       return {

@@ -106,10 +106,10 @@ export const FamilyTab = ({ app }: { app: any }) => {
     </section>
 
     <section className="family-card family-season-card">
-      <div><Trophy size={20} /><b>Сезон #{state?.season?.number ?? '—'}</b></div>
+      <div><Trophy size={20} /><b>Сезон #{state?.season?.number != null ? Number(state.season.number) + 1 : '—'}</b></div>
       <p>Идёт 14 дней · осталось {Math.floor(seasonSeconds / 86400)} дн. {Math.floor((seasonSeconds % 86400) / 3600)} ч.</p>
       <p>Очки дают завершённые циклы профессий: до 10 в день на игрока.</p>
-      <small>Награда семьи — 1–3 место. Личная награда победившей семьи требует 20 работ за сезон.</small>
+      <small>Первое место: уникальный фон всему составу на момент закрытия. Медаль «Семейный топ 1» получают участники с 20+ очками.</small>
     </section>
 
     {family && blackMarket?.family_event && <section className="family-card">
@@ -215,10 +215,10 @@ export const FamilyTab = ({ app }: { app: any }) => {
 
     {(state?.history || []).length > 0 && <section className="family-card">
       <h3><Clock3 size={18} /> Победители прошлых сезонов</h3>
-      {state.history.map((row: any, index: number) => <div className="family-history-row" key={`${row.season_no}-${row.family_tag}-${index}`}><b>Сезон #{row.season_no} · {row.place === 1 ? '🥇' : row.place === 2 ? '🥈' : '🥉'} [{row.family_tag}] {row.family_name}</b><span>{fmt(row.score)} очков</span></div>)}
+      {state.history.map((row: any, index: number) => <div className="family-history-row" key={`${row.season_no}-${row.family_tag}-${index}`}><b>Сезон #{Number(row.season_no) + 1} · {row.place === 1 ? '🥇' : row.place === 2 ? '🥈' : '🥉'} [{row.family_tag}] {row.family_name}</b><span>{fmt(row.score)} очков</span></div>)}
     </section>}
 
-    {(state?.awards || []).length > 0 && <section className="family-card"><h3>Твои постоянные значки</h3>{state.awards.map((award: any) => <div className="family-history-row" key={`${award.season_no}-${award.place}`}>🏆 Сезон #{award.season_no} · место семьи {award.place} · твой вклад {award.contribution} работ</div>)}</section>}
+    {(state?.awards || []).length > 0 && <section className="family-card"><h3>Твои постоянные значки</h3>{state.awards.map((award: any) => <div className="family-history-row" key={`${award.season_no}-${award.place}`}>{award.place === 1 ? `🏅 Семейный топ ${Number(award.season_no) + 1} сезон` : `🏆 Семья #${award.place}`} · твой вклад {award.contribution} очков</div>)}</section>}
     <div className="family-footer"><Swords size={15} /> Семейные очки не дают деньги: сезонное соревнование отдельно от экономики. Территории дают только небольшой шанс на редкую находку.</div>
     {busy && <div className="family-busy">Выполняем действие…</div>}
   </div>;

@@ -649,7 +649,7 @@ export const HomeTab = ({ app }: { app: any }) => {
     <div className="game-tab game-tab-home" style={{ maxWidth: '460px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <div className="home-player-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button type="button" className={`home-avatar-button profile-avatar-frame${app.profileFrame === 'frame_test' ? ' has-exclamation-frame' : ''}`} aria-label="Открыть профиль" onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: app.profileFrame === 'frame_test' ? '50%' : '14px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, ...(app.profileFrame === 'frame_test' ? frameStyle('frame_test') : app.profileFrame === 'frame_amber' ? frameStyle('frame_amber') : { border: '2px solid rgba(90,70,40,0.22)' }), cursor: 'pointer', userSelect: 'none' }}>{app.profileFrame === 'frame_test' && <img className="avatar-exclamation-ring" src="/images/frame-mint-exclamation.svg" alt="" aria-hidden="true" />}{av.emoji}</button>
+          <button type="button" className={`home-avatar-button profile-avatar-frame${app.profileFrame === 'frame_test' ? ' has-exclamation-frame' : ''}${app.profileFrame === 'frame_route' ? ' has-route-frame' : ''}`} aria-label="Открыть профиль" onClick={app.handleAvatar} style={{ width: 55, height: 55, borderRadius: ['frame_test', 'frame_route'].includes(app.profileFrame) ? '50%' : '14px', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, ...(app.profileFrame === 'frame_test' ? frameStyle('frame_test') : app.profileFrame === 'frame_amber' ? frameStyle('frame_amber') : { border: '2px solid rgba(90,70,40,0.22)' }), cursor: 'pointer', userSelect: 'none' }}>{app.profileFrame === 'frame_test' && <img className="avatar-exclamation-ring" src="/images/frame-mint-exclamation.svg" alt="" aria-hidden="true" />}{av.emoji}</button>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'Russo One, Impact, sans-serif' }}>{app.nick}</div>
@@ -2079,6 +2079,7 @@ export const SeasonPassTab = ({ app }: { app: any }) => {
   const earned = Array.isArray(state?.earned_badges) ? state.earned_badges as string[] : [];
   const showcase = Array.isArray(state?.showcase) ? state.showcase as string[] : [];
   const tiers = Array.isArray(state?.tiers) ? state.tiers : [];
+  const dailyQuests = Array.isArray(state?.daily_quests) ? state.daily_quests : [];
   const toggleBadge = (badgeId: string) => app.action(async () => {
     const next = showcase.includes(badgeId) ? showcase.filter(id => id !== badgeId) : [...showcase, badgeId];
     if (next.length > 3) throw new Error('В витрине может быть не больше трёх значков');
@@ -2109,8 +2110,25 @@ export const SeasonPassTab = ({ app }: { app: any }) => {
 
     <div className="season-pass-howto">
       <b>Как получать XP</b>
-      <span>Работа — до 5 раз в день, +7 XP за раз. Продажа предмета и завершение действия в профессии — по +10 XP в день.</span>
+      <span>Работа — до 5 раз в день, +3 XP за смену. Продажа и профессия дают по +5 XP в день. Ежедневные задания приносят ещё по 12 XP.</span>
     </div>
+
+    {passOpen && daysLeft > 0 && <section className="season-pass-quests">
+      <div className="season-pass-quests-heading">
+        <div><h3>Задания дня</h3><span>Каждый день новые цели · награда начисляется автоматически</span></div>
+        <b>{dailyQuests.filter((quest: any) => quest.completed).length}/{dailyQuests.length}</b>
+      </div>
+      {dailyQuests.map((quest: any) => {
+        const progress = Math.min(Number(quest.progress || 0), Number(quest.target || 1));
+        const target = Math.max(1, Number(quest.target || 1));
+        return <article className={`season-pass-quest${quest.completed ? ' is-complete' : ''}`} key={quest.id}>
+          <div className="season-pass-quest-title"><b>{quest.title}</b><strong>+{Number(quest.xp_reward || 0)} XP</strong></div>
+          <div className="season-pass-quest-progress"><i style={{ width: `${progress / target * 100}%` }} /></div>
+          <small>{quest.completed ? 'Выполнено · XP начислены' : `${progress} / ${target}`}</small>
+        </article>;
+      })}
+      <p>Работа помогает продвигаться, но для быстрого прогресса выполняй и другие задания.</p>
+    </section>}
 
     <h3 className="season-pass-section-title">Награды сезона</h3>
     {busy && <div className="season-pass-empty">Подтягиваем прогресс…</div>}
@@ -2184,9 +2202,9 @@ const PublicProfileModal = ({ profile, loading, vehicleState, onClose }: { profi
     <Modal open={loading || !!profile} onClose={onClose} contentStyle={{ maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }}>
       {loading ? <p style={{ color: '#6b5f45' }}>Загружаю профиль…</p> : profile && <>
         <div className="profile-hero-card" style={{ ...S.card, textAlign: 'center', padding: 18, marginBottom: 12 }}>
-          <div className={`profile-avatar-frame${profile.profile_frame === 'frame_test' ? ' has-exclamation-frame' : ''}`} style={{ width: 76, height: 76, margin: '0 auto 10px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: avatar.bg, ...frameStyle(profile.profile_frame) }}>{profile.profile_frame === 'frame_test' && <img className="avatar-exclamation-ring" src="/images/frame-mint-exclamation.svg" alt="" aria-hidden="true" />}{avatar.emoji}</div>
+          <div className={`profile-avatar-frame${profile.profile_frame === 'frame_test' ? ' has-exclamation-frame' : ''}${profile.profile_frame === 'frame_route' ? ' has-route-frame' : ''}`} style={{ width: 76, height: 76, margin: '0 auto 10px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: avatar.bg, ...frameStyle(profile.profile_frame) }}>{profile.profile_frame === 'frame_test' && <img className="avatar-exclamation-ring" src="/images/frame-mint-exclamation.svg" alt="" aria-hidden="true" />}{avatar.emoji}</div>
           <h3 style={{ margin: 0, fontFamily: 'Russo One', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>{profile.nickname}{profile.premium_active && <Crown size={18} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}</h3>
-          {(profile.family_awards || []).map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
+          {(profile.family_awards || []).map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">{award.place === 1 ? `🏅 Семейный топ ${Number(award.season_no) + 1} сезон` : `🏆 Семья #${award.place} · сезон ${Number(award.season_no) + 1}`}</span>)}
           {!!profile.season_badge_showcase?.length && <div className="season-profile-badges">{profile.season_badge_showcase.slice(0, 3).map((id: string) => <PassBadge key={id} id={id} />)}</div>}
         </div>
         <div style={{ ...S.card, padding: 15, textAlign: 'left' }}>
@@ -2245,10 +2263,10 @@ export const ProfileTab = ({ app }: { app: any }) => {
     <button onClick={() => app.setTab('home')} style={{ background: 'none', border: 0, color: '#6b5f45', cursor: 'pointer', margin: '8px 0 16px' }}>← На главную</button>
     <h2>Профиль</h2>
     <div className="profile-hero-card" style={{ ...S.card, textAlign: 'center', padding: 24 }}>
-      <div className={`profile-avatar-frame${app.profileFrame === 'frame_test' ? ' has-exclamation-frame' : ''}`} style={{ width: 92, height: 92, margin: '0 auto 12px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 48, background: avatar.bg, ...frameStyle(app.profileFrame) }}>{app.profileFrame === 'frame_test' && <img className="avatar-exclamation-ring" src="/images/frame-mint-exclamation.svg" alt="" aria-hidden="true" />}{avatar.emoji}</div>
+      <div className={`profile-avatar-frame${app.profileFrame === 'frame_test' ? ' has-exclamation-frame' : ''}${app.profileFrame === 'frame_route' ? ' has-route-frame' : ''}`} style={{ width: 92, height: 92, margin: '0 auto 12px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 48, background: avatar.bg, ...frameStyle(app.profileFrame) }}>{app.profileFrame === 'frame_test' && <img className="avatar-exclamation-ring" src="/images/frame-mint-exclamation.svg" alt="" aria-hidden="true" />}{avatar.emoji}</div>
       <div style={{ fontSize: 23, fontFamily: 'Russo One', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>{app.nick}{Date.parse(app.premiumUntil || '') > Date.now() && <Crown size={20} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}</div>
       {familyProfile && <div style={{ marginTop: 6, color: '#3f9d65', fontWeight: 700 }}>[{familyProfile.tag}] {familyProfile.name}</div>}
-      {familyAwards.map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">🏆 Семья #{award.place} · сезон {award.season_no}</span>)}
+      {familyAwards.map((award: any) => <span key={`${award.season_no}-${award.place}`} className="family-profile-badge">{award.place === 1 ? `🏅 Семейный топ ${Number(award.season_no) + 1} сезон` : `🏆 Семья #${award.place} · сезон ${Number(award.season_no) + 1}`}</span>)}
       {!!passState?.showcase?.length && <div className="season-profile-badges">{passState.showcase.slice(0, 3).map((id: string) => <PassBadge key={id} id={id} />)}</div>}
       <div style={{ color: '#6b5f45', marginTop: 6 }}>ID: {app.tgId.slice(0, 6)}</div>
       <NicknameSettings app={app} />
@@ -2284,7 +2302,7 @@ export const ProfileTab = ({ app }: { app: any }) => {
         <p>{'\u0420\u0430\u043C\u043A\u0430'}: <b>{app.profileFrame === 'frame_test' ? 'Мятная' : app.profileFrame === 'frame_amber' ? '\u042F\u043D\u0442\u0430\u0440\u043D\u0430\u044F' : '\u0421\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u0430\u044F'}</b></p>
         <p>{'Фон'}: <b>{PROFILE_BACKGROUND_NAMES[app.profileBackground] || 'Стандартный'}</b></p>
         {['frame_test', 'frame_amber', 'frame_route'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...frameStyle(id) }}>{id === 'frame_test' ? '🟢 Мятная рамка' : id === 'frame_route' ? '🚦 Рамка «Маршрут»' : '🟠 Янтарная рамка'}</button>)}
-        {['background_concrete', 'background_brick', 'background_panelka', 'background_night_route'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...getProfileBackground(id) }}>Установить: {PROFILE_BACKGROUND_NAMES[id]}</button>)}
+        {['background_concrete', 'background_brick', 'background_panelka', 'background_night_route', 'background_family_timenewromans'].filter(id => app.ownedCosmetics.includes(id)).map(id => <button key={id} onClick={() => app.donateAction('equip', { item_id: id })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%', marginBottom: 8, ...getProfileBackground(id) }}>Установить: {PROFILE_BACKGROUND_NAMES[id]}</button>)}
         <button onClick={() => app.donateAction('equip', { item_id: 'default' })} disabled={app.proc} style={{ ...S.btnSecondary, width: '100%' }}>{'\u0412\u0435\u0440\u043D\u0443\u0442\u044C \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u0439 \u0432\u0438\u0434'}</button>
       </div>
       <div className="profile-section-card" style={S.card}>
