@@ -806,7 +806,18 @@ export default function App() {
       console.error('Profession state refresh failed:', error?.message || data.error);
       return null;
     }
-    if (data) setCareer(data);
+    if (data) setCareer((current: any) => ({ ...data, taxi_fleet: current?.taxi_fleet ?? data.taxi_fleet }));
+    return data;
+  };
+
+  const refreshTaxiFleetState = async () => {
+    if (!pid) return null;
+    const { data, error } = await supabase.rpc('taxi_fleet_rpc', { p_player_id: pid });
+    if (error || data?.error) {
+      console.error('Taxi fleet refresh failed:', error?.message || data.error);
+      return null;
+    }
+    if (data) setCareer((current: any) => ({ ...current, taxi_fleet: data }));
     return data;
   };
 
@@ -1604,7 +1615,10 @@ export default function App() {
     advanceMissionProgress('profession_1');
     advanceMissionProgress('work_5');
     if (data.money != null) setMoney(Number(data.money));
-    await refreshProfessionState();
+    await Promise.all([
+      refreshProfessionState(),
+      career.profession === 'taxi' ? refreshTaxiFleetState() : Promise.resolve(null),
+    ]);
     if (data.pending_reward) {
       showMsg('Находка готова — выбери, что с ней сделать');
       hapticFeedback('heavy');
