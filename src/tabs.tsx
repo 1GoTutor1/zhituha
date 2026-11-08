@@ -740,6 +740,9 @@ export const HomeTab = ({ app }: { app: any }) => {
       <TutorialCard app={app} />
 
       <div className="home-shortcuts" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <button className="home-shortcut" onClick={() => app.setTab('mining')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 10, backgroundColor: 'var(--surface-soft)', border: '1px solid var(--surface-line)', color: 'var(--text-main)', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <Pickaxe size={24} color="#c084fc" /><span style={{ fontSize: 13 }}>Майнинг</span>
+        </button>
         <button className="home-shortcut" onClick={() => app.setTab('business')} style={{ flex: 1, padding: '15px 10px', marginRight: 10, borderRadius: 10, backgroundColor: '#fbf4e4', border: '1px solid rgba(192, 132, 252, 0.3)', color: '#2f2a1d', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
           <Briefcase size={24} color="#5f43a0" /><span style={{ fontSize: 13 }}>Бизнесы</span>
         </button>

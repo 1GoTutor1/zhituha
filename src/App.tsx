@@ -33,6 +33,7 @@ const BlackMarketTab = lazy(() => import('./BlackMarketTab').then((module) => ({
 const SeasonPassTab = lazy(() => loadTabs().then((module) => ({ default: module.SeasonPassTab })));
 const GibddTab = lazy(() => loadTabs().then((module) => ({ default: module.GibddTab })));
 const DistrictMapTab = lazy(() => import('./DistrictMapTab').then((module) => ({ default: module.DistrictMapTab })));
+const MiningTab = lazy(() => import('./MiningTab').then((module) => ({ default: module.MiningTab })));
 
 class TabErrorBoundary extends Component<{ tab: string; children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -195,7 +196,7 @@ export default function App() {
   const [workCaptchaImage, setWorkCaptchaImage] = useState('');
   const [workCaptchaInput, setWorkCaptchaInput] = useState('');
   const [workCaptchaError, setWorkCaptchaError] = useState('');
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'gibdd' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'black_market' | 'season_pass' | 'district_map' | 'admin'>('home');
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'gibdd' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'black_market' | 'season_pass' | 'district_map' | 'mining' | 'admin'>('home');
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
@@ -2044,6 +2045,7 @@ export default function App() {
         {tab === 'black_market' && <BlackMarketTab app={app} />}
         {tab === 'season_pass' && <SeasonPassTab app={app} />}
         {tab === 'district_map' && <DistrictMapTab app={app} />}
+        {tab === 'mining' && <MiningTab app={app} />}
         {tab === 'admin' && <AdminTab app={app} />}
         </main>
       </Suspense>
