@@ -23,7 +23,7 @@ type MiningState = {
   coin_balance?: number; coin_price?: number; components?: Record<string, number>;
   rigs?: MiningRig[]; transactions?: MiningTransaction[]; used_slots?: number;
   site_slots?: number; farm_slot_price?: number; money?: number;
-  electricity_paid?: number; net_money?: number;
+  electricity_paid?: number; net_money?: number; started_count?: number;
 };
 type MiningApp = {
   pid: string | null; money: number; setMoney: (money: number) => void;
@@ -77,6 +77,7 @@ export function MiningTab({ app }: { app: MiningApp }) {
       if (typeof data?.money === 'number') app.setMoney(data.money);
       if (data?.electricity_paid) app.showMsg(`Электричество: ${money(data.electricity_paid)}`);
       else if (data?.net_money) app.showMsg(`Продано · после налога +${money(data.net_money)}`);
+      else if (typeof data?.started_count === 'number') app.showMsg(data.started_count > 0 ? `Запущено установок: ${data.started_count}` : 'Все установленные майнеры уже работают');
       else app.showMsg('Готово');
       setError('');
     } catch (e: unknown) {
@@ -91,6 +92,7 @@ export function MiningTab({ app }: { app: MiningApp }) {
   const invoke = (action: string, extra: Record<string, unknown> = {}) => void run('mining_action_rpc', { p_action: action, ...extra });
   const components = state?.components || {};
   const rigs = state?.rigs || [];
+  const stoppedInstalledCount = rigs.filter(rig => rig.installed && !rig.is_running && (rig.rig_type !== 'gpu_farm' || Number(rig.gpu_count) > 0)).length;
   const transactions = state?.transactions || [];
   const pending = rigs.reduce((sum, rig) => sum + Number(rig.pending_coin || 0), 0);
   const canBuild = ['gpu_frame', 'gpu_motherboard', 'gpu_cpu_ram', 'gpu_power', 'gpu_cooling'].every(id => Number(components[id] || 0) > 0);
@@ -121,6 +123,7 @@ export function MiningTab({ app }: { app: MiningApp }) {
       <div className="mining-card-title"><div><HardDrive size={20} /><h2>Площадка</h2></div><b>{state?.used_slots || 0} / {state?.site_slots || 1} мест</b></div>
       <p className="mining-muted">Доход начисляется при сборе. Офлайн-расчёт ограничен 12 часами; после этого установка останавливается.</p>
       {pending > 0 && <Btn disabled={busy} onClick={() => invoke('collect')}><Coins size={17} /> Забрать добычу · {coin(pending)} MC</Btn>}
+      {stoppedInstalledCount > 0 && <Btn disabled={busy} onClick={() => void run('mining_turn_on_all_rpc', {})}><Play size={17} /> Запустить все · {stoppedInstalledCount}</Btn>}
       <div className="mining-rig-list">
         {rigs.length === 0 && <p className="mining-empty">Установок пока нет. Собери ферму или купи готовый майнер.</p>}
         {rigs.map(rig => <article className="mining-rig" key={rig.id}>
