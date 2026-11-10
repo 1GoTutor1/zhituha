@@ -1576,7 +1576,6 @@ export default function App() {
     }
     if (data?.active_cycle) {
       setCareer((current: any) => ({ ...current, active_cycle: data.active_cycle }));
-      showMsg('Нашёл незавершённую смену. Продолжай с текущего этапа.');
       return;
     }
     if (data?.error) throw new Error(data.error);
