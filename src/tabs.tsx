@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useLayoutEffect, useCallback } from 'react';
 import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront, Crown, Ticket, LockKeyhole, Check, Medal, Sparkles } from 'lucide-react';
 import { 
   getAvatar, BUILDING_PRICE,
@@ -11,6 +11,7 @@ import {
 import { Btn, Modal } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import { ItemArtwork } from './ItemArtwork';
+import { ProfessionScene } from './ProfessionScene';
 import { getProfileBackground, PROFILE_BACKGROUND_NAMES } from './profileBackgrounds';
 import { DISTRICTS, districtForLocation, RETIRED_LOCATION_KEYS } from './districts';
 
@@ -475,24 +476,6 @@ export const TutorialCard = ({ app }: { app: any }) => {
 
 const PROFESSION_ICONS: Record<string, any> = { miner: Pickaxe, lumberjack: TreePine, fisherman: Fish, farmer: Sprout, courier: PackageCheck, taxi: CarFront };
 
-const PROFESSION_SCENES: Record<string, { label: string; accent: string }> = {
-  miner: { label: 'Горное дело', accent: '#a98766' },
-  lumberjack: { label: 'Лесозаготовка', accent: '#6f9278' },
-  fisherman: { label: 'Рыбалка', accent: '#6f9ca8' },
-  farmer: { label: 'Земледелие', accent: '#91a76a' },
-  courier: { label: 'Доставка', accent: '#bc8c59' },
-  taxi: { label: 'Городской маршрут', accent: '#7793a3' },
-};
-
-const PROFESSION_ART: Record<string, string> = {
-  miner: '/images/profession-miner.jpg',
-  lumberjack: '/images/profession-lumberjack.jpg',
-  fisherman: '/images/profession-fisherman.jpg',
-  farmer: '/images/profession-farmer.jpg',
-  courier: '/images/profession-courier.jpg',
-  taxi: '/images/profession-taxi.jpg',
-};
-
 const BUSINESS_ART: Record<string, string> = {
   coffee: '/images/business-coffee.jpg',
   minimarket: '/images/business-minimarket.jpg',
@@ -525,18 +508,24 @@ const VehicleArtwork = ({ modelId, className = '' }: { modelId: string; classNam
   <img className={`vehicle-artwork ${className}`} src={VEHICLE_ART[modelId] || VEHICLE_ART.lada} alt="" aria-hidden="true" loading="lazy" />
 );
 
-const ProfessionScene = ({ profession, stage }: { profession: string; stage: number }) => {
-  const Icon = PROFESSION_ICONS[profession] || Pickaxe;
-  const scene = PROFESSION_SCENES[profession] || PROFESSION_SCENES.miner;
-  return <div className={`profession-scene profession-scene-${profession}`} data-stage={stage} style={{ '--profession-accent': scene.accent } as React.CSSProperties}>
-    <img className="profession-scene-art" src={PROFESSION_ART[profession] || PROFESSION_ART.miner} alt={`${scene.label} на фоне города`} />
-    <span className="profession-scene-index">ПОЛЕВАЯ РАБОТА · {String(stage).padStart(2, '0')} / 03</span>
-    <div className="profession-scene-mark" aria-hidden="true"><Icon size={48} strokeWidth={1.65} /></div>
-    <span className="profession-scene-caption">{scene.label}</span>
-  </div>;
-};
-
 const ProfessionWorkCard = ({ app }: { app: any }) => {
+  const [sceneBusy, setSceneBusy] = useState(false);
+  const [requestPending, setRequestPending] = useState(false);
+  const sceneBusyRef = useRef(false);
+  const requestLock = useRef(false);
+  const onSceneBusyChange = useCallback((busy: boolean) => {
+    sceneBusyRef.current = busy;
+    setSceneBusy(busy);
+  }, []);
+  const professionBusy = !!app.proc || requestPending || sceneBusy;
+  const runProfessionAction = async (perform: () => unknown) => {
+    // Ref closes the gap before React paints the disabled button.
+    if (app.proc || requestLock.current || sceneBusyRef.current) return;
+    requestLock.current = true;
+    setRequestPending(true);
+    try { await perform(); }
+    finally { requestLock.current = false; setRequestPending(false); }
+  };
   const career = app.career || {};
   const profession = PLAYER_PROFESSIONS.find(item => item.id === career.profession) || PLAYER_PROFESSIONS[0];
   const Icon = PROFESSION_ICONS[profession.id] || Pickaxe;
@@ -552,11 +541,11 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
   const courierAtDestination = !!courierDestination && app.currentDistrict === courierDestination.id;
   const hasCourierRoute = profession.id === 'courier' && !!cycle;
   const needsCourierTravel = profession.id === 'courier' && Number(cycle?.actions_done) >= 1;
-  const canDoStep = !!cycle && cycle.actions_done < 3 && !app.proc
+  const canDoStep = !!cycle && cycle.actions_done < 3 && !professionBusy
     && (!needsCourierTravel || courierAtDestination);
   const full = Number(career.inventory_slots) >= Number(career.inventory_capacity || 200) && drops.length > 0;
 
-  return <section className="profession-work-card">
+  return <section className="profession-work-card" aria-busy={professionBusy}>
     <div className="profession-card-head">
       <div><span className="profession-eyebrow">Профессия</span><h2>{profession.name}</h2></div>
       <div className="profession-level-badge">Уровень {career.level || 1}</div>
@@ -566,13 +555,13 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
       <div className="profession-xp-track"><span style={{ width: `${Math.min(100, Number(career.xp || 0) / Math.max(1, Number(career.xp_to_next || 100)) * 100)}%` }} /></div>
     </div>
     <label className="profession-select-label" htmlFor="profession-select">Специальность</label>
-    <div className="profession-select-wrap"><Icon size={19} /><select id="profession-select" value={profession.id} onChange={event => app.selectProfession(event.target.value)} disabled={!!cycle || app.proc}>
+    <div className="profession-select-wrap"><Icon size={19} /><select id="profession-select" value={profession.id} onChange={event => { const value = event.target.value; void runProfessionAction(() => app.selectProfession(value)); }} disabled={!!cycle || professionBusy}>
       {PLAYER_PROFESSIONS.map(item => <option key={item.id} value={item.id} disabled={!unlocked.includes(item.id)}>{item.name}{unlocked.includes(item.id) ? '' : ` · с уровня ${item.unlockLevel}`}</option>)}
     </select><ChevronRight size={17} /></div>
     {profession.id === 'taxi' && <div className="profession-select-wrap taxi-shift-car">
       <CarFront size={19} />
       <select aria-label="Машина на смену" value={career.taxi_fleet?.selected_car_index ?? ''}
-        onChange={event => app.selectTaxiCar(Number(event.target.value))} disabled={!!cycle || app.proc || availableTaxiCars.length === 0}>
+        onChange={event => { const value = Number(event.target.value); void runProfessionAction(() => app.selectTaxiCar(value)); }} disabled={!!cycle || professionBusy || availableTaxiCars.length === 0}>
         <option value="" disabled>{taxiCars.length ? 'Нет свободных машин' : 'В таксопарке нет машин'}</option>
         {taxiCars.map((car: any) => <option key={car.car_index} value={car.car_index} disabled={car.busy || car.health <= 0}>
           {car.model_name || app.vehicleState?.models?.find((item: any) => item.model_id === car.model)?.model_name || car.model} / {car.class === 'economy' ? 'эконом' : car.class === 'comfort' ? 'комфорт' : 'бизнес'} · {car.health}%{car.busy ? ' · занята' : ''}
@@ -580,7 +569,7 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
       </select><ChevronRight size={17} />
     </div>}
     {profession.id === 'taxi' && availableTaxiCars.length === 0 && <small className="profession-taxi-hint">{taxiCars.length ? 'Все машины заняты или требуют ремонта.' : 'Попроси владельца таксопарка добавить машину в автопарк.'}</small>}
-    <ProfessionScene profession={profession.id} stage={cycle?.actions_done || 0} />
+    <ProfessionScene key={profession.id} profession={profession.id} stage={Number(cycle?.actions_done || 0)} cycleId={cycle?.id ?? (cycle ? 'active' : null)} onBusyChange={onSceneBusyChange} />
     <div className="profession-cycle-status">
       {cycle ? <>
         <div className="profession-stage-label"><b>{cycle.actions_done < 3 ? `Этап ${cycle.actions_done + 1} из 3` : 'Результат готов'}</b>
@@ -596,16 +585,16 @@ const ProfessionWorkCard = ({ app }: { app: any }) => {
               ? <small style={{ display: 'block', marginTop: 4, color: 'var(--text-muted)' }}>Сначала заберите заказ. На следующем этапе отправляйтесь в этот район.</small>
               : !courierAtDestination && <>
               <small style={{ display: 'block', marginTop: 4, color: 'var(--text-muted)' }}>На втором этапе отправляйтесь в указанный район. Завершить доставку получится только там.</small>
-              <button type="button" onClick={() => app.setTab('district_map')} style={{ marginTop: 8, border: 0, borderRadius: 8, padding: '8px 11px', background: '#3d7ea6', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Открыть карту районов</button>
+              <button type="button" disabled={professionBusy} onClick={() => app.setTab('district_map')} style={{ marginTop: 8, border: 0, borderRadius: 8, padding: '8px 11px', background: '#3d7ea6', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Открыть карту районов</button>
             </>}
         </div>}
         {cycle.actions_done < 3
-          ? <button className="profession-action-button" disabled={!canDoStep} onClick={() => app.stepProfessionCycle(cycle.actions_done + 1)}><Icon size={20} /> {needsCourierTravel && !courierAtDestination ? 'Сначала доберитесь до района' : needsCourierTravel ? (cycle.actions_done === 1 ? 'Подтвердить прибытие' : 'Завершить доставку') : profession.actionLabels[cycle.actions_done]}</button>
-          : <button className="profession-action-button" disabled={app.proc || (needsCourierTravel && !courierAtDestination)} onClick={app.finishProfessionCycle}>{needsCourierTravel && !courierAtDestination ? 'Вернитесь в район доставки' : 'Забрать результат'}</button>}
+          ? <button className="profession-action-button" disabled={!canDoStep} onClick={() => void runProfessionAction(() => app.stepProfessionCycle(cycle.actions_done + 1))}><Icon size={20} /> {sceneBusy ? 'Выполняется…' : needsCourierTravel && !courierAtDestination ? 'Сначала доберитесь до района' : needsCourierTravel ? (cycle.actions_done === 1 ? 'Подтвердить прибытие' : 'Завершить доставку') : profession.actionLabels[cycle.actions_done]}</button>
+          : <button className="profession-action-button" disabled={professionBusy || (needsCourierTravel && !courierAtDestination)} onClick={() => void runProfessionAction(app.finishProfessionCycle)}>{sceneBusy ? 'Выполняется…' : needsCourierTravel && !courierAtDestination ? 'Вернитесь в район доставки' : 'Забрать результат'}</button>}
       </> : <>
         <div className="profession-stage-label"><b>Новая смена</b><span>3 этапа · +25 XP</span></div>
         {full && <div className="profession-inventory-full">Инвентарь заполнен · {career.inventory_slots}/200 <button onClick={() => app.setTab('inventory')}>Открыть</button></div>}
-        <button className="profession-action-button" disabled={app.proc || full || (profession.id === 'taxi' && (career.taxi_fleet?.selected_car_index == null || availableTaxiCars.length === 0))} onClick={app.startProfessionCycle}><Icon size={20} /> Начать работу</button>
+        <button className="profession-action-button" disabled={professionBusy || full || (profession.id === 'taxi' && (career.taxi_fleet?.selected_car_index == null || availableTaxiCars.length === 0))} onClick={() => void runProfessionAction(app.startProfessionCycle)}><Icon size={20} /> {sceneBusy ? 'Завершаем смену…' : 'Начать работу'}</button>
       </>}
     </div>
     <div className="profession-reward-preview">

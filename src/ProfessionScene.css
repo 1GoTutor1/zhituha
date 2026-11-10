@@ -1,0 +1,106 @@
+.work-scene { margin: 14px 0; overflow: hidden; isolation: isolate; border: 1px solid #42504a; border-radius: 14px; background: #233630; color: #e3e8d8; text-align: left; contain: layout paint; }
+.work-scene__heading, .work-scene__footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 13px; }
+.work-scene__heading { font: 500 11px/1.3 'Rubik', sans-serif; }
+.work-scene__heading > span:first-child { letter-spacing: .25px; }
+.work-scene__status { display: inline-flex; align-items: center; gap: 5px; color: #b0c2b3; font-size: 9px; }
+.work-scene__status i { width: 5px; height: 5px; border-radius: 50%; background: #a2bb9d; }
+.work-scene__art { display: block; width: 100%; height: auto; aspect-ratio: 480 / 232; overflow: hidden; }
+.work-scene__art g { transform-box: view-box; }
+.work-scene__footer { padding-block: 9px; }
+.work-scene__footer-id { font: 500 8px/1.4 'Rubik', sans-serif; letter-spacing: 1.3px; color: #a3b5a7; }
+.work-scene__steps { display: flex; gap: 5px; }
+.work-scene__steps i { width: 22px; height: 3px; border-radius: 2px; background: #4b6054; transition: background-color .25s; }
+.work-scene[data-stage="1"] .work-scene__steps i:first-child,
+.work-scene[data-stage="2"] .work-scene__steps i:nth-child(-n+2),
+.work-scene[data-stage="3"] .work-scene__steps i { background: #dfc58a; }
+.work-scene .ws-step-1, .work-scene .ws-step-2, .work-scene .ws-step-3 { opacity: 0; transition: opacity .2s .45s; }
+.work-scene[data-stage="1"] .ws-step-1,
+.work-scene[data-stage="2"] .ws-step-1, .work-scene[data-stage="2"] .ws-step-2,
+.work-scene[data-stage="3"] .ws-step-1, .work-scene[data-stage="3"] .ws-step-2, .work-scene[data-stage="3"] .ws-step-3 { opacity: 1; }
+.work-scene .ws-chips, .work-scene .ws-splash { opacity: 0; }
+
+/* Tool pivots sit on the handle, with anticipation, contact, then recoil. */
+.work-scene .ws-pick, .work-scene .ws-axe { transform: rotate(0deg); }
+.work-scene .ws-lamp { animation: ws-lamplight 5s ease-in-out infinite; }
+.work-scene .ws-falling-tree { transform: rotate(0); transition: transform .85s cubic-bezier(.6,0,.9,.5) .43s; }
+.work-scene[data-stage="3"] .ws-falling-tree { transform: rotate(78deg); }
+.work-scene .ws-stump { opacity: 0; transition: opacity .1s .55s; }
+.work-scene[data-stage="3"] .ws-stump { opacity: 1; }
+.work-scene--lumberjack[data-stage="1"] .ws-axe { transform: rotate(-35deg); }
+
+/* Fishing line, float and catch are separate layers of the same action. */
+.work-scene .ws-bobber, .work-scene .ws-line { opacity: 0; transition: opacity .15s; }
+.work-scene--fisherman[data-stage="1"] .ws-bobber,
+.work-scene--fisherman[data-stage="1"] .ws-line { transition-delay: .75s; }
+.work-scene--fisherman[data-stage="1"] .ws-bobber,
+.work-scene--fisherman[data-stage="2"] .ws-bobber,
+.work-scene--fisherman[data-stage="1"] .ws-line,
+.work-scene--fisherman[data-stage="2"] .ws-line { opacity: 1; }
+.work-scene .ws-bobber { animation: ws-float 3s ease-in-out infinite; }
+.work-scene--fisherman[data-stage="2"] .ws-bobber { animation: ws-bite .8s ease-in-out infinite; }
+.work-scene .ws-water { animation: ws-water 7s ease-in-out infinite alternate; }
+.work-scene .ws-catch, .work-scene .ws-catch-line { opacity: 0; }
+.work-scene--fisherman[data-stage="3"] .ws-catch,
+.work-scene--fisherman[data-stage="3"] .ws-catch-line { opacity: 1; }
+.work-scene--fisherman[data-stage="3"] .ws-fish { animation: ws-fish .7s ease-in-out 3; }
+
+/* Sowing, irrigation, growth and harvest leave a visible result on the bed. */
+.work-scene .ws-furrows { opacity: .15; transition: opacity .6s; }
+.work-scene--farmer[data-stage="1"] .ws-furrows,
+.work-scene--farmer[data-stage="2"] .ws-furrows,
+.work-scene--farmer[data-stage="3"] .ws-furrows { opacity: 1; }
+.work-scene .ws-hoe { opacity: .9; }
+.work-scene--farmer[data-stage="1"] .ws-hoe,
+.work-scene--farmer[data-stage="2"] .ws-hoe,
+.work-scene--farmer[data-stage="3"] .ws-hoe { opacity: 0; }
+.work-scene .ws-seedlings { opacity: 0; transition: opacity .3s .65s; }
+.work-scene--farmer[data-stage="1"] .ws-seedlings { opacity: 1; }
+.work-scene .ws-crops { opacity: 0; transform: scaleY(.1); transform-origin: 205px 190px; transition: transform 1s .3s, opacity .3s .3s; }
+.work-scene--farmer[data-stage="2"] .ws-crops { opacity: 1; transform: scaleY(1); }
+.work-scene .ws-can { opacity: 0; transition: opacity .15s; }
+.work-scene--farmer[data-stage="2"] .ws-can { opacity: 1; }
+.work-scene .ws-pour { opacity: 0; }
+.work-scene--farmer[data-stage="2"] .ws-pour { animation: ws-pour .9s linear .25s both; }
+.work-scene .ws-harvest { opacity: 0; }
+.work-scene--farmer[data-stage="3"] .ws-harvest { opacity: 1; }
+
+/* Vehicles travel along the road, with wheels and suspension independent. */
+.work-scene .ws-scooter { transform: translateX(0); transition: transform 1.1s cubic-bezier(.35,0,.2,1); }
+.work-scene--courier[data-stage="2"] .ws-scooter,
+.work-scene--courier[data-stage="3"] .ws-scooter { transform: translateX(100px); }
+.work-scene .ws-route-pin { opacity: .5; transition: opacity .2s; }
+.work-scene--courier[data-stage="1"] .ws-route-pin,
+.work-scene--courier[data-stage="2"] .ws-route-pin { opacity: 1; }
+.work-scene--courier[data-stage="3"] .ws-route-pin { opacity: 0; }
+.work-scene .ws-walker, .work-scene .ws-delivered { opacity: 0; }
+.work-scene--courier[data-stage="3"] .ws-walker { opacity: 1; transform: translateX(116px); }
+.work-scene--courier[data-stage="3"] .ws-cargo,
+.work-scene--courier[data-stage="3"] .ws-rider { opacity: 0; }
+.work-scene--courier[data-stage="3"] .ws-delivered { opacity: 1; transition: opacity .25s 1.3s; }
+.work-scene--courier[data-stage="3"] .ws-walk-leg--front { animation: ws-walk .4s linear .15s 3; }
+.work-scene--courier[data-stage="3"] .ws-walk-leg--back { animation: ws-walk .4s linear .15s 3 reverse; }
+.work-scene--courier[data-stage="3"] .ws-walker-body { animation: ws-step .2s ease-in-out .15s 6; }
+.work-scene .ws-taxi-car { transform: translateX(0); transition: transform 1.2s cubic-bezier(.35,0,.2,1); }
+.work-scene .ws-car-body { transform-origin: 199px 195px; }
+.work-scene--taxi[data-stage="2"] .ws-taxi-car { transform: translateX(128px); }
+.work-scene--taxi[data-stage="3"] .ws-taxi-car { transform: translateX(180px); transition-duration: .7s; }
+.work-scene .ws-pickup { opacity: 0; }
+.work-scene--taxi[data-stage="1"] .ws-pickup { opacity: 1; animation: ws-pickup 1.8s ease-in-out infinite; }
+.work-scene .ws-taxi-finish { opacity: 0; transition: opacity .25s .6s; }
+.work-scene--taxi[data-stage="3"] .ws-taxi-finish { opacity: 1; }
+
+.work-scene[data-paused="true"] *, .work-scene[data-active="false"] * { animation-play-state: paused !important; }
+.work-scene[data-stage="0"] * { transition-duration: 0s !important; transition-delay: 0s !important; }
+@keyframes ws-lamplight { 0%,100% { opacity: .88; } 50% { opacity: 1; } }
+@keyframes ws-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(1.5px); } }
+@keyframes ws-bite { 0%,100% { transform: translateY(1px); } 40% { transform: translateY(6px); } 65% { transform: translateY(2px); } }
+@keyframes ws-water { from { transform: translateX(-4px); } to { transform: translateX(5px); } }
+@keyframes ws-fish { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes ws-pour { 0% { opacity: 0; stroke-dashoffset: 12; } 15%,85% { opacity: 1; } 100% { opacity: 0; stroke-dashoffset: -36; } }
+@keyframes ws-pickup { 0%,100% { opacity: .6; } 50% { opacity: 1; } }
+@keyframes ws-walk { 0%,100% { transform: rotate(0); } 25% { transform: rotate(23deg); } 75% { transform: rotate(-23deg); } }
+@keyframes ws-step { 0%,100% { transform: translateY(0); } 50% { transform: translateY(1.5px); } }
+@media (prefers-reduced-motion: reduce) {
+  .work-scene *, .work-scene *::before, .work-scene *::after { animation: none !important; transition: none !important; }
+}
+@media (max-width: 360px) { .work-scene__heading { padding: 9px 10px; font-size: 10px; } .work-scene__status { font-size: 8px; } }
