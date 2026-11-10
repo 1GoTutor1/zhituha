@@ -1988,6 +1988,32 @@ body[data-ui-theme="dark"] .game-tab-home .home-season-pass-card { min-height: 7
 body[data-ui-theme="dark"] .game-tab-home .home-premium-actions button {
   border-color: rgba(255,255,255,.16) !important; border-radius: 13px !important;
 }
+.game-tab-home .home-missions { padding: 0 !important; overflow: hidden; }
+.game-tab-home .home-missions-summary {
+  min-height: 58px; padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  list-style: none; cursor: pointer; color: #f2f1ec;
+}
+.game-tab-home .home-missions-summary::-webkit-details-marker { display: none; }
+.game-tab-home .home-missions-summary::after { content: '⌄'; color: #a9aaa7; font-size: 18px; transition: transform .18s ease; }
+.game-tab-home .home-missions[open] .home-missions-summary::after { transform: rotate(180deg); }
+.game-tab-home .home-missions-summary > span:first-child { display: grid; gap: 3px; }
+.game-tab-home .home-missions-summary b { font-size: 14px; }
+.game-tab-home .home-missions-summary small { color: #9a9c9c !important; font-size: 10px; }
+.game-tab-home .home-missions-count { color: #bcbdb8; font-size: 11px; white-space: nowrap; }
+.game-tab-home .home-missions-list { padding: 0 14px 10px; border-top: 1px solid rgba(255,255,255,.1); }
+.game-tab-home .home-missions-list > div { padding: 10px 0 !important; }
+.market-page .market-category-tabs { gap: 4px; }
+.market-page .market-category-tabs button { min-height: 42px; padding-inline: 4px !important; font-size: 11px !important; touch-action: manipulation; }
+.game-tab-jobs .jobs-start-card { padding: 18px !important; border-radius: 18px !important; }
+.game-tab-jobs .jobs-start-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.game-tab-jobs .jobs-start-heading > span { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border: 1px solid var(--surface-line); border-radius: 12px; background: var(--surface-soft); }
+.game-tab-jobs .jobs-start-heading h3 { margin: 0 0 5px; }
+.game-tab-jobs .jobs-start-heading p { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.45; }
+@media (max-width: 360px) {
+  .market-page .market-category-tabs { overflow-x: auto; justify-content: flex-start !important; scrollbar-width: none; }
+  .market-page .market-category-tabs::-webkit-scrollbar { display: none; }
+  .market-page .market-category-tabs button { flex: 0 0 auto !important; min-width: 76px; padding-inline: 10px !important; }
+}
 @media (max-width: 560px) {
   body[data-ui-theme="dark"] .game-home-backplate { padding: 10px 12px 24px; }
   body[data-ui-theme="dark"] .game-tab-home .profession-work-card { padding: 14px; }

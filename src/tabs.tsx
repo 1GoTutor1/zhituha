@@ -633,6 +633,8 @@ export const HomeTab = ({ app }: { app: any }) => {
   const av = getAvatar(app.avatarId);
   const myCoffee = app.myBizs?.find((b: any) => b.biz_type === 'coffee');
   const hasBusiness = (app.myBizs || []).length > 0;
+  const readyMissions = (app.dailyMissions || []).filter((mission: { claimed?: boolean; progress?: number; target?: number }) => !mission.claimed && Number(mission.progress) >= Number(mission.target)).length;
+  const activeMissions = (app.dailyMissions || []).filter((mission: { claimed?: boolean; progress?: number; target?: number }) => !mission.claimed && Number(mission.progress) < Number(mission.target)).length;
   const modifier = getDayModifier();
   return (
     <div className="game-tab game-tab-home" style={{ maxWidth: '460px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
@@ -694,10 +696,12 @@ export const HomeTab = ({ app }: { app: any }) => {
       {returnBonusSeconds > 0 && <div role="status" className="home-bonus-status"><Gift size={16} /> <span>Бонус возвращения · +15%</span><b>{Math.floor(returnBonusSeconds / 60)}:{String(returnBonusSeconds % 60).padStart(2, '0')}</b></div>}
 
 
-      <section className="home-missions" style={{ marginTop: 15, marginBottom: 15, padding: 13, borderRadius: 12, background: 'linear-gradient(145deg, rgba(38,25,55,.96), rgba(27,19,37,.98))', border: '1px solid rgba(183,142,255,.25)', color: '#f7f1ff', textAlign: 'left' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 }}>
-          <b>Задания на сегодня</b><small style={{ color: '#b9a6d0' }}>Обновятся в полночь UTC</small>
-        </div>
+      <details className="home-missions" open={readyMissions > 0} style={{ marginTop: 15, marginBottom: 15, padding: 13, borderRadius: 12, background: 'linear-gradient(145deg, rgba(38,25,55,.96), rgba(27,19,37,.98))', border: '1px solid rgba(183,142,255,.25)', color: '#f7f1ff', textAlign: 'left' }}>
+        <summary className="home-missions-summary">
+          <span><b>Задания на сегодня</b><small>Обновятся в полночь UTC</small></span>
+          <span className="home-missions-count">{readyMissions > 0 ? `${readyMissions} готово` : activeMissions > 0 ? `${activeMissions} в процессе` : 'Выполнено'}</span>
+        </summary>
+        <div className="home-missions-list">
         {(app.dailyMissions || []).map((mission: any) => {
           const description = mission.id === 'work_5' ? 'Поработай 5 раз' : mission.id === 'sell_1' ? 'Продай предмет из инвентаря' : 'Заверши действие в профессии';
           const complete = Number(mission.progress) >= Number(mission.target);
@@ -712,7 +716,8 @@ export const HomeTab = ({ app }: { app: any }) => {
                 : <span style={{ color: '#b9a6d0', fontSize: 12 }}>В процессе</span>}
           </div>;
         })}
-      </section>
+        </div>
+      </details>
 
       <details className="home-wallet-details" style={{ marginBottom: 15, padding: '11px 13px', borderRadius: 10, background: 'rgba(61,126,166,.08)', border: '1px solid rgba(61,126,166,.22)', color: '#2f2a1d', textAlign: 'left' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Накопления и кассы · открыть</summary>
@@ -925,7 +930,7 @@ export const MarketTab = ({ app }: { app: any }) => {
       
       <div className="market-category-tabs" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, backgroundColor: '#fbf4e4', padding: 5, borderRadius: 8 }}>
         {['items', 'cars', 'realestate', 'shops'].map((t: any) => (
-          <button key={t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, minWidth: 0, padding: '8px 2px', fontSize: 10, whiteSpace: 'nowrap', border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3d7ea6' : 'transparent', color: app.marketTab === t ? '#f0f7fb' : '#6b5f45', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
+          <button key={t} type="button" aria-pressed={app.marketTab === t} onClick={() => app.setMarketTab(t)} style={{ flex: 1, minWidth: 0, padding: '8px 2px', fontSize: 10, whiteSpace: 'nowrap', border: 'none', borderRadius: 12, backgroundColor: app.marketTab === t ? '#3d7ea6' : 'transparent', color: app.marketTab === t ? '#f0f7fb' : '#6b5f45', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>
             {t === 'items' ? '\u041f\u0440\u0435\u0434\u043c\u0435\u0442\u044b' : t === 'cars' ? '\u0410\u0432\u0442\u043e' : t === 'realestate' ? '\u0416\u0438\u043b\u044c\u0451' : '\u041c\u0430\u0433\u0430\u0437\u0438\u043d\u044b'}
           </button>
         ))}
@@ -1996,9 +2001,9 @@ export const JobsTab = ({ app }: { app: any }) => {
   return (
     <div className="game-tab game-tab-jobs" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
       <h2>Работа</h2>
-      <div style={{ ...S.card, textAlign: 'center', marginTop: 50 }}>
-        <div style={{ fontSize: 50, marginBottom: 10 }}>📉</div><h3>Вы безработный</h3><p style={{ color: '#6b5f45', fontSize: 14, marginBottom: 20 }}>Пора найти работу!</p>
-        <Btn variant="secondary" onClick={() => app.setBoardOpen(true)}><Briefcase size={20} /> Биржа труда</Btn>
+      <div className="jobs-start-card" style={{ ...S.card, textAlign: 'left', marginTop: 12 }}>
+        <div className="jobs-start-heading"><span><Briefcase size={19} /></span><div><h3>Найди первую работу</h3><p>Выбери вакансию и начни зарабатывать у владельца бизнеса.</p></div></div>
+        <Btn variant="secondary" onClick={() => app.setBoardOpen(true)}><Briefcase size={18} /> Смотреть вакансии</Btn>
       </div>
     </div>
   );
