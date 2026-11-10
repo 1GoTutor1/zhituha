@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Cpu, Zap, Coins, HardDrive, Play, Pause, PackagePlus, RefreshCw, Pickaxe } from 'lucide-react';
 import { Btn } from './components';
 import './MiningTab.css';
@@ -37,6 +37,7 @@ export function MiningTab({ app }: { app: MiningApp }) {
   const [state, setState] = useState<MiningState | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const actionLock = useRef(false);
   const [saleAmount, setSaleAmount] = useState('');
   const [gpuQuantity, setGpuQuantity] = useState('1');
   const [error, setError] = useState('');
@@ -68,7 +69,8 @@ export function MiningTab({ app }: { app: MiningApp }) {
   }, [refresh]);
 
   const run = async (rpc: string, args: Record<string, unknown>) => {
-    if (busy) return;
+    if (actionLock.current) return;
+    actionLock.current = true;
     setBusy(true);
     try {
       const { data, error: rpcError } = await app.supabase.rpc(rpc, { p_player_id: app.pid, ...args });
@@ -96,6 +98,7 @@ export function MiningTab({ app }: { app: MiningApp }) {
       setError(message);
       app.showMsg(message, true);
     } finally {
+      actionLock.current = false;
       setBusy(false);
     }
   };

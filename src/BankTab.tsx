@@ -89,6 +89,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const [bank, setBank] = useState<BankState | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const actionLock = useRef(false);
   const [error, setError] = useState('');
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [serverClockOffset, setServerClockOffset] = useState(0);
@@ -170,7 +171,8 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   }, []);
 
   const run = async (rpcName: string, args: Record<string, unknown>, successText: string) => {
-    if (busy) return;
+    if (actionLock.current) return;
+    actionLock.current = true;
     setBusy(true);
     setError('');
     try {
@@ -196,6 +198,7 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
       setError(message);
       app.showMsg?.(message, true);
     } finally {
+      actionLock.current = false;
       setBusy(false);
     }
   };

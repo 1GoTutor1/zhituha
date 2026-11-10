@@ -50,6 +50,31 @@ const READ_BATCH_RPCS = new Set([
   'district_rest_state_rpc', 'district_state_rpc', 'district_taxi_ride_state_rpc',
 ]);
 
+// Money-changing requests are executed and cached in the same Postgres
+// transaction so a retry after a lost response cannot charge or pay twice.
+const IDEMPOTENT_RPCS = new Set([
+  'work_rpc', 'verify_work_captcha_rpc', 'claim_tutorial_reward_rpc', 'claim_daily_reward_rpc',
+  'taxi_collect_rpc', 'cancel_lot_rpc', 'buy_number_market_lot_rpc', 'start_car_order_rpc',
+  'start_build_rpc', 'upgrade_business_passive_rpc', 'collect_business_passive_rpc',
+  'buy_coffee_rpc', 'buy_market_item', 'collect_ref_bonus_rpc', 'collect_tips_rpc',
+  'place_bet_rpc', 'casino_slots_spin_rpc', 'start_profession_cycle_rpc',
+  'profession_step_rpc', 'finish_profession_cycle_rpc', 'claim_profession_reward_rpc',
+  'sell_inventory_rpc', 'purchase_business_location_rpc', 'start_business_lease_rpc',
+  'finish_business_lease_rpc', 'sell_business_to_state_rpc', 'bid_business_auction_rpc',
+  'business_cash_transfer_rpc', 'business_shop_restock_rpc', 'business_shop_buy_rpc',
+  'business_repair_personal_car_rpc', 'business_repair_taxi_car_rpc',
+  'casino_business_upgrade_rpc', 'daily_mission_claim_rpc', 'season_pass_unlock_premium_rpc',
+  'season_pass_claim_rpc', 'taxi_purchase_vehicle_rpc', 'bank_move_cash_rpc',
+  'bank_transfer_rpc', 'bank_open_deposit_rpc', 'bank_close_deposit_rpc',
+  'bank_buy_stock_rpc', 'bank_sell_stock_rpc', 'bank_apply_loan_rpc', 'bank_repay_loan_rpc',
+  'family_create_rpc', 'family_cash_deposit_rpc', 'family_territory_attack_rpc',
+  'black_market_buy_seed_rpc', 'black_market_plant_rpc', 'black_market_harvest_rpc',
+  'black_market_sell_rpc', 'district_travel_rpc', 'district_rest_rpc',
+  'district_taxi_order_rpc', 'district_taxi_finish_ride_rpc',
+  'mining_action_rpc', 'mining_sell_coin_rpc', 'mining_turn_on_all_rpc',
+  'mining_install_all_rigs_rpc',
+]);
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
@@ -60,7 +85,7 @@ export default async function handler(req, res) {
 
   const user = verifyTelegramInitData(req.body?.init_data, BOT_TOKEN);
   if (!user) return res.status(403).json({ error: 'Telegram authentication required' });
-  const { name, args } = req.body || {};
+  const { name, args, idempotency_key: idempotencyKey } = req.body || {};
   if (typeof name !== 'string' || (name !== 'read_batch' && !CLIENT_RPCS.has(name)) || !args || typeof args !== 'object' || Array.isArray(args)) {
     return res.status(400).json({ error: 'Unsupported RPC' });
   }
@@ -138,7 +163,19 @@ export default async function handler(req, res) {
       safeArgs.p_money_after = null;
     }
 
-    let { data, error } = await sb.rpc(name, safeArgs);
+    if (IDEMPOTENT_RPCS.has(name)
+        && (typeof idempotencyKey !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey))) {
+      return res.status(400).json({ error: 'Idempotency key required' });
+    }
+
+    let { data, error } = IDEMPOTENT_RPCS.has(name)
+      ? await sb.rpc('game_rpc_idempotency_call', {
+          p_player_id: player.id,
+          p_rpc_name: name,
+          p_args: safeArgs,
+          p_request_id: idempotencyKey,
+        })
+      : await sb.rpc(name, safeArgs);
     if (error) {
       if (name === 'admin_reset_player_rpc') {
         console.error('Admin player reset failed:', error.code, error.message);
