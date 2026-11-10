@@ -37,7 +37,7 @@ const CLIENT_RPCS = new Set([
   'black_market_harvest_rpc', 'black_market_sell_rpc', 'family_black_market_join_rpc',
   'district_state_rpc', 'district_travel_rpc', 'district_rest_rpc', 'district_rest_state_rpc',
   'district_taxi_options_rpc', 'district_taxi_order_rpc', 'district_taxi_ride_state_rpc', 'district_taxi_finish_ride_rpc',
-  'mining_state_rpc', 'mining_action_rpc', 'mining_sell_coin_rpc', 'mining_turn_on_all_rpc',
+  'mining_state_rpc', 'mining_action_rpc', 'mining_sell_coin_rpc', 'mining_turn_on_all_rpc', 'mining_install_all_rigs_rpc',
 ]);
 
 // Read-only screens may fetch several independent snapshots in one

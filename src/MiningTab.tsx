@@ -24,6 +24,7 @@ type MiningState = {
   rigs?: MiningRig[]; transactions?: MiningTransaction[]; used_slots?: number;
   site_slots?: number; farm_slot_price?: number; money?: number;
   electricity_paid?: number; net_money?: number; started_count?: number;
+  installed_count?: number; skipped_no_space?: number; skipped_no_funds?: number; skipped_no_gpu?: number;
 };
 type MiningApp = {
   pid: string | null; money: number; setMoney: (money: number) => void;
@@ -77,6 +78,16 @@ export function MiningTab({ app }: { app: MiningApp }) {
       if (typeof data?.money === 'number') app.setMoney(data.money);
       if (data?.electricity_paid) app.showMsg(`Электричество: ${money(data.electricity_paid)}`);
       else if (data?.net_money) app.showMsg(`Продано · после налога +${money(data.net_money)}`);
+      else if (typeof data?.installed_count === 'number') {
+        const details = [
+          data.skipped_no_space ? `нет места: ${data.skipped_no_space}` : '',
+          data.skipped_no_funds ? `не хватает резерва: ${data.skipped_no_funds}` : '',
+          data.skipped_no_gpu ? `без видеокарты: ${data.skipped_no_gpu}` : '',
+        ].filter(Boolean).join(' · ');
+        app.showMsg(data.installed_count > 0
+          ? `Установлено и запущено: ${data.installed_count}${details ? ` · пропущено: ${details}` : ''}`
+          : `Ничего не установлено${details ? ` · ${details}` : ''}`, data.installed_count === 0);
+      }
       else if (typeof data?.started_count === 'number') app.showMsg(data.started_count > 0 ? `Запущено установок: ${data.started_count}` : 'Все установленные майнеры уже работают');
       else app.showMsg('Готово');
       setError('');
@@ -92,6 +103,14 @@ export function MiningTab({ app }: { app: MiningApp }) {
   const invoke = (action: string, extra: Record<string, unknown> = {}) => void run('mining_action_rpc', { p_action: action, ...extra });
   const components = state?.components || {};
   const rigs = state?.rigs || [];
+  const inventoryRigs = rigs.filter(rig => !rig.installed);
+  const canInstallAny = inventoryRigs.some(rig => {
+    if (rig.rig_type === 'gpu_farm' && Number(rig.gpu_count) < 1) return false;
+    const slotsNeeded = rig.rig_type === 'industrial' ? 4 : 1;
+    const powerReserve = rig.rig_type === 'gpu_farm' ? Math.ceil(Number(rig.gpu_count) * 750) : rig.rig_type === 'asic' ? 5000 : 18000;
+    return Number(state?.site_slots || 1) - Number(state?.used_slots || 0) >= slotsNeeded
+      && Number(app.money) >= powerReserve;
+  });
   const stoppedInstalledCount = rigs.filter(rig => rig.installed && !rig.is_running && (rig.rig_type !== 'gpu_farm' || Number(rig.gpu_count) > 0)).length;
   const transactions = state?.transactions || [];
   const pending = rigs.reduce((sum, rig) => sum + Number(rig.pending_coin || 0), 0);
@@ -124,6 +143,7 @@ export function MiningTab({ app }: { app: MiningApp }) {
       <p className="mining-muted">Доход начисляется при сборе. Офлайн-расчёт ограничен 12 часами; после этого установка останавливается.</p>
       {pending > 0 && <Btn disabled={busy} onClick={() => invoke('collect')}><Coins size={17} /> Забрать добычу · {coin(pending)} MC</Btn>}
       {stoppedInstalledCount > 0 && <Btn disabled={busy} onClick={() => void run('mining_turn_on_all_rpc', {})}><Play size={17} /> Запустить все · {stoppedInstalledCount}</Btn>}
+      {inventoryRigs.length > 0 && <div className="mining-bulk-install"><div><b>В инвентаре: {inventoryRigs.length} майнеров</b><small>Установка запускает добычу; учитываются свободные места и запас на электричество.</small></div><Btn disabled={busy || !canInstallAny} onClick={() => void run('mining_install_all_rigs_rpc', {})}><Play size={17} /> Установить и запустить подходящие</Btn></div>}
       <div className="mining-rig-list">
         {rigs.length === 0 && <p className="mining-empty">Установок пока нет. Собери ферму или купи готовый майнер.</p>}
         {rigs.map(rig => <article className="mining-rig" key={rig.id}>

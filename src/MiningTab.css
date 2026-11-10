@@ -20,6 +20,9 @@
 .mining-card-title h2 { font-size: 17px; }
 .mining-card-title > small { color: var(--text-muted, #a8a0b3); text-align: right; }
 .mining-operations > .soviet-btn { width: 100%; margin: 12px 0 2px; }
+.mining-bulk-install { display: grid; gap: 8px; margin: 12px 0 4px; padding: 11px; border: 1px solid var(--surface-line); border-radius: 12px; background: var(--surface-soft, rgba(255,255,255,.025)); }
+.mining-bulk-install small { display: block; margin-top: 4px; color: var(--text-muted, #a8a0b3); font-size: 12px; line-height: 1.4; }
+.mining-bulk-install .soviet-btn { width: 100%; }
 .mining-empty { text-align: center; color: var(--text-muted, #a8a0b3); padding: 12px 4px; }
 .mining-rig-list, .mining-store-list { display: grid; gap: 9px; }
 .mining-rig, .mining-store-item, .mining-build-row { border: 1px solid var(--surface-line); border-radius: 12px; background: var(--surface-soft, rgba(255,255,255,.025)); padding: 11px; }
