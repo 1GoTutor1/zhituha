@@ -1,7 +1,8 @@
 -- Admin-only reset for one selected player. Apply after supabase_schema.sql and
 -- the migrations for features that are currently installed in this project.
--- Family membership/role, family scores, referral links/balances, account
--- identity, ban/subscription status, and audit/payment history are preserved.
+-- Family membership/role, family scores, earned cosmetics/badges, referral
+-- links/balances, account identity, ban/subscription status, and audit/payment
+-- history are preserved.
 
 create or replace function public.admin_reset_player_rpc(
   p_admin_id uuid,
@@ -176,11 +177,11 @@ begin
       using p_target_player_id;
   end if;
 
-  -- Reset season-pass progress, but retain premium-track ownership and claim
-  -- ledgers so a reset cannot make already-claimed rewards claimable again.
+  -- Reset season-pass progress, but preserve earned badge entitlements and
+  -- claim ledgers so a reset cannot erase rewards or make them claimable again.
   if to_regclass('public.season_pass_player_state') is not null then
     execute 'update public.season_pass_player_state
-      set xp = 0, earned_badges = ''{}''::text[],
+      set xp = 0,
           work_date = null, work_count = 0,
           sale_date = null, sale_count = 0,
           profession_date = null, profession_count = 0
@@ -214,10 +215,6 @@ begin
       ('unlocked_professions', 'array[' || quote_literal('miner') || ']::text[]'),
       ('market_slots', '3'),
       ('premium_balance', '0'),
-      ('owned_cosmetics', '''{}''::text[]'),
-      ('profile_frame', quote_literal('')),
-      ('profile_background', quote_literal('')),
-      ('season_badge_showcase', '''{}''::text[]'),
       ('return_boost_until', 'null')
     ) as reset_fields(column_name, expression)
     join information_schema.columns c
