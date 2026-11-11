@@ -61,7 +61,9 @@ begin
     where player_id=p_player_id and mission_date=today_utc and mission_id=p_mission_id;
   update public.players set money=coalesce(money,0)+m.reward where id=p_player_id returning money into new_money;
   perform public.log_action_rpc(p_player_id,'daily_mission_reward',
-    jsonb_build_object('mission',p_mission_id,'reward',m.reward),m.reward::integer,new_money::integer);
+    jsonb_build_object('mission',p_mission_id,'reward',m.reward),
+    greatest(-2147483648::bigint, least(2147483647::bigint, m.reward::bigint))::integer,
+    greatest(-2147483648::bigint, least(2147483647::bigint, new_money))::integer);
   return jsonb_build_object('success',true,'reward',m.reward,'money',new_money);
 end $$;
 

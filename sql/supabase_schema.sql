@@ -499,7 +499,9 @@ begin
   perform set_config('app.money_actor_id', p_admin_id::text, true);
   update players set money = coalesce(money,0) + p_amount where id = p_target_player_id;
   perform log_action_rpc(p_target_player_id, 'admin_give_money',
-    jsonb_build_object('from_admin', a.nickname), p_amount::int, (t.money + p_amount)::int);
+    jsonb_build_object('from_admin', a.nickname),
+    greatest(-2147483648::bigint, least(2147483647::bigint, p_amount))::integer,
+    greatest(-2147483648::bigint, least(2147483647::bigint, t.money::bigint + p_amount))::integer);
   return jsonb_build_object('success', true, 'money', t.money + p_amount);
 end $$;
 
@@ -724,7 +726,8 @@ begin
   update players set money = money - price where id = p_owner_id;
   insert into businesses (owner_id, owner_name, biz_type, business_name)
   values (p_owner_id, p_owner_name, p_biz_type, coalesce(nullif(p_biz_name,''), initcap(p_biz_type)));
-  perform log_action_rpc(p_owner_id, 'buy_business', jsonb_build_object('type',p_biz_type), -price, p.money - price);
+  perform log_action_rpc(p_owner_id, 'buy_business', jsonb_build_object('type',p_biz_type), -price,
+    greatest(-2147483648::bigint, least(2147483647::bigint, p.money::bigint - price))::integer);
   return jsonb_build_object('success', true, 'money', p.money - price);
 end $$;
 
@@ -1357,7 +1360,7 @@ begin
   update promo_codes set used_count = coalesce(used_count,0) + 1 where id = pr.id;
   perform change_stats(p_player_id, pr.amount, 0);
   perform log_action_rpc(p_player_id, 'promo', jsonb_build_object('code', pr.code), pr.amount,
-                         (select money from players where id = p_player_id));
+                         greatest(-2147483648::bigint, least(2147483647::bigint, (select money from players where id = p_player_id)::bigint))::integer);
   return jsonb_build_object('success', true, 'amount', pr.amount,
                             'money', (select money from players where id = p_player_id));
 end $$;

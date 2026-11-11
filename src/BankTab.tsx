@@ -105,6 +105,8 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
   const [loanAmount, setLoanAmount] = useState('10000');
   const [repaymentAmount, setRepaymentAmount] = useState('1000');
   const lastForeclosureSeen = useRef<number | null>(null);
+  const cashAmountValue = Number(cashAmount);
+  const cashAmountValid = Number.isSafeInteger(cashAmountValue) && cashAmountValue > 0;
 
   const loadBank = useCallback(async (quiet = false, loadLeaseInfo = false) => {
     if (!app.pid) return;
@@ -258,10 +260,10 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
           <div style={S.card}>
             <h3 style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 7 }}><Wallet size={18} /> Перевод между наличными и счётом</h3>
             <label style={{ display: 'block', color: '#6b5f45', fontSize: 12, marginBottom: 5 }}>Сумма, ₽</label>
-            <input type="number" min="1" step="1" value={cashAmount} onChange={event => setCashAmount(event.target.value)} style={S.input} />
+            <input type="number" min="1" max={Number.MAX_SAFE_INTEGER} step="1" value={cashAmount} onChange={event => setCashAmount(event.target.value)} style={S.input} />
             <div style={{ display: 'flex', gap: 8 }}>
-              <Btn variant="secondary" disabled={busy} style={{ flex: 1, padding: 10 }} onClick={() => void run('bank_move_cash_rpc', { p_amount: Number(cashAmount), p_direction: 'deposit' }, 'Деньги внесены на счёт')}><ArrowDownToLine size={15} /> Внести</Btn>
-              <Btn variant="primary" disabled={busy} style={{ flex: 1, padding: 10 }} onClick={() => void run('bank_move_cash_rpc', { p_amount: Number(cashAmount), p_direction: 'withdraw' }, 'Деньги сняты со счёта')}><ArrowUpFromLine size={15} /> Снять</Btn>
+              <Btn variant="secondary" disabled={busy || !cashAmountValid} style={{ flex: 1, padding: 10 }} onClick={() => void run('bank_move_cash_rpc', { p_amount: cashAmountValue, p_direction: 'deposit' }, 'Деньги внесены на счёт')}><ArrowDownToLine size={15} /> Внести</Btn>
+              <Btn variant="primary" disabled={busy || !cashAmountValid} style={{ flex: 1, padding: 10 }} onClick={() => void run('bank_move_cash_rpc', { p_amount: cashAmountValue, p_direction: 'withdraw' }, 'Деньги сняты со счёта')}><ArrowUpFromLine size={15} /> Снять</Btn>
             </div>
           </div>
           <div style={S.card}>

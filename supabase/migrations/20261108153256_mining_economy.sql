@@ -300,7 +300,7 @@ as $$
 declare
   v_player public.players;
   v_rig public.player_mining_rigs;
-  v_quantity integer := greatest(1, least(coalesce(p_quantity, 1), 4));
+  v_quantity integer := coalesce(p_quantity, 1);
   v_cost bigint;
   v_item text;
   v_used_slots integer;
@@ -316,6 +316,7 @@ begin
   insert into public.player_mining_accounts(player_id) values (p_player_id) on conflict (player_id) do nothing;
 
   if p_action = 'buy_component' then
+    if v_quantity < 1 or v_quantity > 500 then return jsonb_build_object('error', 'Количество должно быть от 1 до 500'); end if;
     v_item := p_item_id;
     v_cost := case v_item
       when 'gpu_frame' then 40000
@@ -326,23 +327,28 @@ begin
       when 'gpu_card' then 125000
       else null end;
     if v_cost is null then return jsonb_build_object('error', 'Такой детали нет в магазине'); end if;
+    if v_item = 'gpu_card' and v_quantity > 4 then return jsonb_build_object('error', 'За раз можно купить не больше 4 видеокарт'); end if;
     if v_item <> 'gpu_card' and v_quantity <> 1 then return jsonb_build_object('error', 'Эту деталь можно купить только по одной'); end if;
     v_cost := v_cost * v_quantity;
     if coalesce(v_player.money, 0) < v_cost then return jsonb_build_object('error', 'Недостаточно ₽'); end if;
     update public.players set money = money - v_cost where id = p_player_id returning * into v_player;
+    if exists (select 1 from public.player_mining_inventory where player_id = p_player_id and item_id = v_item and quantity > 2147483647 - v_quantity) then
+      return jsonb_build_object('error', 'В инвентаре нет места для такого количества');
+    end if;
     insert into public.player_mining_inventory(player_id, item_id, quantity)
     values (p_player_id, v_item, v_quantity)
     on conflict (player_id, item_id) do update set quantity = player_mining_inventory.quantity + excluded.quantity;
     v_action_result := jsonb_build_object('purchased', v_item, 'quantity', v_quantity, 'cost', v_cost);
 
   elsif p_action in ('buy_asic', 'buy_industrial') then
-    v_cost := case p_action when 'buy_asic' then 2000000 else 7700000 end;
+    if v_quantity < 1 or v_quantity > 500 then return jsonb_build_object('error', 'За раз можно купить от 1 до 500 майнеров'); end if;
+    v_cost := (case p_action when 'buy_asic' then 2000000 else 7700000 end)::bigint * v_quantity;
     if coalesce(v_player.money, 0) < v_cost then return jsonb_build_object('error', 'Недостаточно ₽'); end if;
     update public.players set money = money - v_cost where id = p_player_id returning * into v_player;
     insert into public.player_mining_rigs(player_id, rig_type)
-    values (p_player_id, case p_action when 'buy_asic' then 'asic' else 'industrial' end)
-    returning * into v_rig;
-    v_action_result := jsonb_build_object('rig_id', v_rig.id, 'cost', v_cost, 'purchased', v_rig.rig_type);
+    select p_player_id, case p_action when 'buy_asic' then 'asic' else 'industrial' end
+    from generate_series(1, v_quantity);
+    v_action_result := jsonb_build_object('cost', v_cost, 'quantity', v_quantity, 'purchased', p_action);
 
   elsif p_action = 'build_gpu_farm' then
     if exists (
@@ -406,10 +412,13 @@ begin
     v_action_result := jsonb_build_object('rig_id', v_rig.id, 'installed', false);
 
   elsif p_action = 'expand_site' then
-    if coalesce(v_player.money, 0) < 250000 then return jsonb_build_object('error', 'Расширение площадки стоит 250 000 ₽'); end if;
-    update public.players set money = money - 250000 where id = p_player_id returning * into v_player;
-    update public.player_mining_accounts set site_slots = site_slots + 1 where player_id = p_player_id returning site_slots into v_site_slots;
-    v_action_result := jsonb_build_object('site_slots', v_site_slots, 'cost', 250000);
+    if v_quantity < 1 or v_quantity > 500 then return jsonb_build_object('error', 'За раз можно купить от 1 до 500 мест'); end if;
+    if coalesce(v_player.money, 0) < 250000::bigint * v_quantity then return jsonb_build_object('error', 'Недостаточно ₽ для расширения площадки'); end if;
+    select site_slots into v_site_slots from public.player_mining_accounts where player_id = p_player_id for update;
+    if v_site_slots > 2147483647 - v_quantity then return jsonb_build_object('error', 'Достигнут предел количества мест'); end if;
+    update public.players set money = money - 250000::bigint * v_quantity where id = p_player_id returning * into v_player;
+    update public.player_mining_accounts set site_slots = site_slots + v_quantity where player_id = p_player_id returning site_slots into v_site_slots;
+    v_action_result := jsonb_build_object('site_slots', v_site_slots, 'quantity', v_quantity, 'cost', 250000::bigint * v_quantity);
 
   elsif p_action = 'collect' then
     v_action_result := public.mining_settle_player(p_player_id);

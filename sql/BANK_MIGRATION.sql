@@ -184,7 +184,7 @@ create or replace function public.bank_move_cash_rpc(p_player_id uuid, p_amount 
 returns jsonb language plpgsql security definer set search_path = pg_catalog, public, pg_temp as $$
 declare p public.players; a public.bank_accounts; new_balance bigint; new_wallet bigint;
 begin
-  if p_amount is null or p_amount < 1 or p_amount > 100000000 then return jsonb_build_object('error','Сумма должна быть от 1 до 100 000 000 ₽'); end if;
+  if p_amount is null or p_amount < 1 or p_amount > 9007199254740991 then return jsonb_build_object('error','Сумма должна быть от 1 до 9 007 199 254 740 991 ₽'); end if;
   if p_direction is null or p_direction not in ('deposit','withdraw') then return jsonb_build_object('error','Некорректная операция'); end if;
   select * into p from public.players where id=p_player_id for update;
   if not found then return jsonb_build_object('error','Игрок не найден'); end if;

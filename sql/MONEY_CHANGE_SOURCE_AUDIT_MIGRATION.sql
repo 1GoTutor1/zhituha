@@ -35,8 +35,8 @@ begin
     p_target_player_id,
     'admin_give_money',
     jsonb_build_object('from_admin', a.nickname),
-    p_amount::integer,
-    (t.money + p_amount)::integer
+    greatest(-2147483648::bigint, least(2147483647::bigint, p_amount))::integer,
+    greatest(-2147483648::bigint, least(2147483647::bigint, t.money::bigint + p_amount))::integer
   );
   return jsonb_build_object('success', true, 'money', t.money + p_amount);
 end;

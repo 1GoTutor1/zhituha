@@ -40,6 +40,9 @@ export function MiningTab({ app }: { app: MiningApp }) {
   const actionLock = useRef(false);
   const [saleAmount, setSaleAmount] = useState('');
   const [gpuQuantity, setGpuQuantity] = useState('1');
+  const [asicQuantity, setAsicQuantity] = useState('1');
+  const [industrialQuantity, setIndustrialQuantity] = useState('1');
+  const [slotQuantity, setSlotQuantity] = useState('1');
   const [error, setError] = useState('');
   const [section, setSection] = useState<'rigs' | 'shop' | 'coin'>('rigs');
 
@@ -120,6 +123,13 @@ export function MiningTab({ app }: { app: MiningApp }) {
   const canBuild = ['gpu_frame', 'gpu_motherboard', 'gpu_cpu_ram', 'gpu_power', 'gpu_cooling'].every(id => Number(components[id] || 0) > 0);
   const enteredSale = Number(saleAmount);
   const estimate = Number.isFinite(enteredSale) && enteredSale > 0 ? Math.floor(enteredSale * Number(state?.coin_price || 0)) : 0;
+  const quantityValue = (value: string) => {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 1 && parsed <= 500 ? parsed : 0;
+  };
+  const asicCount = quantityValue(asicQuantity);
+  const industrialCount = quantityValue(industrialQuantity);
+  const slotsCount = quantityValue(slotQuantity);
 
   if (loading) return <section className="mining-page"><div className="mining-card">Загружаю майнинг…</div></section>;
   if (!state) return <section className="mining-page"><div className="mining-error" role="alert">{error || 'Не удалось загрузить майнинг.'}</div><Btn variant="secondary" onClick={() => void refresh()}>Повторить</Btn></section>;
@@ -170,9 +180,9 @@ export function MiningTab({ app }: { app: MiningApp }) {
         <Btn variant="secondary" disabled={busy || Number(app.money) < item.price * (item.batch ? Math.max(1, Math.min(4, Number(gpuQuantity) || 1)) : 1)} onClick={() => invoke('buy_component', { p_item_id: item.id, p_quantity: item.batch ? Math.max(1, Math.min(4, Number(gpuQuantity) || 1)) : 1 })}>Купить</Btn>
       </article>)}</div>
       <div className="mining-build-row"><div><b>Собрать GPU-ферму</b><small>Нужны пять основных компонентов · каркас на 4 видеокарты</small></div><Btn disabled={busy || !canBuild} onClick={() => invoke('build_gpu_farm')}>Собрать</Btn></div>
-      <div className="mining-store-item"><div><b>ASIC-майнер</b><small>0,142 MC/день · 10 000 ₽ электричества/день · 1 место</small></div><strong>{money(2_000_000)}</strong><Btn disabled={busy || Number(app.money) < 2_000_000} onClick={() => invoke('buy_asic')}>Купить</Btn></div>
-      <div className="mining-store-item"><div><b>Промышленный майнер</b><small>0,5325 MC/день · 36 000 ₽ электричества/день · 4 места</small></div><strong>{money(7_700_000)}</strong><Btn disabled={busy || Number(app.money) < 7_700_000} onClick={() => invoke('buy_industrial')}>Купить</Btn></div>
-      <div className="mining-build-row"><div><b>Расширить площадку</b><small>Добавить одно место · сейчас {state?.site_slots || 1}</small></div><Btn variant="secondary" disabled={busy || Number(app.money) < Number(state?.farm_slot_price || 250_000)} onClick={() => invoke('expand_site')}>+1 · {money(state?.farm_slot_price || 250_000)}</Btn></div>
+      <div className="mining-store-item"><div><b>ASIC-майнер</b><small>0,142 MC/день · 10 000 ₽ электричества/день · 1 место</small></div><strong>{money(2_000_000)} / шт.</strong><input aria-label="Количество ASIC-майнеров" type="number" min="1" max="500" step="1" value={asicQuantity} onChange={event => setAsicQuantity(event.target.value)} /><Btn disabled={busy || !asicCount || Number(app.money) < 2_000_000 * asicCount} onClick={() => invoke('buy_asic', { p_quantity: asicCount })}>Купить · {money(2_000_000 * asicCount)}</Btn></div>
+      <div className="mining-store-item"><div><b>Промышленный майнер</b><small>0,5325 MC/день · 36 000 ₽ электричества/день · 4 места</small></div><strong>{money(7_700_000)} / шт.</strong><input aria-label="Количество промышленных майнеров" type="number" min="1" max="500" step="1" value={industrialQuantity} onChange={event => setIndustrialQuantity(event.target.value)} /><Btn disabled={busy || !industrialCount || Number(app.money) < 7_700_000 * industrialCount} onClick={() => invoke('buy_industrial', { p_quantity: industrialCount })}>Купить · {money(7_700_000 * industrialCount)}</Btn></div>
+      <div className="mining-build-row"><div><b>Расширить площадку</b><small>Сейчас мест: {state?.site_slots || 1} · {money(state?.farm_slot_price || 250_000)} за место</small></div><div className="mining-quantity-action"><input aria-label="Количество мест для площадки" type="number" min="1" max="500" step="1" value={slotQuantity} onChange={event => setSlotQuantity(event.target.value)} /><Btn variant="secondary" disabled={busy || !slotsCount || Number(app.money) < Number(state?.farm_slot_price || 250_000) * slotsCount} onClick={() => invoke('expand_site', { p_quantity: slotsCount })}>Купить · {money(Number(state?.farm_slot_price || 250_000) * slotsCount)}</Btn></div></div>
     </div>}
 
     {section === 'coin' && <>
