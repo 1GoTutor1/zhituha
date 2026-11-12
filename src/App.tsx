@@ -32,7 +32,6 @@ const BankTab = lazy(() => import('./BankTab').then((module) => ({ default: modu
 const FamilyTab = lazy(() => import('./FamilyTab').then((module) => ({ default: module.FamilyTab })));
 const BlackMarketTab = lazy(() => import('./BlackMarketTab').then((module) => ({ default: module.BlackMarketTab })));
 const SeasonPassTab = lazy(() => loadTabs().then((module) => ({ default: module.SeasonPassTab })));
-const GibddTab = lazy(() => loadTabs().then((module) => ({ default: module.GibddTab })));
 const DistrictMapTab = lazy(() => import('./DistrictMapTab').then((module) => ({ default: module.DistrictMapTab })));
 const MiningTab = lazy(() => import('./MiningTab').then((module) => ({ default: module.MiningTab })));
 const CasesTab = lazy(() => import('./CasesTab').then((module) => ({ default: module.CasesTab })));
@@ -198,7 +197,7 @@ export default function App() {
   const [workCaptchaImage, setWorkCaptchaImage] = useState('');
   const [workCaptchaInput, setWorkCaptchaInput] = useState('');
   const [workCaptchaError, setWorkCaptchaError] = useState('');
-  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'gibdd' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'black_market' | 'season_pass' | 'district_map' | 'mining' | 'cases' | 'admin'>('home');
+  const [tab, setTab] = useState<'home' | 'shop' | 'inventory' | 'market' | 'business' | 'jobs' | 'cafe' | 'casino' | 'bank' | 'profile' | 'family' | 'black_market' | 'season_pass' | 'district_map' | 'mining' | 'cases' | 'admin'>('home');
   const [nick, setNick] = useState('');
   const [inNick, setInNick] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
@@ -428,7 +427,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if ((tab === 'inventory' || tab === 'gibdd') && pid) void refreshNumberCollection();
+    if (tab === 'inventory' && pid) void refreshNumberCollection();
   }, [tab, pid]);
 
   const spinPhoneNumber = (businessId: string) => action(async () => {
@@ -2060,7 +2059,6 @@ export default function App() {
         {tab === 'market' && <MarketTab app={app} />}
         {tab === 'cases' && <CasesTab app={app} />}
         {tab === 'inventory' && <InventoryTab app={app} />}
-        {tab === 'gibdd' && <GibddTab app={app} />}
         {tab === 'casino' && <CasinoTab app={app} />}
         {tab === 'bank' && <BankTab app={app} />}
         {tab === 'profile' && <ProfileTab app={app} />}
