@@ -6,6 +6,8 @@ export const DISTRICTS = [
 
 export type DistrictId = typeof DISTRICTS[number]['id'];
 
+export const districtName = (id?: string) => DISTRICTS.find(district => district.id === id)?.name || 'Центр';
+
 export const DISTRICT_BY_LOCATION: Record<string, DistrictId> = {
   coffee_01: 'center', coffee_02: 'center', salon_high: 'center', taxi_yandex: 'center', minimarket_01: 'center', repair_01: 'center', casino_01: 'center',
   coffee_03: 'residential', coffee_04: 'residential', salon_low: 'residential', taxi_maxim: 'residential', minimarket_02: 'residential', minimarket_03: 'residential', repair_02: 'residential',

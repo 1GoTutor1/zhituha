@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BatteryCharging, Building2, CarFront, Clock3, Factory, House, MapPinned, Navigation } from 'lucide-react';
 import { Modal } from './components';
-import { DISTRICTS, districtForLocation } from './districts';
-
-export const districtName = (id?: string) => DISTRICTS.find((district) => district.id === id)?.name || 'Центр';
+import { DISTRICTS, districtForLocation, districtName } from './districts';
 
 export const DistrictMapTab = ({ app }: { app: any }) => {
   const [locations, setLocations] = useState<any[] | null>(null);

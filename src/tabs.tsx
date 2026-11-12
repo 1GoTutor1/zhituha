@@ -1459,7 +1459,7 @@ const LogEntry = ({ log }: { log: any }) => {
   const delta = log.money_delta || 0;
   const details = log.details || {};
   
-  let summary = '';
+  let summary: string;
   if (isMoney) {
     summary = `💰 ${delta > 0 ? '+' : ''}${delta} → ${log.money_after ?? '?'}`;
     if (details.reason) summary += ` · ${details.reason}`;
@@ -1523,7 +1523,7 @@ export const AdminTab = ({ app }: { app: any }) => {
 
   const logClientEvent = async (actionType: string, details: any = {}) => {
     try { await app.supabase.rpc('log_action_rpc', { p_player_id: app.pid, p_action_type: actionType, p_details: details }); }
-    catch (e) { /* ignore */ }
+    catch { /* Ignore failures in the best-effort admin audit trail. */ }
   };
 
   const loadLogs = async () => {
@@ -2425,7 +2425,7 @@ export const InventoryTab = ({ app }: { app: any }) => {
     app.listNumberMarketLot(listing.type, listing.id, price);
   };
   useEffect(() => {
-    try { localStorage.removeItem('zhituha_inventory_new'); } catch {}
+    try { localStorage.removeItem('zhituha_inventory_new'); } catch { /* Storage may be disabled. */ }
     window.dispatchEvent(new Event('zhituha:inventory-seen'));
   }, []);
   const inventory = Array.isArray(app.career?.inventory) ? app.career.inventory : [];

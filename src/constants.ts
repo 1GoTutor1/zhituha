@@ -114,7 +114,7 @@ export const getAvatar = (id: number) => AVATARS.find(a => a.id === id) || AVATA
 
 export const getStock = (biz: any) => {
   if (!biz || !biz.stock) return {};
-  try { return typeof biz.stock === 'string' ? JSON.parse(biz.stock) : biz.stock; } catch (e) { return {}; }
+  try { return typeof biz.stock === 'string' ? JSON.parse(biz.stock) : biz.stock; } catch { return {}; }
 };
 
 export const DAY_MODIFIERS = [
@@ -134,7 +134,7 @@ export const getDayModifier = () => {
     const dayNumber = Math.floor(Date.parse(`${moscowNow.toISOString().slice(0, 10)}T00:00:00Z`) / 86400000);
     const index = ((dayNumber % DAY_MODIFIERS.length) + DAY_MODIFIERS.length) % DAY_MODIFIERS.length;
     return DAY_MODIFIERS[index] || DAY_MODIFIERS[0];
-  } catch (e) {
+  } catch {
     return DAY_MODIFIERS[0];
   }
 };

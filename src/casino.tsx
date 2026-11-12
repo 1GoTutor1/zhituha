@@ -6,8 +6,7 @@ import { playUiSound } from './sound';
 
 // Рулетка и кости используют общий раунд; слоты запускаются отдельно для игрока.
 
-export const RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-export const colorOf = (n: number) => (n === 0 ? 'green' : RED_NUMBERS.includes(n) ? 'red' : 'black');
+const RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
 const DICE_EXACT_MULTIPLIERS: Record<number, number> = { 2: 30, 3: 15, 4: 10, 5: 7.5, 6: 6, 7: 5, 8: 6, 9: 7.5, 10: 10, 11: 15, 12: 30 };
 
 type Round = { id: string; status: 'betting' | 'spinning' | 'result'; end_time: number; roulette_result: number | null; dice_result: number | null; dice_first: number | null; dice_second: number | null; bet_count: number; bet_total: number };

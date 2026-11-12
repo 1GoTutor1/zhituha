@@ -378,8 +378,8 @@ export default function App() {
       if (!res.ok) throw new Error('Ошибка сервера');
       showMsg("Баг отправлен! Спасибо."); 
       setBugOpen(false); setBugText(''); hapticFeedback('heavy');
-    } catch (e: any) {
-      throw new Error(e.message || "Не удалось связаться с сервером");
+    } catch (error: unknown) {
+      throw new Error(error instanceof Error ? error.message : "Не удалось связаться с сервером", { cause: error });
     }
   });
 
@@ -996,7 +996,7 @@ export default function App() {
       if (error || !data || !data.success) return false;
       showMsg(msg, false, 'reward'); hapticFeedback('heavy'); loadData(true); sendNotification(notifyText);
       return true;
-    } catch (e) { return false; }
+    } catch { return false; }
   };
 
   useEffect(() => {
@@ -1676,7 +1676,7 @@ export default function App() {
     await refreshProfessionState();
     if (choice === 'sell') setMoney(Number(data.money));
     if (choice === 'inventory') {
-      try { localStorage.setItem('zhituha_inventory_new', '1'); } catch {}
+      try { localStorage.setItem('zhituha_inventory_new', '1'); } catch { /* Storage may be disabled. */ }
       window.dispatchEvent(new Event('zhituha:inventory-new'));
     }
     const item = data.item;
