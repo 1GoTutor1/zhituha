@@ -612,8 +612,8 @@ body[data-ui-theme="dark"] .more-menu-heading { color: #aeb6af; }
   box-shadow: 0 18px 55px rgba(55, 44, 24, .2);
   text-align: center;
 }
-.access-brand { color: #33855a; font: 900 19px 'Russo One', sans-serif; letter-spacing: 1.5px; }
-.access-emblem { display: grid; width: 62px; height: 62px; place-items: center; margin: 17px 0 15px; border: 1px solid rgba(51, 133, 90, .2); border-radius: 20px; background: rgba(51, 133, 90, .1); color: #33855a; }
+.access-brand { color: #ffad38; font: 900 19px 'Russo One', sans-serif; letter-spacing: 1.5px; }
+.access-emblem { display: grid; width: 62px; height: 62px; place-items: center; margin: 17px 0 15px; border: 1px solid rgba(255, 173, 56, .2); border-radius: 20px; background: rgba(255, 173, 56, .1); color: #ffad38; }
 .access-emblem.is-error { border-color: rgba(192, 69, 58, .24); background: rgba(192, 69, 58, .1); color: #b73d34; }
 .access-spinner { animation: access-spin 1s linear infinite; }
 @keyframes access-spin { to { transform: rotate(360deg); } }
@@ -621,7 +621,7 @@ body[data-ui-theme="dark"] .more-menu-heading { color: #aeb6af; }
 .access-card h1 { margin: 10px 0 6px; font: 22px 'Russo One', sans-serif; }
 .access-card p { margin: 0; color: #73796f; font-size: 14px; line-height: 1.5; }
 .access-progress { width: 100%; height: 5px; margin: 23px 0 3px; overflow: hidden; border-radius: 99px; background: rgba(85, 91, 77, .12); }
-.access-progress span { display: block; width: 38%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #43a66b, #468cb4); animation: access-progress 1.6s ease-in-out infinite; }
+.access-progress span { display: block; width: 38%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ffad38, #f267a7); animation: access-progress 1.6s ease-in-out infinite; }
 @keyframes access-progress { 0% { transform: translateX(-110%); } 100% { transform: translateX(370%); } }
 .access-retry { margin-top: 20px; padding: 12px 18px; border: 0; border-radius: 11px; background: #358b5b; color: #fff; font: 800 14px 'Rubik', sans-serif; cursor: pointer; }
 .access-card small { margin-top: 17px; color: #95988f; font-size: 11px; line-height: 1.4; }

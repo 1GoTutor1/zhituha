@@ -792,7 +792,7 @@ export const MarketItem = ({ item, app, type }: any) => {
         <div style={{ fontSize: 12, color: '#b9acc7', marginTop: 4 }}>{'\u041f\u0440\u043e\u0434\u0430\u0432\u0435\u0446'}: {item.seller_name}</div>
       </div>
     </div>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}><span style={{ color: '#f2c27f', fontWeight: 'bold', fontFamily: 'Russo One, Impact, sans-serif' }}>{Number(item.price).toLocaleString('ru-RU')} ?</span>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}><span style={{ color: '#f2c27f', fontWeight: 'bold', fontFamily: 'Rubik, sans-serif' }}>{Number(item.price).toLocaleString('ru-RU')} ₽</span>
       {item.seller_id !== app.pid ? <Btn variant="primary" onClick={() => app.buyLot(item)} disabled={app.proc} style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>{'\u041a\u0443\u043f\u0438\u0442\u044c'}</Btn> : <button onClick={() => app.cancelLot(item)} disabled={app.proc} style={{ background: 'transparent', border: 'none', color: '#c0453a', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>{'\u0421\u043d\u044f\u0442\u044c \u0441 \u043f\u0440\u043e\u0434\u0430\u0436\u0438'}</button>}
     </div>
   </div>;
