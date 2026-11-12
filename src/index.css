@@ -559,6 +559,11 @@ body[data-ui-theme="dark"] .profession-select-label { color: #aeb6af; }
 .more-menu-heading button { display: grid; place-items: center; border: 0; background: transparent; color: inherit; cursor: pointer; }
 .more-menu-sheet > button { position: relative; display: flex; width: 100%; align-items: center; gap: 11px; padding: 12px 9px; border: 0; border-radius: 9px; background: transparent; color: #2f2a1d; font: 700 14px 'Rubik', sans-serif; text-align: left; cursor: pointer; }
 .more-menu-sheet > button:hover { background: rgba(90,70,40,.08); }
+.more-menu-favorites { margin-bottom: 7px; padding-bottom: 7px; border-bottom: 1px solid rgba(90,70,40,.14); }
+.more-menu-favorites > small { display: block; padding: 4px 8px 6px; color: #a0772f; font: 700 10px 'Rubik', sans-serif; text-transform: uppercase; letter-spacing: .06em; }
+.more-menu-favorites > button { position: relative; display: flex; width: 100%; align-items: center; gap: 11px; padding: 12px 9px; border: 0; border-radius: 9px; background: transparent; color: #2f2a1d; font: 700 14px 'Rubik', sans-serif; text-align: left; cursor: pointer; }
+.more-menu-favorites > button:hover { background: rgba(90,70,40,.08); }
+.more-menu-sheet > button > svg:last-child, .more-menu-favorites > button > svg:last-child { margin-left: auto; }
 .more-menu-sheet .inventory-new-dot { top: 11px; left: 25px; right: auto; }
 body[data-ui-theme="dark"] .inventory-capacity-card,
 body[data-ui-theme="dark"] .inventory-stack { background-color: #222724; border-color: color-mix(in srgb, var(--rarity-color, #748078) 40%, transparent); }
@@ -571,6 +576,8 @@ body[data-ui-theme="dark"] .inventory-capacity-card div:nth-child(2) span { colo
 body[data-ui-theme="dark"] .bottom-nav-bar { background: rgba(27,31,28,.97); border-color: rgba(220,230,222,.14); }
 body[data-ui-theme="dark"] .more-menu-sheet { background: #222724; border-color: rgba(220,230,222,.16); }
 body[data-ui-theme="dark"] .more-menu-sheet > button { color: #eceeea; }
+body[data-ui-theme="dark"] .more-menu-favorites > button { color: #eceeea; }
+body[data-ui-theme="dark"] .more-menu-favorites > small { color: #d6b765; }
 body[data-ui-theme="dark"] .more-menu-heading { color: #aeb6af; }
 @media (max-width: 380px) {
   .profession-work-card { padding: 13px; }
@@ -840,6 +847,24 @@ body[data-ui-theme="dark"] .game-content-backplate {
 .game-content-backplate button:focus-visible,
 .game-content-backplate input:focus-visible,
 .game-content-backplate select:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent-blue) 58%, transparent); outline-offset: 2px; }
+.spin-rarity-strip {
+  display: flex; gap: 7px; overflow-x: auto; overscroll-behavior-inline: contain;
+  padding: 2px 1px 5px; scroll-snap-type: x mandatory; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.spin-rarity-strip::-webkit-scrollbar { display: none; }
+.spin-rarity-option {
+  display: grid; flex: 0 0 auto; min-width: 91px; gap: 3px; justify-items: center;
+  padding: 9px 10px; border: 1px solid var(--surface-line); border-radius: 12px;
+  background: var(--surface-raised); color: var(--text-main); font: inherit;
+  scroll-snap-align: start; cursor: pointer;
+}
+.spin-rarity-option span { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.spin-rarity-option small { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.spin-rarity-option.is-selected {
+  border-color: var(--accent-yellow); background: color-mix(in srgb, var(--accent-yellow) 13%, var(--surface-raised));
+}
+.spin-rarity-option:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
 .home-player-header {
   align-items: center !important; gap: 10px; padding: 11px 12px;
   border: 1px solid var(--surface-line); border-radius: 18px;

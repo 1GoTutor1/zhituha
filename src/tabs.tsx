@@ -170,6 +170,7 @@ const carPlateMultipliers = (plate: string) => {
 
 const CarNumberCollection = ({ app }: { app: any }) => {
   const numbers = app.numberCollection?.car_numbers || [];
+  const foreverNumbers = app.numberCollection?.forever_car_numbers || [];
   const [listingNumber, setListingNumber] = useState<any>(null);
   const [listingPrice, setListingPrice] = useState('');
   const openListing = (number: any) => { setListingNumber(number); setListingPrice(String(Math.max(1, Number(number.estimated_value) || 1))); };
@@ -181,12 +182,13 @@ const CarNumberCollection = ({ app }: { app: any }) => {
     closeListing();
     app.listNumberMarketLot('car_number', number.id, price);
   };
-  if (!numbers.length) return <div className="gibdd-empty">{'\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0430\u0432\u0442\u043e\u043c\u043e\u0431\u0438\u043b\u044c\u043d\u044b\u0445 \u043d\u043e\u043c\u0435\u0440\u043e\u0432. \u041a\u0440\u0443\u0442\u0438 \u043d\u043e\u043c\u0435\u0440 \u0438 \u0440\u0435\u0448\u0430\u0439, \u0447\u0442\u043e \u0441 \u043d\u0438\u043c \u0434\u0435\u043b\u0430\u0442\u044c.'}</div>;
+  if (!numbers.length && !foreverNumbers.length) return <div className="gibdd-empty">{'\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0430\u0432\u0442\u043e\u043c\u043e\u0431\u0438\u043b\u044c\u043d\u044b\u0445 \u043d\u043e\u043c\u0435\u0440\u043e\u0432. \u041a\u0440\u0443\u0442\u0438 \u043d\u043e\u043c\u0435\u0440 \u0438 \u0440\u0435\u0448\u0430\u0439, \u0447\u0442\u043e \u0441 \u043d\u0438\u043c \u0434\u0435\u043b\u0430\u0442\u044c.'}</div>;
   return <>
-    <div className="gibdd-number-list">{numbers.map((number: any) => <article className="gibdd-number-row" key={number.id}>
+    {!!numbers.length && <div className="gibdd-number-list">{numbers.map((number: any) => <article className="gibdd-number-row" key={number.id}>
       <div className="gibdd-number-plate"><CarPlate plate={number.plate} compact /><small>{number.is_active ? '\u0421\u0435\u0439\u0447\u0430\u0441 \u0441\u0442\u043e\u0438\u0442 \u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0435' : '\u0413\u043e\u0441\u0443\u0434\u0430\u0440\u0441\u0442\u0432\u043e \u043e\u0446\u0435\u043d\u0438\u043b\u043e \u0432'} {number.is_active ? '' : Number(number.estimated_value).toLocaleString('ru-RU') + ' \u20bd'}</small></div>
       <div className="gibdd-number-actions">{!number.is_active && <button type="button" disabled={app.proc} onClick={() => openListing(number)}>{'\u041d\u0430 \u0440\u044b\u043d\u043e\u043a'}</button>}{app.hasCar && !number.is_active && <button type="button" disabled={app.proc} onClick={() => app.activateCarNumber(number.id)}>{'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c'}</button>}<button type="button" className="is-sell" disabled={app.proc || number.is_active} onClick={() => app.sellCarNumber(number.id)}>{number.is_active ? '\u041d\u0430 \u043c\u0430\u0448\u0438\u043d\u0435' : '\u041f\u0440\u043e\u0434\u0430\u0442\u044c'}</button></div>
-    </article>)}</div>
+    </article>)}</div>}
+    {!!foreverNumbers.length && <section style={{ marginTop: 14, display: 'grid', gap: 8 }}><div style={{ textAlign: 'left' }}><b>Коллекция навсегда</b><small style={{ display: 'block', color: '#6b5f45' }}>Легендарные номера от 30 000 ₽, которые были у тебя в гараже в конце сезона.</small></div>{foreverNumbers.map((number: any) => <article className="gibdd-number-row" key={`forever-${number.plate}`}><div className="gibdd-number-plate"><CarPlate plate={number.plate} compact /><small>Навсегда · {Number(number.estimated_value).toLocaleString('ru-RU')} ₽</small></div></article>)}</section>}
     <Modal open={!!listingNumber} onClose={closeListing} contentStyle={{ maxWidth: 360 }}>
       {listingNumber && <div style={{ display: 'grid', gap: 12, textAlign: 'left' }}><h3 style={{ margin: 0 }}>{'\u0412\u044b\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043d\u043e\u043c\u0435\u0440 \u043d\u0430 \u0440\u044b\u043d\u043e\u043a'}</h3><CarPlate plate={listingNumber.plate} /><small>{'\u041e\u0446\u0435\u043d\u043a\u0430 \u0433\u043e\u0441\u0443\u0434\u0430\u0440\u0441\u0442\u0432\u0430'} {'\u00b7'} {Number(listingNumber.estimated_value).toLocaleString('ru-RU')} {'\u20bd'}</small><label htmlFor="car-number-market-price">{'\u0426\u0435\u043d\u0430 \u043f\u0440\u043e\u0434\u0430\u0436\u0438'}, {'\u20bd'}</label><input id="car-number-market-price" type="number" min={1} max={100000000} step={1} value={listingPrice} onChange={event => setListingPrice(event.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 8 }}><Btn variant="secondary" onClick={closeListing}>{'\u041e\u0442\u043c\u0435\u043d\u0430'}</Btn><Btn variant="primary" disabled={app.proc || !Number.isSafeInteger(Number(listingPrice)) || Number(listingPrice) < 1 || Number(listingPrice) > 100000000} onClick={submitListing}>{'\u0412\u044b\u0441\u0442\u0430\u0432\u0438\u0442\u044c'}</Btn></div></div>}
     </Modal>
@@ -802,9 +804,11 @@ export const MarketItem = ({ item, app, type }: any) => {
 
 export const MarketTab = ({ app }: { app: any }) => {
   const [showTop, setShowTop] = useState(false);
-  const [leaderboardMode, setLeaderboardMode] = useState<'money' | 'referrals' | 'donations'>('money');
+  const [leaderboardMode, setLeaderboardMode] = useState<'money' | 'referrals' | 'donations' | 'forever'>('money');
   const [donationPlayers, setDonationPlayers] = useState<any[]>([]);
   const [donationLeaderboardUnavailable, setDonationLeaderboardUnavailable] = useState(false);
+  const [foreverPlayers, setForeverPlayers] = useState<any[]>([]);
+  const [foreverLeaderboardUnavailable, setForeverLeaderboardUnavailable] = useState(false);
   const [selectedPublicProfile, setSelectedPublicProfile] = useState<any>(null);
   const [publicProfileLoading, setPublicProfileLoading] = useState(false);
   const [shopPurchase, setShopPurchase] = useState<any>(null);
@@ -830,11 +834,26 @@ export const MarketTab = ({ app }: { app: any }) => {
     })();
     return () => { active = false; };
   }, [showTop, leaderboardMode]);
+  useEffect(() => {
+    if (!showTop || leaderboardMode !== 'forever') return;
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch('/api/players', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'forever_number_leaderboard', init_data: (window as any).Telegram?.WebApp?.initData || '' }),
+        });
+        const result = await response.json();
+        if (active) { setForeverLeaderboardUnavailable(!response.ok); if (response.ok) setForeverPlayers(result.players || []); }
+      } catch { if (active) setForeverLeaderboardUnavailable(true); }
+    })();
+    return () => { active = false; };
+  }, [showTop, leaderboardMode]);
   const myLots = app.market.filter((m: any) => m.seller_id === app.pid).length;
   const maxSlots = app.marketSlots;
   const topPlayers = leaderboardMode === 'money' ? app.players
     : leaderboardMode === 'referrals' ? app.referralLeaderboard
-      : donationPlayers;
+      : leaderboardMode === 'donations' ? donationPlayers : foreverPlayers;
   const allPlayerShops = app.businessOffers?.shops || [];
   const businessLocations = app.businessCatalog?.locations || [];
   const districtPlayerShops = allPlayerShops.filter((shop: any) => {
@@ -874,14 +893,15 @@ export const MarketTab = ({ app }: { app: any }) => {
     return (
       <div className="game-tab market-page market-leaderboard" style={{ maxWidth: '400px', margin: '0 auto', animation: 'fadeIn 0.3s' }}>
         <button onClick={() => setShowTop(false)} style={{ background: 'none', border: 'none', color: '#6b5f45', marginBottom: 20, marginTop: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>← Назад</button>
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Trophy size={22} color="#b06a15"/>{leaderboardMode === 'money' ? '\u0422\u043e\u043f \u0431\u043e\u0433\u0430\u0447\u0435\u0439' : leaderboardMode === 'referrals' ? '\u0422\u043e\u043f \u043f\u043e \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u0430\u043c' : '\u0422\u043e\u043f \u0434\u043e\u043d\u0430\u0442\u0435\u0440\u043e\u0432'}</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Trophy size={22} color="#b06a15"/>{leaderboardMode === 'money' ? '\u0422\u043e\u043f \u0431\u043e\u0433\u0430\u0447\u0435\u0439' : leaderboardMode === 'referrals' ? '\u0422\u043e\u043f \u043f\u043e \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u0430\u043c' : leaderboardMode === 'donations' ? '\u0422\u043e\u043f \u0434\u043e\u043d\u0430\u0442\u0435\u0440\u043e\u0432' : '\u041a\u043e\u043b\u043b\u0435\u043a\u0446\u0438\u044f \u043d\u0430\u0432\u0441\u0435\u0433\u0434\u0430'}</h2>
         <div className="market-rank-tabs" style={{ display: 'flex', gap: 4, marginTop: 14, background: '#fbf4e4', padding: 5, borderRadius: 8 }}>
           <button onClick={() => setLeaderboardMode('money')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, padding: '9px 4px', border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'money' ? '#b06a15' : 'transparent', color: leaderboardMode === 'money' ? '#fff' : '#6b5f45', fontWeight: 'bold', fontSize: 11 }}><Coins size={14} /> {'\u041f\u043e \u0434\u0435\u043d\u044c\u0433\u0430\u043c'}</button>
           <button onClick={() => setLeaderboardMode('referrals')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, padding: '9px 4px', border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'referrals' ? '#c0453a' : 'transparent', color: leaderboardMode === 'referrals' ? '#fff' : '#6b5f45', fontWeight: 'bold', fontSize: 11 }}><Users size={14} /> {'\u0420\u0435\u0444\u0435\u0440\u0430\u043b\u044b'}</button>
           <button onClick={() => setLeaderboardMode('donations')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, padding: '9px 4px', border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'donations' ? '#d59518' : 'transparent', color: leaderboardMode === 'donations' ? '#fff' : '#6b5f45', fontWeight: 'bold', fontSize: 11 }}>⭐ {'\u0414\u043e\u043d\u0430\u0442\u044b'}</button>
+          <button onClick={() => setLeaderboardMode('forever')} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, padding: '9px 4px', border: 0, borderRadius: 7, cursor: 'pointer', background: leaderboardMode === 'forever' ? '#416b50' : 'transparent', color: leaderboardMode === 'forever' ? '#fff' : '#6b5f45', fontWeight: 'bold', fontSize: 11 }}>{'\u041d\u0430\u0432\u0441\u0435\u0433\u0434\u0430'}</button>
         </div>
         <div style={{ marginTop: 20 }}>
-          {topPlayers.length === 0 && <p style={{ color: '#6b5f45' }}>{leaderboardMode === 'referrals' && app.referralLeaderboardUnavailable ? '\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'donations' && donationLeaderboardUnavailable ? '\u0422\u043e\u043f \u0434\u043e\u043d\u0430\u0442\u0435\u0440\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'money' ? '\u041f\u043e\u043a\u0430 \u043d\u0438\u043a\u043e\u0433\u043e...' : leaderboardMode === 'referrals' ? '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445' : '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0434\u043e\u043d\u0430\u0442\u043e\u0432'}</p>}
+          {topPlayers.length === 0 && <p style={{ color: '#6b5f45' }}>{leaderboardMode === 'referrals' && app.referralLeaderboardUnavailable ? '\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0440\u0435\u0444\u0435\u0440\u0430\u043b\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'donations' && donationLeaderboardUnavailable ? '\u0422\u043e\u043f \u0434\u043e\u043d\u0430\u0442\u0435\u0440\u043e\u0432 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d' : leaderboardMode === 'forever' && foreverLeaderboardUnavailable ? '\u041a\u043e\u043b\u043b\u0435\u043a\u0446\u0438\u044f \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430' : leaderboardMode === 'money' ? '\u041f\u043e\u043a\u0430 \u043d\u0438\u043a\u043e\u0433\u043e...' : leaderboardMode === 'referrals' ? '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445' : leaderboardMode === 'donations' ? '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0434\u043e\u043d\u0430\u0442\u043e\u0432' : '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043d\u043e\u043c\u0435\u0440\u043e\u0432'}</p>}
           {topPlayers.map((p: any, i: number) => {
             const purchasedBackground = ['background_panelka', 'background_brick', 'background_concrete', 'background_night_route'].includes(p.profile_background)
               ? getProfileBackground(p.profile_background) : null;
@@ -897,7 +917,7 @@ export const MarketTab = ({ app }: { app: any }) => {
                 <span style={{ fontSize: 14, fontWeight: 'bold', color: i === 0 ? '#b06a15' : i === 1 ? '#5f43a0' : i === 2 ? '#3d7ea6' : '#6b5f45', minWidth: 26 }}>#{i + 1}</span>
                 <span style={{ fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{p.nickname}{p.premium_active && <Crown size={14} aria-label="VIP" style={{ color: '#d49b2a', fill: 'rgba(212,155,42,.22)' }} />}{p.season_badge_showcase?.[0] && <span aria-label={SEASON_BADGES[p.season_badge_showcase[0]]?.name || 'Значок сезона'} title={SEASON_BADGES[p.season_badge_showcase[0]]?.name || 'Значок сезона'}>{SEASON_BADGES[p.season_badge_showcase[0]]?.icon || '✦'}</span>}</span>
               </div>
-              <span style={{ color: leaderboardMode === 'money' ? '#2c7a3c' : leaderboardMode === 'referrals' ? '#c0453a' : '#b06a15', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{leaderboardMode === 'money' ? <>{Number(p.money || 0).toLocaleString('ru-RU')} <Coins size={14} /></> : leaderboardMode === 'referrals' ? <>{Number(p.referral_count || 0).toLocaleString('ru-RU')} {'\u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</> : <>⭐ {Number(p.stars_total || 0).toLocaleString('ru-RU')} <small>· {Number(p.donation_count || 0)} {'\u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439'}</small></>}</span>
+              <span style={{ color: leaderboardMode === 'money' ? '#2c7a3c' : leaderboardMode === 'referrals' ? '#c0453a' : leaderboardMode === 'forever' ? '#416b50' : '#b06a15', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>{leaderboardMode === 'money' ? <>{Number(p.money || 0).toLocaleString('ru-RU')} <Coins size={14} /></> : leaderboardMode === 'referrals' ? <>{Number(p.referral_count || 0).toLocaleString('ru-RU')} {'\u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0451\u043d\u043d\u044b\u0445'}</> : leaderboardMode === 'forever' ? <>{Number(p.number_count || 0)} {'\u043d\u043e\u043c\u0435\u0440\u043e\u0432'} · {Number(p.collection_value || 0).toLocaleString('ru-RU')} ₽</> : <>⭐ {Number(p.stars_total || 0).toLocaleString('ru-RU')} <small>· {Number(p.donation_count || 0)} {'\u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439'}</small></>}</span>
             </button>;
           })}
         </div>

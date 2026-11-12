@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Home, Briefcase, Globe, Backpack, Dices, Landmark, MoreHorizontal, X, Users, Sprout, Ticket, MapPinned, Pickaxe } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Home, Briefcase, Globe, Backpack, Dices, Landmark, MoreHorizontal, X, Users, Sprout, Ticket, MapPinned, Pickaxe, Star } from 'lucide-react';
 import { S } from './constants';
 
 export const Btn = ({ variant = 'primary', onClick, disabled, children, style = {} }: any) => {
@@ -68,6 +68,12 @@ export const Toast = ({ toast, onClose }: { toast: any, onClose: () => void }) =
 
 export const BottomNav = ({ app }: { app: any }) => {
   const [moreOpen, setMoreOpen] = useState(false);
+  const favoriteKey = `zhituha_favorite_tabs_${app.pid || 'guest'}`;
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try { const saved = localStorage.getItem(favoriteKey); return saved ? JSON.parse(saved).filter((id: unknown) => typeof id === 'string') : []; } catch { return []; }
+  });
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heldRef = useRef(false);
   const [inventoryNew, setInventoryNew] = useState(() => { try { return localStorage.getItem('zhituha_inventory_new') === '1'; } catch { return false; } });
   useEffect(() => {
     const markNew = () => setInventoryNew(true);
@@ -79,29 +85,59 @@ export const BottomNav = ({ app }: { app: any }) => {
       window.removeEventListener('zhituha:inventory-seen', markSeen);
     };
   }, []);
+  useEffect(() => {
+    try { setFavorites(JSON.parse(localStorage.getItem(favoriteKey) || '[]').filter((id: unknown) => typeof id === 'string')); }
+    catch { setFavorites([]); }
+  }, [favoriteKey]);
   const items = [
     { id: 'home', icon: Home, text: 'Главная' }, { id: 'jobs', icon: Briefcase, text: 'Работа' },
     { id: 'market', icon: Globe, text: 'Рынок' }, { id: 'family', icon: Users, text: 'Семья' },
   ];
+  const moreItems = [
+    { id: 'cases', icon: Dices, text: 'Крутки' },
+    { id: 'inventory', icon: Backpack, text: 'Инвентарь' }, { id: 'bank', icon: Landmark, text: 'Банк' },
+    { id: 'mining', icon: Pickaxe, text: 'Майнинг' }, { id: 'casino', icon: Dices, text: 'Казино' },
+    { id: 'black_market', icon: Sprout, text: 'Чёрный рынок' }, { id: 'season_pass', icon: Ticket, text: 'Сезонный пропуск' },
+    { id: 'district_map', icon: MapPinned, text: 'Районы' },
+  ];
+  const allItems = [...items, ...moreItems];
+  const toggleFavorite = (id: string) => {
+    setFavorites(current => {
+      const next = current.includes(id) ? current.filter(value => value !== id) : [...current, id];
+      try { localStorage.setItem(favoriteKey, JSON.stringify(next)); } catch { /* local favorites are optional */ }
+      app.hapticFeedback('light');
+      return next;
+    });
+  };
+  const beginHold = (id: string) => {
+    heldRef.current = false;
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = setTimeout(() => { heldRef.current = true; toggleFavorite(id); }, 550);
+  };
+  const endHold = () => { if (holdTimer.current) clearTimeout(holdTimer.current); holdTimer.current = null; };
+  const favoriteButtonProps = (id: string) => ({
+    onPointerDown: () => beginHold(id), onPointerUp: endHold, onPointerLeave: endHold, onPointerCancel: endHold,
+    onContextMenu: (event: React.MouseEvent) => { event.preventDefault(); endHold(); heldRef.current = true; toggleFavorite(id); },
+  });
+  const clickIfNotHeld = (id: string) => { if (heldRef.current) { heldRef.current = false; return; } navigate(id); };
   const navigate = (id: string) => { app.setTab(id); app.hapticFeedback('light'); app.setBoardOpen(false); setMoreOpen(false); };
   return (
     <>
       {moreOpen && <><button className="more-menu-scrim" aria-label="Закрыть меню" onClick={() => setMoreOpen(false)} /><div className="more-menu-sheet"><div className="more-menu-heading"><b>Ещё</b><button aria-label="Закрыть" onClick={() => setMoreOpen(false)}><X size={18} /></button></div>
-        <button onClick={() => navigate('inventory')}><Backpack size={20} /> Инвентарь {inventoryNew && <i className="inventory-new-dot" />}</button>
-        <button onClick={() => navigate('bank')}><Landmark size={20} /> Банк</button>
-        <button onClick={() => navigate('mining')}><Pickaxe size={20} /> Майнинг</button>
-        <button onClick={() => navigate('casino')}><Dices size={20} /> Казино</button>
-        <button onClick={() => navigate('black_market')}><Sprout size={20} /> Чёрный рынок</button>
-        <button onClick={() => navigate('season_pass')}><Ticket size={20} /> Сезонный пропуск</button>
-        <button onClick={() => navigate('district_map')}><MapPinned size={20} /> Районы</button>
+        {favorites.length > 0 && <div className="more-menu-favorites"><small>Избранное</small>{favorites.map(id => {
+          const item = allItems.find(value => value.id === id);
+          if (!item) return null;
+          return <button key={`favorite-${id}`} {...favoriteButtonProps(id)} onClick={() => clickIfNotHeld(id)}><item.icon size={20} /> {item.text}<Star size={15} fill="currentColor" aria-label="Убрать из избранного" /></button>;
+        })}</div>}
+        {moreItems.map(item => <button key={item.id} {...favoriteButtonProps(item.id)} onClick={() => clickIfNotHeld(item.id)}><item.icon size={20} /> {item.text}{item.id === 'inventory' && inventoryNew && <i className="inventory-new-dot" />}{favorites.includes(item.id) && <Star size={15} fill="currentColor" aria-label="В избранном" />}</button>)}
       </div></>}
       <div className="bottom-nav-bar">
         {items.map(t => (
-          <button key={t.id} onClick={() => navigate(t.id)} className={`bottom-nav-item${app.tab === t.id ? ' is-active' : ''}`}>
-            <t.icon size={22} /><span>{t.text}</span>
+          <button key={t.id} {...favoriteButtonProps(t.id)} onClick={() => clickIfNotHeld(t.id)} className={`bottom-nav-item${app.tab === t.id ? ' is-active' : ''}`} aria-label={`${t.text}. Удерживайте, чтобы добавить или убрать из избранного`}>
+            <t.icon size={22} /><span>{t.text}</span>{favorites.includes(t.id) && <Star size={10} fill="currentColor" aria-hidden="true" />}
           </button>
         ))}
-        <button onClick={() => setMoreOpen(current => !current)} className={`bottom-nav-item${moreOpen || ['inventory','bank','casino','black_market','season_pass','district_map','mining'].includes(app.tab) ? ' is-active' : ''}`} aria-expanded={moreOpen}>
+        <button onClick={() => setMoreOpen(current => !current)} className={`bottom-nav-item${moreOpen || ['cases','inventory','bank','casino','black_market','season_pass','district_map','mining'].includes(app.tab) ? ' is-active' : ''}`} aria-expanded={moreOpen}>
           <span className="bottom-nav-more-icon"><MoreHorizontal size={22} />{inventoryNew && <i className="inventory-new-dot" />}</span><span>Ещё</span>
         </button>
       </div>

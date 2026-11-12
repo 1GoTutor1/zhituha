@@ -161,10 +161,18 @@ export const BankTab = ({ app: rawApp }: { app: unknown }) => {
     setLeasedBusinessIds(null);
     setLeaseCheckError('');
     const initialLoad = window.setTimeout(() => { void loadBank(false, true); }, 0);
-    const timer = window.setInterval(() => {
+    const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') void loadBank(true);
-    }, 5 * 60_000);
-    return () => { window.clearTimeout(initialLoad); window.clearInterval(timer); };
+    };
+    const timer = window.setInterval(() => {
+      refreshWhenVisible();
+    }, 15 * 60_000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [loadBank]);
 
   useEffect(() => {

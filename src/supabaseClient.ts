@@ -28,7 +28,7 @@ const IDEMPOTENT_RPCS = new Set([
   'black_market_sell_rpc', 'district_travel_rpc', 'district_rest_rpc',
   'district_taxi_order_rpc', 'district_taxi_finish_ride_rpc',
   'mining_action_rpc', 'mining_sell_coin_rpc', 'mining_turn_on_all_rpc',
-  'mining_install_all_rigs_rpc',
+  'mining_install_all_rigs_rpc', 'open_number_case_rpc',
 ]);
 
 const stableSerialize = (value: unknown): string => {

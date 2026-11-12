@@ -1,5 +1,9 @@
 dist/
+.env
+.env.*
+!.env.example
 zhituha-casino.bundle
 node_modules/
+supabase/.temp/
 artifacts/
 marketing/series/episode-01-balance/audio/.alignment-cache/

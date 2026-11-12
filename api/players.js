@@ -185,6 +185,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ players: data?.players || [] });
     }
 
+    if (action === 'forever_number_leaderboard') {
+      const { data, error } = await sb.rpc('number_forever_leaderboard_rpc');
+      if (error) throw error;
+      return res.status(200).json({ players: data || [] });
+    }
+
     if (action === 'me') {
       // The referral count is decorative profile data. A missing column/index
       // or a transient count-query failure must not prevent the player from

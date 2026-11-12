@@ -20,6 +20,7 @@ const CLIENT_RPCS = new Set([
   'create_business_auction_rpc', 'bid_business_auction_rpc',
   'business_shop_state_rpc', 'business_cash_transfer_rpc', 'business_shop_restock_rpc', 'business_shop_set_price_rpc', 'business_shop_buy_rpc',
   'phone_numbers_state_rpc', 'spin_phone_number_rpc', 'sell_phone_number_to_state_rpc', 'activate_phone_number_rpc', 'spin_car_plate_rpc', 'resolve_car_plate_spin_rpc', 'activate_car_number_rpc', 'sell_car_number_to_state_rpc',
+  'number_cases_state_rpc', 'open_number_case_rpc',
   'business_autostock_state_rpc', 'business_autostock_configure_rpc',
   'business_sales_history_rpc',
   'casino_business_state_rpc', 'casino_business_upgrade_rpc',
@@ -72,7 +73,7 @@ const IDEMPOTENT_RPCS = new Set([
   'black_market_sell_rpc', 'district_travel_rpc', 'district_rest_rpc',
   'district_taxi_order_rpc', 'district_taxi_finish_ride_rpc',
   'mining_action_rpc', 'mining_sell_coin_rpc', 'mining_turn_on_all_rpc',
-  'mining_install_all_rigs_rpc',
+  'mining_install_all_rigs_rpc', 'open_number_case_rpc',
 ]);
 
 export default async function handler(req, res) {
@@ -88,6 +89,9 @@ export default async function handler(req, res) {
   const { name, args, idempotency_key: idempotencyKey } = req.body || {};
   if (typeof name !== 'string' || (name !== 'read_batch' && !CLIENT_RPCS.has(name)) || !args || typeof args !== 'object' || Array.isArray(args)) {
     return res.status(400).json({ error: 'Unsupported RPC' });
+  }
+  if (name === 'open_number_case_rpc' && args.p_case_id === 'daily') {
+    return res.status(400).json({ error: 'Ежедневная прокрутка отключена' });
   }
 
   try {
