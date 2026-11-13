@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useLayoutEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Coins, UserPlus, Briefcase, Coffee, Users, Smartphone, Phone, Car, Building, Store, Hammer, ChevronRight, Gift, Wrench, Search, ShieldAlert, Ban, Trash2, ArrowLeft, X, Backpack, Bug, AlertTriangle, Wallet, ScrollText, RefreshCw, Trophy, Palette, Settings, Volume2, VolumeX, Vibrate, Pickaxe, TreePine, Fish, Sprout, PackageCheck, CarFront, Crown, Ticket, LockKeyhole, Check, Medal, Sparkles } from 'lucide-react';
 import { 
   getAvatar, BUILDING_PRICE,
@@ -9,6 +9,7 @@ import {
   PLAYER_PROFESSIONS, PROFESSION_LOOT, PROFESSION_RARITIES
 } from './constants';
 import { Btn, Modal } from './components';
+import { NumberSpinMachine } from './NumberSpinMachine';
 import { AnimatedNumber } from './AnimatedNumber';
 import { ItemArtwork } from './ItemArtwork';
 import { ProfessionScene } from './ProfessionScene';
@@ -193,51 +194,6 @@ const CarNumberCollection = ({ app }: { app: any }) => {
       {listingNumber && <div style={{ display: 'grid', gap: 12, textAlign: 'left' }}><h3 style={{ margin: 0 }}>{'\u0412\u044b\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043d\u043e\u043c\u0435\u0440 \u043d\u0430 \u0440\u044b\u043d\u043e\u043a'}</h3><CarPlate plate={listingNumber.plate} /><small>{'\u041e\u0446\u0435\u043d\u043a\u0430 \u0433\u043e\u0441\u0443\u0434\u0430\u0440\u0441\u0442\u0432\u0430'} {'\u00b7'} {Number(listingNumber.estimated_value).toLocaleString('ru-RU')} {'\u20bd'}</small><label htmlFor="car-number-market-price">{'\u0426\u0435\u043d\u0430 \u043f\u0440\u043e\u0434\u0430\u0436\u0438'}, {'\u20bd'}</label><input id="car-number-market-price" type="number" min={1} max={100000000} step={1} value={listingPrice} onChange={event => setListingPrice(event.target.value)} style={S.input} /><div style={{ display: 'flex', gap: 8 }}><Btn variant="secondary" onClick={closeListing}>{'\u041e\u0442\u043c\u0435\u043d\u0430'}</Btn><Btn variant="primary" disabled={app.proc || !Number.isSafeInteger(Number(listingPrice)) || Number(listingPrice) < 1 || Number(listingPrice) > 100000000} onClick={submitListing}>{'\u0412\u044b\u0441\u0442\u0430\u0432\u0438\u0442\u044c'}</Btn></div></div>}
     </Modal>
   </>;
-};
-
-const SLOT_ROW_HEIGHT = 34;
-const NumberSpinMachine = ({ isCar, targetValue, stopping, onSettled }: { isCar: boolean; targetValue: string | null; stopping: boolean; onSettled: () => void }) => {
-  const target = targetValue || (isCar ? 'А000АА 77' : '+7 900 000-00-00');
-  const reels = useMemo(() => Array.from(target).map((char, index) => {
-    if (!/[0-9А-Я]/i.test(char)) return { char, index, symbols: null as string[] | null, targetIndex: -1 };
-    const alphabet = /\d/.test(char) ? '0123456789' : 'АВЕКМНОРСТУХ';
-    const cycle = Array.from({ length: 12 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]);
-    cycle[9] = char;
-    return { char, index, symbols: [...cycle, ...cycle], targetIndex: 9 };
-  }), [target]);
-  const trackRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const onSettledRef = useRef(onSettled);
-  onSettledRef.current = onSettled;
-
-  useLayoutEffect(() => {
-    if (!stopping || !targetValue) return;
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const animations = trackRefs.current.flatMap((track, index) => {
-      const reel = reels[index];
-      if (!track || !reel?.symbols) return [];
-      const matrix = getComputedStyle(track).transform.match(/matrix(?:3d)?\(([^)]+)\)/)?.[1].split(',').map(Number);
-      const currentY = matrix ? (matrix.length === 16 ? matrix[13] : matrix[5]) : 0;
-      track.style.animation = 'none';
-      track.style.transform = `translate3d(0, ${currentY}px, 0)`;
-      void track.offsetHeight;
-      const currentRow = Math.max(0, -currentY / SLOT_ROW_HEIGHT);
-      const targetRow = currentRow < reel.targetIndex ? reel.targetIndex : reel.targetIndex + 12;
-      const animation = track.animate([
-        { transform: `translate3d(0, ${currentY}px, 0)` },
-        { transform: `translate3d(0, ${-targetRow * SLOT_ROW_HEIGHT}px, 0)` },
-      ], { duration: reducedMotion ? 0 : 760 + (index % 6) * 80, delay: reducedMotion ? 0 : index * 38, easing: 'cubic-bezier(.12,.72,.16,1)', fill: 'forwards' });
-      return [animation];
-    });
-    if (!animations.length) { onSettledRef.current(); return; }
-    Promise.all(animations.map(animation => animation.finished.catch(() => undefined))).then(() => onSettledRef.current());
-    return () => animations.forEach(animation => animation.cancel());
-  }, [stopping, targetValue, reels]);
-
-  return <div className={`number-spin-machine is-spinning${stopping ? ' is-stopping' : ''}${isCar ? ' plate-machine' : ' phone-machine'}`} role="img" aria-label={isCar ? 'Барабаны автомобильного номера' : 'Барабаны телефонного номера'}>
-    <div className="number-spin-window" aria-hidden="true">{reels.map((reel, index) => reel.symbols ? <span className="number-slot-cell" key={index}><span ref={element => { trackRefs.current[index] = element; }} className="number-slot-track" style={{ '--slot-speed': `${1.05 + (index % 7) * .19}s`, '--slot-delay': `-${(index % 9) * .13}s` } as React.CSSProperties}>{reel.symbols.map((symbol, row) => <i key={row}>{symbol}</i>)}</span></span> : <span className="number-slot-separator" key={index}>{reel.char}</span>)}</div>
-    <i className="number-spin-glow" />
-    <span className="number-spin-indicator" aria-hidden="true" />
-  </div>;
 };
 
 const NumberSpinScreen = ({ app }: { app: any }) => {
@@ -2435,7 +2391,7 @@ export const InventoryTab = ({ app }: { app: any }) => {
     {app.phone ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div><Btn variant="purple" onClick={() => { app.setSellItemType('phone'); app.setSellItemData('phone'); app.setSellPrice(String(DEFAULT_SELL_PHONE)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить</Btn><Btn variant="primary" onClick={() => app.buyPhone(false)} disabled={app.proc}>Сдать (+1400)</Btn></div> : null}
     {!!(app.numberCollection?.numbers || []).length && <section style={{ ...S.card, maxWidth: 'none', display: 'grid', gap: 10 }}><div style={{ textAlign: 'left' }}><b>Коллекция номеров</b><small style={{ display: 'block', color: '#6b5f45', marginTop: 3 }}>Номера можно собирать без смартфона и продавать государству по примерной цене.</small></div>{app.numberCollection.numbers.map((number: any) => <div key={number.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 10, borderRadius: 10, background: 'rgba(90,70,40,.06)', textAlign: 'left' }}><div><b style={{ fontVariantNumeric: 'tabular-nums' }}>{number.number}</b><small style={{ display: 'block', color: '#6b5f45' }}>Оценка · {Number(number.estimated_value).toLocaleString('ru-RU')} ₽{number.is_active ? ' · установлен' : ''}</small></div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'end' }}>{app.phone && !number.is_active && <button type="button" disabled={app.proc} onClick={() => app.activatePhoneNumber(number.id)} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#3d7ea6', color: 'white' }}>Установить</button>}<button type="button" disabled={app.proc || number.is_active} onClick={() => openNumberListing(number, 'phone_number')} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#3d7ea6', color: 'white' }}>{'\u041d\u0430 \u0440\u044b\u043d\u043e\u043a'}</button><button type="button" disabled={app.proc} onClick={() => app.sellPhoneNumber(number.id)} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#e6dfd2', color: '#372e24' }}>Продать</button></div></div>)}</section>}
     <section className="car-number-inventory-section"><div className="car-number-collection-heading"><div><span>АВТОМОБИЛЬНЫЕ НОМЕРА</span><small>{(app.numberCollection?.car_numbers || []).length} номеров</small></div><CarFront size={18} /></div><CarNumberCollection app={app} /></section>
-    {app.hasCar ? <div className="inventory-personal-vehicle" style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><VehicleArtwork modelId={app.carModel} className="inventory-vehicle-art" /><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>{app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'lada' ? 'Ока' : app.carModel === 'toyota' ? 'Тойота' : 'Автомобиль')}</div><div style={{ fontSize: 12, color: '#3f9d55', marginTop: 4 }}>Состояние: {app.carHealth}%</div></div></div><div><small className="plate-caption">ГОСУДАРСТВЕННЫЙ НОМЕР</small>{app.numberCollection?.car_plate ? <CarPlate plate={app.numberCollection.car_plate} /> : <small>Номер назначается…</small>}</div><Btn variant="secondary" disabled={app.proc || app.money < 3000} onClick={app.spinCarPlate}>Перебросить номер · 3 000 ₽</Btn>{app.carHealth < 100 && <Btn variant="secondary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Найти автомастерскую</Btn>}<Btn variant="purple" onClick={() => { const base = Number(app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.base_price || 0); app.setSellItemType('car'); app.setSellItemData(app.carModel); app.setSellPrice(String(base || (app.carModel === 'lada' ? DEFAULT_SELL_LADA : DEFAULT_SELL_TOYOTA))); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
+    {app.hasCar ? <div className="inventory-personal-vehicle" style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><VehicleArtwork modelId={app.carModel} className="inventory-vehicle-art" /><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>{app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'lada' ? 'Ока' : app.carModel === 'toyota' ? 'Тойота' : 'Автомобиль')}</div><div style={{ fontSize: 12, color: '#3f9d55', marginTop: 4 }}>Состояние: {app.carHealth}%</div></div></div><div><small className="plate-caption">ГОСУДАРСТВЕННЫЙ НОМЕР</small>{app.numberCollection?.car_plate ? <CarPlate plate={app.numberCollection.car_plate} /> : <small>Номер назначается…</small>}</div><Btn variant="secondary" disabled={app.proc || app.money < 4000} onClick={app.spinCarPlate}>Перебросить номер · 4 000 ₽</Btn>{app.carHealth < 100 && <Btn variant="secondary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Найти автомастерскую</Btn>}<Btn variant="purple" onClick={() => { const base = Number(app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.base_price || 0); app.setSellItemType('car'); app.setSellItemData(app.carModel); app.setSellPrice(String(base || (app.carModel === 'lada' ? DEFAULT_SELL_LADA : DEFAULT_SELL_TOYOTA))); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
     {app.hasHouse ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Building size={32} color="#b06a15" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Квартира</div></div></div><Btn variant="purple" onClick={() => { app.setSellItemType('house'); app.setSellItemData(app.houseType); app.setSellPrice(String(DEFAULT_SELL_APARTMENT)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
     <Modal open={!!numberToList} onClose={closeNumberListing} contentStyle={{ maxWidth: 360 }}>
       {numberToList && <div style={{ display: 'grid', gap: 12, textAlign: 'left' }}>
