@@ -738,7 +738,7 @@ export const MarketItem = ({ item, app, type }: any) => {
   const title = type === 'phone_number' ? '\u0422\u0435\u043b\u0435\u0444\u043e\u043d\u043d\u044b\u0439 \u043d\u043e\u043c\u0435\u0440'
     : type === 'car_number' ? '\u0410\u0432\u0442\u043e\u043c\u043e\u0431\u0438\u043b\u044c\u043d\u044b\u0439 \u043d\u043e\u043c\u0435\u0440'
     : type === 'car' ? (app.vehicleState?.models?.find((model: any) => model.model_id === itemKey)?.model_name || (itemKey === 'lada' ? '\u041e\u043a\u0430' : '\u0422\u043e\u0439\u043e\u0442\u0430'))
-    : type === 'house' ? '\u041a\u0432\u0430\u0440\u0442\u0438\u0440\u0430' : itemKey === 'button' ? '\u041a\u043d\u043e\u043f\u043e\u0447\u043d\u044b\u0439 \u0442\u0435\u043b.' : itemKey === 'smartphone' ? '\u0421\u043c\u0430\u0440\u0442\u0444\u043e\u043d' : '\u0422\u0435\u043b\u0435\u0444\u043e\u043d';
+    : type === 'house' ? ({ apartment: 'Квартира', house: 'Дом', penthouse: 'Пентхаус' }[itemKey] || 'Жильё') : itemKey === 'button' ? '\u041a\u043d\u043e\u043f\u043e\u0447\u043d\u044b\u0439 \u0442\u0435\u043b.' : itemKey === 'smartphone' ? '\u0421\u043c\u0430\u0440\u0442\u0444\u043e\u043d' : '\u0422\u0435\u043b\u0435\u0444\u043e\u043d';
   return <div className="market-item-card" style={{ backgroundColor: '#21172e', color: '#f5effa', padding: 15, borderRadius: 14, border: '1px solid rgba(232,195,140,.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
     <div className="market-item-main" style={{ textAlign: 'left' }}>
       {marketArt && <img className="market-item-art" src={marketArt} alt="" aria-hidden="true" loading="lazy" />}
@@ -2370,6 +2370,25 @@ export const InventoryTab = ({ app }: { app: any }) => {
   const inventory = Array.isArray(app.career?.inventory) ? app.career.inventory : [];
   const rarityRank: Record<string, number> = { epic: 4, rare: 3, uncommon: 2, common: 1 };
   const sorted = [...inventory].sort((a, b) => (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0) || a.item_name.localeCompare(b.item_name, 'ru'));
+  const garage = app.vehicleState?.garage;
+  type GarageVehicle = { id: string; model_id: string; model_name: string; health: number; plate: string | null; is_active: boolean; is_listed: boolean };
+  const garageVehicles: GarageVehicle[] = Array.isArray(garage?.vehicles) ? garage.vehicles : app.hasCar ? [{
+    id: 'legacy-active', model_id: app.carModel,
+    model_name: app.vehicleState?.models?.find((model: { model_id: string }) => model.model_id === app.carModel)?.model_name || app.carModel,
+    health: app.carHealth, plate: app.numberCollection?.car_plate, is_active: true, is_listed: false,
+  }] : [];
+  const garageSlots = Number(garage?.garage_slots || 1);
+  const garageUsed = Number(garage?.garage_used ?? garageVehicles.length);
+  const homeLabels: Record<string, string> = { apartment: 'Квартира', house: 'Дом', penthouse: 'Пентхаус' };
+  const homeUpgrade = app.houseType === 'apartment'
+    ? { type: 'house', label: 'Дом', cost: 450000, slots: 4 }
+    : app.houseType === 'house' ? { type: 'penthouse', label: 'Пентхаус', cost: 2500000, slots: 6 } : null;
+  const listActiveCar = () => {
+    const base = Number(app.vehicleState?.models?.find((model: { model_id: string }) => model.model_id === app.carModel)?.base_price || 0);
+    app.setSellItemType('car'); app.setSellItemData(app.carModel);
+    app.setSellPrice(String(base || (app.carModel === 'lada' ? DEFAULT_SELL_LADA : DEFAULT_SELL_TOYOTA)));
+    app.setSellSource('personal'); app.setSellOpen(true);
+  };
   const openStack = (item: any) => { setSelected(item); setQuantity(1); setConfirmRareSale(false); };
   const closeStack = () => { setSelected(null); setConfirmRareSale(false); };
   const proceedSale = () => {
@@ -2391,8 +2410,36 @@ export const InventoryTab = ({ app }: { app: any }) => {
     {app.phone ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Смартфон</div></div><Btn variant="purple" onClick={() => { app.setSellItemType('phone'); app.setSellItemData('phone'); app.setSellPrice(String(DEFAULT_SELL_PHONE)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить</Btn><Btn variant="primary" onClick={() => app.buyPhone(false)} disabled={app.proc}>Сдать (+1400)</Btn></div> : null}
     {!!(app.numberCollection?.numbers || []).length && <section style={{ ...S.card, maxWidth: 'none', display: 'grid', gap: 10 }}><div style={{ textAlign: 'left' }}><b>Коллекция номеров</b><small style={{ display: 'block', color: '#6b5f45', marginTop: 3 }}>Номера можно собирать без смартфона и продавать государству по примерной цене.</small></div>{app.numberCollection.numbers.map((number: any) => <div key={number.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 10, borderRadius: 10, background: 'rgba(90,70,40,.06)', textAlign: 'left' }}><div><b style={{ fontVariantNumeric: 'tabular-nums' }}>{number.number}</b><small style={{ display: 'block', color: '#6b5f45' }}>Оценка · {Number(number.estimated_value).toLocaleString('ru-RU')} ₽{number.is_active ? ' · установлен' : ''}</small></div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'end' }}>{app.phone && !number.is_active && <button type="button" disabled={app.proc} onClick={() => app.activatePhoneNumber(number.id)} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#3d7ea6', color: 'white' }}>Установить</button>}<button type="button" disabled={app.proc || number.is_active} onClick={() => openNumberListing(number, 'phone_number')} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#3d7ea6', color: 'white' }}>{'\u041d\u0430 \u0440\u044b\u043d\u043e\u043a'}</button><button type="button" disabled={app.proc} onClick={() => app.sellPhoneNumber(number.id)} style={{ border: 0, borderRadius: 8, padding: '7px 9px', background: '#e6dfd2', color: '#372e24' }}>Продать</button></div></div>)}</section>}
     <section className="car-number-inventory-section"><div className="car-number-collection-heading"><div><span>АВТОМОБИЛЬНЫЕ НОМЕРА</span><small>{(app.numberCollection?.car_numbers || []).length} номеров</small></div><CarFront size={18} /></div><CarNumberCollection app={app} /></section>
-    {app.hasCar ? <div className="inventory-personal-vehicle" style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><VehicleArtwork modelId={app.carModel} className="inventory-vehicle-art" /><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>{app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.model_name || (app.carModel === 'lada' ? 'Ока' : app.carModel === 'toyota' ? 'Тойота' : 'Автомобиль')}</div><div style={{ fontSize: 12, color: '#3f9d55', marginTop: 4 }}>Состояние: {app.carHealth}%</div></div></div><div><small className="plate-caption">ГОСУДАРСТВЕННЫЙ НОМЕР</small>{app.numberCollection?.car_plate ? <CarPlate plate={app.numberCollection.car_plate} /> : <small>Номер назначается…</small>}</div><Btn variant="secondary" disabled={app.proc || app.money < 4000} onClick={app.spinCarPlate}>Перебросить номер · 4 000 ₽</Btn>{app.carHealth < 100 && <Btn variant="secondary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Найти автомастерскую</Btn>}<Btn variant="purple" onClick={() => { const base = Number(app.vehicleState?.models?.find((model: any) => model.model_id === app.carModel)?.base_price || 0); app.setSellItemType('car'); app.setSellItemData(app.carModel); app.setSellPrice(String(base || (app.carModel === 'lada' ? DEFAULT_SELL_LADA : DEFAULT_SELL_TOYOTA))); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
-    {app.hasHouse ? <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 15 }}><div style={{ display: 'flex', alignItems: 'center', gap: 15 }}><Building size={32} color="#b06a15" /><div style={{ textAlign: 'left' }}><div style={{ fontWeight: 'bold', fontSize: 18 }}>Квартира</div></div></div><Btn variant="purple" onClick={() => { app.setSellItemType('house'); app.setSellItemData(app.houseType); app.setSellPrice(String(DEFAULT_SELL_APARTMENT)); app.setSellSource('personal'); app.setSellOpen(true); }} disabled={app.proc}>Выставить на рынок</Btn></div> : null}
+    <section className="garage-card" style={{ ...S.card, maxWidth: 'none', display: 'grid', gap: 12, textAlign: 'left' }}>
+      <div className="garage-heading"><div><b>Гараж</b><small>{garage ? 'Занято ' + garageUsed + ' из ' + garageSlots + ' мест' : 'Данные гаража загружаются'}</small></div><CarFront size={21} /></div>
+      {app.vehicleState?.garageError && <div role="alert" className="garage-load-error">Не удалось загрузить гараж. <button type="button" disabled={app.proc} onClick={() => void app.refreshVehicleState()}>Повторить</button></div>}
+      {garageVehicles.map(car => <div key={car.id} className={'garage-vehicle-row' + (car.is_active ? ' is-active' : '')}>
+        <VehicleArtwork modelId={car.model_id} />
+        <div className="garage-vehicle-info"><b>{car.model_name}</b><small>Состояние {car.health}%{car.plate ? ' · ' + car.plate : ''}</small><small>{car.is_listed ? 'На рынке · место зарезервировано' : car.is_active ? 'Активная машина' : 'На парковке'}</small></div>
+        {!car.is_active && !car.is_listed && <button type="button" disabled={app.proc || !garage} onClick={() => app.garageSetActive(car.id)} aria-label={'Выбрать ' + car.model_name}>Выбрать</button>}
+      </div>)}
+      {garage && !garageVehicles.length && <small>Машин пока нет. Купить автомобиль можно на рынке у автосалона или игрока.</small>}
+      {garage && garageUsed > garageSlots && <small>В гараже больше машин, чем доступно мест. Машины сохранены; для новых покупок расширь жильё.</small>}
+      {app.hasCar && <div className="garage-active-actions">
+        <div><small className="plate-caption">НОМЕР АКТИВНОЙ МАШИНЫ</small>{app.numberCollection?.car_plate && <CarPlate plate={app.numberCollection.car_plate} />}</div>
+        <Btn variant="secondary" disabled={app.proc || app.money < 4000} onClick={app.spinCarPlate}>Перебросить номер · 4 000 ₽</Btn>
+        {app.carHealth < 100 && <Btn variant="secondary" onClick={() => { app.setMarketTab('shops'); app.setTab('market'); }}>Найти автомастерскую</Btn>}
+        <Btn variant="purple" onClick={listActiveCar} disabled={app.proc}>Выставить активную машину на рынок</Btn>
+      </div>}
+    </section>
+    {app.hasHouse && <section style={{ ...S.card, display: 'grid', gap: 12, textAlign: 'left' }}>
+      <div className="garage-heading"><div><b>{homeLabels[app.houseType] || 'Жильё'}</b><small>Квартира — 2 места, дом — 4, пентхаус — 6.</small></div><Building size={26} /></div>
+      {homeUpgrade && <Btn variant="secondary" disabled={app.proc || !garage || app.money < homeUpgrade.cost} onClick={() => app.homeUpgrade(homeUpgrade.type)}>
+        {homeUpgrade.label} · {homeUpgrade.cost.toLocaleString('ru-RU')} ₽ · {homeUpgrade.slots} мест
+      </Btn>}
+      {app.houseType === 'penthouse' && <small>Максимальный уровень жилья · 6 мест</small>}
+      <Btn variant="purple" disabled={app.proc || !garage || garageUsed > 1} onClick={() => {
+        app.setSellItemType('house'); app.setSellItemData(app.houseType);
+        app.setSellPrice(String(DEFAULT_SELL_APARTMENT + (app.houseType === 'house' ? 450000 : app.houseType === 'penthouse' ? 2950000 : 0)));
+        app.setSellSource('personal'); app.setSellOpen(true);
+      }}>Выставить жильё на рынок</Btn>
+      {garage && garageUsed > 1 && <small>Для продажи жилья оставь не больше одной машины, включая выставленные на рынок.</small>}
+    </section>}
     <Modal open={!!numberToList} onClose={closeNumberListing} contentStyle={{ maxWidth: 360 }}>
       {numberToList && <div style={{ display: 'grid', gap: 12, textAlign: 'left' }}>
         <h3 style={{ margin: 0 }}>{'\u0412\u044b\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043d\u043e\u043c\u0435\u0440 \u043d\u0430 \u0440\u044b\u043d\u043e\u043a'}</h3>

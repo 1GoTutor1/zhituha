@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:garage": "node tests/garage-integration.mjs",
     "episode:align": "node marketing/series/episode-01-balance/audio/align-subtitles.mjs",
     "episode:render": "node marketing/series/episode-01-balance/render-video.mjs",
     "preview": "vite preview"
@@ -19,6 +20,7 @@
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",

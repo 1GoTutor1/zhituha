@@ -27,7 +27,7 @@ const CLIENT_RPCS = new Set([
   'daily_missions_state_rpc', 'daily_mission_claim_rpc',
   'season_pass_state_rpc', 'season_pass_unlock_premium_rpc', 'season_pass_claim_rpc', 'season_pass_select_badges_rpc',
   'business_repair_personal_car_rpc', 'business_repair_taxi_car_rpc',
-  'business_vehicle_state_rpc', 'taxi_purchase_vehicle_rpc',
+  'business_vehicle_state_rpc', 'player_garage_state_rpc', 'garage_set_active_rpc', 'home_upgrade_rpc', 'taxi_purchase_vehicle_rpc',
   'bank_get_state_rpc', 'bank_move_cash_rpc', 'bank_transfer_rpc', 'bank_open_deposit_rpc',
   'bank_close_deposit_rpc', 'bank_buy_stock_rpc', 'bank_sell_stock_rpc', 'bank_apply_loan_rpc',
   'bank_repay_loan_rpc',
@@ -45,7 +45,7 @@ const CLIENT_RPCS = new Set([
 // authenticated Vercel invocation. Mutating RPCs are never batchable.
 const READ_BATCH_RPCS = new Set([
   'business_catalog_rpc', 'business_shop_state_rpc', 'business_autostock_state_rpc',
-  'casino_business_state_rpc', 'business_vehicle_state_rpc', 'family_state_rpc',
+  'casino_business_state_rpc', 'business_vehicle_state_rpc', 'player_garage_state_rpc', 'family_state_rpc',
   'season_pass_state_rpc',
   'black_market_state_rpc', 'bank_get_state_rpc', 'district_taxi_options_rpc',
   'district_rest_state_rpc', 'district_state_rpc', 'district_taxi_ride_state_rpc',
@@ -135,7 +135,7 @@ export default async function handler(req, res) {
     const safeArgs = { ...args };
     if (player) {
       for (const key of Object.keys(safeArgs)) {
-        if (/^p_(player|owner|buyer|admin)_id$/.test(key)) safeArgs[key] = player.id;
+        if (/^p_(player|owner|buyer|seller|admin)_id$/.test(key)) safeArgs[key] = player.id;
       }
     } else if (name === 'get_casino_round_rpc') safeArgs.p_player_id = null;
     if (name === 'add_referral_balance') return res.status(400).json({ error: 'Unsupported RPC' });

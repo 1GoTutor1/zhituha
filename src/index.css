@@ -1516,6 +1516,17 @@ body[data-ui-theme="dark"] .profession-select-label { color: var(--text-muted); 
 .market-item-card > div:last-child { margin-left: 10px; }
 .inventory-personal-vehicle { overflow: hidden; }
 .inventory-vehicle-art { width: 100%; height: 154px; object-position: center 55%; }
+.garage-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.garage-heading b { font-size: 18px; }
+.garage-heading small, .garage-vehicle-info small { display: block; opacity: .75; margin-top: 4px; }
+.garage-vehicle-row { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08); }
+.garage-vehicle-row.is-active { border-color: #e7aa24; }
+.garage-vehicle-row .vehicle-artwork { width: 54px; height: 42px; }
+.garage-vehicle-info { min-width: 0; overflow-wrap: anywhere; }
+.garage-vehicle-row button, .garage-load-error button { border: 0; border-radius: 9px; padding: 8px 10px; background: #3d7ea6; color: #fff; font-weight: 700; }
+.garage-vehicle-row button:disabled { opacity: .5; }
+.garage-active-actions { display: grid; gap: 10px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
+.garage-load-error { color: #efb0a5; font-size: 13px; }
 .business-car-stock-row .vehicle-artwork { width: 100%; height: 112px; margin-bottom: 9px; object-position: center 56%; }
 .taxi-fleet-car { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: start; gap: 11px; }
 .taxi-fleet-car .vehicle-artwork { width: 88px; height: 72px; }
